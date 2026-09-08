@@ -1,0 +1,1 @@
+{"id": "example", "page": "example/slides/e1.html", "target": "body", "caption": "Пример сцены для проверки ядра рендера.", "duration": 4.0, "effects": {"zoom": {"from": 0, "to": 0, "scale": 1}, "cursor": {"from": 0, "to": 0.01, "start": [-200, -200]}, "spot": {"from": 9999}, "caption": {"from": 9999}, "fade": {"in": 0.2, "out": 0.2}}}

@@ -1,0 +1,15 @@
+{
+  "serviceName": "agentic-screencast",
+  "dockerComposePath": "docker-compose.remote.yml",
+  "dockerfile": "Dockerfile",
+  "buildContext": ".",
+  "platform": "linux/amd64",
+  "remoteDir": "/opt/agentic-screencast",
+  "imageName": "agentic-screencast-site",
+  "deploymentType": "build",
+  "healthCheck": {
+    "containerName": "agentic-screencast-site",
+    "timeout": 120,
+    "interval": 3
+  }
+}

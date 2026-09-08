@@ -1,0 +1,87 @@
+{
+  "name": "agentic-screencast",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Build reproducible narrated videos from one declarative scenario.",
+  "keywords": [
+    "screencast",
+    "video",
+    "automation",
+    "playwright",
+    "text-to-speech"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/witqq/agentic-screencast.git"
+  },
+  "homepage": "https://agentic-screencast.witqq.dev/",
+  "bugs": {
+    "url": "https://github.com/witqq/agentic-screencast/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && vite build && node -e \"require('fs').cpSync('src/rules','dist/rules',{recursive:true})\" && node -e \"require('fs').chmodSync('dist/agentic-screencast.js', 0o755)\"",
+    "prepare": "npm run build",
+    "types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
+    "lint": "oxlint src scripts --deny-warnings",
+    "unit": "node --test dist/tests/unit/*.test.js",
+    "suite": "node dist/tests/suite.js",
+    "check": "node dist/agentic-screencast.js check",
+    "verify": "node dist/agentic-screencast.js verify",
+    "voices": "node dist/agentic-screencast.js voices",
+    "test": "npm run build && npm run types && npm run lint && npm run unit && npm run suite",
+    "voice-check": "node dist/voice-check.js",
+    "schema": "node dist/agentic-screencast.js schema",
+    "record": "node dist/agentic-screencast.js record",
+    "pack:check": "npm run build && node scripts/check-package.mjs",
+    "history:check": "node scripts/check-public-history.mjs",
+    "site:build": "node scripts/build-site.mjs",
+    "site:check": "npm run site:build && node scripts/check-site.mjs",
+    "deploy:prepare": "node scripts/build-site.mjs --require-clean",
+    "deploy:config": "infra-tools config .deploy-config.json --server witqq.ru",
+    "deploy:prod": "npm run deploy:prepare && infra-tools auto --server witqq.ru --config .deploy-config.json --no-log",
+    "release:check": "npm test && npm run pack:check && npm run site:check && npm run history:check"
+  },
+  "dependencies": {
+    "@ffprobe-installer/ffprobe": "2.1.2",
+    "ffmpeg-static": "5.3.0",
+    "playwright": "1.62.1",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "license": "GPL-3.0-or-later",
+  "bin": {
+    "agentic-screencast": "./dist/agentic-screencast.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "files": [
+    "dist",
+    "!dist/tests",
+    "src",
+    "example/story.md",
+    "README.md",
+    "README.ru.md",
+    "AGENTS.md",
+    "CLAUDE.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md",
+    "scene.example.json",
+    "tsconfig.json",
+    "tsconfig.browser.json"
+  ],
+  "devDependencies": {
+    "@types/node": "26.2.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.0",
+    "agentic-report": "0.12.0",
+    "ajv": "8.20.0",
+    "oxlint": "1.80.0",
+    "typescript": "7.0.2",
+    "vite": "8.2.2"
+  }
+}

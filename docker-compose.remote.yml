@@ -1,0 +1,24 @@
+services:
+  agentic-screencast:
+    image: agentic-screencast-site:latest
+    container_name: agentic-screencast-site
+    restart: unless-stopped
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    networks:
+      - traefik
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agentic-screencast.rule=Host(`agentic-screencast.witqq.dev`)"
+      - "traefik.http.routers.agentic-screencast.entrypoints=websecure"
+      - "traefik.http.routers.agentic-screencast.tls.certresolver=letsencrypt"
+      - "traefik.http.services.agentic-screencast.loadbalancer.server.port=8080"
+
+networks:
+  traefik:
+    external: true
