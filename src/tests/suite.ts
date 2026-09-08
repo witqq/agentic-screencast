@@ -746,7 +746,7 @@ await check("человек записывает ролик голосом че�
   const r = run("node", [resolve(HERE, "dist", "tests", "record-e2e.js")], { timeout: 300_000 });
   if (r.status === 0) return true;
   const said = ((r.stderr || "") + (r.stdout || "")).trim().split("\n").filter(Boolean);
-  return said.length ? said.slice(-3).join("; ") : `код ${r.status}`;
+  return said.length ? `код ${r.status}:\n${said.slice(-40).join("\n")}` : `код ${r.status}`;
 });
 
 // 21. Вердикт проверки кадров зависит от кадра, а не от того, чьей
