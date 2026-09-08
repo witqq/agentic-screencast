@@ -1,6 +1,6 @@
 {
   "serviceName": "agentic-screencast",
-  "dockerComposePath": "docker-compose.remote.yml",
+  "dockerComposePath": "docker-compose.yml",
   "dockerfile": "Dockerfile",
   "buildContext": ".",
   "platform": "linux/amd64",
