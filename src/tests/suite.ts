@@ -22,6 +22,15 @@ const HERE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const run = (cmd: string, args: string[], opts: Record<string, unknown> = {}): SpawnSyncReturns<string> =>
   spawnSync(cmd, args, { cwd: HERE, encoding: "utf8", ...opts });
 
+/** npm 10 may print prepare/build output before a --json report. */
+const jsonSuffix = <T>(output: string): T => {
+  for (let at = output.lastIndexOf("["); at >= 0; at = output.lastIndexOf("[", at - 1)) {
+    try { return JSON.parse(output.slice(at)) as T; }
+    catch { /* Keep looking for the top-level report opening bracket. */ }
+  }
+  return JSON.parse(output) as T;
+};
+
 const results: Array<[string, boolean, string]> = [];
 // Проверка может быть и обещанием: часть предметов измеряется только
 // в браузере, а он отвечает не сразу. Ждём каждую по очереди — порядок
@@ -285,7 +294,7 @@ await check("поставка содержит всё, что продукт и�
   // и проверка запуска командой оставалась зелёной на сломанном дереве.
   const packed = run("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"]);
   if (packed.status !== 0) return `упаковка не отработала: ${packed.stderr.slice(0, 160)}`;
-  const files: string[] = (JSON.parse(packed.stdout) as Array<{ files: Array<{ path: string }> }>)[0]!
+  const files: string[] = jsonSuffix<Array<{ files: Array<{ path: string }> }>>(packed.stdout)[0]!
     .files.map((f) => f.path);
   const has = (p: string): boolean =>
     files.includes(p) || files.some((f) => f.startsWith(p.replace(/\/$/, "") + "/"));
@@ -547,7 +556,7 @@ await check("собранное в поставке не зависит от р�
   const allowed = new Set(Object.keys(manifest.dependencies ?? {}));
   const packed = run("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"]);
   if (packed.status !== 0) return `упаковка не отработала: ${packed.stderr.slice(0, 160)}`;
-  const shipped = (JSON.parse(packed.stdout) as Array<{ files: Array<{ path: string }> }>)[0]!
+  const shipped = jsonSuffix<Array<{ files: Array<{ path: string }> }>>(packed.stdout)[0]!
     .files.map((f) => f.path).filter((p) => p.startsWith("dist/") && p.endsWith(".js"));
   if (shipped.length < 5) return `в поставке собранных модулей: ${shipped.length}`;
 
