@@ -1,6 +1,6 @@
 {
   "name": "agentic-screencast",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Build reproducible narrated videos from one declarative scenario.",
   "keywords": [
