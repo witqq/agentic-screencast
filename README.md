@@ -47,7 +47,7 @@ Copy a scenario into your video workspace first; the command does not invent `st
 Build one scene from the scenario below during iteration, with an explicit free voice:
 
 ```sh
-agentic-screencast build --source story.md --only intro --out intro.mp4 --voice-json '{"engine":"stub","name":"silent","cps":15}'
+agentic-screencast build --source story.md --only e1 --out e1.mp4 --voice-json '{"engine":"stub","name":"silent","cps":15}'
 ```
 
 ## Scenario format
@@ -58,7 +58,7 @@ Speech is ordinary prose. A paragraph is a beat with its own recording, duration
 # Product tour
 voice: {"engine":"recorded","name":"narrator"}
 
-## intro · slides.compare
+## e1 · slides.compare
 kicker: Why it matters
 title: One source for picture and sound
 left: Separate timelines (bad) :: drift after every voice edit
