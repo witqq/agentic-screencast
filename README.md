@@ -2,9 +2,17 @@
 
 **English** | [Русский](README.ru.md)
 
-Build reproducible videos from one declarative scenario. Agentic Screencast turns scenes into web pages, generates or records speech, derives timing from the audio, renders deterministic frames in Chromium, and joins them into an MP4.
+Agentic Screencast is a video-building CLI for AI agents. An agent turns product knowledge into a scenario, builds a video presentation, checks the result and hands the viewer an MP4. Use it for product explainers, feature walkthroughs and narrated presentations.
+
+The agent owns research, writing and review. The CLI turns declared scenes into web pages, generates speech or uses recordings, derives timing from audio, renders frames in Chromium and joins them into an MP4. Structured schemas and JSON build reports let the agent inspect inputs and results without operating a video editor.
 
 It does not record a live screen. Every frame is rendered from declared data at an explicit point in time, so unchanged scenes can be cached and rebuilt independently.
+
+## Give the task to an agent
+
+Start with the [agent entry point](AGENTS.md) and the [complete small scenario](example/agent-video.md). Tell the agent which product and source revision to explain, who will watch, the intended language and approximate duration. It should build a free silent draft before requesting paid narration.
+
+For a guided process, use the public **Agentic Screencast Video** workflow in Moira: `admin/agentic-screencast-video`. It covers facts, scenario, materials, draft, narration, review and repair. Moira supplies the steps; the agent runs the CLI in its own workspace. See the [Moira integration guide](docs/moira.md) for setup, launch, review modes and permissions. The CLI also works without Moira.
 
 ## Install
 
@@ -31,13 +39,15 @@ Use the free `stub` voice while editing. It produces silence with a deterministi
 agentic-screencast build \
   --source story.md \
   --voice-json '{"engine":"stub","name":"silent","cps":15}' \
-  --keys-only
+  --out draft.mp4
 ```
 
-Build one scene during iteration:
+Copy a scenario into your video workspace first; the command does not invent `story.md`. `--keys-only` returns keys instead of an MP4, but still synthesizes missing audio. Keep the explicit stub voice for a free check.
+
+Build one scene from the scenario below during iteration, with an explicit free voice:
 
 ```sh
-agentic-screencast build --source story.md --only e1 --out e1.mp4
+agentic-screencast build --source story.md --only intro --out intro.mp4 --voice-json '{"engine":"stub","name":"silent","cps":15}'
 ```
 
 ## Scenario format
@@ -53,7 +63,7 @@ kicker: Why it matters
 title: One source for picture and sound
 left: Separate timelines (bad) :: drift after every voice edit
 right: One scenario (good) :: audio defines duration | visuals follow beats
-at: b1 b2
+at: b1 b1 b2
 
 The first beat introduces the problem.
 
@@ -93,6 +103,8 @@ agentic-screencast provider-check 'python3 /path/provider.py'
 ```
 
 `check` evaluates the settled frame using thresholds declared by its material provider. `order` verifies reveal timing. `verify` checks deterministic rendering, animation, frozen time, and seeking against real Chromium frames.
+
+These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. See the [Moira guide](docs/moira.md) for coverage and path limitations before automating acceptance.
 
 ## Voice and secret boundary
 

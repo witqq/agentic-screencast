@@ -75,6 +75,9 @@ jobs:
       - name: Build and verify landing
         run: npm run site:check
 
+      - name: Check public Moira workflow contracts
+        run: npm run workflow:check
+
       - name: Upload candidate evidence
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:

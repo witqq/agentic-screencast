@@ -76,7 +76,16 @@ try {
   if ((await language.count()) !== 1) throw new Error("landing language selector is missing");
   await language.selectOption("ru");
   const heading = (await locale.locator("h1").innerText()).trim();
-  if (heading !== "Картинка всегда следует за голосом") throw new Error("Russian landing is not reachable");
+  if (heading !== "Видеопрезентации, которые собирает агент") throw new Error("Russian agent-first landing is not reachable");
+  for (const lang of ["en", "ru"]) {
+    await locale.locator("[data-language-select]").selectOption(lang);
+    if (!(await locale.locator("#moira").innerText()).includes("admin/agentic-screencast-video")) {
+      throw new Error(`Moira integration identity is missing in ${lang}`);
+    }
+    const guide = `https://github.com/witqq/agentic-screencast/blob/main/docs/moira${lang === "ru" ? ".ru" : ""}.md`;
+    if ((await locale.locator(`a[href="${guide}"]`).count()) === 0) throw new Error(`Missing ${lang} integration guide`);
+    if (!(await locale.locator("#start pre").innerText()).includes("--out draft.mp4")) throw new Error("First build does not produce an MP4");
+  }
   await locale.close();
 } finally {
   await browser.close();

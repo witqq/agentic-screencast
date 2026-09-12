@@ -2,11 +2,11 @@
 
 CI, GitHub Release creation, npm publication, and landing deployment are separate gates. Complete each gate from the same accepted commit and record its observed result; one successful effect does not prove another.
 
-## Publication blocker in the current private history
+## Public-history gate
 
-The initial commit contains removed authenticated Moira MHTML captures under `pitch/screens/`. Secret scanners found no credential, but the captures contain private operational identifiers and one non-placeholder account address. Do not make the repository public or create a public release while `npm run history:check` fails.
+The public repository uses a clean history. The release gate rejects any reachable ref containing `pitch/screens/`, where authenticated captures must never be published. Run publication checks from a fresh clone of the public remote: a maintainer's older recovery refs may contain private history and must remain local. Never push all refs or mirror a maintenance checkout.
 
-Cleaning the existing history requires a destructive rewrite and force push. Creating a clean public history changes repository continuity. Either choice needs the repository owner's explicit authorization. After the chosen cleanup, run gitleaks and trufflehog across every resulting ref, inspect the former capture paths manually, and require `npm run history:check` to pass before changing visibility.
+If the gate fails on the public clone, stop publication and inspect the exact refs. Any destructive history rewrite or force push requires separate owner approval. The capture-path gate complements secret scanning; it does not establish that arbitrary files are safe to publish.
 
 ## Prepare a release
 
@@ -17,6 +17,7 @@ npm ci
 npm test
 npm run pack:check
 npm run site:check
+npm run workflow:check
 npm run history:check
 git status --short
 ```

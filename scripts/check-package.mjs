@@ -48,6 +48,10 @@ const required = [
   "dist/record-ui/index.html",
   "dist/record-ui/index.js",
   "example/story.md",
+  "example/agent-video.md",
+  "docs/moira.md",
+  "docs/moira.ru.md",
+  "workflows/production/flows/agentic-screencast-video.json",
 ];
 for (const path of required) {
   if (!paths.includes(path)) throw new Error(`package candidate is missing ${path}`);
