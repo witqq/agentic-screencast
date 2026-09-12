@@ -1,7 +1,7 @@
 ---
 contractVersion: 1
-title: Agentic Screencast — reproducible narrated video from one scenario
-description: Build deterministic product videos from declarative scenes, measured speech, and web pages.
+title: Agentic Screencast — video presentations built by agents
+description: Give an AI agent a product and a goal. It writes a scenario, builds a video with the CLI and checks the MP4. Use directly or through Moira.
 language: en
 localizations:
   ru: report.ru.md
@@ -15,15 +15,17 @@ tokens:
   radius: round
 ---
 
-# The video follows the voice. Every time.
+# Video presentations, built by agents
 
-**Write one scenario. Get measured speech, deterministic Chromium frames, reusable scene caches, and a finished MP4.**
+**Give your agent the product, the audience and the point to explain. Get a video people can watch.**
 
-Agentic Screencast renders declared web scenes at explicit moments in time. It never records a live desktop. Change one beat of narration and the affected timing, audio, and frames rebuild from the same source.
+Agentic Screencast is the agent's video-building CLI. The agent researches the product, writes a scenario and checks the result. The tool turns that scenario into slides, narration and an MP4. Use it for product explainers, feature walkthroughs and narrated presentations.
+
+One text source. JSON schemas and build reports. Scene-by-scene iteration without operating a video editor.
 
 ::::actions{placement="edge"}
-::action[Build with the free stub]{href="#start" kind="primary" effect="magnetic"}
-::action[See the pipeline]{href="#pipeline" kind="secondary"}
+::action[Give it to your agent]{href="#start" kind="primary" effect="magnetic"}
+::action[Use the Moira workflow]{href="#moira" kind="secondary"}
 ::action[Read the boundaries]{href="#boundaries" kind="quiet"}
 ::::
 
@@ -39,9 +41,9 @@ The renderer injects its own clock and tests repeatability, animation, frozen ti
 :::
 ::::
 
-::::::section{title="From prose to MP4 through one observable pipeline" id="pipeline" nav="Pipeline" composition="split" surface="grid" transition="reveal" scene="progress"}
+::::::section{title="How the agent's scenario becomes a video" id="pipeline" nav="Build" composition="split" surface="grid" transition="reveal" scene="progress"}
 :::lead
-The cache key records the inputs that can change a scene: text, voice data and fingerprint, page bytes, frame and encoding settings, neighboring transitions, product source, ffmpeg, and Chromium.
+The agent writes the scene content and speech in one file. The CLI measures the audio and makes the picture follow it. Unchanged scenes reuse the cache; changing a beat rebuilds the affected sound and frames.
 :::
 
 ::::timeline{title="A scene build" description="Each stage leaves a result the next stage can verify."}
@@ -89,7 +91,7 @@ The recording page runs on loopback because browsers allow microphone access the
 
 ```sh
 agentic-screencast record --source story.md
-agentic-screencast build --source story.md --out product-tour.mp4
+agentic-screencast build --source story.md --out product-tour.mp4 --voice-json '{"engine":"recorded"}'
 ```
 
 ::::cards
@@ -117,25 +119,46 @@ Voice engines receive text and voice data through a documented subprocess contra
 
 :::callout{kind="info" title="Build and acceptance are separate"}
 `build` returns the requested video. Run the visual and ordering checks when the project needs those acceptance guarantees.
+They use estimated beat timing. Inspect the actual MP4 to verify synchronization with the final narration; video clips need direct inspection.
 :::
 ::::::
 
-::::::section{title="Start without a paid voice" id="start" nav="Start" composition="stage" surface="mesh" tone="contrast" align="center"}
+::::::section{title="Let Moira guide the agent through the whole task" id="moira" nav="Moira" composition="split" surface="grid" transition="reveal"}
+:::lead
+The public Agentic Screencast Video workflow covers facts, scenario, materials, a free draft, narration and review. Findings return to the step that can fix them.
+:::
+
+Moira supplies instructions and tracks progress. Your agent runs the CLI locally and inspects the MP4. Self-review is explicit; independent review requires an available, authorized reviewer. Paid speech and external delivery each need permission.
+
+::::actions{placement="inline"}
+::action[Open the integration guide]{href="https://github.com/witqq/agentic-screencast/blob/main/docs/moira.md" kind="primary"}
+::action[View the workflow definition]{href="https://github.com/witqq/agentic-screencast/blob/main/workflows/production/flows/agentic-screencast-video.json" kind="secondary"}
+::::
+
+In the connected Moira catalogue, ask the agent to find `admin/agentic-screencast-video`. A Moira account and an agent with local command/file access are required. The CLI also works without Moira.
+::::::
+
+::::::section{title="Your agent's first video" id="start" nav="Start" composition="stage" surface="mesh" tone="contrast" align="center"}
+
+Ask the agent to explain a product to a named audience, in a chosen language and approximate duration. Start with a free silent draft. Copy the linked complete example into a separate video workspace as `story.md` before running these commands.
 
 ```sh
-npm install --global agentic-screencast
-npx playwright install chromium
+npm install --save-exact agentic-screencast@1.0.1
+npx --no-install playwright install chromium
 
-agentic-screencast build \
+npx --no-install agentic-screencast build \
   --source story.md \
   --voice-json '{"engine":"stub","name":"silent","cps":15}' \
-  --keys-only
+  --out draft.mp4
 ```
 
 ::::actions{placement="bottom"}
+::action[Get the complete example]{href="https://github.com/witqq/agentic-screencast/blob/main/example/agent-video.md" kind="secondary"}
 ::action[Read the guide]{href="https://github.com/witqq/agentic-screencast#readme" kind="primary" effect="magnetic"}
 ::action[View the source]{href="https://github.com/witqq/agentic-screencast" kind="secondary"}
 ::::
+
+The stub produces silence. `--keys-only` skips the MP4, but can still synthesize missing audio. Use the explicit stub voice for free checks. See the guide for supported paths and inspection limits in CLI 1.0.1.
 ::::::
 
 ::::::section{title="An explicit local trust boundary" id="boundaries" nav="Boundaries" composition="stack" surface="grain"}

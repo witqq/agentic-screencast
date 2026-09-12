@@ -1,19 +1,21 @@
 ---
 contractVersion: 1
-title: Agentic Screencast — воспроизводимый ролик из одного сценария
-description: Декларативные сцены, измеренная речь и веб-страницы превращаются в готовое видео.
+title: Agentic Screencast — видеопрезентации, которые собирает агент
+description: Дайте AI-агенту продукт и цель. Он подготовит сценарий, соберёт видео через CLI и проверит MP4. Работает напрямую и через Moira.
 language: ru
 ---
 
-# Картинка всегда следует за голосом
+# Видеопрезентации, которые собирает агент
 
-**Один сценарий задаёт сцены и речь. На выходе — измеренный звук, воспроизводимые кадры Chromium, переиспользуемый кэш и готовый MP4.**
+**Укажите агенту продукт, аудиторию и то, что нужно объяснить. На выходе — видео для человека.**
 
-Agentic Screencast рисует объявленные веб-сцены в заданные моменты времени. Живой экран не записывается. Измените один такт реплики — связанные звук, длительность и кадры пересоберутся из того же источника.
+Agentic Screencast — инструмент агента для сборки видео через командную строку. Агент изучает продукт, пишет сценарий и проверяет результат. Инструмент превращает сценарий в слайды, озвучку и MP4. Так можно подготовить объяснение продукта, обзор функции или презентацию с голосом.
+
+Один текстовый источник. Машинно читаемые схемы и отчёты сборки позволяют проверять вход и результат; правки вносятся по сценам, без управления видеоредактором.
 
 ::::actions{placement="edge"}
-::action[Проверить бесплатным stub]{href="#start" kind="primary" effect="magnetic"}
-::action[Посмотреть конвейер]{href="#pipeline" kind="secondary"}
+::action[Поручить агенту]{href="#start" kind="primary" effect="magnetic"}
+::action[Использовать процесс Moira]{href="#moira" kind="secondary"}
 ::action[Прочитать об ограничениях]{href="#boundaries" kind="quiet"}
 ::::
 
@@ -29,9 +31,9 @@ Agentic Screencast рисует объявленные веб-сцены в за
 :::
 ::::
 
-::::::section{title="От прозы до MP4 по одному наблюдаемому конвейеру" id="pipeline" nav="Конвейер" composition="split" surface="grid" transition="reveal" scene="progress"}
+::::::section{title="Как сценарий агента становится видео" id="pipeline" nav="Сборка" composition="split" surface="grid" transition="reveal" scene="progress"}
 :::lead
-Ключ кэша учитывает всё, что меняет сцену: текст, данные и отпечаток голоса, байты страницы, кадр, кодирование, соседние переходы, исходники продукта, ffmpeg и Chromium.
+Агент описывает сцены и речь в одном файле. Сборка измеряет звук и подстраивает под него изображение. Неизменные сцены берутся из кэша; после правки такта пересобираются связанные звук и кадры.
 :::
 
 ::::timeline{title="Сборка сцены" description="Каждый этап оставляет результат, который проверяет следующий."}
@@ -45,7 +47,7 @@ Agentic Screencast рисует объявленные веб-сцены в за
 Chromium получает явные часы. Сохранённая страница приложения может открываться с заблокированной сетью.
 :::
 :::event{date="Склейка" title="Собрать видео" kind="warning"}
-Сегменты кодируются с одним кадровым контрактом и соединяются с измеренным звуком.
+Сцены приводятся к общему размеру и частоте кадров, затем соединяются со звуком.
 :::
 ::::
 ::::::
@@ -79,7 +81,7 @@ Chromium получает явные часы. Сохранённая стран
 
 ```sh
 agentic-screencast record --source story.md
-agentic-screencast build --source story.md --out product-tour.mp4
+agentic-screencast build --source story.md --out product-tour.mp4 --voice-json '{"engine":"recorded"}'
 ```
 
 ::::cards
@@ -107,25 +109,46 @@ agentic-screencast build --source story.md --out product-tour.mp4
 
 :::callout{kind="info" title="Сборка и приёмка разделены"}
 `build` отдаёт запрошенное видео. Проверки изображения и порядка запускаются там, где проект требует этих гарантий.
+Они используют оценочное время тактов. Совпадение изображения с финальной речью проверяйте в самом MP4; видеовставки требуют прямого просмотра.
 :::
 ::::::
 
-::::::section{title="Начните без платного голоса" id="start" nav="Старт" composition="stage" surface="mesh" tone="contrast" align="center"}
+::::::section{title="Проведите агента через всю задачу с Moira" id="moira" nav="Moira" composition="split" surface="grid" transition="reveal"}
+:::lead
+Публичный процесс Agentic Screencast Video включает факты, сценарий, материалы, бесплатный черновик, озвучку и проверку. Замечания возвращаются на тот этап, где их можно исправить.
+:::
+
+Moira выдаёт инструкции и сохраняет прогресс. Команды запускает агент в своём окружении; там же он проверяет MP4. Самостоятельная проверка отмечается явно. Для независимой нужен доступный исполнитель и разрешение на его участие. Платная речь и внешняя передача требуют отдельных разрешений.
+
+::::actions{placement="inline"}
+::action[Открыть инструкцию интеграции]{href="https://github.com/witqq/agentic-screencast/blob/main/docs/moira.ru.md" kind="primary"}
+::action[Посмотреть определение процесса]{href="https://github.com/witqq/agentic-screencast/blob/main/workflows/production/flows/agentic-screencast-video.json" kind="secondary"}
+::::
+
+Попросите агента найти `admin/agentic-screencast-video` в подключённом каталоге Moira. Нужны аккаунт Moira и агент с доступом к локальным файлам и командной строке. Сам CLI работает и без Moira.
+::::::
+
+::::::section{title="Первый ролик вашего агента" id="start" nav="Старт" composition="stage" surface="mesh" tone="contrast" align="center"}
+
+Поручите агенту объяснить продукт выбранной аудитории; укажите язык и ориентир длительности. Начните с бесплатного черновика с тишиной. Перед запуском скопируйте полный пример по ссылке ниже в отдельный каталог ролика как `story.md`.
 
 ```sh
-npm install --global agentic-screencast
-npx playwright install chromium
+npm install --save-exact agentic-screencast@1.0.1
+npx --no-install playwright install chromium
 
-agentic-screencast build \
+npx --no-install agentic-screencast build \
   --source story.md \
   --voice-json '{"engine":"stub","name":"silent","cps":15}' \
-  --keys-only
+  --out draft.mp4
 ```
 
 ::::actions{placement="bottom"}
+::action[Взять полный пример]{href="https://github.com/witqq/agentic-screencast/blob/main/example/agent-video.md" kind="secondary"}
 ::action[Открыть руководство]{href="https://github.com/witqq/agentic-screencast/blob/main/README.ru.md" kind="primary" effect="magnetic"}
 ::action[Посмотреть исходники]{href="https://github.com/witqq/agentic-screencast" kind="secondary"}
 ::::
+
+Stub создаёт тишину. Флаг `--keys-only` не собирает MP4, но может синтезировать отсутствующий звук. Для бесплатной проверки явно выбирайте stub. Допустимые пути и ограничения проверки версии 1.0.1 описаны в инструкции.
 ::::::
 
 ::::::section{title="Явная локальная граница доверия" id="boundaries" nav="Границы" composition="stack" surface="grain"}

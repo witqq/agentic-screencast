@@ -1,12 +1,14 @@
 {
   "name": "agentic-screencast",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
-  "description": "Build reproducible narrated videos from one declarative scenario.",
+  "description": "A video-building CLI for AI agents: declarative scenarios, narration, reproducible frames and MP4 output.",
   "keywords": [
     "screencast",
     "video",
     "automation",
+    "ai-agents",
+    "moira",
     "playwright",
     "text-to-speech"
   ],
@@ -39,10 +41,11 @@
     "history:check": "node scripts/check-public-history.mjs",
     "site:build": "node scripts/build-site.mjs",
     "site:check": "npm run site:build && node scripts/check-site.mjs",
+    "workflow:check": "node scripts/check-workflow.mjs",
     "deploy:prepare": "node scripts/build-site.mjs --require-clean",
     "deploy:config": "infra-tools config .deploy-config.json --server witqq.ru",
     "deploy:prod": "npm run deploy:prepare && infra-tools auto --server witqq.ru --config .deploy-config.json --no-log",
-    "release:check": "npm test && npm run pack:check && npm run site:check && npm run history:check"
+    "release:check": "npm test && npm run pack:check && npm run site:check && npm run workflow:check && npm run history:check"
   },
   "dependencies": {
     "@ffprobe-installer/ffprobe": "2.1.2",
@@ -63,6 +66,10 @@
     "!dist/tests",
     "src",
     "example/story.md",
+    "example/agent-video.md",
+    "docs/moira.md",
+    "docs/moira.ru.md",
+    "workflows/production/flows/agentic-screencast-video.json",
     "README.md",
     "README.ru.md",
     "AGENTS.md",
