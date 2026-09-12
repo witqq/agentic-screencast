@@ -1,7 +1,7 @@
 {
   "metadata": {
     "name": "Agentic Screencast Video",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "An agent builds a verified video presentation with Agentic Screencast: source-backed story, local materials, free draft, selected narration, repair loops and permission-scoped MP4 handoff."
   },
   "variableRegistry": {
@@ -487,7 +487,7 @@
         "success": "route-facts-pass"
       },
       "progressNodeId": "facts",
-      "progressActiveLabel": "Независимо проверить факты"
+      "progressActiveLabel": "Проверить факты"
     },
     {
       "id": "route-facts-pass",
@@ -655,7 +655,7 @@
         "success": "route-story-pass"
       },
       "progressNodeId": "story",
-      "progressActiveLabel": "Независимо проверить сценарий"
+      "progressActiveLabel": "Проверить сценарий"
     },
     {
       "id": "route-story-pass",
@@ -1346,7 +1346,7 @@
         "success": "route-final-pass"
       },
       "progressNodeId": "final",
-      "progressActiveLabel": "Независимо принять готовый ролик"
+      "progressActiveLabel": "Принять готовый ролик"
     },
     {
       "id": "route-final-pass",

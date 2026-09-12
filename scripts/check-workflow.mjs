@@ -27,6 +27,9 @@ assert.equal(flow.variableRegistry.allow_paid_synthesis.default, false);
 assert.equal(flow.variableRegistry.allow_commit.default, false);
 assert.equal(flow.variableRegistry.allow_external_delivery.default, false);
 assert.equal(flow.variableRegistry.review_mode.default, "self");
+for (const id of ["facts-review", "story-review", "final-review"]) {
+  assert.doesNotMatch(nodes.get(id).progressActiveLabel, /независим/iu, "default self-review must not be labelled independent");
+}
 assert.equal(flow.variableRegistry.synthesis_cost.default, "paid_or_unknown");
 
 function route(overrides = {}, responses = {}) {
