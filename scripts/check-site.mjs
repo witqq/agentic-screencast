@@ -51,22 +51,38 @@ try {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.goto(url, { waitUntil: "load" });
     await page.locator("h1").waitFor({ state: "visible" });
-    const state = await page.evaluate(() => ({
-      h1: document.querySelectorAll("h1").length,
-      main: document.querySelectorAll("main").length,
-      overflow: document.documentElement.scrollWidth > innerWidth,
-      emptyInteractive: [...document.querySelectorAll("a,button")].filter((element) => {
-        const label = element.textContent?.trim() || element.getAttribute("aria-label")?.trim();
-        return !label;
-      }).length,
-      pendingMotion: document.querySelectorAll("[data-reveal-pending], [data-reveal-motion]").length,
-    }));
-    if (state.h1 !== 1 || state.main !== 1 || state.overflow || state.emptyInteractive || state.pendingMotion || errors.length) {
-      throw new Error(`landing ${profile.name} failed: ${JSON.stringify({ state, errors })}`);
+    for (const lang of ["en", "ru"]) {
+      await page.locator("[data-language-select]").selectOption(lang);
+      const state = await page.evaluate(() => ({
+        h1: document.querySelectorAll("h1").length,
+        main: document.querySelectorAll("main").length,
+        overflow: document.documentElement.scrollWidth > innerWidth,
+        emptyInteractive: [...document.querySelectorAll("a,button")].filter((element) => {
+          const label = element.textContent?.trim() || element.getAttribute("aria-label")?.trim();
+          return !label;
+        }).length,
+        pendingMotion: document.querySelectorAll("[data-reveal-pending], [data-reveal-motion]").length,
+        brokenHeadingWords: (() => {
+          const words = [];
+          const walk = document.createTreeWalker(document.querySelector("h1"), NodeFilter.SHOW_TEXT);
+          while (walk.nextNode()) {
+            for (const match of walk.currentNode.textContent.matchAll(/[\p{L}\p{N}]+/gu)) {
+              const range = document.createRange();
+              range.setStart(walk.currentNode, match.index);
+              range.setEnd(walk.currentNode, match.index + match[0].length);
+              if (range.getClientRects().length > 1) words.push(match[0]);
+            }
+          }
+          return words;
+        })(),
+      }));
+      if (state.h1 !== 1 || state.main !== 1 || state.overflow || state.emptyInteractive || state.pendingMotion || state.brokenHeadingWords.length || errors.length) {
+        throw new Error(`landing ${profile.name}/${lang} failed: ${JSON.stringify({ state, errors })}`);
+      }
+      const repository = page.locator('a[href="https://github.com/witqq/agentic-screencast"]');
+      if ((await repository.count()) === 0) throw new Error("landing has no repository link");
+      await page.screenshot({ path: resolve(captureRoot, `${profile.name}-${lang}.png`), fullPage: true });
     }
-    const repository = page.locator('a[href="https://github.com/witqq/agentic-screencast"]');
-    if ((await repository.count()) === 0) throw new Error("landing has no repository link");
-    await page.screenshot({ path: resolve(captureRoot, `${profile.name}.png`), fullPage: true });
     await page.close();
   }
 
@@ -76,7 +92,7 @@ try {
   if ((await language.count()) !== 1) throw new Error("landing language selector is missing");
   await language.selectOption("ru");
   const heading = (await locale.locator("h1").innerText()).trim();
-  if (heading !== "Видеопрезентации, которые собирает агент") throw new Error("Russian agent-first landing is not reachable");
+  if (heading !== "Видео для людей. Инструмент для агентов.") throw new Error("Russian agent-first landing is not reachable");
   for (const lang of ["en", "ru"]) {
     await locale.locator("[data-language-select]").selectOption(lang);
     if (!(await locale.locator("#moira").innerText()).includes("admin/agentic-screencast-video")) {
