@@ -17,6 +17,7 @@ import { sourceFiles, SOURCE_ROOT } from "../self-hash.js";
 import { allKinds } from "../schema.js";
 import { FFMPEG as FFMPEG_BIN, FFPROBE as FFPROBE_BIN } from "../voice/audio.js";
 import { fileURLToPath } from "node:url";
+import { childFailure } from "./support.js";
 
 const HERE = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const run = (cmd: string, args: string[], opts: Record<string, unknown> = {}): SpawnSyncReturns<string> =>
@@ -754,8 +755,7 @@ await check("ролик собирается из записей, и перез�
 await check("человек записывает ролик голосом через страницу", () => {
   const r = run("node", [resolve(HERE, "dist", "tests", "record-e2e.js")], { timeout: 300_000 });
   if (r.status === 0) return true;
-  const said = ((r.stderr || "") + (r.stdout || "")).trim().split("\n").filter(Boolean);
-  return said.length ? `код ${r.status}:\n${said.slice(-40).join("\n")}` : `код ${r.status}`;
+  return childFailure(r);
 });
 
 // 21. Вердикт проверки кадров зависит от кадра, а не от того, чьей
