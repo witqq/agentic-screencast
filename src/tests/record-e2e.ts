@@ -20,6 +20,7 @@ import { fileURLToPath } from "node:url";
 import { serve } from "../record.js";
 import { FFMPEG, durationOf } from "../voice/audio.js";
 import { storeDir } from "../voice/recorded.js";
+import { assertBeatBoundary } from "./support.js";
 
 const HERE = resolve(fileURLToPath(new URL(".", import.meta.url)), "..", "..");
 const ENTRY = join(HERE, "dist", "agentic-screencast.js");
@@ -421,9 +422,8 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
   if (Math.abs(Number(r.facts["длительность b в сборке"]) - Number(r.facts["сумма тактов b"])) > 0.05) {
     console.error("длина сцены не равна сумме длин её тактов"); process.exit(1);
   }
-  if (Math.abs(Number(r.facts["начало второго такта b"]) - Number(r.facts["сумма тактов b"]) / 2) > 0.4) {
-    console.error("второй такт начинается не там, где кончился первый"); process.exit(1);
-  }
+  assertBeatBoundary(Number(r.facts["начало второго такта b"]),
+    Number(r.facts["длительность b/1 в хранилище"]));
   if (r.facts["кнопка перехода заперта"] !== "да") {
     console.error("во время записи кнопка перехода осталась нажимаемой"); process.exit(1);
   }

@@ -15,7 +15,7 @@ tokens:
   radius: round
 ---
 
-# Video presentations, built by agents
+# Video for people. A tool for agents.
 
 **Give your agent the product, the audience and the point to explain. Get a video people can watch.**
 
