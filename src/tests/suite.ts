@@ -32,6 +32,71 @@ const jsonSuffix = <T>(output: string): T => {
   return JSON.parse(output) as T;
 };
 
+/** Tokenize executable JS, skipping comments and template-literal documentation. */
+const moduleSpecifiers = (source: string): string[] => {
+  const tokens: Array<{ kind: "id" | "str" | "punct"; text: string }> = [];
+  for (let i = 0; i < source.length;) {
+    const c = source[i]!;
+    if (/\s/.test(c)) { i++; continue; }
+    if (c === "/" && source[i + 1] === "/") {
+      i = source.indexOf("\n", i + 2);
+      if (i < 0) break;
+      continue;
+    }
+    if (c === "/" && source[i + 1] === "*") {
+      const end = source.indexOf("*/", i + 2);
+      i = end < 0 ? source.length : end + 2;
+      continue;
+    }
+    if (c === "`" || c === "'" || c === '"') {
+      const quote = c;
+      const start = ++i;
+      while (i < source.length) {
+        if (source[i] === "\\") { i += 2; continue; }
+        if (source[i] === quote) break;
+        i++;
+      }
+      if (quote !== "`") tokens.push({ kind: "str", text: source.slice(start, i) });
+      i++;
+      continue;
+    }
+    if (/[\w$]/.test(c)) {
+      const start = i++;
+      while (i < source.length && /[\w$]/.test(source[i]!)) i++;
+      tokens.push({ kind: "id", text: source.slice(start, i) });
+      continue;
+    }
+    tokens.push({ kind: "punct", text: c });
+    i++;
+  }
+  const found: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.kind !== "id") continue;
+    if (["import", "require"].includes(token.text) && tokens[i + 1]?.text === "("
+      && tokens[i + 2]?.kind === "str") found.push(tokens[i + 2]!.text);
+    if (token.text === "import" || token.text === "export") {
+      if (token.text === "import" && tokens[i + 1]?.kind === "str") found.push(tokens[i + 1]!.text);
+      for (let j = i + 1; j < tokens.length && j < i + 24 && tokens[j]?.text !== ";"; j++) {
+        if (tokens[j]?.text === "from" && tokens[j + 1]?.kind === "str") {
+          found.push(tokens[j + 1]!.text);
+          break;
+        }
+      }
+    }
+    if (token.text === "createRequire" && tokens[i + 1]?.text === "(") {
+      let depth = 1;
+      let j = i + 2;
+      for (; j < tokens.length && depth > 0; j++) {
+        if (tokens[j]?.text === "(") depth++;
+        if (tokens[j]?.text === ")") depth--;
+      }
+      if (tokens[j]?.text === "(" && tokens[j + 1]?.kind === "str") found.push(tokens[j + 1]!.text);
+    }
+  }
+  return found;
+};
+
 const results: Array<[string, boolean, string]> = [];
 // Проверка может быть и обещанием: часть предметов измеряется только
 // в браузере, а он отвечает не сразу. Ждём каждую по очереди — порядок
@@ -552,6 +617,12 @@ await check("README называет те же обязательные поля
 // из раздела зависимостей манифеста; ни то, ни другое здесь не пишется
 // заново.
 await check("собранное в поставке не зависит от разработческого", () => {
+  const probe = moduleSpecifiers('const help = `import { x } from "not-a-dependency"`; '
+    + 'const require = createRequire(import.meta.url); require("real-dependency"); '
+    + 'createRequire(import.meta.url)("another-dependency"); import("dynamic-dependency");');
+  if (probe.includes("not-a-dependency") || !probe.includes("real-dependency")
+    || !probe.includes("another-dependency") || !probe.includes("dynamic-dependency"))
+    return "разбор импортов принял текст справки за код";
   const manifest = JSON.parse(readFileSync(resolve(HERE, "package.json"), "utf8")) as
     { dependencies?: Record<string, string> };
   const allowed = new Set(Object.keys(manifest.dependencies ?? {}));
@@ -564,18 +635,10 @@ await check("собранное в поставке не зависит от р�
   const outside: string[] = [];
   for (const file of shipped) {
     const text = readFileSync(resolve(HERE, file), "utf8");
-    // Ищутся ВСЕ способы назвать чужой пакет, а не один. Статический
-    // импорт — не главный из них: тяжёлые бинари продукт тянет через
-    // `createRequire(import.meta.url)`, и образец, знающий только `from`,
-    // отвечал бы «зелено» на разработческом пакете, затянутом ровно той
-    // идиомой, которой пользуется сам продукт в четырёх файлах. Форм
-    // у неё две — через промежуточную переменную и вызовом по месту, —
-    // и обе взяты: узкий образец уже один раз пропустил отрицательный
-    // контроль, поставленный второй формой.
-    for (const m of text.matchAll(
-      /(?:\bfrom\s*|\bimport\s*\(\s*|\brequire\s*\(\s*|createRequire\([^)]*\)\s*\(\s*)["']([^."'][^"']*)["']/g,
-    )) {
-      const spec = m[1]!;
+    // AST distinguishes executable module references from examples in CLI help.
+    // Both require() and direct createRequire(import.meta.url)(...) are real edges.
+    for (const spec of moduleSpecifiers(text)) {
+      if (spec.startsWith(".")) continue;
       if (spec.startsWith("node:")) continue;
       // Имя пакета: у обычного — до первой косой черты, у пространства
       // имён — две части.

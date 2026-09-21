@@ -62,7 +62,104 @@ Usage:
   agentic-screencast provider-check <command>
   agentic-screencast paths
 
+Guides: agentic-screencast help video | help capture | help overlay
 Use the stub voice for cost-free checks. See README.md for the scenario and extension contracts.`;
+const VIDEO_HELP = `Turn a product, prototype, idea, or finding into a visual story
+
+Start with the viewer's question, not a list of features. Write a short arc:
+orientation → a meaningful action or claim → the visible evidence → why it
+matters. Every UI action shown needs a nearby explanation of what changed
+and why; a camera move cannot substitute for that explanation.
+
+1. Inspect the source and distinguish real footage from a mockup. Prepare
+   authentication outside capture. Use Playwright locator actions for real
+   clicks, typing and scrubbing; do not reconstruct them with overlay.pointer.
+   Label a prototype or untested result in the frame itself.
+2. Open with a silent slides.chapter (title, one sentence, duration). Between
+   distinct ideas, use another short chapter instead of a hard unexplained
+   cut. Avoid a stack of static four-box slides.
+3. For a dense interface, hold a genuine video frame with freezeAt and add
+   overlay.camera. Move in, highlight one region, explain it with a typed
+   near-focus card, hold for reading, then return to the overview. On a
+   saved page use a CSS target instead of normalized frame coordinates.
+   A silent saved HTML page is a page scene with page and duration fields.
+4. Draft silently with voice: {"engine":"stub","name":"silent"}; narration
+   can use prose beats and an authorized voice. Check each action/result
+   pair and give longer text more time, never rely on a fast transition to
+   carry missing context.
+5. Check inputs: agentic-screencast scenes --source story.md
+   Preview: agentic-screencast build --source story.md --only scene-id --out preview.mp4
+   Build:   agentic-screencast build --source story.md --out video.mp4
+   Decode the MP4 and inspect the introduction, each action/result and each
+   transition at normal speed. Check readable text, factual claims and secrets.
+
+See: agentic-screencast help capture | help overlay
+Examples: example/live-capture.mjs, example/kinetic-video.md and
+example/idea-video.md (a self-contained prototype page).`;
+const CAPTURE_HELP = `Record real browser actions without timing or frame coordinates
+
+import { recordTake } from "agentic-screencast/capture";
+
+await recordTake({
+  output: "captures/run.webm",
+  prepare: async (page, context) => {
+    // Authenticate here, before the recording starts, if needed.
+    await page.goto("https://your-app.example/run");
+  },
+}, async (take) => {
+  await take.withFocusCard(take.page.getByRole("tab", { name: "Graph" }),
+    { title: "The route is visible here", body: "This view reveals the links.",
+      reveal: "type", motion: "glide" },
+    async () => take.click(take.page.getByRole("tab", { name: "Graph" })));
+  await take.type(take.page.getByLabel("Search"), "example");
+});
+
+take.click/hover/type/press/drag/range work on Playwright locators. They
+auto-wait, scroll, move the visible cursor and pace the recording. A click
+ripple is drawn by the actual pointerdown event, so it cannot lead the UI.
+withFocusCard(locator, card, action) places the explanation next to the
+control while the real action runs; no authored card coordinates are needed.
+Cards can use reveal:"type" and motion:"rise"|"pop"|"glide".
+Use { until: locator } when an action reveals an asynchronous result.
+take.range(rangeLocator, 0.75) means 75% of its own track, not screen pixels.
+take.type refuses password fields: log in during prepare, outside capture.
+
+The output is WebM. Use it as file: captures/run.webm in a video scene;
+then build the scenario to MP4. A runnable local example is packaged at
+example/live-capture.mjs. capturePage(page, { output }) also attaches to an
+existing Playwright page without owning its browser.`;
+const OVERLAY_HELP = `Timed overlays and tutorial camera for page and video scenes
+
+Add one JSON object on a single scenario line:
+
+## demo · video
+file: captures/real-run.mp4
+overlay: {"pointer":[{"at":0.2,"x":0.2,"y":0.5},{"at":1.5,"x":0.7,"y":0.5,"click":true}],"cards":[{"at":0.4,"title":"Follow the real run","body":"One idea at a time.","position":"bottom-right"}]}
+
+Pointer points are ordered by at (seconds); x/y are fractions of the final
+frame from 0 to 1. The pointer eases between points. click:true draws a
+0.65-second ripple at that point; it does not click the underlying UI.
+For real UI actions, use agentic-screencast help capture instead. A manual
+pointer on imported footage is only a graphic annotation, not synchronized
+interaction.
+
+Cards support position: corners, center, or near-focus; reveal:"type" and
+motion:"rise"|"pop"|"glide". enter/exit are seconds; hold is optional and
+its minimum grows with text and typing time. Leave 0.35 seconds between cards.
+
+For a held explanation, freezeAt selects a real frame of a video clip:
+
+## detail · video
+file: captures/real-run.mp4
+freezeAt: 5
+overlay: {"camera":[{"at":0.8,"move":1.1,"hold":3,"return":1.1,"area":[0.3,0.2,0.35,0.3],"scale":1.7}],"cards":[{"at":1.5,"title":"The result is here","body":"This changed because of the action.","position":"near-focus","reveal":"type"}]}
+
+camera.area is [left, top, width, height] in 0–1 frame fractions. For a
+saved page scene, camera.target can name a CSS selector instead. Camera
+moves are time-derived, deterministic under seek, and must not overlap.
+Show the full interface before and after a focus shot. Keep a near-focus
+card outside the highlighted control; inspect the composed MP4 at normal
+speed, not just a still frame.`;
 /** Значение флага; без умолчания может отсутствовать. */
 function arg(k: string): string | undefined;
 function arg(k: string, d: string): string;
@@ -127,7 +224,12 @@ switch (cmd) {
   case "help":
   case "--help":
   case "-h": {
-    console.log(HELP);
+    const topic = cmd === "help" ? rest[0] : undefined;
+    if (topic === "video") console.log(VIDEO_HELP);
+    else if (topic === "capture") console.log(CAPTURE_HELP);
+    else if (topic === "overlay") console.log(OVERLAY_HELP);
+    else if (!topic) console.log(HELP);
+    else { console.error(`Unknown help topic: ${topic}\n\n${HELP}`); process.exit(2); }
     break;
   }
   case "version":

@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
+import { parseOverlay } from "./overlay.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -79,6 +80,7 @@ export interface RenderScene {
   duration: number;
   offline?: boolean;
   __src?: string;
+  __overlayOnly?: boolean;
   [key: string]: unknown;
 }
 
@@ -109,10 +111,19 @@ export async function renderScene(
     await page.route("**", (r) =>
       r.request().url().startsWith("file:") ? r.continue() : r.abort());
   }
-  await page.goto(pathToFileURL(resolve(scene.__src ?? HERE, scene.page)).href, {
-    waitUntil: "load",
-  });
-  await page.evaluate((s) => window.__stage.mount(s), scene);
+  if (scene.__overlayOnly) {
+    await page.goto("about:blank");
+    await page.evaluate(() => { document.documentElement.style.background = "transparent"; });
+  } else {
+    await page.goto(pathToFileURL(resolve(scene.__src ?? HERE, scene.page)).href, {
+      waitUntil: "load",
+    });
+  }
+  // Direct scene.json/pitch consumers bypass parseSource. Normalize their
+  // cards too, so automatic reading time matches the rendered duration.
+  const staged = scene.overlay
+    ? { ...scene, overlay: parseOverlay(JSON.stringify(scene.overlay)) } : scene;
+  await page.evaluate((s) => window.__stage.mount(s), staged);
 
   const shots: Shot[] = [];
   const list = o.at !== undefined ? [Math.round(o.at * o.fps)] : [...Array(frames).keys()];
@@ -124,7 +135,8 @@ export async function renderScene(
       if (fr === page.mainFrame()) continue;
       await fr.evaluate((tt) => window.__clock?.seek(tt), o.freeze ?? t).catch(() => {});
     }
-    const buf = await page.screenshot({ animations: "allow" });
+    const buf = await page.screenshot({ animations: "allow",
+      ...(scene.__overlayOnly ? { omitBackground: true } : {}) });
     shots.push({ f, buf, md5: createHash("md5").update(buf).digest("hex") });
   }
   await browser.close();

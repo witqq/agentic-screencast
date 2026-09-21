@@ -46,10 +46,11 @@ const minimal = (e: KindEntry): RawScene => ({
 const dir = mkdtempSync(join(tmpdir(), "slidecast-schema-"));
 let n = 0;
 /** Тот же вход глазами разбора: сцена → текст сценария → разбор. */
-const parses = (e: KindEntry, fields: Record<string, string>): boolean => {
+const parses = (e: KindEntry, fields: Record<string, string>, prose = "Реплика сцены.",
+  providers: Record<string, string> = {}): boolean => {
   const body = Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join("\n");
   const file = join(dir, `story-${n++}.md`);
-  writeFileSync(file, `# Ролик\n\n## t01 · ${nameOf(e)}\n${body}\n\nРеплика сцены.\n`);
+  writeFileSync(file, `# Ролик\nproviders: ${JSON.stringify(providers)}\n\n## t01 · ${nameOf(e)}\n${body}\n\n${prose}\n`);
   try { parseSource(file); return true; } catch { return false; }
 };
 
@@ -67,6 +68,42 @@ test("схема принимает наименьшую годную сцену
   assert.ok(kinds.length >= 6, `видов у поставщиков: ${kinds.length}`);
   for (const e of kinds) {
     assert.ok(ok(minimal(e)), `вид ${nameOf(e)}: ${JSON.stringify(validate.errors)}`);
+  }
+});
+
+test("пустые такты разрешены схемой и разбором только видам с silentOk", () => {
+  for (const e of kinds) {
+    const fields = e.spec.silentOk && !e.spec.video
+      ? { ...minimal(e).fields, duration: "6" } : minimal(e).fields;
+    const scene = { ...minimal(e), fields, beats: [], caption: "" };
+    const expected = e.spec.silentOk === true;
+    assert.equal(parses(e, fields, ""), expected, `разбор ${nameOf(e)}`);
+    assert.equal(ok(scene), expected, `схема ${nameOf(e)}: ${JSON.stringify(validate.errors)}`);
+    if (expected && !e.spec.video) {
+      assert.equal(parses(e, minimal(e).fields, ""), false, `длительность ${nameOf(e)}`);
+      assert.equal(ok({ ...scene, fields: minimal(e).fields }), false, `схема без duration ${nameOf(e)}`);
+    }
+  }
+});
+
+test("разрешение пустых тактов берётся у внешнего поставщика, а не из имени вида", () => {
+  const provider = join(dir, "silent-provider.mjs");
+  writeFileSync(provider, 'console.log(JSON.stringify({card:{about:"fixture",fields:["file"],required:[["file"]],silentOk:process.argv[2]==="silent"}}));');
+  const providers = { silent: `${process.execPath} ${provider} silent`, spoken: `${process.execPath} ${provider} spoken` };
+  const accepts = new Ajv2020({ strict: false }).compile(sceneSchema(providers));
+  const externalKinds = allKinds(providers).filter((e) => Object.hasOwn(providers, e.provider));
+  assert.equal(externalKinds.length, 2);
+  for (const e of externalKinds) {
+    const fields = e.spec.silentOk ? { ...minimal(e).fields, duration: "6" } : minimal(e).fields;
+    const scene = { ...minimal(e), fields, beats: [], caption: "" };
+    assert.equal(parses(e, fields, "", providers), e.spec.silentOk === true);
+    assert.equal(accepts(scene), e.spec.silentOk === true, JSON.stringify(accepts.errors));
+    if (e.spec.silentOk) {
+      assert.equal(parses(e, minimal(e).fields, "", providers), false);
+      assert.equal(accepts({ ...scene, fields: minimal(e).fields }), false);
+    }
+    assert.equal(accepts({ ...scene, beats: [{}] }), false);
+    assert.equal(accepts({ ...scene, fields: {} }), false);
   }
 });
 
@@ -111,7 +148,7 @@ test("схема отвергает сцену без обязательного
   }
 });
 
-const first = kinds[0]!;
+const first = kinds.find((e) => !e.spec.silentOk)!;
 
 test("схема отвергает незнакомый вид сцены и сцену без речи", () => {
   assert.equal(ok({ ...minimal(first), kind: "кружочки" }), false);

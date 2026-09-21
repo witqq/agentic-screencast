@@ -40,6 +40,14 @@ const check = { chars: 220, body: 28, title: 40, huge: 80,
   coverShareMin: 0.95, contrastMin: 3 };
 
 export const KINDS: Record<string, KindSpec> = {
+  chapter: {
+    about: "animated opening or chapter with a clear headline and one explanatory sentence",
+    fields: [...common, "body"],
+    required: [["title"], ["body"]],
+    silentOk: true,
+    effects: { ...still, fade: { in: 0.7, out: 0.7 } },
+    check,
+  },
   compare: {
     about: "сравнение «без / с» в две колонки",
     fields: [...common, "left", "right"],
