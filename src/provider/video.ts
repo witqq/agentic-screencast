@@ -7,14 +7,17 @@ import type { KindSpec, Provider } from "./types.js";
 
 const clip: KindSpec = {
   about: "готовый видеофайл вместо нарисованной страницы",
-  fields: ["file", "at"],
+  fields: ["file", "freezeAt", "at"],
   required: [["file"]],
   fileField: "file",
   video: true,
   silentOk: true,
   // Видеофайл не двигают и не подсвечивают: он уже смонтирован.
   // Остаётся только переход на входе и выходе сцены.
-  effects: { fade: { in: 0.3, out: 0.3 } },
+  effects: {
+    fade: { in: 0.65, out: 0.65 },
+    cursor: { hidden: true }, spot: { from: 9999 }, caption: { from: 9999 },
+  },
 };
 
 export const videoProvider: Provider = {

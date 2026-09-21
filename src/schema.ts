@@ -119,11 +119,11 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
         description: "вид сцены у этого поставщика; вместе они выбирают набор полей" },
       beats: {
         type: "array",
-        minItems: 1,
         description:
           "такты речи по порядку: абзац прозы — один такт. У каждого своя " +
           "запись, своя длина и свой ключ кэша; длительность сцены — их сумма " +
-          "плюс хвост. Строка «~» внутри абзаца задаёт произносимый вариант такта.",
+          "плюс хвост. Пустой список разрешён только видам с silentOk у поставщика. " +
+          "Строка «~» внутри абзаца задаёт произносимый вариант такта.",
         items: {
           type: "object",
           properties: {
@@ -141,7 +141,17 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
     additionalProperties: false,
     // Пара «поставщик плюс вид» выбирает набор полей: одно имя вида
     // у двух поставщиков — обычное дело, и по нему одному поля не выбрать.
-    allOf: entries.map((e) => ({
+    allOf: [{
+      // Речь нужна по умолчанию; исключения приходят из того же договора,
+      // по которому parseSource допускает молчаливую сцену.
+      anyOf: [
+        { properties: { beats: { minItems: 1 } } },
+        ...entries.filter((e) => e.spec.silentOk).map((e) => ({
+          properties: { provider: { const: e.provider }, kind: { const: e.kind },
+            ...(e.spec.video ? {} : { fields: { required: ["duration"] } }) },
+        })),
+      ],
+    }, ...entries.map((e) => ({
       if: { properties: { provider: { const: e.provider }, kind: { const: e.kind } },
         required: ["provider", "kind"] },
       // `then` здесь — ключевое слово JSON Schema, а не обещание: линтер
@@ -149,7 +159,7 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
       // а этот объект уходит в поток вывода строкой.
       // oxlint-disable-next-line unicorn/no-thenable
       then: { properties: { fields: { $ref: `#/$defs/${nameOf(e)}` } } },
-    })),
+    }))],
     $defs: Object.fromEntries(entries.map((e) => [nameOf(e), fieldsOf(nameOf(e), e.spec)])),
   };
 }

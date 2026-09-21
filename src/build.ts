@@ -10,12 +10,13 @@ import type { RenderOpts } from "./render.js";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
 import {
-  readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync,
+  readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, statSync, rmSync,
 } from "node:fs";
 import { dirname, resolve, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
+import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -74,6 +75,8 @@ interface BuiltScene {
   beats: BuiltBeat[];
   tail?: number;
   duration: number;
+  freezeAt?: number;
+  overlay?: SceneOverlay;
   /** начала тактов в секундах от начала сцены */
   __starts?: number[];
   __spoken?: number;
@@ -222,6 +225,7 @@ async function main() {
     // из списка. Иначе предпросмотр одной сцены стоил бы синтеза всего
     // ролика — то есть денег.
     if (only && s.id !== only) continue;
+    if (s.overlay) s.overlay = parseOverlay(JSON.stringify(s.overlay));
     // 1. Озвучка. Текст для синтеза ≠ текст на экране, и правила чтения
     //    принадлежат провайдеру: Silero молча пропускает латиницу, поэтому
     //    её переписывают кириллицей, а SpeechKit читает её сам.
@@ -253,7 +257,7 @@ async function main() {
       spoken += got.spoken;
     }
     s.__starts = starts;
-    if (!s.beats.length && s.video) {
+    if (!s.beats.length && s.video && s.freezeAt === undefined) {
       // Длину задаёт сам материал: иначе сцена длилась бы только хвост
       // тишины, то есть мелькала бы.
       spoken = dur(resolve(SRC, String(s.page)));
@@ -263,7 +267,8 @@ async function main() {
     // сцены попадает в речь, а не в тишину. Хвост задаётся данными
     // (`tail` у сцены или у питча) и добивается тишиной шагом ниже.
     const tail = s.tail ?? pitch.tail ?? 0.4;
-    const frames = Math.ceil((spoken + tail) * opts.fps);
+    const frames = Math.ceil(Math.max(spoken + tail, s.duration ?? 0,
+      s.overlay ? overlayEnd(s.overlay) + 0.25 : 0) * opts.fps);
     s.duration = frames / opts.fps;
     s.__spoken = spoken;
 
@@ -311,8 +316,28 @@ async function main() {
     if (existsSync(seg)) {
       process.stderr.write(msg("build.sceneCached", { at, of, id: s.id }) + "\n");
       log.push({ id: s.id, cached: true, key: key.slice(0, 10), frames });
+    } else if (s.video && s.freezeAt !== undefined) {
+      process.stderr.write(msg("build.sceneRender", { at, of, id: s.id, frames }) + "\n");
+      const src = resolve(SRC, String(s.page));
+      if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
+      if (s.freezeAt >= dur(src)) throw new Error(`freezeAt is past the end of ${s.id}`);
+      const still = `${CACHE}/${key}.freeze.png`;
+      const html = `${CACHE}/${key}.freeze.html`;
+      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
+        "-ss", String(s.freezeAt), "-frames:v", "1", still]);
+      const image = readFileSync(still).toString("base64");
+      writeFileSync(html, `<!doctype html><html><head><meta charset="utf-8"><style>`
+        + `html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080d14}`
+        + `img{display:block;width:100%;height:100%;object-fit:contain}`
+        + `</style></head><body><img src="data:image/png;base64,${image}"></body></html>`);
+      const { shots } = await renderScene({ ...s, page: html, offline: true,
+        beats: s.beats.length, starts, theme: pitch.theme }, opts);
+      encode(shots, seg, opts);
+      log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, freezeAt: s.freezeAt });
     } else if (s.video) {
       process.stderr.write(msg("build.sceneVideo", { at, of, id: s.id }) + "\n");
+      if (s.overlay?.camera?.length)
+        throw new Error(`video scene ${s.id}: overlay.camera requires freezeAt`);
       // Материал — готовый файл: кадры берутся из него, а не рисуются.
       // Он приводится к кадру ролика (размер, темп, качество, формат
       // пикселей) и к длине сцены: короче — достаивается последним кадром,
@@ -321,14 +346,37 @@ async function main() {
       const src = resolve(SRC, String(s.page));
       if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
       const e = opts.encode!;
-      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
-        "-an", "-t", String(s.duration),
-        "-vf", `scale=${opts.width}:${opts.height}:force_original_aspect_ratio=decrease,`
-          + `pad=${opts.width}:${opts.height}:-1:-1:color=black,fps=${opts.fps},`
-          + "tpad=stop_mode=clone:stop_duration=3600",
-        "-t", String(s.duration),
-        "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
-        "-pix_fmt", e.pix, "-g", String(opts.fps * 2), seg]);
+      const base = `scale=${opts.width}:${opts.height}:force_original_aspect_ratio=decrease,`
+        + `pad=${opts.width}:${opts.height}:-1:-1:color=black,fps=${opts.fps},`
+        + `tpad=stop_mode=clone:stop_duration=3600,trim=duration=${s.duration},setpts=PTS-STARTPTS`;
+      const transition = (s.effects as { fade?: { in?: number; out?: number } } | undefined)?.fade;
+      const fadeIn = transition?.in ?? 0.3;
+      const fadeOut = transition?.out ?? 0.3;
+      const fade = `fade=t=in:st=0:d=${fadeIn},`
+        + `fade=t=out:st=${Math.max(0, s.duration - fadeOut)}:d=${fadeOut}`;
+      const overlayDir = `${CACHE}/${key}.overlay.frames`;
+      if (s.overlay) {
+        // The same deterministic browser stage draws page and video annotations.
+        // Imported video is normalized first; PNG alpha is then composited over
+        // the final frame, so pointer coordinates are independent of source size.
+        mkdirSync(overlayDir, { recursive: true });
+        const { shots } = await renderScene({ ...s, __overlayOnly: true,
+          beats: s.beats.length, starts, theme: pitch.theme }, opts);
+        shots.forEach((shot, index) => writeFileSync(
+          `${overlayDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
+      }
+      try {
+        const inputs = s.overlay ? ["-framerate", String(opts.fps), "-i", `${overlayDir}/%05d.png`] : [];
+        const videoFilter = s.overlay
+          ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+          : ["-vf", `${base},${fade}`];
+        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
+          ...inputs, "-an", ...videoFilter, "-t", String(s.duration),
+          "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
+          "-pix_fmt", e.pix, "-g", String(opts.fps * 2), seg]);
+      } finally {
+        if (s.overlay) rmSync(overlayDir, { recursive: true, force: true });
+      }
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, video: true });
     } else {
       // Слою композиции отдаются ИЗМЕРЕННЫЕ начала тактов и их число:

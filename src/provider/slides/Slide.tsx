@@ -83,6 +83,22 @@ function ColumnCard({ col, dflt }: { col: Column; dflt: NonNullable<Column["tone
   );
 }
 
+/** A narrative beat, not a list of static feature labels. */
+function Chapter({ s }: { s: Slide }): JSX.Element {
+  return (
+    <section className="chapter">
+      <div className="chapter-orbit" aria-hidden="true"><span /><span /><span /></div>
+      <div className="chapter-sweep" aria-hidden="true" />
+      <div className="chapter-copy">
+        <Reveal at="0.15s"><p className="chapter-kicker">{s.kicker ?? "Следующая глава"}</p></Reveal>
+        <h1 className="el chapter-title" data-type="title" data-at="0.7s">{s.title}</h1>
+        <p className="el chapter-body" data-type="body" data-at="2.4s">{s.body}</p>
+      </div>
+      <div className="chapter-line" aria-hidden="true" />
+    </section>
+  );
+}
+
 /** Сравнение в две колонки: слева «без», справа «с». */
 function Compare({ s }: { s: Slide }): JSX.Element {
   return (
@@ -174,6 +190,7 @@ function Magnitude({ s }: { s: Slide }): JSX.Element {
 }
 
 const BODIES: Record<Slide["kind"], (p: { s: Slide }) => JSX.Element> = {
+  chapter: Chapter,
   compare: Compare,
   chain: Chain,
   quote: Quote,

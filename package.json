@@ -1,6 +1,6 @@
 {
   "name": "agentic-screencast",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
   "description": "A video-building CLI for AI agents: declarative scenarios, narration, reproducible frames and MP4 output.",
   "keywords": [
@@ -19,6 +19,18 @@
   "homepage": "https://agentic-screencast.witqq.dev/",
   "bugs": {
     "url": "https://github.com/witqq/agentic-screencast/issues"
+  },
+  "types": "./dist/capture.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/capture.d.ts",
+      "import": "./dist/capture.js"
+    },
+    "./capture": {
+      "types": "./dist/capture.d.ts",
+      "import": "./dist/capture.js"
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
@@ -67,6 +79,11 @@
     "src",
     "example/story.md",
     "example/agent-video.md",
+    "example/kinetic-video.md",
+    "example/idea-video.md",
+    "example/pages/prototype.html",
+    "example/live-capture.mjs",
+    "skills/agentic-screencast/SKILL.md",
     "docs/moira.md",
     "docs/moira.ru.md",
     "workflows/production/flows/agentic-screencast-video.json",

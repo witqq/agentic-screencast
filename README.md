@@ -2,15 +2,15 @@
 
 **English** | [Русский](README.ru.md)
 
-Agentic Screencast is a video-building CLI for AI agents. An agent turns product knowledge into a scenario, builds a video presentation, checks the result and hands the viewer an MP4. Use it for product explainers, feature walkthroughs and narrated presentations.
+Agentic Screencast is a video-building CLI for AI agents. An agent turns a product, prototype, idea, or research finding into a scenario, builds a video presentation, checks the result and hands the viewer an MP4. Use it for walkthroughs, visual explanations and narrated presentations.
 
 The agent owns research, writing and review. The CLI turns declared scenes into web pages, generates speech or uses recordings, derives timing from audio, renders frames in Chromium and joins them into an MP4. Structured schemas and JSON build reports let the agent inspect inputs and results without operating a video editor.
 
-It does not record a live screen. Every frame is rendered from declared data at an explicit point in time, so unchanged scenes can be cached and rebuilt independently.
+The Playwright capture API records real browser actions with a cursor and click ripple driven by the same input events as the application. The CLI then assembles those clips or renders saved pages from a declarative scenario. Unchanged scenes can be cached and rebuilt independently.
 
 ## Give the task to an agent
 
-Start with the [agent entry point](AGENTS.md) and the [complete small scenario](example/agent-video.md). Tell the agent which product and source revision to explain, who will watch, the intended language and approximate duration. It should build a free silent draft before requesting paid narration.
+Start with the [Agentic Screencast skill](skills/agentic-screencast/SKILL.md), the [agent entry point](AGENTS.md), and a [small scenario](example/agent-video.md). A request naming a product or feature is enough to begin: the agent can inspect available sources and choose a storyline, then ask only for genuinely missing access or a consequential decision. It should build a free silent draft before requesting paid narration.
 
 For a guided process, use the public **Agentic Screencast Video** workflow in Moira: `admin/agentic-screencast-video`. It covers facts, scenario, materials, draft, narration, review and repair. Moira supplies the steps; the agent runs the CLI in its own workspace. See the [Moira integration guide](docs/moira.md) for setup, launch, review modes and permissions. The CLI also works without Moira.
 
@@ -25,9 +25,31 @@ npx playwright install chromium
 
 On Linux, Chromium may also require operating-system packages. Playwright can install them with `npx playwright install --with-deps chromium` when you have the required system permissions.
 
+## Capture real browser actions
+
+Use the public `agentic-screencast/capture` module. `recordTake` owns a browser; `capturePage` attaches to an existing Playwright page. The `prepare` callback runs before recording, so authentication and private setup do not appear in the video. Actions operate on Playwright locators, which auto-wait and scroll. The cursor follows real pointer movement, and the click ripple starts on the actual `pointerdown` event. No timestamp or frame coordinate is authored.
+
+```js
+import { recordTake } from "agentic-screencast/capture";
+
+await recordTake({
+  output: "captures/run.webm",
+  prepare: async (page) => { await page.goto("https://your-app.example/run"); },
+}, async (take) => {
+  await take.click(take.page.getByRole("tab", { name: "Graph" }));
+  await take.type(take.page.getByLabel("Search"), "example");
+  await take.withFocusCard(take.page.getByRole("tab", { name: "Graph" }),
+    { title: "The graph answers a different question",
+      body: "It exposes the exact links between steps.", reveal: "type" },
+    async () => { await take.click(take.page.getByRole("tab", { name: "Graph" })); });
+});
+```
+
+`click`, `hover`, `type`, `press`, `drag`, and `range` include comfortable pacing; `{ until: locator }` waits for an asynchronous result without a guessed delay. `withFocusCard` places an explanation beside a locator while the real action runs. `range(locator, 0.75)` seeks to 75% of that input's track. `type` refuses password fields; perform credential entry before recording. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service. The output WebM is a normal `video` scene input. Run `agentic-screencast help capture` for the concise API guide.
+
 ## Build a video
 
-The scenario is the only authored input. Generated slides and build data live beside it and are replaced on the next build.
+The scenario is the assembly source. Generated slides and build data live beside it and are replaced on the next build; recorded clips are referenced from it.
 
 ```sh
 agentic-screencast build --source story.md --out video.mp4
@@ -70,7 +92,32 @@ The first beat introduces the problem.
 The second beat reveals the result.
 ```
 
-Built-in material providers cover comparison, chain, number and quote slides, saved pages, and existing video clips. External providers can add scene kinds through a language-independent JSON subprocess contract.
+Built-in material providers cover animated opening/chapter scenes, comparison, chain, number and quote slides, saved pages, and existing video clips. External providers can add scene kinds through a language-independent JSON subprocess contract.
+
+Give viewers an orientation before asking them to interpret a busy screen. A short `slides.chapter` can introduce the question or a new section; its title and body type in over a declared silent `duration`. A `video` scene with `freezeAt` holds one genuine frame while `overlay.camera` moves to a region, highlights it, and returns to the overview. On a saved `page` scene the camera can use a CSS `target` instead of frame coordinates. Cards support `position: "near-focus"`, `reveal: "type"`, and `motion: "pop"`/`"glide"` to explain an action beside its result. These effects are calculated from scene time, so seeking and rebuilding a scene give the same frame.
+
+```markdown
+## opening · slides.chapter
+kicker: THE QUESTION
+title: What changed, and why does it matter?
+body: We will follow one action from the overview to its result.
+duration: 7
+
+## detail · video
+file: captures/real-action.webm
+freezeAt: 5
+overlay: {"camera":[{"at":0.8,"hold":3,"area":[0.35,0.2,0.3,0.35],"scale":1.7}],"cards":[{"at":1.4,"title":"The result is visible here","body":"This is the state produced by the action.","position":"near-focus","reveal":"type"}]}
+```
+
+Use a narrative arc rather than a feature list: orient the viewer, show an action, name the visible change, and explain its consequence. Give the viewer time to read each idea. The [kinetic video scenario](example/kinetic-video.md) demonstrates live clips; the [self-contained idea example](example/idea-video.md) presents a saved HTML prototype without implying it is a measured result. Silent `page` scenes require `duration` just like chapters.
+
+For a walkthrough of real actions, record clips with the Playwright capture API and reference them as `video` scenes. The [kinetic video scenario](example/kinetic-video.md) shows how to join two takes. The common `overlay` field can add post-production cards or a decorative pointer to video or pages, but its `click:true` only paints a ripple: it does not act on the UI and should not be used to reconstruct real clicks. Live `take.card()` calculates reading time without manual timestamps.
+
+```sh
+agentic-screencast help video
+agentic-screencast help capture
+agentic-screencast help overlay
+```
 
 Inspect the machine-readable contract and parsed scenes before a paid or lengthy build:
 

@@ -25,6 +25,22 @@ interface StageFocus {
   at?: StageWhen;
 }
 
+interface StageOverlayPoint { at: number; x: number; y: number; click?: boolean }
+interface StageOverlayCard {
+  at: number; title: string; body?: string;
+  position?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "near-focus";
+  reveal?: "fade" | "type";
+  motion?: "rise" | "pop" | "glide";
+  enter?: number; exit?: number; hold?: number;
+}
+interface StageCamera {
+  at: number; hold: number; target?: string; area?: [number, number, number, number];
+  scale?: number; move?: number; return?: number;
+}
+interface StageOverlay {
+  pointer?: StageOverlayPoint[]; cards?: StageOverlayCard[]; camera?: StageCamera[];
+}
+
 interface StageScene {
   id?: string;
   page?: string;
@@ -40,6 +56,9 @@ interface StageScene {
   theme?: Record<string, string>;
   focus?: StageFocus[];
   effects?: Record<string, StageEffectRange>;
+  overlay?: StageOverlay;
+  /** Render annotations over a transparent blank page for a video scene. */
+  __overlayOnly?: boolean;
 }
 
 interface StageApi {

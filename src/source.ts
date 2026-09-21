@@ -45,6 +45,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { providerFor, type KindSpec } from "./provider/index.js";
+import { parseOverlay, type SceneOverlay } from "./overlay.js";
 import { msg, useLang } from "./msg.js";
 
 /**
@@ -81,7 +82,7 @@ export interface RawScene {
   /** вид сцены у этого поставщика: часть после точки */
   kind: SceneKind;
   fields: Record<string, string>;
-  /** такты речи по порядку; их не меньше одного */
+  /** такты речи по порядку; пустой список разрешает silentOk у вида поставщика */
   beats: Beat[];
   /** вся речь сцены одной строкой — для подсказки в кадре и отчётов */
   caption: string;
@@ -140,6 +141,8 @@ export interface Slide {
   kind: Exclude<SceneKind, "screen">;
   kicker?: string;
   title?: string;
+  /** One complete explanatory sentence in an opening or chapter. */
+  body?: string;
   left?: Column;
   right?: Column;
   nodes?: Array<{ label: string; kind?: "acc" | "bad" }>;
@@ -176,7 +179,10 @@ export interface PitchScene {
   beats: Beat[];
   caption: string;
   duration?: number;
+  /** Freeze this second of a source clip for a camera-guided explanation. */
+  freezeAt?: number;
   effects: Record<string, unknown>;
+  overlay?: SceneOverlay;
 }
 
 export interface Pitch {
@@ -194,10 +200,10 @@ export interface Pitch {
 }
 
 /**
- * Поля, допустимые у ЛЮБОЙ сцены, чьим бы ни был вид. Их всего одно:
- * хвост тишины после речи — свойство сборки, а не материала.
+ * Поля, допустимые у ЛЮБОЙ сцены: хвост тишины и временные аннотации
+ * принадлежат композиции, а не конкретному поставщику материала.
  */
-export const COMMON: string[] = ["tail"];
+export const COMMON: string[] = ["tail", "overlay", "duration"];
 
 /**
  * Состав полей и их обязательность живут у ПОСТАВЩИКА и спрашиваются
@@ -292,6 +298,18 @@ export function parseSource(file: string): Source {
     // ею задаётся длина сцены, и её отсутствие — почти всегда обрыв
     // сценария. У готового видео длину задаёт файл.
     if (!beats.length && !spec(s).silentOk) err(s.__line ?? 0, msg("source.noSpeech", { id: s.id }));
+    if (s.fields.duration !== undefined) {
+      const duration = Number(s.fields.duration);
+      if (!Number.isFinite(duration) || duration <= 0 || duration > 600)
+        err(s.__line ?? 0, `duration in ${s.id} must be >0 and <=600 seconds`);
+    }
+    if (s.fields.freezeAt !== undefined) {
+      const freezeAt = Number(s.fields.freezeAt);
+      if (!Number.isFinite(freezeAt) || freezeAt < 0)
+        err(s.__line ?? 0, `freezeAt in ${s.id} must be a non-negative second`);
+    }
+    if (!beats.length && spec(s).silentOk && !spec(s).video && !s.fields.duration)
+      err(s.__line ?? 0, `silent scene ${s.id} needs duration`);
     // Отсутствие обязательного поля — ошибка разбора, а не пустой слайд:
     // раньше `toDeck` спотыкался на этом дампом чтения несуществующей
     // строки, то есть о причине читателю не сообщал никто.
@@ -299,6 +317,10 @@ export function parseSource(file: string): Source {
       if (group.some((f) => s.fields[f])) continue;
       const names = group.map((f) => `«${f}»`).join(" / ");
       err(s.__line ?? 0, msg("source.required", { id: s.id, kind: s.kind, names }));
+    }
+    if (s.fields.overlay) {
+      try { parseOverlay(s.fields.overlay); }
+      catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
     }
     // Якоря проверяются здесь, а не при чтении поля: номер такта имеет
     // смысл только когда речь сцены разобрана целиком.
@@ -416,6 +438,8 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     if (spot && f.spotFrom) effects.spot = { ...spot, from: f.spotFrom };
     return {
       ...(f.tail ? { tail: Number(f.tail) } : {}),
+      ...(f.duration ? { duration: Number(f.duration) } : {}),
+      ...(f.freezeAt ? { freezeAt: Number(f.freezeAt) } : {}),
       ...(spec.offline ? { offline: true } : {}),
       ...(spec.video ? { video: true } : {}),
       ...(f.target ? { target: f.target } : { target: "body" }),
@@ -435,6 +459,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       page,
       caption: s.caption,
       effects,
+      ...(f.overlay ? { overlay: parseOverlay(f.overlay) } : {}),
     };
   });
   const pitch: Pitch = { scenes };

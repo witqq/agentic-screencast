@@ -31,6 +31,22 @@ window.__stage = (() => {
   #__capbar{position:absolute;left:0;bottom:0;height:3px;
     background:linear-gradient(90deg,#7aa2ff,#4fd1c5);border-radius:0 0 16px 16px}
   #__fade{position:fixed;inset:0;background:var(--sc-fade,#0d1017)}
+  #__cards{position:fixed;inset:0;pointer-events:none}
+  .__card{position:absolute;width:min(460px,42vw);box-sizing:border-box;padding:20px 22px 21px;
+    color:#f6fbff;background:linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93));
+    border:1px solid rgba(110,211,226,.58);border-radius:18px;
+    box-shadow:0 18px 48px rgba(4,12,25,.42),inset 0 1px rgba(255,255,255,.08);
+    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+  .__card::before{content:"";position:absolute;left:22px;top:0;width:66px;height:3px;
+    background:linear-gradient(90deg,#58d9de,#85a8ff);border-radius:3px}
+  .__card[data-pos^="top"]{top:30px}
+  .__card[data-pos^="bottom"]{bottom:30px}
+  .__card[data-pos$="left"]{left:30px}
+  .__card[data-pos$="right"]{right:30px}
+  .__card[data-pos="center"]{width:min(720px,78vw);text-align:center}
+  .__card[data-pos="near-focus"]{width:min(430px,36vw)}
+  .__card-title{font-size:26px;line-height:1.17;font-weight:740;letter-spacing:-.025em}
+  .__card-body{margin-top:9px;font-size:17px;line-height:1.38;color:#cce1ee;font-weight:470}
   `;
   const CURSOR = `<svg id="__cur" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2 L4 20 L9 15.5 L12 22 L15 20.5 L12 14.2 L19 14 Z"
@@ -40,7 +56,7 @@ window.__stage = (() => {
   interface Els {
     zoom: HTMLElement; layer: HTMLElement; spot: HTMLElement; cap: HTMLElement;
     capText: HTMLElement; capBar: HTMLElement; cur: HTMLElement; rip: HTMLElement;
-    fade: HTMLElement;
+    fade: HTMLElement; cards: HTMLElement;
   }
 
   let scene: StageScene | null = null;
@@ -139,7 +155,7 @@ window.__stage = (() => {
     const layer = document.createElement("div");
     layer.id = "__st";
     layer.innerHTML = `<div id="__spot"></div><div id="__cap"><span id="__captext"></span>
-      <div id="__capbar"></div></div><div id="__rip"></div>${CURSOR}<div id="__fade"></div>`;
+      <div id="__capbar"></div></div><div id="__cards"></div><div id="__rip"></div>${CURSOR}<div id="__fade"></div>`;
     // Накладка живёт ВНЕ увеличиваемого узла: `position: fixed` внутри
     // трансформированного предка отсчитывается от него, а не от кадра,
     // и подсветка с затемнением поехали бы вместе со страницей.
@@ -149,8 +165,30 @@ window.__stage = (() => {
     el = {
       zoom, layer, spot: pick("#__spot"), cap: pick("#__cap"),
       capText: pick("#__captext"), capBar: pick("#__capbar"),
-      cur: pick("#__cur"), rip: pick("#__rip"), fade: pick("#__fade"),
+      cur: pick("#__cur"), rip: pick("#__rip"), fade: pick("#__fade"), cards: pick("#__cards"),
     };
+    for (const card of s.overlay?.cards ?? []) {
+      const node = document.createElement("div");
+      node.className = "__card";
+      node.dataset.pos = card.position ?? "bottom-left";
+      const title = document.createElement("div");
+      title.className = "__card-title";
+      title.textContent = card.title;
+      node.appendChild(title);
+      if (card.body) {
+        const body = document.createElement("div");
+        body.className = "__card-body";
+        body.textContent = card.body;
+        node.appendChild(body);
+      }
+      el.cards.appendChild(node);
+      node.style.minHeight = `${Math.ceil(node.getBoundingClientRect().height)}px`;
+    }
+    if (s.__overlayOnly) {
+      el.spot.style.display = "none";
+      el.cap.style.display = "none";
+      el.fade.style.display = "none";
+    }
     el.capText.textContent = s.caption ?? "";
     // Подложка могла объявить свою функцию времени (так делают слайды).
     // Не затираем её, а вызываем вместе со своей: иначе элементы слайда
@@ -195,7 +233,8 @@ window.__stage = (() => {
       const r = node.getBoundingClientRect();
       return r.top < 0 || r.left < 0 || r.bottom > innerHeight || r.right > innerWidth;
     };
-    if (target && needScroll(target)) {
+    if (scene.overlay?.camera?.length) window.scrollTo(0, 0);
+    if (target && !scene.overlay?.camera?.length && needScroll(target)) {
       const prev = el.zoom.style.transform;
       el.zoom.style.transform = "none";
       target.scrollIntoView({ block: "center", behavior: "instant" });
@@ -212,11 +251,12 @@ window.__stage = (() => {
     // не масштабируется: 0,1→0,75 означало, что всё оно укладывается
     // в две трети секунды и в сцене на двадцать восемь секунд выглядит
     // рывком в начале, после чего кадр стоит двадцать семь секунд.
-    const z = fx.zoom ?? { from: 0, to: 0, scale: 1 };
+    const z = scene.overlay?.camera?.length
+      ? { from: 0, to: 0, scale: 1 } : fx.zoom ?? { from: 0, to: 0, scale: 1 };
     const zFrom = at(z.from, 0);
     const zTo = at(z.to, 0);
-    const zp = ease(phase(t, zFrom, zTo));
-    const k = 1 + ((z.scale ?? 1) - 1) * zp;
+    let zp = ease(phase(t, zFrom, zTo));
+    let k = 1 + ((z.scale ?? 1) - 1) * zp;
     const cx = base.left + base.width / 2, cy = base.top + base.height / 2;
     // При масштабе 1 панорамирования нет: иначе слайд во весь кадр
     // уезжает вверх на разницу между центром экрана и 0.42 высоты.
@@ -239,6 +279,41 @@ window.__stage = (() => {
       tx = fit(tx, zr.left, zr.width, innerWidth);
       ty = fit(ty, zr.top, zr.height, innerHeight);
     }
+    let cameraRect: Rect | null = null;
+    let cameraPower = 0;
+    const cue = scene.overlay?.camera?.find((item) =>
+      t >= item.at && t < item.at + (item.move ?? 0.9) + item.hold + (item.return ?? 0.9));
+    if (cue) {
+      const move = cue.move ?? 0.9;
+      const back = cue.return ?? 0.9;
+      const plateau = cue.at + move + cue.hold;
+      cameraPower = t < cue.at + move ? ease(phase(t, cue.at, cue.at + move))
+        : t < plateau ? 1 : 1 - ease(phase(t, plateau, plateau + back));
+      if (cue.target) {
+        const node = document.querySelector(cue.target);
+        if (!node) throw new Error(`Camera target not found: ${cue.target}`);
+        cameraRect = rawRect(node);
+      } else if (cue.area) {
+        cameraRect = { left: cue.area[0] * innerWidth, top: cue.area[1] * innerHeight,
+          width: cue.area[2] * innerWidth, height: cue.area[3] * innerHeight };
+      }
+      if (cameraRect) {
+        zp = 1;
+        k = 1 + ((cue.scale ?? 1.65) - 1) * cameraPower;
+        const midX = cameraRect.left + cameraRect.width / 2;
+        const midY = cameraRect.top + cameraRect.height / 2;
+        tx = k === 1 ? 0 : innerWidth / 2 - midX * k;
+        ty = k === 1 ? 0 : innerHeight / 2 - midY * k;
+        const zr = rawRect(el.zoom);
+        const clampPan = (v: number, edge: number, size: number, frame: number): number => {
+          const lo = frame - (edge + size) * k;
+          const hi = -edge * k;
+          return lo > hi ? (frame - size * k) / 2 - edge * k : Math.max(lo, Math.min(hi, v));
+        };
+        tx = clampPan(tx, zr.left, zr.width, innerWidth);
+        ty = clampPan(ty, zr.top, zr.height, innerHeight);
+      }
+    }
     zoomState = { k, tx: tx * zp, ty: ty * zp };
     el.zoom.style.transform =
       `translate(${(tx * zp).toFixed(2)}px, ${(ty * zp).toFixed(2)}px) scale(${k.toFixed(4)})`;
@@ -260,16 +335,21 @@ window.__stage = (() => {
     // фокуса: та, чей момент уже наступил. Кадр от этого не двигается —
     // приближение считается по цели, — а пятно идёт за голосом.
     let spotEl: Element | null = target;
+    if (cue?.target) spotEl = document.querySelector(cue.target);
     if (Array.isArray(scene.focus) && scene.focus.length) {
       const passed = scene.focus.filter((f) => t >= at(f.at, 0));
       const cur = passed.length ? passed[passed.length - 1]! : scene.focus[0]!;
       spotEl = document.querySelector(cur.sel) ?? target;
     }
-    const live = spotEl ? spotEl.getBoundingClientRect()
-      : { left: base.left * k + zoomState.tx, top: base.top * k + zoomState.ty,
-          width: base.width * k, height: base.height * k };
+    const live = cue?.area && cameraRect
+      ? { left: cameraRect.left * k + zoomState.tx, top: cameraRect.top * k + zoomState.ty,
+          width: cameraRect.width * k, height: cameraRect.height * k }
+      : spotEl ? spotEl.getBoundingClientRect()
+        : { left: base.left * k + zoomState.tx, top: base.top * k + zoomState.ty,
+            width: base.width * k, height: base.height * k };
     const sp = fx.spot ?? { from: "55%" };
-    const spOn = t >= at(sp.from, 0) ? 1 : 0;
+    const spOn = scene.overlay?.camera?.length ? cameraPower * 0.9
+      : t >= at(sp.from, 0) ? 1 : 0;
     const pad = 10;
     el.spot.style.opacity = String(spOn);
     const R = Math.round;
@@ -280,31 +360,102 @@ window.__stage = (() => {
 
     // 4. Курсор: путь от стартовой точки к цели за [from, to], затем стоит.
     const c = fx.cursor ?? { from: 0, to: "40%", start: [0.33, 0.61] };
-    // Слайду курсор не нужен: он ничего не показывает и лезет в кадр.
-    el.cur.style.display = c.hidden ? "none" : "";
-    el.rip.style.display = c.hidden ? "none" : "";
-    // Стартовая точка курсора — ДОЛИ КАДРА, а не пиксели: числа [640, 660]
-    // были посчитаны для кадра 1280×720 и после перехода на 1920×1080
-    // указывали в левую верхнюю четверть. Доли переживают смену кадра.
-    const cs = c.start ?? [0.33, 0.61];
-    const cStart: [number, number] = cs[0]! <= 1 && cs[1]! <= 1
-      ? [cs[0]! * innerWidth, cs[1]! * innerHeight] : [cs[0]!, cs[1]!];
-    const cTo = at(c.to, 0);
-    const cp = ease(phase(t, at(c.from, 0), cTo));
-    const dstX = base.left * k + zoomState.tx + Math.min(120, (base.width * k) / 2);
-    const dstY = base.top * k + zoomState.ty + 26;
-    const curX = cStart[0] + (dstX - cStart[0]) * cp;
-    const curY = cStart[1] + (dstY - cStart[1]) * cp;
-    el.cur.style.transform = `translate(${Math.round(curX)}px, ${Math.round(curY)}px)`;
+    const points = scene.overlay?.pointer;
+    if (points?.length) {
+      const nextIndex = points.findIndex((p) => p.at >= t);
+      const hi = nextIndex < 0 ? points.length - 1 : nextIndex;
+      const lo = Math.max(0, hi - 1);
+      const a = points[lo]!, b = points[hi]!;
+      const p = hi === lo ? 1 : ease(phase(t, a.at, b.at));
+      const px = (a.x + (b.x - a.x) * p) * innerWidth;
+      const py = (a.y + (b.y - a.y) * p) * innerHeight;
+      el.cur.style.display = t < points[0]!.at ? "none" : "";
+      el.cur.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px)`;
+      const clicked = [...points].reverse().find((point) => point.click && t >= point.at && t < point.at + 0.65);
+      if (clicked) {
+        const rp = phase(t, clicked.at, clicked.at + 0.65);
+        const size = 16 + rp * 72;
+        el.rip.style.display = "";
+        el.rip.style.opacity = String(0.9 * (1 - rp));
+        el.rip.style.left = `${Math.round(clicked.x * innerWidth)}px`;
+        el.rip.style.top = `${Math.round(clicked.y * innerHeight)}px`;
+        el.rip.style.width = `${Math.round(size)}px`;
+        el.rip.style.height = `${Math.round(size)}px`;
+      } else {
+        el.rip.style.display = "none";
+      }
+    } else {
+      // Слайду курсор не нужен: он ничего не показывает и лезет в кадр.
+      el.cur.style.display = c.hidden || scene.__overlayOnly ? "none" : "";
+      el.rip.style.display = c.hidden || scene.__overlayOnly ? "none" : "";
+      // Стартовая точка курсора — ДОЛИ КАДРА, а не пиксели: числа [640, 660]
+      // были посчитаны для кадра 1280×720 и после перехода на 1920×1080
+      // указывали в левую верхнюю четверть. Доли переживают смену кадра.
+      const cs = c.start ?? [0.33, 0.61];
+      const cStart: [number, number] = cs[0]! <= 1 && cs[1]! <= 1
+        ? [cs[0]! * innerWidth, cs[1]! * innerHeight] : [cs[0]!, cs[1]!];
+      const cTo = at(c.to, 0);
+      const cp = ease(phase(t, at(c.from, 0), cTo));
+      const dstX = base.left * k + zoomState.tx + Math.min(120, (base.width * k) / 2);
+      const dstY = base.top * k + zoomState.ty + 26;
+      const curX = cStart[0] + (dstX - cStart[0]) * cp;
+      const curY = cStart[1] + (dstY - cStart[1]) * cp;
+      el.cur.style.transform = `translate(${Math.round(curX)}px, ${Math.round(curY)}px)`;
 
-    // 5. Клик: волна за 0,6 с после прибытия курсора.
-    const rp = phase(t, cTo, cTo + 0.6);
-    const rSize = 16 + rp * 60;
-    el.rip.style.opacity = String(rp > 0 && rp < 1 ? 0.9 * (1 - rp) : 0);
-    el.rip.style.left = `${Math.round(dstX)}px`;
-    el.rip.style.top = `${Math.round(dstY)}px`;
-    el.rip.style.width = `${Math.round(rSize)}px`;
-    el.rip.style.height = `${Math.round(rSize)}px`;
+      // 5. Клик: волна за 0,6 с после прибытия курсора.
+      const rp = phase(t, cTo, cTo + 0.6);
+      const rSize = 16 + rp * 60;
+      el.rip.style.opacity = String(rp > 0 && rp < 1 ? 0.9 * (1 - rp) : 0);
+      el.rip.style.left = `${Math.round(dstX)}px`;
+      el.rip.style.top = `${Math.round(dstY)}px`;
+      el.rip.style.width = `${Math.round(rSize)}px`;
+      el.rip.style.height = `${Math.round(rSize)}px`;
+    }
+
+    // Timed cards are derived solely from scene time; random seek is safe.
+    (scene.overlay?.cards ?? []).forEach((card, i) => {
+      const node = el.cards.children[i] as HTMLElement;
+      const end = card.at + (card.hold ?? 4);
+      const enter = ease(phase(t, card.at, card.at + (card.enter ?? 0.65)));
+      const leave = ease(phase(t, end - (card.exit ?? 0.45), end));
+      node.style.opacity = String(Math.max(0, Math.min(enter, 1 - leave)));
+      if (card.motion === "pop") {
+        node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`;
+      } else if (card.motion === "glide") {
+        node.style.transform = `translateX(${Math.round((1 - enter) * 38 + leave * 12)}px)`;
+      } else {
+        node.style.transform = `translateY(${Math.round((1 - enter) * 22 - leave * 8)}px)`;
+      }
+      if (card.position === "center" || card.position === "near-focus") {
+        const frameW = innerWidth / lz, frameH = innerHeight / lz;
+        const w = node.offsetWidth, h = node.offsetHeight;
+        let left = (frameW - w) / 2, top = (frameH - h) / 2;
+        if (card.position === "near-focus" && cameraPower > 0 && cameraRect) {
+          const focus = { left: live.left / lz, top: live.top / lz,
+            right: (live.left + live.width) / lz, bottom: (live.top + live.height) / lz };
+          const gap = 24;
+          if (focus.right + gap + w <= frameW - 28) left = focus.right + gap;
+          else if (focus.left - gap - w >= 28) left = focus.left - gap - w;
+          else left = Math.max(28, Math.min(frameW - w - 28, focus.left));
+          top = focus.bottom + gap + h <= frameH - 28 ? focus.bottom + gap
+            : Math.max(28, focus.top - gap - h);
+        }
+        node.style.left = `${Math.round(left)}px`;
+        node.style.top = `${Math.round(top)}px`;
+      }
+      const title = node.querySelector<HTMLElement>(".__card-title");
+      const body = node.querySelector<HTMLElement>(".__card-body");
+      if (card.reveal === "type") {
+        const fullTitle = Array.from(card.title);
+        const fullBody = Array.from(card.body ?? "");
+        const duration = Math.min(3.2, (fullTitle.length + fullBody.length) / 34);
+        const typed = Math.floor(phase(t, card.at + (card.enter ?? 0.65) * 0.35,
+          card.at + (card.enter ?? 0.65) * 0.35 + duration) * (fullTitle.length + fullBody.length));
+        if (title) title.textContent = fullTitle.slice(0, typed).join("");
+        if (body) body.textContent = fullBody.slice(0, Math.max(0, typed - fullTitle.length)).join("");
+      }
+      node.style.display = t < card.at || t >= end ? "none" : "";
+    });
 
     // 6. Подсказка: появление и полоса хода реплики.
     const cap = fx.caption ?? { from: 1.4 };

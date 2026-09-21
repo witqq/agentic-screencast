@@ -32,6 +32,7 @@ export function slideOf(s: RawScene): Slide {
   const slide: Slide = { id: s.id, kind: s.kind };
   if (f.kicker) slide.kicker = f.kicker;
   if (f.title) slide.title = f.title;
+  if (f.body) slide.body = f.body;
   if (f.note) slide.note = f.note;
   if (s.kind === "compare") {
     slide.left = column(f.left!, s.id);

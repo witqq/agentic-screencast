@@ -29,7 +29,7 @@ const esc = (s: string): string =>
  * РИСУЕТ: проверка кадра иначе знала бы классы чужой разметки, и кадр
  * любого другого материала объявлялся бы пустым.
  */
-const CONTENT = ".chain .node, .cols .col, .huge, .quote";
+const CONTENT = ".chain .node, .cols .col, .huge, .quote, .chapter-title, .chapter-body";
 
 const page = (title: string, body: string, elements: number, theme: string,
   lang: string): string => `<!DOCTYPE html>
@@ -78,7 +78,7 @@ export function buildSlide(scene: Slide, outDir: string, film?: Film): string {
   // ни отрисовала. Считается по факту разметки, а не по данным сцены:
   // иначе объявленное разошлось бы с нарисованным ровно там, где
   // проверка и должна краснеть.
-  const elements = [...body.matchAll(/class="el"/g)].length;
+  const elements = [...body.matchAll(/class="[^"]*\bel\b[^"]*"/g)].length;
   // Язык страницы — язык ролика: от него зависят переносы и типографика,
   // и «ru» навсегда было бы решением инструмента за автора.
   // Сетка идёт ПЕРЕД темой: тема вправе перебить и её.

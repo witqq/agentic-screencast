@@ -45,10 +45,15 @@ const required = [
   "README.ru.md",
   "LICENSE",
   "dist/agentic-screencast.js",
+  "dist/capture.js",
+  "dist/capture.d.ts",
   "dist/record-ui/index.html",
   "dist/record-ui/index.js",
   "example/story.md",
   "example/agent-video.md",
+  "example/kinetic-video.md",
+  "example/live-capture.mjs",
+  "skills/agentic-screencast/SKILL.md",
   "docs/moira.md",
   "docs/moira.ru.md",
   "workflows/production/flows/agentic-screencast-video.json",
@@ -89,6 +94,10 @@ try {
   if (!help.includes("Build reproducible videos") || !help.includes("agentic-screencast build")) {
     throw new Error("installed CLI help is incomplete");
   }
+  const capture = execFileSync("node", ["--input-type=module", "-e",
+    'import { recordTake, capturePage } from "agentic-screencast/capture"; console.log(typeof recordTake, typeof capturePage)'],
+  { cwd: consumer, encoding: "utf8" }).trim();
+  if (capture !== "function function") throw new Error("installed capture API is unavailable");
   JSON.parse(execFileSync(binary, ["schema"], { cwd: consumer, encoding: "utf8" }));
   const source = resolve(consumer, "node_modules/agentic-screencast/example/story.md");
   const scenes = JSON.parse(execFileSync(binary, ["scenes", "--source", source], { cwd: consumer, encoding: "utf8" }));
