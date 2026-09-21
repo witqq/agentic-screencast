@@ -192,9 +192,13 @@ window.__stage = (() => {
       node.style.minHeight = `${Math.ceil(node.getBoundingClientRect().height)}px`;
     }
     if (s.__overlayOnly) {
+      // Слой поверх готового клипа рисует только то, чего в клипе нет: подсказку, карточки и
+      // курсор. Подсветка и затемнение сюда не идут — они относятся к странице, которой здесь
+      // нет, — а подсказка идёт, если сцене есть что сказать: рассказ поверх снятого материала
+      // и есть обычный случай такого ролика.
       el.spot.style.display = "none";
-      el.cap.style.display = "none";
       el.fade.style.display = "none";
+      if (!s.caption) el.cap.style.display = "none";
     }
     el.capText.textContent = s.caption ?? "";
     // Подложка могла объявить свою функцию времени (так делают слайды).
@@ -306,7 +310,13 @@ window.__stage = (() => {
       }
       if (cameraRect) {
         zp = 1;
-        k = 1 + ((cue.scale ?? 1.65) - 1) * cameraPower;
+        // Наезд НЕ ЗАМИРАЕТ на удержании: пока камера стоит, она продолжает еле заметно идти
+        // вперёд. Без этого кадр с замороженным кадром и дочитанной карточкой становится
+        // неподвижной картинкой — два кадра подряд совпадают, и ролик на секунду превращается
+        // в слайд.
+        const plateauStart = cue.at + move;
+        const creep = t > plateauStart ? Math.min(1, (t - plateauStart) / cue.hold) : 0;
+        k = (1 + ((cue.scale ?? 1.65) - 1) * cameraPower) * (1 + 0.035 * creep);
         const midX = cameraRect.left + cameraRect.width / 2;
         const midY = cameraRect.top + cameraRect.height / 2;
         tx = k === 1 ? 0 : innerWidth / 2 - midX * k;
@@ -423,6 +433,11 @@ window.__stage = (() => {
     (scene.overlay?.cards ?? []).forEach((card, i) => {
       const node = el.cards.children[i] as HTMLElement;
       const end = card.at + (card.hold ?? 4);
+      // Видимость назначается ДО измерений: у скрытой карточки ширина и высота равны нулю, и
+      // расчёт места по ним уводил карточку за правый край — в кадре оставался обрезанный
+      // заголовок. Дефект виден только на карточке, которую ставят по месту (центр и рядом
+      // с фокусом): у углов место задаёт разметка.
+      node.style.display = t < card.at || t >= end ? "none" : "";
       const enter = ease(phase(t, card.at, card.at + (card.enter ?? 0.65)));
       const leave = ease(phase(t, end - (card.exit ?? 0.45), end));
       node.style.opacity = String(Math.max(0, Math.min(enter, 1 - leave)));
@@ -453,6 +468,10 @@ window.__stage = (() => {
           top = focus.bottom + gap + h <= frameH - 28 ? focus.bottom + gap
             : Math.max(28, focus.top - gap - h);
         }
+        // Последнее слово — за кадром: карточка целиком внутри него, чем бы ни кончился подбор
+        // места. Обрезанная карточка не читается вовсе, а место у неё всегда есть — кадр больше.
+        left = Math.max(24, Math.min(frameW - w - 24, left));
+        top = Math.max(24, Math.min(frameH - h - 24, top));
         node.style.left = `${Math.round(left)}px`;
         node.style.top = `${Math.round(top)}px`;
       }
@@ -467,13 +486,14 @@ window.__stage = (() => {
         if (title) title.textContent = fullTitle.slice(0, typed).join("");
         if (body) body.textContent = fullBody.slice(0, Math.max(0, typed - fullTitle.length)).join("");
       }
-      node.style.display = t < card.at || t >= end ? "none" : "";
     });
 
     // 6. Подсказка: появление и полоса хода реплики.
+    // Сцена без речи подсказки не получает вовсе: пустая строка нарисовала бы в кадре пустую
+    // плашку с полосой хода — то же место, тот же вес, и ничего не сказано.
     const cap = fx.caption ?? { from: 1.4 };
     const capFrom = at(cap.from, 0);
-    const ap = phase(t, capFrom, capFrom + 0.42);
+    const ap = scene.caption ? phase(t, capFrom, capFrom + 0.42) : 0;
     el.cap.style.opacity = String(ap);
     el.cap.style.transform = `translate(-50%, ${Math.round((1 - ap) * 14)}px)`;
     const barP = phase(t, capFrom, dur);

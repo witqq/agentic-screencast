@@ -129,6 +129,26 @@ function keyOf(
 const dur = (f: string): number => Number(execFileSync(FFPROBE, ["-v", "error", "-show_entries",
   "format=duration", "-of", "default=nw=1:nk=1", f], { encoding: "utf8" }).trim());
 
+/**
+ * Насколько разнообразен кусок картинки: среднеквадратичное отклонение яркости.
+ *
+ * Плоская заливка даёт около нуля, содержательный кусок — десятки. Числом, а не глазом: пустую
+ * подсветку в готовом ролике замечает зритель, а не автор, и стоит это целого круга пересъёмки.
+ */
+function areaContrast(image: string, area: [number, number, number, number], size: { width: number; height: number }): number {
+  const crop = [Math.round(area[2] * size.width), Math.round(area[3] * size.height),
+    Math.round(area[0] * size.width), Math.round(area[1] * size.height)];
+  const said = execFileSync(FFMPEG, ["-nostdin", "-v", "info", "-i", image,
+    "-vf", `crop=${crop.join(":")},signalstats,metadata=print:key=lavfi.signalstats.YSTDEV`,
+    "-f", "null", "-"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const found = /YSTDEV=([\d.]+)/.exec(said);
+  return found ? Number(found[1]) : Number.NaN;
+}
+
+/** Ниже этого разнообразия подсвеченная область считается пустой: в ней нечего показывать. */
+const EMPTY_AREA_CONTRAST = 8;
+
+
 async function main() {
   const PITCH_FILE = resolve(arg("pitch", "pitch.json"));
   // Подложки адресуются относительно ФАЙЛА-ИСТОЧНИКА, а не каталога
@@ -359,6 +379,17 @@ async function main() {
       const html = `${CACHE}/${key}.freeze.html`;
       execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
         "-ss", String(s.freezeAt), "-frames:v", "1", still]);
+      // Подсветка обязана ложиться НА ПРЕДМЕТ. Области названы долями кадра, и промах в доле
+      // виден только на готовом ролике — там, где зритель смотрит на пустое место и не понимает,
+      // о чём подпись. Поэтому каждая область проверяется по самому замороженному кадру.
+      for (const cue of s.overlay?.camera ?? []) {
+        if (!cue.area) continue;
+        const contrast = areaContrast(still, cue.area, { width: opts.width, height: opts.height });
+        if (Number.isFinite(contrast) && contrast < EMPTY_AREA_CONTRAST) {
+          throw new Error(`scene ${s.id}: camera area [${cue.area.join(", ")}] is nearly empty `
+            + `(contrast ${contrast.toFixed(1)} < ${EMPTY_AREA_CONTRAST}); point it at the subject`);
+        }
+      }
       const image = readFileSync(still).toString("base64");
       writeFileSync(html, `<!doctype html><html><head><meta charset="utf-8"><style>`
         + `html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080d14}`
@@ -389,7 +420,11 @@ async function main() {
       const fade = `fade=t=in:st=0:d=${fadeIn},`
         + `fade=t=out:st=${Math.max(0, s.duration - fadeOut)}:d=${fadeOut}`;
       const overlayDir = `${CACHE}/${key}.overlay.frames`;
-      if (s.overlay) {
+      // Слой поверх клипа рисуется и ради ПОДСКАЗКИ, а не только ради карточек: сцена с речью
+      // над готовым материалом — обычный случай такого ролика, и прежде её реплика не попадала
+      // в кадр вовсе, потому что слой заводился только по полю `overlay`.
+      const needsOverlay = Boolean(s.overlay) || s.beats.length > 0;
+      if (needsOverlay) {
         // The same deterministic browser stage draws page and video annotations.
         // Imported video is normalized first; PNG alpha is then composited over
         // the final frame, so pointer coordinates are independent of source size.
@@ -400,8 +435,8 @@ async function main() {
           `${overlayDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
       }
       try {
-        const inputs = s.overlay ? ["-framerate", String(opts.fps), "-i", `${overlayDir}/%05d.png`] : [];
-        const videoFilter = s.overlay
+        const inputs = needsOverlay ? ["-framerate", String(opts.fps), "-i", `${overlayDir}/%05d.png`] : [];
+        const videoFilter = needsOverlay
           ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
           : ["-vf", `${base},${fade}`];
         execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
@@ -409,7 +444,7 @@ async function main() {
           "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
           "-pix_fmt", e.pix, "-g", String(opts.fps * 2), seg]);
       } finally {
-        if (s.overlay) rmSync(overlayDir, { recursive: true, force: true });
+        if (needsOverlay) rmSync(overlayDir, { recursive: true, force: true });
       }
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, video: true });
     } else {
