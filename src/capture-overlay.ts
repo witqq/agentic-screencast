@@ -1,11 +1,13 @@
 /** Browser-side overlay installed on every page document during live capture.
  * Pointer motion and the click ripple are driven by real DOM input events. */
 export function installCaptureOverlay(): void {
-  // addInitScript also runs in child frames; the recording needs one cursor
-  // in the page viewport, not a separate one inside every embedded frame.
-  if (window.top !== window) return;
+  // addInitScript runs in child frames too. Relay their real pointer events
+  // through each parent so one cursor is painted in the page viewport.
+  const isTop = window.top === window;
   type TraceEvent = { kind: "down" | "click"; x: number; y: number; at: number };
   type CaptureState = { position: { x: number; y: number } | null; trace: TraceEvent[] };
+  type PointerMessage = { source: "agentic-screencast-capture-v1";
+    kind: "move" | "down" | "click"; x: number; y: number };
   const key = "__agenticScreencastCapture_v1";
   const w = window as unknown as Window & Record<string, CaptureState>;
   if (w[key]) return;
@@ -15,7 +17,7 @@ export function installCaptureOverlay(): void {
   let cursor: HTMLElement | null = null;
   let effects: HTMLElement | null = null;
   const mount = (): void => {
-    if (!document.documentElement || cursor) return;
+    if (!isTop || !document.documentElement || cursor) return;
     const host = document.createElement("div");
     host.setAttribute("data-agentic-screencast-capture", "");
     host.setAttribute("aria-hidden", "true");
@@ -50,23 +52,49 @@ export function installCaptureOverlay(): void {
       cursor.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px)`;
     }
   };
-  document.addEventListener("pointermove", (event) => move(event.clientX, event.clientY), true);
-  document.addEventListener("pointerdown", (event) => {
-    move(event.clientX, event.clientY);
-    state.trace.push({ kind: "down", x: event.clientX, y: event.clientY, at: performance.now() });
+  const dispatch = (kind: PointerMessage["kind"], x: number, y: number): void => {
+    if (!isTop) {
+      const message: PointerMessage = { source: "agentic-screencast-capture-v1", kind, x, y };
+      window.parent.postMessage(message, "*");
+      return;
+    }
+    if (kind === "move") { move(x, y); return; }
+    if (kind === "click") {
+      state.trace.push({ kind, x, y, at: performance.now() });
+      if (state.trace.length > 1000) state.trace.shift();
+      return;
+    }
+    move(x, y);
+    state.trace.push({ kind, x, y, at: performance.now() });
     if (state.trace.length > 1000) state.trace.shift();
     if (!effects) return;
     const ripple = document.createElement("div");
     ripple.className = "ripple";
-    ripple.style.left = `${event.clientX}px`;
-    ripple.style.top = `${event.clientY}px`;
+    ripple.style.left = `${x}px`;
+    ripple.style.top = `${y}px`;
     effects.appendChild(ripple);
     window.setTimeout(() => ripple.remove(), 700);
-  }, true);
-  document.addEventListener("click", (event) => {
-    state.trace.push({ kind: "click", x: event.clientX, y: event.clientY, at: performance.now() });
-    if (state.trace.length > 1000) state.trace.shift();
-  }, true);
+  };
+  document.addEventListener("pointermove", (event) =>
+    dispatch("move", event.clientX, event.clientY), true);
+  document.addEventListener("pointerdown", (event) =>
+    dispatch("down", event.clientX, event.clientY), true);
+  document.addEventListener("click", (event) =>
+    dispatch("click", event.clientX, event.clientY), true);
+  window.addEventListener("message", (event: MessageEvent<PointerMessage>) => {
+    const data = event.data;
+    if (!data || data.source !== "agentic-screencast-capture-v1"
+      || !["move", "down", "click"].includes(data.kind)
+      || !Number.isFinite(data.x) || !Number.isFinite(data.y)) return;
+    const child = Array.from(document.querySelectorAll("iframe,frame"))
+      .find((element) => (element as HTMLIFrameElement | HTMLFrameElement).contentWindow === event.source);
+    if (!child) return;
+    const rect = child.getBoundingClientRect();
+    const element = child as HTMLIFrameElement | HTMLFrameElement;
+    const x = rect.left + (element.clientLeft + data.x) * rect.width / Math.max(1, element.offsetWidth);
+    const y = rect.top + (element.clientTop + data.y) * rect.height / Math.max(1, element.offsetHeight);
+    dispatch(data.kind, x, y);
+  });
   if (document.documentElement) mount();
   else document.addEventListener("DOMContentLoaded", mount, { once: true });
 }

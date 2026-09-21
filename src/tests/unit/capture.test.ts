@@ -130,3 +130,61 @@ test("live locator actions and visible click use the same browser event", async 
   }
   assert.ok(synchronizedFrame, "No frame contains both the UI result and click ripple");
 });
+
+test("a click inside an iframe paints the parent-frame cursor and ripple", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-capture-frame-"));
+  const video = join(dir, "frame.webm");
+  let result: { trace: Array<{ kind: string; x: number; y: number }>;
+    box: { x: number; y: number; width: number; height: number }; text: string } | undefined;
+  await recordTake({ output: video, viewport: { width: 640, height: 360 },
+    prepare: async (page) => {
+      await page.setContent(`<body style="margin:0;background:white">
+        <iframe id="child" style="position:absolute;left:100px;top:80px;width:300px;height:180px;border:5px solid #333"
+          srcdoc="<button id='inside' style='margin:20px;width:120px;height:60px'>Ready</button>"></iframe>`);
+      const button = page.frameLocator("#child").locator("#inside");
+      await button.waitFor();
+      await button.evaluate((element) => element.addEventListener("click", () => {
+        element.textContent = "Clicked";
+        (element as HTMLElement).style.background = "#00d000";
+      }));
+    } }, async (capture) => {
+    const button = capture.page.frameLocator("#child").locator("#inside");
+    const box = await button.boundingBox();
+    assert.ok(box);
+    await capture.click(button);
+    result = { box, text: await button.textContent() ?? "",
+      trace: await capture.page.evaluate(() => {
+        const w = window as unknown as { __agenticScreencastCapture_v1: {
+          trace: Array<{ kind: string; x: number; y: number }> } };
+        return w.__agenticScreencastCapture_v1.trace;
+      }) };
+  });
+  assert.ok(result);
+  assert.equal(result.text, "Clicked");
+  const down = result.trace.find((event) => event.kind === "down");
+  const click = result.trace.find((event) => event.kind === "click");
+  assert.ok(down && click, "Iframe events must reach the top recording overlay");
+  for (const event of [down, click]) {
+    assert.ok(event.x >= result.box.x && event.x <= result.box.x + result.box.width);
+    assert.ok(event.y >= result.box.y && event.y <= result.box.y + result.box.height);
+  }
+});
+
+test("a live explanation remains visible until a slow action ends", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-capture-card-"));
+  const video = join(dir, "card.webm");
+  await recordTake({ output: video, viewport: { width: 640, height: 360 },
+    prepare: async (page) => { await page.setContent("<body style='background:white'></body>"); } },
+  async (capture) => {
+    await capture.withCard({ title: "Waiting" }, async () => {
+      await capture.page.waitForTimeout(5000);
+    });
+  });
+  const pixels = execFileSync(ffmpeg, ["-v", "error", "-ss", "4.5", "-i", video,
+    "-vf", "crop=90:70:400:260,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-"],
+  { maxBuffer: 1024 * 1024 });
+  let dark = 0;
+  for (let i = 0; i < pixels.length; i += 3)
+    if (pixels[i]! < 70 && pixels[i + 1]! < 100 && pixels[i + 2]! < 130) dark++;
+  assert.ok(dark > 3000, "Card faded before the slow action completed");
+});

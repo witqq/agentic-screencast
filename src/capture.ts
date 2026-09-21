@@ -66,7 +66,8 @@ function escapeHtml(text: string): string {
 }
 
 function cardHtml(card: OverlayCard, viewport: { width: number; height: number },
-  anchor?: { x: number; y: number; width: number; height: number }): string {
+  anchor?: { x: number; y: number; width: number; height: number },
+  phase: "enter" | "exit" = "enter"): string {
   let horizontal = card.position?.endsWith("left") ? "left:30px" : "right:30px";
   let vertical = card.position?.startsWith("top") ? "top:30px" : "bottom:30px";
   if (card.position === "center") {
@@ -90,19 +91,17 @@ function cardHtml(card: OverlayCard, viewport: { width: number; height: number }
     horizontal = `left:${Math.round(left)}px`;
     vertical = `top:${Math.round(top)}px`;
   }
-  const hold = card.hold ?? cardHold(card);
-  const enterPct = ((card.enter ?? 0.65) / hold * 100).toFixed(2);
-  const leavePct = (100 - (card.exit ?? 0.45) / hold * 100).toFixed(2);
+  const enter = card.enter ?? 0.65;
+  const exit = card.exit ?? 0.45;
   const start = card.motion === "pop" ? "scale(.84)"
     : card.motion === "glide" ? "translateX(38px)" : "translateY(22px)";
   const total = Array.from(card.title + (card.body ?? "")).length;
   const typingTime = Math.min(3.2, total / 34);
-  const glyphs = (value: string, offset: number): string => card.reveal === "type"
+  const glyphs = (value: string, offset: number): string => phase === "enter" && card.reveal === "type"
     ? Array.from(value).map((character, i) => `<span class="glyph" style="animation-delay:${((card.enter ?? 0.65) * 0.35 + (offset + i) / Math.max(1, total) * typingTime).toFixed(3)}s">${escapeHtml(character)}</span>`).join("")
     : escapeHtml(value);
-  return `<style>@keyframes sc-card{0%{opacity:0;transform:${start}}`
-    + `${enterPct}%{opacity:1;transform:none}${leavePct}%{opacity:1;transform:none}`
-    + `100%{opacity:0;transform:translateY(-8px)}}`
+  return `<style>@keyframes sc-card-enter{from{opacity:0;transform:${start}}to{opacity:1;transform:none}}`
+    + `@keyframes sc-card-exit{from{opacity:1;transform:none}to{opacity:0;transform:translateY(-8px)}}`
     + `.glyph{opacity:0;animation:sc-glyph .01s linear forwards}`
     + `@keyframes sc-glyph{to{opacity:1}}</style>`
     + `<div style="position:fixed;${horizontal};${vertical};width:min(460px,42vw);`
@@ -110,7 +109,7 @@ function cardHtml(card: OverlayCard, viewport: { width: number; height: number }
     + "background:linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93));"
     + "border:1px solid rgba(110,211,226,.58);box-shadow:0 18px 48px rgba(4,12,25,.42);"
     + "color:#f6fbff;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;"
-    + `pointer-events:none;z-index:2147483000;animation:sc-card ${hold}s linear both">`
+    + `pointer-events:none;z-index:2147483000;animation:sc-card-${phase} ${phase === "enter" ? enter : exit}s ease-out both">`
     + `<div style="font-size:26px;line-height:1.17;font-weight:740;white-space:pre-wrap">${glyphs(card.title, 0)}</div>`
     + (card.body ? `<div style="margin-top:9px;font-size:17px;line-height:1.38;color:#cce1ee;white-space:pre-wrap">${glyphs(card.body, Array.from(card.title).length)}</div>` : "")
     + "</div>";
@@ -128,6 +127,13 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   // click is painted on pointerdown, not Playwright's pre-action annotation.
   const initScript = await page.addInitScript(installCaptureOverlay);
   await page.evaluate(installCaptureOverlay);
+  // addInitScript covers future documents only; setup may already have loaded
+  // embedded frames before capturePage is called.
+  for (const frame of page.frames()) {
+    if (frame === page.mainFrame()) continue;
+    try { await frame.evaluate(installCaptureOverlay); }
+    catch (error) { if (!frame.isDetached()) throw error; }
+  }
   await page.screencast.start({ path: output, size });
   let finished = false;
 
@@ -168,17 +174,22 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       throw new Error("near-focus requires withFocusCard(target, card, action)");
     const checked = parseOverlay(JSON.stringify({ cards: [{ at: 0, ...card }] })).cards![0]!;
     const ms = Math.ceil(cardHold(checked) * 1000);
-    const overlay = await page.screencast.showOverlay(
-      cardHtml(checked, page.viewportSize() ?? size, anchor));
+    const viewport = page.viewportSize() ?? size;
+    const overlay = await page.screencast.showOverlay(cardHtml(checked, viewport, anchor));
     const shownAt = Date.now();
     try {
       await action();
       const remaining = ms - (Date.now() - shownAt);
       if (remaining > 0) await page.waitForTimeout(remaining);
     } finally {
-      await overlay.dispose();
+      let leaving: Awaited<ReturnType<typeof page.screencast.showOverlay>> | undefined;
+      try { leaving = await page.screencast.showOverlay(cardHtml(checked, viewport, anchor, "exit")); }
+      finally { await overlay.dispose(); }
+      if (leaving) {
+        try { await page.waitForTimeout(Math.ceil((checked.exit ?? 0.45) * 1000)); }
+        finally { await leaving.dispose(); }
+      }
     }
-    await page.waitForTimeout(350);
   };
 
   return {
