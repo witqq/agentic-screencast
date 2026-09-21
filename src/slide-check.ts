@@ -57,6 +57,18 @@ const at = Number(process.argv[3] ?? 0.9);
 const browser = await chromium.launch();
 const rows: Array<Record<string, unknown>> = [];
 for (const s of pitch.scenes) {
+  // Готовый клип этим признаком не судится вовсе. Признак меряет КАДР
+  // НАРИСОВАННОЙ страницы: объём текста, кегль, контраст, покрытие, —
+  // а материал видеосцены уже снят и смонтирован, и открывать его
+  // браузером как страницу бессмысленно: в документе оказывается один
+  // элемент видео без текста, и сцена всегда объявлялась негодной
+  // по нулевому объёму текста. Что у такой сцены проверяют, сказано
+  // в строке отчёта: измерения готового файла.
+  if (specOf(s, pitch.providers ?? {}).video) {
+    rows.push({ id: s.id, page: s.page, criterion: "video", limits: {}, ok: true,
+      note: "готовый клип: признак кадра неприменим, качество меряется по готовому файлу" });
+    continue;
+  }
   const ctx = await browser.newContext({ viewport: { ...FRAME } });
   await ctx.addInitScript({ content: CLOCK });
   // Композиция внедряется до документа по той же причине, что и в рендере:
@@ -317,7 +329,7 @@ console.log(JSON.stringify({
   // и у разных сцен могут быть разными.
   limits: Object.fromEntries(rows.map((r) => [r.id as string, r.limits])),
   scenes: rows.length,
-  byCriterion: { slide: byKind("slide"), screen: byKind("screen") },
+  byCriterion: { slide: byKind("slide"), screen: byKind("screen"), video: byKind("video") },
   failed: bad.map((r) => ({ id: r.id, criterion: r.criterion, chars: r.chars,
     coverShare: r.coverShare, contrast: r.contrast, unreadable: r.unreadable,
     placeholders: r.placeholders, overflow: r.overflow,
