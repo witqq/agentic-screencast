@@ -138,7 +138,11 @@ test("camera, spotlight and typed card return to the same frame after backward s
     assert.equal(focus.hash, again.hash);
     assert.notEqual(focus.hash, early.hash);
     assert.ok(focus.title.length > early.title.length);
-    assert.match(focus.zoom, /scale\(1\.8\)/);
+    // Масштаб на удержании чуть БОЛЬШЕ назначенного: наезд продолжает еле заметно идти вперёд,
+    // иначе замерший кадр превращается в слайд. Важно, что при возврате на тот же момент он тот
+    // же самый — это и проверяет совпадение снимков выше.
+    const held = Number(/scale\(([\d.]+)\)/.exec(focus.zoom)?.[1]);
+    assert.ok(held > 1.8 && held < 1.87, `масштаб на удержании: ${held}`);
     assert.ok(Number(focus.spot) > 0.8);
   } finally { await browser.close(); }
 });
