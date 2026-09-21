@@ -7,7 +7,7 @@ import type { KindSpec, Provider } from "./types.js";
 
 const clip: KindSpec = {
   about: "готовый видеофайл вместо нарисованной страницы",
-  fields: ["file", "freezeAt", "at"],
+  fields: ["file", "freezeAt", "speed", "at"],
   required: [["file"]],
   fileField: "file",
   video: true,

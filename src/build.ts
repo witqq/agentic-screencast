@@ -17,6 +17,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
+import { speedFilter, type SpeedSpan } from "./speed.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -76,6 +77,7 @@ interface BuiltScene {
   tail?: number;
   duration: number;
   freezeAt?: number;
+  speed?: SpeedSpan[];
   overlay?: SceneOverlay;
   /** начала тактов в секундах от начала сцены */
   __starts?: number[];
@@ -219,6 +221,35 @@ async function main() {
     return out;
   }
 
+  /**
+   * Клип сцены с переигранными кусками — или сам исходный файл, когда
+   * переигрывать нечего.
+   *
+   * Переигрывание делается ОТДЕЛЬНЫМ проходом и кладётся в кэш, а не
+   * вклеивается в фильтр сегмента: длина сцены считается по длине
+   * материала, и считать её до переигрывания значило бы обрезать
+   * замедленный кусок ровно на том месте, ради которого он и замедлен.
+   */
+  function clipOf(s: BuiltScene): string {
+    const src = resolve(SRC, String(s.page));
+    if (!s.video || !s.speed?.length) return src;
+    if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
+    // Отказ называет сцену: «кусок кончается за пределами клипа» без
+    // имени сцены в ролике из двадцати сцен искать нечем.
+    let filter: string | null;
+    try { filter = speedFilter(s.speed, dur(src)); }
+    catch (e) { throw new Error(`scene ${s.id}: ${(e as Error).message}`); }
+    if (!filter) return src;
+    const key = md5(JSON.stringify({ speed: s.speed, page: md5file(src) }));
+    const out = `${CACHE}/speed-${key}.mp4`;
+    if (!existsSync(out)) {
+      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
+        "-filter_complex", filter, "-map", "[v]", "-an",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", out]);
+    }
+    return out;
+  }
+
   for (const s of pitch.scenes) {
     // Чужие сцены при одиночной сборке не озвучиваются и не рисуются:
     // за ключом сегмента нужны только имена соседей, а они известны
@@ -257,10 +288,13 @@ async function main() {
       spoken += got.spoken;
     }
     s.__starts = starts;
+    // Клип берётся уже переигранным: и длина сцены, и кадры считаются
+    // по тому материалу, который попадёт в ролик.
+    const clip = s.video ? clipOf(s) : "";
     if (!s.beats.length && s.video && s.freezeAt === undefined) {
       // Длину задаёт сам материал: иначе сцена длилась бы только хвост
       // тишины, то есть мелькала бы.
-      spoken = dur(resolve(SRC, String(s.page)));
+      spoken = dur(clip);
     }
     // Пауза на стыке сцен. Без неё длительность сцены равна длине реплики,
     // и следующая начинается ровно на последнем слоге предыдущей: граница
@@ -318,7 +352,7 @@ async function main() {
       log.push({ id: s.id, cached: true, key: key.slice(0, 10), frames });
     } else if (s.video && s.freezeAt !== undefined) {
       process.stderr.write(msg("build.sceneRender", { at, of, id: s.id, frames }) + "\n");
-      const src = resolve(SRC, String(s.page));
+      const src = clip;
       if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
       if (s.freezeAt >= dur(src)) throw new Error(`freezeAt is past the end of ${s.id}`);
       const still = `${CACHE}/${key}.freeze.png`;
@@ -343,7 +377,7 @@ async function main() {
       // пикселей) и к длине сцены: короче — достаивается последним кадром,
       // длиннее — обрезается. Иначе склейка получила бы сегмент с чужими
       // параметрами, и готовый файл разъехался бы со звуком.
-      const src = resolve(SRC, String(s.page));
+      const src = clip;
       if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
       const e = opts.encode!;
       const base = `scale=${opts.width}:${opts.height}:force_original_aspect_ratio=decrease,`
