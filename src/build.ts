@@ -17,7 +17,8 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
-import { speedFilter, type SpeedSpan } from "./speed.js";
+import { speedFilter, type SpeedStep } from "./speed.js";
+import { cameraFilter } from "./camera.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -77,7 +78,7 @@ interface BuiltScene {
   tail?: number;
   duration: number;
   freezeAt?: number;
-  speed?: SpeedSpan[];
+  speed?: SpeedStep[];
   overlay?: SceneOverlay;
   /** начала тактов в секундах от начала сцены */
   __starts?: number[];
@@ -257,7 +258,7 @@ async function main() {
     // Отказ называет сцену: «кусок кончается за пределами клипа» без
     // имени сцены в ролике из двадцати сцен искать нечем.
     let filter: string | null;
-    try { filter = speedFilter(s.speed, dur(src)); }
+    try { filter = speedFilter(s.speed, dur(src), opts.fps); }
     catch (e) { throw new Error(`scene ${s.id}: ${(e as Error).message}`); }
     if (!filter) return src;
     const key = md5(JSON.stringify({ speed: s.speed, page: md5file(src) }));
@@ -401,8 +402,6 @@ async function main() {
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, freezeAt: s.freezeAt });
     } else if (s.video) {
       process.stderr.write(msg("build.sceneVideo", { at, of, id: s.id }) + "\n");
-      if (s.overlay?.camera?.length)
-        throw new Error(`video scene ${s.id}: overlay.camera requires freezeAt`);
       // Материал — готовый файл: кадры берутся из него, а не рисуются.
       // Он приводится к кадру ролика (размер, темп, качество, формат
       // пикселей) и к длине сцены: короче — достаивается последним кадром,
@@ -419,32 +418,54 @@ async function main() {
       const fadeOut = transition?.out ?? 0.3;
       const fade = `fade=t=in:st=0:d=${fadeIn},`
         + `fade=t=out:st=${Math.max(0, s.duration - fadeOut)}:d=${fadeOut}`;
-      const overlayDir = `${CACHE}/${key}.overlay.frames`;
+      const sceneDir = `${CACHE}/${key}.scene.frames`;
+      const screenDir = `${CACHE}/${key}.screen.frames`;
       // Слой поверх клипа рисуется и ради ПОДСКАЗКИ, а не только ради карточек: сцена с речью
       // над готовым материалом — обычный случай такого ролика, и прежде её реплика не попадала
       // в кадр вовсе, потому что слой заводился только по полю `overlay`.
       const needsOverlay = Boolean(s.overlay) || s.beats.length > 0;
-      if (needsOverlay) {
-        // The same deterministic browser stage draws page and video annotations.
-        // Imported video is normalized first; PNG alpha is then composited over
-        // the final frame, so pointer coordinates are independent of source size.
-        mkdirSync(overlayDir, { recursive: true });
+      // Наезд НАД ВИДЕО делает сборка, и тогда слой делится надвое: подсветка с затенением
+      // ложится ПОД наезд и едет вместе с картинкой, а карточки и подсказка — ПОВЕРХ него и
+      // остаются прежнего размера. Одним слоем это не выразить: либо текст карточки растёт
+      // вместе с кадром и не помещается, либо подсветка стоит на месте, пока кадр приближается.
+      const camera = cameraFilter(s.overlay?.camera ?? [], opts.fps);
+      const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
+        mkdirSync(dir, { recursive: true });
+        const { shots } = await renderScene({ ...s, __overlayOnly: true, __layerPart: part,
+          __videoCamera: true, beats: s.beats.length, starts, theme: pitch.theme }, opts);
+        shots.forEach((shot, index) => writeFileSync(
+          `${dir}/${String(index).padStart(5, "0")}.png`, shot.buf));
+      };
+      if (needsOverlay && camera) { await layer(sceneDir, "scene"); await layer(screenDir, "screen"); }
+      else if (needsOverlay) {
+        mkdirSync(screenDir, { recursive: true });
         const { shots } = await renderScene({ ...s, __overlayOnly: true,
           beats: s.beats.length, starts, theme: pitch.theme }, opts);
         shots.forEach((shot, index) => writeFileSync(
-          `${overlayDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
+          `${screenDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
       }
       try {
-        const inputs = needsOverlay ? ["-framerate", String(opts.fps), "-i", `${overlayDir}/%05d.png`] : [];
-        const videoFilter = needsOverlay
-          ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
-          : ["-vf", `${base},${fade}`];
+        const frames = (dir: string): string[] => ["-framerate", String(opts.fps), "-i", `${dir}/%05d.png`];
+        const zoom = camera
+          ? `,zoompan=z='${camera.z}':x='${camera.x}':y='${camera.y}':d=1:`
+            + `s=${opts.width}x${opts.height}:fps=${opts.fps}`
+          : "";
+        const inputs = needsOverlay && camera ? [...frames(sceneDir), ...frames(screenDir)]
+          : needsOverlay ? frames(screenDir) : [];
+        const videoFilter = needsOverlay && camera
+          ? ["-filter_complex",
+            `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto${zoom}[in];`
+            + `[in][2:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+          : needsOverlay
+            ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+            : ["-vf", `${base},${fade}`];
         execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
           ...inputs, "-an", ...videoFilter, "-t", String(s.duration),
           "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
           "-pix_fmt", e.pix, "-g", String(opts.fps * 2), seg]);
       } finally {
-        if (needsOverlay) rmSync(overlayDir, { recursive: true, force: true });
+        rmSync(sceneDir, { recursive: true, force: true });
+        rmSync(screenDir, { recursive: true, force: true });
       }
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, video: true });
     } else {

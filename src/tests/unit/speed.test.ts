@@ -20,7 +20,7 @@ test("unreadable, empty, overlapping and pointless spans are rejected", () => {
 test("half speed doubles the named stretch and leaves the rest alone", () => {
   const spans = parseSpeed('[{"from":2,"to":4,"rate":0.5}]');
   assert.equal(speedDuration(spans, 8), 10);
-  const filter = speedFilter(spans, 8);
+  const filter = speedFilter(spans, 8, 30);
   // Куски идут по порядку: обычный, переигранный, обычный — и склеиваются.
   assert.match(filter!, /trim=start=0:end=2/);
   assert.match(filter!, /trim=start=2:end=4,setpts=\(PTS-STARTPTS\)\/0\.5/);
@@ -29,6 +29,6 @@ test("half speed doubles the named stretch and leaves the rest alone", () => {
 });
 
 test("a span past the end of the clip is refused, not silently clipped", () => {
-  assert.throws(() => speedFilter(parseSpeed('[{"from":100,"to":120,"rate":0.5}]'), 8),
+  assert.throws(() => speedFilter(parseSpeed('[{"from":100,"to":120,"rate":0.5}]'), 8, 30),
     /past the 8\.00s clip/);
 });

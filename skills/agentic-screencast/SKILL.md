@@ -29,6 +29,26 @@ Ask as one structured question with choices, not as free-form prose, and record 
 - One text layer at a time: a bottom caption during motion, a card only on a held frame — never both at once, and never more than two lines on screen.
 - Cover the inventory. List the capabilities from the code first, then give every line either a shot number or a written reason for its absence: control panels, per-item playback, error reports and load behaviour included.
 
+## Time stops inside the shot
+
+Do not cut a freeze into its own scene. Inside one continuous take: motion runs, `speed` stops time
+at a named second, the camera moves over the video with everything outside the focus dimmed, a card
+explains the moment next to it, and time resumes. The bottom caption fades while the camera leads,
+so exactly one text layer is on screen. A freeze cut into a separate scene jumps, detaches the card
+from its moment, and stands still once the clip runs out.
+
+## Captions say what is on screen now
+
+Write each caption from the frame, not from the plan: name what the viewer is looking at this
+second, in the product's own words. A caption that could sit over any frame carries nothing.
+
+## Measure the take before you build
+
+A screen recording has its own frame budget. Count the unique frames of a take (`mpdecimate`): if a
+five-second stretch holds fewer than ~60 of them, the shot will look like a slideshow whatever the
+scenario says. Lighten the document, shorten the shot, or record the real screen of a normal browser
+window instead of a headless one.
+
 ## Nothing in frame stands still
 
 A static slide, diagram or card turns the film back into a dull presentation. Slides carry an ambient layer of their own — breathing glow, drifting grid, travelling sheen — elements keep a faint float after they appear, and cards breathe while held. All of it is a pure function of scene time, so frames stay reproducible. If the product's own animation is small, make it bigger before shooting: a gesture that does not read on screen is not evidence.

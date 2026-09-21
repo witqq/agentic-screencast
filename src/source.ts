@@ -47,7 +47,7 @@ import { dirname, resolve } from "node:path";
 import { providerFor, type KindSpec } from "./provider/index.js";
 import { parseOverlay, type SceneOverlay } from "./overlay.js";
 import { resolveTheme, type ThemeInput } from "./theme.js";
-import { parseSpeed, type SpeedSpan } from "./speed.js";
+import { parseSpeed, type SpeedStep } from "./speed.js";
 import { msg, useLang } from "./msg.js";
 
 /**
@@ -187,8 +187,8 @@ export interface PitchScene {
   duration?: number;
   /** Freeze this second of a source clip for a camera-guided explanation. */
   freezeAt?: number;
-  /** Stretches of the source clip played slower or faster. */
-  speed?: SpeedSpan[];
+  /** Retiming of the source clip: stretches played at another rate and stops of time. */
+  speed?: SpeedStep[];
   effects: Record<string, unknown>;
   overlay?: SceneOverlay;
 }

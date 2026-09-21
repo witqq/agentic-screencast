@@ -192,11 +192,23 @@ window.__stage = (() => {
       node.style.minHeight = `${Math.ceil(node.getBoundingClientRect().height)}px`;
     }
     if (s.__overlayOnly) {
-      // Слой поверх готового клипа рисует только то, чего в клипе нет: подсказку, карточки и
-      // курсор. Подсветка и затемнение сюда не идут — они относятся к странице, которой здесь
-      // нет, — а подсказка идёт, если сцене есть что сказать: рассказ поверх снятого материала
-      // и есть обычный случай такого ролика.
-      el.spot.style.display = "none";
+      // Слой поверх готового клипа рисует всё, что относится к ПОКАЗУ, а не к странице:
+      // подсказку, карточки, курсор — и ПОДСВЕТКУ С ЗАТЕНЕНИЕМ, когда сцена просит камеру.
+      // Затенение здесь и есть главное: оно гасит остальной кадр и заставляет смотреть туда,
+      // куда показывает карточка. Без него рамка висит поверх клипа и ничего не говорит.
+      //
+      // Слой при этом делится НАДВОЕ. Кадровая часть (подсветка с затенением) ложится под
+      // наезд и едет вместе с картинкой; экранная (карточка, подсказка, курсор) рисуется
+      // поверх наезда и остаётся того же размера — иначе текст карточки увеличивался бы
+      // вместе с кадром и переставал помещаться. Какую часть рисовать, говорит сборка.
+      const part = s.__layerPart ?? "both";
+      if (part === "screen" || !s.overlay?.camera?.length) el.spot.style.display = "none";
+      if (part === "scene") {
+        el.cards.style.display = "none";
+        el.cap.style.display = "none";
+        el.cur.style.display = "none";
+        el.rip.style.display = "none";
+      }
       el.fade.style.display = "none";
       if (!s.caption) el.cap.style.display = "none";
     }
@@ -308,7 +320,7 @@ window.__stage = (() => {
         cameraRect = { left: cue.area[0] * innerWidth, top: cue.area[1] * innerHeight,
           width: cue.area[2] * innerWidth, height: cue.area[3] * innerHeight };
       }
-      if (cameraRect) {
+      if (cameraRect && !scene.__videoCamera) {
         zp = 1;
         // Наезд НЕ ЗАМИРАЕТ на удержании: пока камера стоит, она продолжает еле заметно идти
         // вперёд. Без этого кадр с замороженным кадром и дочитанной карточкой становится
@@ -359,8 +371,13 @@ window.__stage = (() => {
       spotEl = document.querySelector(cur.sel) ?? target;
     }
     const live = cue?.area && cameraRect
-      ? { left: cameraRect.left * k + zoomState.tx, top: cameraRect.top * k + zoomState.ty,
-          width: cameraRect.width * k, height: cameraRect.height * k }
+      ? (scene.__videoCamera
+        // Наезд над видео делает сборка, а слой остаётся в координатах кадра: подсветка
+        // обязана лечь ровно на область, которую сборка и увеличит.
+        ? { left: cameraRect.left, top: cameraRect.top,
+            width: cameraRect.width, height: cameraRect.height }
+        : { left: cameraRect.left * k + zoomState.tx, top: cameraRect.top * k + zoomState.ty,
+            width: cameraRect.width * k, height: cameraRect.height * k })
       : spotEl ? spotEl.getBoundingClientRect()
         : { left: base.left * k + zoomState.tx, top: base.top * k + zoomState.ty,
             width: base.width * k, height: base.height * k };
@@ -493,7 +510,9 @@ window.__stage = (() => {
     // плашку с полосой хода — то же место, тот же вес, и ничего не сказано.
     const cap = fx.caption ?? { from: 1.4 };
     const capFrom = at(cap.from, 0);
-    const ap = scene.caption ? phase(t, capFrom, capFrom + 0.42) : 0;
+    // Пока камера ведёт зрителя, нижняя строка УХОДИТ: в кадре остаётся один текстовый слой —
+    // карточка у подсвеченного места. Иначе зритель читает две вещи сразу и не смотрит ни на одну.
+    const ap = scene.caption ? phase(t, capFrom, capFrom + 0.42) * (1 - cameraPower) : 0;
     el.cap.style.opacity = String(ap);
     el.cap.style.transform = `translate(-50%, ${Math.round((1 - ap) * 14)}px)`;
     const barP = phase(t, capFrom, dur);

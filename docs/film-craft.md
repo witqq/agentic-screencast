@@ -94,7 +94,46 @@ Theme, length, narration mode, language, pace and depth belong to the person who
 
 **Counter-example.** *"Make sure the skill and the help describe all the product's functionality, including the different narration modes on request, and that before building the video the agent asks the user about the nuances and offers a choice among all possible options, if the user did not state them and they are not clear from the context."*
 
-## 16. Technical traps of the assembly tools
+## 16. A caption must say what is on screen right now
+
+A caption is not a slogan. It names the thing the viewer is looking at this second, in the words the
+product itself uses, so that the frame and the line confirm each other.
+
+**Counter-example.** A round of captions read "the document does not change", "three tracks in one
+beat", "the limit starts here" while the frame showed tiles, a roadmap and a load grid. The reviewer:
+*"what meaning do your captions carry — zero, it's nonsense."* The fix is not better wording but a
+different rule: write the caption from the frame, not from the plan.
+
+## 17. Stop time inside the shot, do not cut to a still
+
+A freeze is a device WITHIN a continuous shot: motion runs, time stops, the camera walks the frozen
+frame with everything else dimmed, time resumes. Cutting the freeze into its own scene produces a
+jump, detaches the card from the moment it explains, and leaves the rest of that scene standing
+still because its material ran out.
+
+**Counter-example.** Seven separate "freeze scenes" were cut into a film; measured, two of them had
+whole seconds with identical frames, and the reviewer saw cards "off to the side that nobody looks
+at". The tool now stops time inside a clip (`speed: [{"at":…, "hold":…}]`), moves the camera over
+the video itself, dims everything outside the focus, and fades the bottom caption while the camera
+leads — one text layer, tied to the moment.
+
+## 18. Dimming is the point of a highlight
+
+A neon rectangle over footage says nothing by itself; what directs the eye is the rest of the frame
+going dark. If the tool draws only the ring, the shot reads as decoration.
+
+**Counter-example.** *"Why is there no dimming and no time stops, as I asked?"* — the overlay drawn
+over imported video had its dim deliberately disabled, and nobody noticed until the film was watched.
+
+## 19. Screen recording has its own frame budget — measure it
+
+Playwright's screencast of a canvas application caps at roughly 25 frames per second and collapses
+under load: the same document that runs at 115 fps unrecorded delivered 8 fps while being recorded.
+Measure the unique frames of a take (`mpdecimate`) before building: a take with 10 fps of real
+motion will look like a slideshow no matter what the scenario says. For heavy shots, record the real
+screen of a normal browser window instead of driving a headless one.
+
+## 20. Technical traps of the assembly tools
 
 These cost review rounds, and none of them announce themselves:
 

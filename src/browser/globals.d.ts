@@ -59,6 +59,10 @@ interface StageScene {
   overlay?: StageOverlay;
   /** Render annotations over a transparent blank page for a video scene. */
   __overlayOnly?: boolean;
+  /** Какую часть слоя рисовать: кадровую (подсветка), экранную (карточки) или обе. */
+  __layerPart?: "scene" | "screen" | "both";
+  /** Наезд над видео делает сборка: слой остаётся в координатах кадра. */
+  __videoCamera?: boolean;
 }
 
 interface StageApi {
