@@ -29,24 +29,31 @@ window.__stage = (() => {
     font:500 17.5px/1.42 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     box-shadow:0 22px 60px rgba(0,0,0,.65)}
   #__capbar{position:absolute;left:0;bottom:0;height:3px;
-    background:linear-gradient(90deg,#7aa2ff,#4fd1c5);border-radius:0 0 16px 16px}
+    background:var(--sc-cap-bar,linear-gradient(90deg,#7aa2ff,#4fd1c5));border-radius:0 0 16px 16px}
   #__fade{position:fixed;inset:0;background:var(--sc-fade,#0d1017)}
   #__cards{position:fixed;inset:0;pointer-events:none}
-  .__card{position:absolute;width:min(460px,42vw);box-sizing:border-box;padding:20px 22px 21px;
-    color:#f6fbff;background:linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93));
-    border:1px solid rgba(110,211,226,.58);border-radius:18px;
-    box-shadow:0 18px 48px rgba(4,12,25,.42),inset 0 1px rgba(255,255,255,.08);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-  .__card::before{content:"";position:absolute;left:22px;top:0;width:66px;height:3px;
-    background:linear-gradient(90deg,#58d9de,#85a8ff);border-radius:3px}
+  /* Карточка-выноска целиком собрана из переменных темы: её вид — часть
+     оформления ролика, а не вкус слоя композиции. Тема, забывшая
+     переменную, получает прежний ночной вид из умолчания. */
+  .__card{position:absolute;width:min(460px,42vw);box-sizing:border-box;padding:22px 24px 23px;
+    color:var(--sc-card-ink,#f6fbff);
+    background:var(--sc-card-bg,linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93)));
+    border:1px solid var(--sc-card-line,rgba(110,211,226,.58));
+    border-radius:var(--sc-card-radius,18px);
+    box-shadow:var(--sc-card-shadow,0 18px 48px rgba(4,12,25,.42),inset 0 1px rgba(255,255,255,.08));
+    font-family:var(--sans,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif)}
+  .__card::before{content:"";position:absolute;left:24px;top:0;width:66px;height:3px;
+    background:var(--sc-card-accent,linear-gradient(90deg,#58d9de,#85a8ff));border-radius:3px}
   .__card[data-pos^="top"]{top:30px}
   .__card[data-pos^="bottom"]{bottom:30px}
   .__card[data-pos$="left"]{left:30px}
   .__card[data-pos$="right"]{right:30px}
   .__card[data-pos="center"]{width:min(720px,78vw);text-align:center}
   .__card[data-pos="near-focus"]{width:min(430px,36vw)}
-  .__card-title{font-size:26px;line-height:1.17;font-weight:740;letter-spacing:-.025em}
-  .__card-body{margin-top:9px;font-size:17px;line-height:1.38;color:#cce1ee;font-weight:470}
+  .__card-title{font-size:26px;line-height:1.17;font-weight:740;letter-spacing:-.025em;
+    font-family:var(--display,var(--sans,inherit))}
+  .__card-body{margin-top:10px;font-size:17px;line-height:1.42;
+    color:var(--sc-card-body,#cce1ee);font-weight:470}
   `;
   const CURSOR = `<svg id="__cur" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2 L4 20 L9 15.5 L12 22 L15 20.5 L12 14.2 L19 14 Z"
@@ -419,12 +426,18 @@ window.__stage = (() => {
       const enter = ease(phase(t, card.at, card.at + (card.enter ?? 0.65)));
       const leave = ease(phase(t, end - (card.exit ?? 0.45), end));
       node.style.opacity = String(Math.max(0, Math.min(enter, 1 - leave)));
+      // Появившаяся карточка продолжает еле заметно дышать: без этого она
+      // висит в кадре неподвижным прямоугольником, пока под ней идёт
+      // живая запись, и читается как наклейка, а не как часть ролика.
+      const life = Math.sin(t * 0.8 + i * 0.9) * 1.3 * enter * (1 - leave);
       if (card.motion === "pop") {
-        node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`;
+        node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`
+          + ` translateY(${life.toFixed(2)}px)`;
       } else if (card.motion === "glide") {
-        node.style.transform = `translateX(${Math.round((1 - enter) * 38 + leave * 12)}px)`;
+        node.style.transform = `translate(${((1 - enter) * 38 + leave * 12).toFixed(2)}px,`
+          + `${life.toFixed(2)}px)`;
       } else {
-        node.style.transform = `translateY(${Math.round((1 - enter) * 22 - leave * 8)}px)`;
+        node.style.transform = `translateY(${((1 - enter) * 22 - leave * 8 + life).toFixed(2)}px)`;
       }
       if (card.position === "center" || card.position === "near-focus") {
         const frameW = innerWidth / lz, frameH = innerHeight / lz;
