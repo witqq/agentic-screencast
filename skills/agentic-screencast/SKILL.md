@@ -27,7 +27,8 @@ Ask as one structured question with choices, not as free-form prose, and record 
 - Structure: what was missing → what appeared → what it can do → how much it holds under load → how it is controlled → where to get it. Each part ends by returning to the overview.
 - Write the narration as ONE continuous text in whole sentences, then cut it into shots. Each sentence picks up the previous one; telegraphic labels are not narration.
 - One text layer at a time: a bottom caption during motion, a card only on a held frame — never both at once, and never more than two lines on screen.
-- Cover the inventory. List the capabilities from the code first, then give every line either a shot number or a written reason for its absence: control panels, per-item playback, error reports and load behaviour included.
+- Cover the inventory. List the capabilities from the code first, then give every line either a shot number or a written reason for its absence: control panels, per-item playback, error reports and load behaviour included. Count the APPLICATIONS too, not only the one you happened to open: a branch that touched two products owes the film a chapter each.
+- Write requirements only from what the owner said, and mark each line with its source. A requirement you invented — "the debug panels must be hidden" — turns your own taste into a defect report, and it can hide the very surface the branch built.
 
 ## Time stops inside the shot
 
@@ -89,13 +90,20 @@ await page.evaluate(rect => window.__showCapture.frame(rect, { padding: 120, dur
 await page.evaluate(id => window.__showCapture.play(id), steps[2].id);
 ```
 
-Three rules that cost a whole take when broken:
+One chapter is one document. Scenes that live in separate documents cannot be a single take: every change is
+a page load. Ask the product for one document holding them all — a board with areas, a deck whose slides are
+the showcases — and move between them with the camera and with slide switches.
+
+Four rules that cost a whole take when broken:
 
 - **Cut by the recording's zero, not by the script's clock.** Video starts when the page is created; a mark
   written after the document loads is late by the whole load, and every caption then describes the previous
   scene.
-- **Hide debug chrome after it mounts, and read the page back to prove it is gone.** A style injected
-  before the panels exist matches nothing; fail the shoot instead of discovering a debug window in the film.
+- **Throw on a page error.** An animation that fails to compile does not look broken: the shapes stand still
+  and the caption over them still promises movement. One `page.on('pageerror', …)` catches the whole class.
+- **Decide about debug chrome with the owner, and keep it off the subject either way.** Hiding it is not a
+  default: a control panel may be the point of the film. What is never acceptable is a panel lying over the
+  figures being discussed — close it, drag it aside, or frame the shot around it.
 - **Give a `video` scene an explicit `duration`** when the footage is longer than its narration, otherwise
   the shot ends with the sentence and the animation is cut in half.
 
@@ -105,4 +113,4 @@ card and a caption in the same shot.
 
 ## Review before handoff
 
-Build one changed scene with `--only`, then the whole film, and verify by measurement rather than impression: duration and frame size; motion present in every shot (two frames 0.4 s apart differ); the caption changes inside a shot; every card appears and leaves; nothing overlaps in key frames; claimed numbers match the recording; no secret leaks. Watch the result at normal speed as well. Fix what you find, rebuild the affected scenes, then show the owner the file itself — a scenario is not the deliverable. Publish or send only to an authorized destination.
+Build one changed scene with `--only`, then the whole film, and verify by measurement rather than impression: duration and frame size; motion present in every shot (two frames 0.4 s apart differ); the caption changes inside a shot; every card appears and leaves; nothing overlaps in key frames; claimed numbers match the recording; no secret leaks. Put each frame beside its own caption and check that the sentence names what is actually there — a caption stays true of an earlier take long after the take is gone. Look for the fixture's own demo assets while you are there: a joke picture or a placeholder name reads as sloppiness in a film for an audience. Watch the result at normal speed as well. Fix what you find, rebuild the affected scenes, then show the owner the file itself — a scenario is not the deliverable. Publish or send only to an authorized destination.

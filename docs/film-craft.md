@@ -199,3 +199,72 @@ scene ends when the sentence ends, and the animation the shot exists for is cut 
 
 **Counter-example.** A thirteen-second load shot became seven seconds in the film, and the wave over the
 tiles never finished.
+
+## 26. Requirements come from the owner, not from the agent's taste
+
+An agent that writes down "debug panels must be hidden" and then tests its own film against that line has
+invented a requirement and turned it into a defect report. The owner may want the opposite: a control panel
+is a product surface, and a film that hides it hides the very thing the branch built.
+
+Write down only what the owner said, and mark every line with where it came from. Before checking a film
+against a requirement, look at the source: a requirement with no quote behind it is a guess, and guesses do
+not earn a red mark.
+
+**Counter-example.** *"There was no requirement to remove debug windows from the frame."* Two rounds of the
+film had been shot with the panels deliberately hidden, and the control panel — one of the branch's main
+results — never appeared at all.
+
+## 27. Take stock of the products and the showcases before writing a scenario
+
+A branch usually touches more than the surface the agent happened to open. Count them first: how many
+applications, how many prepared documents, how many kinds of the thing the film is about. Put the count in a
+table with a column "was it in the previous film", and let the scenario answer for every row.
+
+**Counter-example.** *"And where did the presentation demo go — you have lost half of the aspects."* The
+first film covered eight showcases of one product and none of the other, because nobody had listed them.
+
+## 28. One chapter, one document
+
+A chapter cannot be a single take if its scenes live in different documents: every scene change becomes a
+page load. Ask the product for one document that holds all of them — a big board with areas, a deck whose
+slides are the showcases — and drive it with camera moves and slide switches.
+
+Building such a document is cheap when the showcases already export their shapes and their recorded scenes:
+the gala document imports them whole, so a fix in a showcase reaches the film by itself.
+
+**Counter-example.** A scenario assigned three showcase documents to one chapter; shooting it honestly meant
+three reloads, and the chapter had to be rebuilt around one document instead.
+
+## 29. Fail the shoot on a page error
+
+An animation that fails to compile does not look broken on video. It looks like a deliberate pause: the
+shapes simply stand still, and the caption over them still promises movement. The failure is in the console,
+where nobody watching a film will ever see it.
+
+Subscribe to page errors in the shooting script and throw. It costs one line and catches the class of defect
+that no frame comparison finds.
+
+**Counter-example.** A showcase of nine kinds of animation played none of them for three whole builds: one
+card was driven both by a step value and by a numeric fade on the same property, the show refused to compile
+the conflict, and the frames looked like an intentional still.
+
+## 30. The tool's demo assets are not product footage
+
+Fixtures carry a demo picture, a joke asset, a placeholder name. They are meant for developers looking at a
+test document, and they read as sloppiness in a film meant for an audience. Build the film's document
+without them, or replace them with something the product would really contain.
+
+**Counter-example.** The pitch slide of a product film carried a joke meme photograph — the fixture's demo
+asset, passed through into the deck.
+
+## 31. The caption must name what the frame actually shows
+
+Write the narration from the footage, not from the plan. A sentence about "sectors of a chart turning into
+place" over four rounded rectangles is not a rounding error: the viewer reads one thing and sees another,
+and stops trusting the rest.
+
+After the build, put the frame and its caption side by side for every scene. That is the only check that
+catches a sentence which was true of an earlier take.
+
+**Counter-example.** A caption promised a picture arriving from beyond the slide edge; the picture had been
+removed from that document two builds earlier.

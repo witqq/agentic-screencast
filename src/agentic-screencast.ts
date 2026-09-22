@@ -114,12 +114,19 @@ viewer to rewind.
 
 Filming a LIVE application: open it once and drive it in place — no reload
 between scenes. Ask the product for a thin debug bridge (list blocks, play
-one by name, stop, move the camera) so its panel stays out of frame. Cut
-by the recording's zero, not by the script's clock: video starts when the
-page is created, and a mark written after the document loads is late by
-the whole load. Hide debug chrome AFTER it mounts and read the page back
-to prove it is gone. Give a video scene an explicit duration when the
-footage outlasts its narration, or the shot ends with the sentence.
+one by name, stop, move the camera, switch slides). One chapter is ONE
+document: scenes living in separate documents cannot be a single take, so
+ask for a document that holds them all — a board with areas, a deck whose
+slides are the showcases. Cut by the recording's zero, not by the script's
+clock: video starts when the page is created, and a mark written after the
+document loads is late by the whole load. Throw on a page error — an
+animation that fails to compile looks exactly like a deliberate pause.
+Whether debug chrome stays in frame is the OWNER'S choice, not a default:
+a control panel may be the subject. Either way keep it off the figures
+under discussion. Give a video scene an explicit duration when the footage
+outlasts its narration, or the shot ends with the sentence. Before handing
+the film over, read every caption against its own frame: a sentence stays
+true of an earlier take long after that take is gone.
 
 See: agentic-screencast help capture | help overlay
 Examples: example/live-capture.mjs, example/kinetic-video.md and
