@@ -462,7 +462,20 @@ window.__stage = (() => {
       // висит в кадре неподвижным прямоугольником, пока под ней идёт
       // живая запись, и читается как наклейка, а не как часть ролика.
       const life = Math.sin(t * 0.8 + i * 0.9) * 1.3 * enter * (1 - leave);
-      if (card.motion === "pop") {
+      if (card.motion === "fly") {
+        // Влёт объектом: карточка приходит из-за края кадра, перелетает место и возвращается на него.
+        // Перелёт берётся от остатка пути, поэтому он сам собой гаснет к концу входа и не дёргает карточку.
+        const edge = card.from ?? "bottom";
+        const overshoot = Math.sin(enter * Math.PI) * 26;
+        const travel = (1 - enter) * 620 + leave * 520;
+        const sign = edge === "left" || edge === "top" ? -1 : 1;
+        const along = sign * travel - sign * overshoot * (1 - leave);
+        const drift = life;
+        const [dx, dy] = edge === "left" || edge === "right" ? [along, drift] : [drift, along];
+        const tilt = (1 - enter) * sign * 4 + leave * sign * 6;
+        node.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`
+          + ` scale(${(0.94 + 0.06 * enter).toFixed(3)})`;
+      } else if (card.motion === "pop") {
         node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`
           + ` translateY(${life.toFixed(2)}px)`;
       } else if (card.motion === "glide") {

@@ -15,7 +15,14 @@ export interface OverlayCard {
   /** Reveal text gradually, instead of presenting a static label. */
   reveal?: "fade" | "type";
   /** Distinct entrance movement; all modes are functions of scene time. */
-  motion?: "rise" | "pop" | "glide";
+  motion?: "rise" | "pop" | "glide" | "fly";
+  /**
+   * Edge a flying card comes from and leaves to; only meaningful with motion "fly".
+   *
+   * A card that merely fades in reads as a sticker pasted over the footage, so a trailer wants the card to
+   * arrive as an object: it enters from beyond the frame, overshoots, settles, and leaves the same way.
+   */
+  from?: "left" | "right" | "top" | "bottom";
   enter?: number;
   exit?: number;
   /** Seconds visible, including the entrance and exit. */
@@ -102,7 +109,8 @@ export function parseOverlay(json: string): SceneOverlay {
     let previousEnd = -1;
     overlay.cards = value.cards.map((raw: unknown, i: number): OverlayCard => {
       if (!object(raw)) throw new Error(`overlay.cards[${i}]: expected an object`);
-      keys(raw, ["at", "title", "body", "position", "hold", "reveal", "motion", "enter", "exit"], `overlay.cards[${i}]`);
+      keys(raw, ["at", "title", "body", "position", "hold", "reveal", "motion", "from", "enter", "exit"],
+        `overlay.cards[${i}]`);
       const at = time(raw.at, `overlay.cards[${i}]`);
       if (typeof raw.title !== "string" || !raw.title.trim() || raw.title.length > 44)
         throw new Error(`overlay.cards[${i}].title: expected 1–44 characters`);
@@ -112,8 +120,12 @@ export function parseOverlay(json: string): SceneOverlay {
         throw new Error(`overlay.cards[${i}].position: unknown position`);
       if (raw.reveal !== undefined && !["fade", "type"].includes(String(raw.reveal)))
         throw new Error(`overlay.cards[${i}].reveal: unknown reveal`);
-      if (raw.motion !== undefined && !["rise", "pop", "glide"].includes(String(raw.motion)))
+      if (raw.motion !== undefined && !["rise", "pop", "glide", "fly"].includes(String(raw.motion)))
         throw new Error(`overlay.cards[${i}].motion: unknown motion`);
+      if (raw.from !== undefined && !["left", "right", "top", "bottom"].includes(String(raw.from)))
+        throw new Error(`overlay.cards[${i}].from: unknown edge`);
+      if (raw.from !== undefined && raw.motion !== "fly")
+        throw new Error(`overlay.cards[${i}].from: only motion "fly" flies in from an edge`);
       for (const part of ["enter", "exit"] as const) {
         if (raw[part] !== undefined && (typeof raw[part] !== "number" || !Number.isFinite(raw[part]) || raw[part] < 0.2 || raw[part] > 2.5))
           throw new Error(`overlay.cards[${i}].${part}: expected 0.2–2.5 seconds`);
@@ -122,6 +134,7 @@ export function parseOverlay(json: string): SceneOverlay {
       const body = typeof raw.body === "string" ? raw.body.trim() : undefined;
       const reveal = raw.reveal as OverlayCard["reveal"];
       const motion = raw.motion as OverlayCard["motion"];
+      const from = raw.from as OverlayCard["from"];
       const enter = raw.enter as number | undefined;
       const exit = raw.exit as number | undefined;
       const minimum = cardHold({ title, body, reveal, enter, exit });
@@ -131,7 +144,7 @@ export function parseOverlay(json: string): SceneOverlay {
       previousEnd = at + hold;
       return { at, title, ...(body ? { body } : {}),
         ...(raw.position ? { position: raw.position as OverlayCard["position"] } : {}),
-        ...(reveal ? { reveal } : {}), ...(motion ? { motion } : {}),
+        ...(reveal ? { reveal } : {}), ...(motion ? { motion } : {}), ...(from ? { from } : {}),
         ...(enter !== undefined ? { enter } : {}), ...(exit !== undefined ? { exit } : {}), hold };
     });
   }

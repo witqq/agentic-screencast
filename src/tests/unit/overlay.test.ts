@@ -147,6 +147,42 @@ test("camera, spotlight and typed card return to the same frame after backward s
   } finally { await browser.close(); }
 });
 
+test("a flying card arrives from beyond the frame and leaves the same way", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-card-fly-"));
+  const file = join(dir, "page.html");
+  writeFileSync(file, '<!doctype html><html><body style="margin:0;height:360px;background:#0b1020"></body></html>');
+  const stage = readFileSync(resolve(here, "../../browser/stage.js"), "utf8");
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: 640, height: 360 } });
+    await page.goto(pathToFileURL(file).href);
+    await page.addScriptTag({ content: stage });
+    await page.evaluate((overlay) => window.__stage.mount({ duration: 8, target: "body", overlay,
+      effects: { cursor: { hidden: true, from: 0 }, spot: { from: 9999 },
+        caption: { from: 9999 }, fade: { in: 0, out: 0 } } }), parseOverlay(JSON.stringify({
+      cards: [{ at: 1, hold: 5, enter: 0.8, exit: 0.6, title: "Movement lives in the document",
+        position: "center", motion: "fly", from: "right" }],
+    })));
+    const shiftAt = async (at: number): Promise<number> => {
+      await page.evaluate((t) => window.renderAt!(t), at);
+      return page.evaluate(() => {
+        const node = document.querySelector<HTMLElement>(".__card");
+        const matrix = new DOMMatrixReadOnly(getComputedStyle(node!).transform);
+        return matrix.m41;
+      });
+    };
+    const arriving = await shiftAt(1.05);
+    const settled = await shiftAt(3);
+    const leaving = await shiftAt(5.9);
+
+    // Отвергаемое состояние — прежнее: вход только гасил прозрачность и сдвигал карточку на два десятка
+    // пикселей, и в кадре она читалась наклейкой, а не объектом, прилетевшим в кадр.
+    assert.ok(arriving > 200, `влёт начинается за краем кадра: ${arriving}`);
+    assert.ok(Math.abs(settled) < 6, `на удержании карточка стоит на месте: ${settled}`);
+    assert.ok(leaving > 120, `уход идёт в ту же сторону: ${leaving}`);
+  } finally { await browser.close(); }
+});
+
 test("transparent stage renders pointer and card reproducibly at an arbitrary seek", async () => {
   const scene = {
     page: "unused", duration: 5, __overlayOnly: true,

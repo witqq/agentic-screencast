@@ -30,7 +30,8 @@ interface StageOverlayCard {
   at: number; title: string; body?: string;
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "near-focus";
   reveal?: "fade" | "type";
-  motion?: "rise" | "pop" | "glide";
+  motion?: "rise" | "pop" | "glide" | "fly";
+  from?: "left" | "right" | "top" | "bottom";
   enter?: number; exit?: number; hold?: number;
 }
 interface StageCamera {
