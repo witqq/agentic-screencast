@@ -81,6 +81,10 @@ export interface RenderScene {
   offline?: boolean;
   __src?: string;
   __overlayOnly?: boolean;
+  /** Какую часть слоя рисовать: кадровую (подсветка), экранную (карточки) или обе. */
+  __layerPart?: "scene" | "screen" | "both";
+  /** Наезд над видео делает сборка: слой остаётся в координатах кадра. */
+  __videoCamera?: boolean;
   [key: string]: unknown;
 }
 

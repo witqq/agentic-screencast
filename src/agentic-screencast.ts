@@ -63,13 +63,32 @@ Usage:
   agentic-screencast paths
 
 Guides: agentic-screencast help video | help capture | help overlay
+        agentic-screencast help themes | help voice
 Use the stub voice for cost-free checks. See README.md for the scenario and extension contracts.`;
 const VIDEO_HELP = `Turn a product, prototype, idea, or finding into a visual story
+
+Before you build, ask the viewer's owner what you cannot infer. Offer the
+options; do not silently pick one: theme (agentic-screencast help themes),
+length, narration mode (help voice), language, pace, and how deep the demo
+goes. Skip a question only when the request or the repository already
+answers it.
 
 Start with the viewer's question, not a list of features. Write a short arc:
 orientation → a meaningful action or claim → the visible evidence → why it
 matters. Every UI action shown needs a nearby explanation of what changed
 and why; a camera move cannot substitute for that explanation.
+
+Write the narration as ONE continuous text first, in whole sentences that
+pick up from each other, and only then cut it into shots. Telegraphic
+labels ("Trajectory", "Entry") read as a slide deck, not as a film. Keep
+one text layer on screen at a time: a bottom caption during motion, a card
+only during a held frame.
+
+Nothing in the frame may sit still. Slides carry an ambient layer of their
+own, a held card keeps breathing, and a static diagram that stops moving
+turns the film back into a presentation. Where motion is faster than the
+eye, slow the stretch down (speed on a video scene) instead of asking the
+viewer to rewind.
 
 1. Inspect the source and distinguish real footage from a mockup. Prepare
    authentication outside capture. Use Playwright locator actions for real
@@ -92,6 +111,22 @@ and why; a camera move cannot substitute for that explanation.
    Build:   agentic-screencast build --source story.md --out video.mp4
    Decode the MP4 and inspect the introduction, each action/result and each
    transition at normal speed. Check readable text, factual claims and secrets.
+
+Filming a LIVE application: open it once and drive it in place — no reload
+between scenes. Ask the product for a thin debug bridge (list blocks, play
+one by name, stop, move the camera, switch slides). One chapter is ONE
+document: scenes living in separate documents cannot be a single take, so
+ask for a document that holds them all — a board with areas, a deck whose
+slides are the showcases. Cut by the recording's zero, not by the script's
+clock: video starts when the page is created, and a mark written after the
+document loads is late by the whole load. Throw on a page error — an
+animation that fails to compile looks exactly like a deliberate pause.
+Whether debug chrome stays in frame is the OWNER'S choice, not a default:
+a control panel may be the subject. Either way keep it off the figures
+under discussion. Give a video scene an explicit duration when the footage
+outlasts its narration, or the shot ends with the sentence. Before handing
+the film over, read every caption against its own frame: a sentence stays
+true of an earlier take long after that take is gone.
 
 See: agentic-screencast help capture | help overlay
 Examples: example/live-capture.mjs, example/kinetic-video.md and
@@ -144,8 +179,11 @@ pointer on imported footage is only a graphic annotation, not synchronized
 interaction.
 
 Cards support position: corners, center, or near-focus; reveal:"type" and
-motion:"rise"|"pop"|"glide". enter/exit are seconds; hold is optional and
+motion:"rise"|"pop"|"glide"|"fly". enter/exit are seconds; hold is optional and
 its minimum grows with text and typing time. Leave 0.35 seconds between cards.
+motion:"fly" with from:"left"|"right"|"top"|"bottom" brings the card in from
+beyond that edge, overshoots, settles, and leaves the same way; from is
+accepted only with fly.
 
 For a held explanation, freezeAt selects a real frame of a video clip:
 
@@ -157,9 +195,89 @@ overlay: {"camera":[{"at":0.8,"move":1.1,"hold":3,"return":1.1,"area":[0.3,0.2,0
 camera.area is [left, top, width, height] in 0–1 frame fractions. For a
 saved page scene, camera.target can name a CSS selector instead. Camera
 moves are time-derived, deterministic under seek, and must not overlap.
+On a video scene the camera also moves over running footage without
+freezeAt: the highlight and its dimming ride under the zoom, while cards
+and the caption stay screen-sized above it, and the caption fades while
+the camera leads. On a freezeAt scene the build refuses a camera area that
+is nearly flat on the frozen frame, naming the scene and the measured
+contrast.
 Show the full interface before and after a focus shot. Keep a near-focus
 card outside the highlighted control; inspect the composed MP4 at normal
-speed, not just a still frame.`;
+speed, not just a still frame.
+
+Slow motion is a separate field of a video scene, because it retimes the
+clip itself rather than drawing over it:
+
+## landing · video
+file: captures/real-run.mp4
+speed: [{"from":4.2,"to":6.0,"rate":0.5}]
+
+from/to are seconds of the SOURCE clip, rate is playback speed: 0.5 is half
+speed, 2 is double. Spans are ordered, must not overlap, must stay inside
+the clip, and rate is limited to 0.2–4 — beyond that a shot stops reading
+as motion. The scene grows by exactly the time the stretch gains, and the
+retimed clip is cached, so an unchanged scene is not re-encoded.
+
+A step {"at":…,"hold":…} stops time inside the same shot: the source
+second at is held for hold seconds (0.5–12) of the finished film, then the
+clip goes on. Spans and holds share one ordered list:
+
+speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
+
+Put the camera and a card on the held seconds instead of cutting the
+freeze into its own scene.`;
+const THEMES_HELP = `Named looks: one word in the header styles the whole film
+
+# My film
+theme: calm-paper
+
+A theme sets the palette, the type pairing, backgrounds, card and caption
+shapes for slides AND for the overlay drawn on captured footage, so the
+film cannot end up with a caption from one palette and a card from another.
+Shipped themes:
+
+  midnight     deep blue-grey, cool blue and teal accents; the default look
+  calm-paper   warm off-white paper, serif display, one clay accent
+  synthwave    violet night, neon magenta and cyan, light text on dark
+  noir         near-black, cold grey text, one restrained amber accent
+
+Point edits stay possible: theme: {"preset":"noir","--acc":"#7aa2ff"} keeps
+the preset and replaces one variable. A bare object without "preset" is the
+old behaviour — your own variables and nothing else. An unknown name is a
+parse error listing the available ones, not a silent fallback.
+
+Every theme fills the same contract of variables, so a new scene kind or a
+new overlay part never picks a stray colour from a rule default. Ask the
+owner which look they want before building; do not assume the default.`;
+const VOICE_HELP = `Narration modes: synthesis, a recorded human, or silence
+
+voice: {"engine":"speechkit","name":"kuznetsov","speed":1.2}
+
+Shipped engines:
+
+  stub       silence of the right length; free, for drafts and checks
+  speechkit  Yandex SpeechKit; needs credentials in the environment
+  say        the macOS built-in synthesizer, offline
+  piper      a local neural synthesizer, offline
+  recorded   no synthesis: it finds the take a human recorded for the beat
+
+Any other name is a command implementing the engine contract, so a project
+can bring its own synthesizer without changing the tool.
+
+A silent film is a legitimate mode, not a missing feature: leave the scenes
+without prose, give each one duration, and the film carries its meaning in
+captions and cards. agentic-screencast record opens the recording UI where
+a person reads the beats one by one; recorded then picks those takes up.
+
+Each paragraph of prose is one beat: it has its own take, its own length and
+its own cache key, so rewriting one sentence re-renders one beat. A line
+starting with ~ gives the spoken variant of that beat, while the screen keeps
+the written one. Reading rules (pronounce) and lang belong to the film.
+
+Ask which mode the owner wants — voiced or silent, which engine and voice,
+which language and pace — unless they already said so. voices lists what an
+engine offers; voice-check exercises an external one.`;
+
 /** Значение флага; без умолчания может отсутствовать. */
 function arg(k: string): string | undefined;
 function arg(k: string, d: string): string;
@@ -228,6 +346,8 @@ switch (cmd) {
     if (topic === "video") console.log(VIDEO_HELP);
     else if (topic === "capture") console.log(CAPTURE_HELP);
     else if (topic === "overlay") console.log(OVERLAY_HELP);
+    else if (topic === "themes") console.log(THEMES_HELP);
+    else if (topic === "voice") console.log(VOICE_HELP);
     else if (!topic) console.log(HELP);
     else { console.error(`Unknown help topic: ${topic}\n\n${HELP}`); process.exit(2); }
     break;

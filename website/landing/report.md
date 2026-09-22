@@ -62,6 +62,35 @@ Encode scene segments with a fixed frame contract and join them with the measure
 ::::
 ::::::
 
+::::::section{title="Direct the film, not just the slides" id="direction" nav="Direction" composition="mosaic" surface="glow" transition="stagger"}
+:::lead
+Real footage, a named look and time the agent can bend. Every effect is a function of scene time, so a rebuild gives the same frame.
+:::
+
+::::cards
+:::card{title="Capture real actions"}
+The Playwright capture API clicks, types and scrolls in a real browser; the cursor and click ripple follow the application's own input events.
+:::
+:::card{title="One word for the look"}
+`theme: calm-paper` styles slides, captions and cards together. Four themes ship: midnight, calm-paper, synthwave and noir.
+:::
+:::card{title="Slow motion and stopped time"}
+`speed` slows a stretch of a clip or holds one second inside the same shot, and the scene grows by exactly that time.
+:::
+:::card{title="A camera over live footage"}
+The camera zooms into running video and dims the rest, while cards and captions stay readable above it.
+:::
+:::card{title="Cards that arrive as objects"}
+`motion: "fly"` brings a card in from beyond the frame edge and takes it out the same way.
+:::
+:::card{title="Nothing in frame stands still"}
+Slides breathe with an ambient layer, and held cards keep a faint motion, so a film never turns into a slide deck.
+:::
+::::
+
+The agent asks the owner for theme, length, narration, language, pace and depth before the first take. The [film-craft knowledge base](https://github.com/witqq/agentic-screencast/blob/main/docs/film-craft.md) pairs each rule with the mistake that produced it.
+::::::
+
 ::::::section{title="Use the material you already have" id="material" nav="Material" composition="mosaic" surface="mesh" transition="stagger"}
 
 ::::cards
@@ -72,7 +101,7 @@ Comparison, chain, number, and quote scenes cover compact product explanations.
 Capture a client-rendered application as MHTML, then zoom and focus the exact element named by the scenario.
 :::
 :::card{title="Existing video"}
-Place a clip in the timeline; the build fits it to the frame and speech duration.
+Place a clip in the timeline; the build fits it to the frame and speech duration, and `speed` can retime it.
 :::
 :::card{title="External providers"}
 Add scene kinds in any language through a JSON subprocess contract and verify the provider with the shipped checker.
@@ -143,7 +172,7 @@ In the connected Moira catalogue, ask the agent to find `admin/agentic-screencas
 Ask the agent to explain a product to a named audience, in a chosen language and approximate duration. Start with a free silent draft. Copy the linked complete example into a separate video workspace as `story.md` before running these commands.
 
 ```sh
-npm install --save-exact agentic-screencast@1.0.1
+npm install --save-exact agentic-screencast@1.2.0
 npx --no-install playwright install chromium
 
 npx --no-install agentic-screencast build \
@@ -158,14 +187,14 @@ npx --no-install agentic-screencast build \
 ::action[View the source]{href="https://github.com/witqq/agentic-screencast" kind="secondary"}
 ::::
 
-The stub produces silence. `--keys-only` skips the MP4, but can still synthesize missing audio. Use the explicit stub voice for free checks. See the guide for supported paths and inspection limits in CLI 1.0.1.
+The stub produces silence. `--keys-only` skips the MP4, but can still synthesize missing audio. Use the explicit stub voice for free checks. See the guide for supported paths and inspection limits in CLI 1.2.0.
 ::::::
 
 ::::::section{title="An explicit local trust boundary" id="boundaries" nav="Boundaries" composition="stack" surface="grain"}
 
-Included: scenario parsing, built-in and external material providers, built-in and external voice engines, recorded narration, deterministic Chromium rendering, ffmpeg assembly, caching, and executable contract checks.
+Included: scenario parsing, Playwright capture of real browser actions, themes, retiming, built-in and external material providers, built-in and external voice engines, recorded narration, deterministic Chromium rendering, ffmpeg assembly, caching, and executable contract checks.
 
-Outside the promise: live screen recording, choosing a voice for the author, judging whether a script is persuasive, protecting against an intentionally untrusted provider or voice command, and publishing a video on the author's behalf.
+Outside the promise: recording the desktop or applications outside a Playwright browser, choosing a voice for the author, judging whether a script is persuasive, protecting against an intentionally untrusted provider or voice command, and publishing a video on the author's behalf.
 
 :::disclosure{title="Where credentials belong" open="false"}
 Voice and capture credentials come from environment variables or an ignored `.env`. Never put them in scenario voice data: that data participates in cache identity and build reports.

@@ -34,7 +34,7 @@ const CONTENT = ".chain .node, .cols .col, .huge, .quote, .chapter-title, .chapt
 const page = (title: string, body: string, elements: number, theme: string,
   lang: string): string => `<!DOCTYPE html>
 <html lang="${esc(lang)}"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>${CSS}${theme}</style></head><body data-slidecast-elements="${elements}" data-slidecast-content="${CONTENT}">${body}<div class="rule"></div><script>${RUNTIME}</script></body></html>
+<style>${CSS}${theme}</style></head><body data-slidecast-elements="${elements}" data-slidecast-content="${CONTENT}"><div class="amb"><span class="amb-glow"></span><span class="amb-grid"></span><span class="amb-sheen"></span></div>${body}<div class="rule"></div><script>${RUNTIME}</script></body></html>
 `;
 
 /**

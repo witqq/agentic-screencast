@@ -94,7 +94,7 @@ The second beat reveals the result.
 
 Built-in material providers cover animated opening/chapter scenes, comparison, chain, number and quote slides, saved pages, and existing video clips. External providers can add scene kinds through a language-independent JSON subprocess contract.
 
-Give viewers an orientation before asking them to interpret a busy screen. A short `slides.chapter` can introduce the question or a new section; its title and body type in over a declared silent `duration`. A `video` scene with `freezeAt` holds one genuine frame while `overlay.camera` moves to a region, highlights it, and returns to the overview. On a saved `page` scene the camera can use a CSS `target` instead of frame coordinates. Cards support `position: "near-focus"`, `reveal: "type"`, and `motion: "pop"`/`"glide"` to explain an action beside its result. These effects are calculated from scene time, so seeking and rebuilding a scene give the same frame.
+Give viewers an orientation before asking them to interpret a busy screen. A short `slides.chapter` can introduce the question or a new section; its title and body type in over a declared silent `duration`. A `video` scene with `freezeAt` holds one genuine frame while `overlay.camera` moves to a region, highlights it, and returns to the overview. On a saved `page` scene the camera can use a CSS `target` instead of frame coordinates. Cards support `position: "near-focus"`, `reveal: "type"`, and `motion: "pop"`/`"glide"`/`"fly"` to explain an action beside its result. These effects are calculated from scene time, so seeking and rebuilding a scene give the same frame.
 
 ```markdown
 ## opening · slides.chapter
@@ -109,6 +109,24 @@ freezeAt: 5
 overlay: {"camera":[{"at":0.8,"hold":3,"area":[0.35,0.2,0.3,0.35],"scale":1.7}],"cards":[{"at":1.4,"title":"The result is visible here","body":"This is the state produced by the action.","position":"near-focus","reveal":"type"}]}
 ```
 
+### Direct the film
+
+A film's look is one word in the scenario header. `theme: midnight` (the default look), `calm-paper`, `synthwave`, or `noir` styles slides, captions, and cards together; `theme: {"preset":"noir","--acc":"#7aa2ff"}` keeps a preset and replaces one variable, and an unknown name is a parse error listing the available ones. Slides carry an ambient layer of their own, elements float faintly after they appear, and held cards breathe, so no frame stands still. All of it is a function of scene time, so frames stay reproducible.
+
+A `video` scene can retime its own clip with `speed`. A span `{"from":4.2,"to":6.0,"rate":0.5}` plays that stretch of the source at half speed, and a hold `{"at":7,"hold":3}` stops time on second 7 for three seconds of the finished film, inside the same shot. The scene grows by exactly what the retiming adds, and the retimed clip is cached. The camera moves over running footage as well as over a frozen frame: the highlight and its dimming ride under the zoom, while cards and the caption stay screen-sized above it. Cards can fly in: `motion: "fly"` with `from: "left"|"right"|"top"|"bottom"` enters from beyond that edge, settles, and leaves the same way.
+
+```markdown
+# Release film
+theme: calm-paper
+
+## moment · video
+file: captures/run.webm
+speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
+overlay: {"camera":[{"at":5.5,"move":0.8,"hold":1.6,"return":0.6,"area":[0.3,0.2,0.35,0.3],"scale":1.6}],"cards":[{"at":6.0,"title":"The check turns green","position":"near-focus","motion":"fly","from":"right"}]}
+```
+
+Before the first take, ask the owner what the request does not already answer: theme, length, narration mode, language, pace, and depth. The [film-craft knowledge base](docs/film-craft.md) collects the rules for a watchable film, each paired with the mistake that produced it, including how to film a live application in one unbroken take. `agentic-screencast help themes` and `help voice` list the looks and narration modes.
+
 Use a narrative arc rather than a feature list: orient the viewer, show an action, name the visible change, and explain its consequence. Give the viewer time to read each idea. The [kinetic video scenario](example/kinetic-video.md) demonstrates live clips; the [self-contained idea example](example/idea-video.md) presents a saved HTML prototype without implying it is a measured result. Silent `page` scenes require `duration` just like chapters.
 
 For a walkthrough of real actions, record clips with the Playwright capture API and reference them as `video` scenes. The [kinetic video scenario](example/kinetic-video.md) shows how to join two takes. The common `overlay` field can add post-production cards or a decorative pointer to video or pages, but its `click:true` only paints a ripple: it does not act on the UI and should not be used to reconstruct real clicks. Live `take.card()` calculates reading time without manual timestamps.
@@ -117,6 +135,8 @@ For a walkthrough of real actions, record clips with the Playwright capture API 
 agentic-screencast help video
 agentic-screencast help capture
 agentic-screencast help overlay
+agentic-screencast help themes
+agentic-screencast help voice
 ```
 
 Inspect the machine-readable contract and parsed scenes before a paid or lengthy build:
@@ -149,7 +169,7 @@ agentic-screencast voice-check
 agentic-screencast provider-check 'python3 /path/provider.py'
 ```
 
-`check` evaluates the settled frame using thresholds declared by its material provider. `order` verifies reveal timing. `verify` checks deterministic rendering, animation, frozen time, and seeking against real Chromium frames.
+`check` evaluates the settled frame using thresholds declared by its material provider; a finished `video` clip is reported as outside that frame criterion rather than failed. `order` verifies reveal timing. `verify` checks deterministic rendering, animation, frozen time, and seeking against real Chromium frames.
 
 These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. See the [Moira guide](docs/moira.md) for coverage and path limitations before automating acceptance.
 

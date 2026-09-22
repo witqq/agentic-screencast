@@ -46,6 +46,8 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { providerFor, type KindSpec } from "./provider/index.js";
 import { parseOverlay, type SceneOverlay } from "./overlay.js";
+import { resolveTheme, type ThemeInput } from "./theme.js";
+import { parseSpeed, type SpeedStep } from "./speed.js";
 import { msg, useLang } from "./msg.js";
 
 /**
@@ -99,6 +101,10 @@ export interface Encode { crf?: number; preset?: string; pix?: string; audio?: s
  * Оформление: пары «переменная — значение», которые уходят в корень
  * страницы и в слой композиции. Ядро их не толкует: имена переменных
  * знают тот, кто рисует страницу, и тема, которая их задаёт.
+ *
+ * В шапке источника вместо набора пишут ИМЯ поставляемой темы — тогда
+ * разбор разрешает его в полный набор здесь же, и всё, что ниже по
+ * течению, по-прежнему видит обычные переменные.
  */
 export type Theme = Record<string, string>;
 
@@ -181,6 +187,8 @@ export interface PitchScene {
   duration?: number;
   /** Freeze this second of a source clip for a camera-guided explanation. */
   freezeAt?: number;
+  /** Retiming of the source clip: stretches played at another rate and stops of time. */
+  speed?: SpeedStep[];
   effects: Record<string, unknown>;
   overlay?: SceneOverlay;
 }
@@ -322,6 +330,13 @@ export function parseSource(file: string): Source {
       try { parseOverlay(s.fields.overlay); }
       catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
     }
+    // Переигрывание проверяется здесь же, на разборе: негодная запись
+    // иначе всплыла бы отказом `ffmpeg` посреди сборки, где о причине
+    // читателю не скажет никто.
+    if (s.fields.speed) {
+      try { parseSpeed(s.fields.speed); }
+      catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
+    }
     // Якоря проверяются здесь, а не при чтении поля: номер такта имеет
     // смысл только когда речь сцены разобрана целиком.
     const anchors: string[] = [
@@ -383,7 +398,18 @@ export function parseSource(file: string): Source {
         // сделать, не правя инструмент.
         else if (key === "frame") out.frame = JSON.parse(value!) as Frame;
         else if (key === "encode") out.encode = JSON.parse(value!) as Encode;
-        else if (key === "theme") out.theme = JSON.parse(value!) as Theme;
+        // Тема пишется именем (`theme: synthwave`), набором переменных
+        // или тем и другим (`{"preset":"noir","--acc":"#fff"}`). Разрешается
+        // она СРАЗУ: дальше по течению тема — всегда плоский набор, и ни
+        // страница слайдов, ни слой композиции о поставляемых наборах
+        // не знают.
+        else if (key === "theme") {
+          const raw = value!.trim();
+          const written: ThemeInput = raw.startsWith("{")
+            ? (JSON.parse(raw) as ThemeInput) : raw;
+          try { out.theme = resolveTheme(written); }
+          catch (e) { err(n, String((e as Error).message)); }
+        }
         // Правила чтения и язык — свойства РОЛИКА. Прежде правила
         // выбирались по имени движка голоса, то есть инструмент решал
         // за автора, на каком языке его ролик.
@@ -440,6 +466,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       ...(f.tail ? { tail: Number(f.tail) } : {}),
       ...(f.duration ? { duration: Number(f.duration) } : {}),
       ...(f.freezeAt ? { freezeAt: Number(f.freezeAt) } : {}),
+      ...(f.speed ? { speed: parseSpeed(f.speed) } : {}),
       ...(spec.offline ? { offline: true } : {}),
       ...(spec.video ? { video: true } : {}),
       ...(f.target ? { target: f.target } : { target: "body" }),

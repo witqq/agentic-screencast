@@ -29,24 +29,31 @@ window.__stage = (() => {
     font:500 17.5px/1.42 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
     box-shadow:0 22px 60px rgba(0,0,0,.65)}
   #__capbar{position:absolute;left:0;bottom:0;height:3px;
-    background:linear-gradient(90deg,#7aa2ff,#4fd1c5);border-radius:0 0 16px 16px}
+    background:var(--sc-cap-bar,linear-gradient(90deg,#7aa2ff,#4fd1c5));border-radius:0 0 16px 16px}
   #__fade{position:fixed;inset:0;background:var(--sc-fade,#0d1017)}
   #__cards{position:fixed;inset:0;pointer-events:none}
-  .__card{position:absolute;width:min(460px,42vw);box-sizing:border-box;padding:20px 22px 21px;
-    color:#f6fbff;background:linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93));
-    border:1px solid rgba(110,211,226,.58);border-radius:18px;
-    box-shadow:0 18px 48px rgba(4,12,25,.42),inset 0 1px rgba(255,255,255,.08);
-    font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
-  .__card::before{content:"";position:absolute;left:22px;top:0;width:66px;height:3px;
-    background:linear-gradient(90deg,#58d9de,#85a8ff);border-radius:3px}
+  /* Карточка-выноска целиком собрана из переменных темы: её вид — часть
+     оформления ролика, а не вкус слоя композиции. Тема, забывшая
+     переменную, получает прежний ночной вид из умолчания. */
+  .__card{position:absolute;width:min(460px,42vw);box-sizing:border-box;padding:22px 24px 23px;
+    color:var(--sc-card-ink,#f6fbff);
+    background:var(--sc-card-bg,linear-gradient(135deg,rgba(9,24,44,.96),rgba(13,33,54,.93)));
+    border:1px solid var(--sc-card-line,rgba(110,211,226,.58));
+    border-radius:var(--sc-card-radius,18px);
+    box-shadow:var(--sc-card-shadow,0 18px 48px rgba(4,12,25,.42),inset 0 1px rgba(255,255,255,.08));
+    font-family:var(--sans,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif)}
+  .__card::before{content:"";position:absolute;left:24px;top:0;width:66px;height:3px;
+    background:var(--sc-card-accent,linear-gradient(90deg,#58d9de,#85a8ff));border-radius:3px}
   .__card[data-pos^="top"]{top:30px}
   .__card[data-pos^="bottom"]{bottom:30px}
   .__card[data-pos$="left"]{left:30px}
   .__card[data-pos$="right"]{right:30px}
   .__card[data-pos="center"]{width:min(720px,78vw);text-align:center}
   .__card[data-pos="near-focus"]{width:min(430px,36vw)}
-  .__card-title{font-size:26px;line-height:1.17;font-weight:740;letter-spacing:-.025em}
-  .__card-body{margin-top:9px;font-size:17px;line-height:1.38;color:#cce1ee;font-weight:470}
+  .__card-title{font-size:26px;line-height:1.17;font-weight:740;letter-spacing:-.025em;
+    font-family:var(--display,var(--sans,inherit))}
+  .__card-body{margin-top:10px;font-size:17px;line-height:1.42;
+    color:var(--sc-card-body,#cce1ee);font-weight:470}
   `;
   const CURSOR = `<svg id="__cur" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2 L4 20 L9 15.5 L12 22 L15 20.5 L12 14.2 L19 14 Z"
@@ -185,9 +192,25 @@ window.__stage = (() => {
       node.style.minHeight = `${Math.ceil(node.getBoundingClientRect().height)}px`;
     }
     if (s.__overlayOnly) {
-      el.spot.style.display = "none";
-      el.cap.style.display = "none";
+      // Слой поверх готового клипа рисует всё, что относится к ПОКАЗУ, а не к странице:
+      // подсказку, карточки, курсор — и ПОДСВЕТКУ С ЗАТЕНЕНИЕМ, когда сцена просит камеру.
+      // Затенение здесь и есть главное: оно гасит остальной кадр и заставляет смотреть туда,
+      // куда показывает карточка. Без него рамка висит поверх клипа и ничего не говорит.
+      //
+      // Слой при этом делится НАДВОЕ. Кадровая часть (подсветка с затенением) ложится под
+      // наезд и едет вместе с картинкой; экранная (карточка, подсказка, курсор) рисуется
+      // поверх наезда и остаётся того же размера — иначе текст карточки увеличивался бы
+      // вместе с кадром и переставал помещаться. Какую часть рисовать, говорит сборка.
+      const part = s.__layerPart ?? "both";
+      if (part === "screen" || !s.overlay?.camera?.length) el.spot.style.display = "none";
+      if (part === "scene") {
+        el.cards.style.display = "none";
+        el.cap.style.display = "none";
+        el.cur.style.display = "none";
+        el.rip.style.display = "none";
+      }
       el.fade.style.display = "none";
+      if (!s.caption) el.cap.style.display = "none";
     }
     el.capText.textContent = s.caption ?? "";
     // Подложка могла объявить свою функцию времени (так делают слайды).
@@ -297,9 +320,15 @@ window.__stage = (() => {
         cameraRect = { left: cue.area[0] * innerWidth, top: cue.area[1] * innerHeight,
           width: cue.area[2] * innerWidth, height: cue.area[3] * innerHeight };
       }
-      if (cameraRect) {
+      if (cameraRect && !scene.__videoCamera) {
         zp = 1;
-        k = 1 + ((cue.scale ?? 1.65) - 1) * cameraPower;
+        // Наезд НЕ ЗАМИРАЕТ на удержании: пока камера стоит, она продолжает еле заметно идти
+        // вперёд. Без этого кадр с замороженным кадром и дочитанной карточкой становится
+        // неподвижной картинкой — два кадра подряд совпадают, и ролик на секунду превращается
+        // в слайд.
+        const plateauStart = cue.at + move;
+        const creep = t > plateauStart ? Math.min(1, (t - plateauStart) / cue.hold) : 0;
+        k = (1 + ((cue.scale ?? 1.65) - 1) * cameraPower) * (1 + 0.035 * creep);
         const midX = cameraRect.left + cameraRect.width / 2;
         const midY = cameraRect.top + cameraRect.height / 2;
         tx = k === 1 ? 0 : innerWidth / 2 - midX * k;
@@ -342,8 +371,13 @@ window.__stage = (() => {
       spotEl = document.querySelector(cur.sel) ?? target;
     }
     const live = cue?.area && cameraRect
-      ? { left: cameraRect.left * k + zoomState.tx, top: cameraRect.top * k + zoomState.ty,
-          width: cameraRect.width * k, height: cameraRect.height * k }
+      ? (scene.__videoCamera
+        // Наезд над видео делает сборка, а слой остаётся в координатах кадра: подсветка
+        // обязана лечь ровно на область, которую сборка и увеличит.
+        ? { left: cameraRect.left, top: cameraRect.top,
+            width: cameraRect.width, height: cameraRect.height }
+        : { left: cameraRect.left * k + zoomState.tx, top: cameraRect.top * k + zoomState.ty,
+            width: cameraRect.width * k, height: cameraRect.height * k })
       : spotEl ? spotEl.getBoundingClientRect()
         : { left: base.left * k + zoomState.tx, top: base.top * k + zoomState.ty,
             width: base.width * k, height: base.height * k };
@@ -416,15 +450,39 @@ window.__stage = (() => {
     (scene.overlay?.cards ?? []).forEach((card, i) => {
       const node = el.cards.children[i] as HTMLElement;
       const end = card.at + (card.hold ?? 4);
+      // Видимость назначается ДО измерений: у скрытой карточки ширина и высота равны нулю, и
+      // расчёт места по ним уводил карточку за правый край — в кадре оставался обрезанный
+      // заголовок. Дефект виден только на карточке, которую ставят по месту (центр и рядом
+      // с фокусом): у углов место задаёт разметка.
+      node.style.display = t < card.at || t >= end ? "none" : "";
       const enter = ease(phase(t, card.at, card.at + (card.enter ?? 0.65)));
       const leave = ease(phase(t, end - (card.exit ?? 0.45), end));
       node.style.opacity = String(Math.max(0, Math.min(enter, 1 - leave)));
-      if (card.motion === "pop") {
-        node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`;
+      // Появившаяся карточка продолжает еле заметно дышать: без этого она
+      // висит в кадре неподвижным прямоугольником, пока под ней идёт
+      // живая запись, и читается как наклейка, а не как часть ролика.
+      const life = Math.sin(t * 0.8 + i * 0.9) * 1.3 * enter * (1 - leave);
+      if (card.motion === "fly") {
+        // Влёт объектом: карточка приходит из-за края кадра, перелетает место и возвращается на него.
+        // Перелёт берётся от остатка пути, поэтому он сам собой гаснет к концу входа и не дёргает карточку.
+        const edge = card.from ?? "bottom";
+        const overshoot = Math.sin(enter * Math.PI) * 26;
+        const travel = (1 - enter) * 620 + leave * 520;
+        const sign = edge === "left" || edge === "top" ? -1 : 1;
+        const along = sign * travel - sign * overshoot * (1 - leave);
+        const drift = life;
+        const [dx, dy] = edge === "left" || edge === "right" ? [along, drift] : [drift, along];
+        const tilt = (1 - enter) * sign * 4 + leave * sign * 6;
+        node.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`
+          + ` scale(${(0.94 + 0.06 * enter).toFixed(3)})`;
+      } else if (card.motion === "pop") {
+        node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`
+          + ` translateY(${life.toFixed(2)}px)`;
       } else if (card.motion === "glide") {
-        node.style.transform = `translateX(${Math.round((1 - enter) * 38 + leave * 12)}px)`;
+        node.style.transform = `translate(${((1 - enter) * 38 + leave * 12).toFixed(2)}px,`
+          + `${life.toFixed(2)}px)`;
       } else {
-        node.style.transform = `translateY(${Math.round((1 - enter) * 22 - leave * 8)}px)`;
+        node.style.transform = `translateY(${((1 - enter) * 22 - leave * 8 + life).toFixed(2)}px)`;
       }
       if (card.position === "center" || card.position === "near-focus") {
         const frameW = innerWidth / lz, frameH = innerHeight / lz;
@@ -440,6 +498,10 @@ window.__stage = (() => {
           top = focus.bottom + gap + h <= frameH - 28 ? focus.bottom + gap
             : Math.max(28, focus.top - gap - h);
         }
+        // Последнее слово — за кадром: карточка целиком внутри него, чем бы ни кончился подбор
+        // места. Обрезанная карточка не читается вовсе, а место у неё всегда есть — кадр больше.
+        left = Math.max(24, Math.min(frameW - w - 24, left));
+        top = Math.max(24, Math.min(frameH - h - 24, top));
         node.style.left = `${Math.round(left)}px`;
         node.style.top = `${Math.round(top)}px`;
       }
@@ -454,13 +516,16 @@ window.__stage = (() => {
         if (title) title.textContent = fullTitle.slice(0, typed).join("");
         if (body) body.textContent = fullBody.slice(0, Math.max(0, typed - fullTitle.length)).join("");
       }
-      node.style.display = t < card.at || t >= end ? "none" : "";
     });
 
     // 6. Подсказка: появление и полоса хода реплики.
+    // Сцена без речи подсказки не получает вовсе: пустая строка нарисовала бы в кадре пустую
+    // плашку с полосой хода — то же место, тот же вес, и ничего не сказано.
     const cap = fx.caption ?? { from: 1.4 };
     const capFrom = at(cap.from, 0);
-    const ap = phase(t, capFrom, capFrom + 0.42);
+    // Пока камера ведёт зрителя, нижняя строка УХОДИТ: в кадре остаётся один текстовый слой —
+    // карточка у подсвеченного места. Иначе зритель читает две вещи сразу и не смотрит ни на одну.
+    const ap = scene.caption ? phase(t, capFrom, capFrom + 0.42) * (1 - cameraPower) : 0;
     el.cap.style.opacity = String(ap);
     el.cap.style.transform = `translate(-50%, ${Math.round((1 - ap) * 14)}px)`;
     const barP = phase(t, capFrom, dur);

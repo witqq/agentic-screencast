@@ -17,6 +17,8 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
+import { speedFilter, type SpeedStep } from "./speed.js";
+import { cameraFilter } from "./camera.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -76,6 +78,7 @@ interface BuiltScene {
   tail?: number;
   duration: number;
   freezeAt?: number;
+  speed?: SpeedStep[];
   overlay?: SceneOverlay;
   /** начала тактов в секундах от начала сцены */
   __starts?: number[];
@@ -126,6 +129,26 @@ function keyOf(
 
 const dur = (f: string): number => Number(execFileSync(FFPROBE, ["-v", "error", "-show_entries",
   "format=duration", "-of", "default=nw=1:nk=1", f], { encoding: "utf8" }).trim());
+
+/**
+ * Насколько разнообразен кусок картинки: среднеквадратичное отклонение яркости.
+ *
+ * Плоская заливка даёт около нуля, содержательный кусок — десятки. Числом, а не глазом: пустую
+ * подсветку в готовом ролике замечает зритель, а не автор, и стоит это целого круга пересъёмки.
+ */
+function areaContrast(image: string, area: [number, number, number, number], size: { width: number; height: number }): number {
+  const crop = [Math.round(area[2] * size.width), Math.round(area[3] * size.height),
+    Math.round(area[0] * size.width), Math.round(area[1] * size.height)];
+  const said = execFileSync(FFMPEG, ["-nostdin", "-v", "info", "-i", image,
+    "-vf", `crop=${crop.join(":")},signalstats,metadata=print:key=lavfi.signalstats.YSTDEV`,
+    "-f", "null", "-"], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+  const found = /YSTDEV=([\d.]+)/.exec(said);
+  return found ? Number(found[1]) : Number.NaN;
+}
+
+/** Ниже этого разнообразия подсвеченная область считается пустой: в ней нечего показывать. */
+const EMPTY_AREA_CONTRAST = 8;
+
 
 async function main() {
   const PITCH_FILE = resolve(arg("pitch", "pitch.json"));
@@ -219,6 +242,35 @@ async function main() {
     return out;
   }
 
+  /**
+   * Клип сцены с переигранными кусками — или сам исходный файл, когда
+   * переигрывать нечего.
+   *
+   * Переигрывание делается ОТДЕЛЬНЫМ проходом и кладётся в кэш, а не
+   * вклеивается в фильтр сегмента: длина сцены считается по длине
+   * материала, и считать её до переигрывания значило бы обрезать
+   * замедленный кусок ровно на том месте, ради которого он и замедлен.
+   */
+  function clipOf(s: BuiltScene): string {
+    const src = resolve(SRC, String(s.page));
+    if (!s.video || !s.speed?.length) return src;
+    if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
+    // Отказ называет сцену: «кусок кончается за пределами клипа» без
+    // имени сцены в ролике из двадцати сцен искать нечем.
+    let filter: string | null;
+    try { filter = speedFilter(s.speed, dur(src), opts.fps); }
+    catch (e) { throw new Error(`scene ${s.id}: ${(e as Error).message}`); }
+    if (!filter) return src;
+    const key = md5(JSON.stringify({ speed: s.speed, page: md5file(src) }));
+    const out = `${CACHE}/speed-${key}.mp4`;
+    if (!existsSync(out)) {
+      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
+        "-filter_complex", filter, "-map", "[v]", "-an",
+        "-c:v", "libx264", "-preset", "medium", "-crf", "18", out]);
+    }
+    return out;
+  }
+
   for (const s of pitch.scenes) {
     // Чужие сцены при одиночной сборке не озвучиваются и не рисуются:
     // за ключом сегмента нужны только имена соседей, а они известны
@@ -257,10 +309,13 @@ async function main() {
       spoken += got.spoken;
     }
     s.__starts = starts;
+    // Клип берётся уже переигранным: и длина сцены, и кадры считаются
+    // по тому материалу, который попадёт в ролик.
+    const clip = s.video ? clipOf(s) : "";
     if (!s.beats.length && s.video && s.freezeAt === undefined) {
       // Длину задаёт сам материал: иначе сцена длилась бы только хвост
       // тишины, то есть мелькала бы.
-      spoken = dur(resolve(SRC, String(s.page)));
+      spoken = dur(clip);
     }
     // Пауза на стыке сцен. Без неё длительность сцены равна длине реплики,
     // и следующая начинается ровно на последнем слоге предыдущей: граница
@@ -318,13 +373,24 @@ async function main() {
       log.push({ id: s.id, cached: true, key: key.slice(0, 10), frames });
     } else if (s.video && s.freezeAt !== undefined) {
       process.stderr.write(msg("build.sceneRender", { at, of, id: s.id, frames }) + "\n");
-      const src = resolve(SRC, String(s.page));
+      const src = clip;
       if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
       if (s.freezeAt >= dur(src)) throw new Error(`freezeAt is past the end of ${s.id}`);
       const still = `${CACHE}/${key}.freeze.png`;
       const html = `${CACHE}/${key}.freeze.html`;
       execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
         "-ss", String(s.freezeAt), "-frames:v", "1", still]);
+      // Подсветка обязана ложиться НА ПРЕДМЕТ. Области названы долями кадра, и промах в доле
+      // виден только на готовом ролике — там, где зритель смотрит на пустое место и не понимает,
+      // о чём подпись. Поэтому каждая область проверяется по самому замороженному кадру.
+      for (const cue of s.overlay?.camera ?? []) {
+        if (!cue.area) continue;
+        const contrast = areaContrast(still, cue.area, { width: opts.width, height: opts.height });
+        if (Number.isFinite(contrast) && contrast < EMPTY_AREA_CONTRAST) {
+          throw new Error(`scene ${s.id}: camera area [${cue.area.join(", ")}] is nearly empty `
+            + `(contrast ${contrast.toFixed(1)} < ${EMPTY_AREA_CONTRAST}); point it at the subject`);
+        }
+      }
       const image = readFileSync(still).toString("base64");
       writeFileSync(html, `<!doctype html><html><head><meta charset="utf-8"><style>`
         + `html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#080d14}`
@@ -336,14 +402,12 @@ async function main() {
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, freezeAt: s.freezeAt });
     } else if (s.video) {
       process.stderr.write(msg("build.sceneVideo", { at, of, id: s.id }) + "\n");
-      if (s.overlay?.camera?.length)
-        throw new Error(`video scene ${s.id}: overlay.camera requires freezeAt`);
       // Материал — готовый файл: кадры берутся из него, а не рисуются.
       // Он приводится к кадру ролика (размер, темп, качество, формат
       // пикселей) и к длине сцены: короче — достаивается последним кадром,
       // длиннее — обрезается. Иначе склейка получила бы сегмент с чужими
       // параметрами, и готовый файл разъехался бы со звуком.
-      const src = resolve(SRC, String(s.page));
+      const src = clip;
       if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
       const e = opts.encode!;
       const base = `scale=${opts.width}:${opts.height}:force_original_aspect_ratio=decrease,`
@@ -354,28 +418,54 @@ async function main() {
       const fadeOut = transition?.out ?? 0.3;
       const fade = `fade=t=in:st=0:d=${fadeIn},`
         + `fade=t=out:st=${Math.max(0, s.duration - fadeOut)}:d=${fadeOut}`;
-      const overlayDir = `${CACHE}/${key}.overlay.frames`;
-      if (s.overlay) {
-        // The same deterministic browser stage draws page and video annotations.
-        // Imported video is normalized first; PNG alpha is then composited over
-        // the final frame, so pointer coordinates are independent of source size.
-        mkdirSync(overlayDir, { recursive: true });
+      const sceneDir = `${CACHE}/${key}.scene.frames`;
+      const screenDir = `${CACHE}/${key}.screen.frames`;
+      // Слой поверх клипа рисуется и ради ПОДСКАЗКИ, а не только ради карточек: сцена с речью
+      // над готовым материалом — обычный случай такого ролика, и прежде её реплика не попадала
+      // в кадр вовсе, потому что слой заводился только по полю `overlay`.
+      const needsOverlay = Boolean(s.overlay) || s.beats.length > 0;
+      // Наезд НАД ВИДЕО делает сборка, и тогда слой делится надвое: подсветка с затенением
+      // ложится ПОД наезд и едет вместе с картинкой, а карточки и подсказка — ПОВЕРХ него и
+      // остаются прежнего размера. Одним слоем это не выразить: либо текст карточки растёт
+      // вместе с кадром и не помещается, либо подсветка стоит на месте, пока кадр приближается.
+      const camera = cameraFilter(s.overlay?.camera ?? [], opts.fps);
+      const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
+        mkdirSync(dir, { recursive: true });
+        const { shots } = await renderScene({ ...s, __overlayOnly: true, __layerPart: part,
+          __videoCamera: true, beats: s.beats.length, starts, theme: pitch.theme }, opts);
+        shots.forEach((shot, index) => writeFileSync(
+          `${dir}/${String(index).padStart(5, "0")}.png`, shot.buf));
+      };
+      if (needsOverlay && camera) { await layer(sceneDir, "scene"); await layer(screenDir, "screen"); }
+      else if (needsOverlay) {
+        mkdirSync(screenDir, { recursive: true });
         const { shots } = await renderScene({ ...s, __overlayOnly: true,
           beats: s.beats.length, starts, theme: pitch.theme }, opts);
         shots.forEach((shot, index) => writeFileSync(
-          `${overlayDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
+          `${screenDir}/${String(index).padStart(5, "0")}.png`, shot.buf));
       }
       try {
-        const inputs = s.overlay ? ["-framerate", String(opts.fps), "-i", `${overlayDir}/%05d.png`] : [];
-        const videoFilter = s.overlay
-          ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
-          : ["-vf", `${base},${fade}`];
+        const frames = (dir: string): string[] => ["-framerate", String(opts.fps), "-i", `${dir}/%05d.png`];
+        const zoom = camera
+          ? `,zoompan=z='${camera.z}':x='${camera.x}':y='${camera.y}':d=1:`
+            + `s=${opts.width}x${opts.height}:fps=${opts.fps}`
+          : "";
+        const inputs = needsOverlay && camera ? [...frames(sceneDir), ...frames(screenDir)]
+          : needsOverlay ? frames(screenDir) : [];
+        const videoFilter = needsOverlay && camera
+          ? ["-filter_complex",
+            `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto${zoom}[in];`
+            + `[in][2:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+          : needsOverlay
+            ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+            : ["-vf", `${base},${fade}`];
         execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", src,
           ...inputs, "-an", ...videoFilter, "-t", String(s.duration),
           "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
           "-pix_fmt", e.pix, "-g", String(opts.fps * 2), seg]);
       } finally {
-        if (s.overlay) rmSync(overlayDir, { recursive: true, force: true });
+        rmSync(sceneDir, { recursive: true, force: true });
+        rmSync(screenDir, { recursive: true, force: true });
       }
       log.push({ id: s.id, cached: false, key: key.slice(0, 10), frames, video: true });
     } else {
