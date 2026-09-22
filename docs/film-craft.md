@@ -145,3 +145,57 @@ These cost review rounds, and none of them announce themselves:
 - A container group has no duration of its own; a duration passed to it is silently ignored and the beat looks instantaneous.
 - A track whose value never changes (opacity 0 → 0) is not driven at all.
 - A control can be outside the frame because the wheel scrolls the canvas rather than the panel; scroll it into view before clicking.
+
+## 21. Film a live application in ONE unbroken take
+
+A film assembled from several page loads betrays itself: between scenes the canvas blanks, the layout
+reflows, and the viewer sees the tool instead of the product. Open the application once, then drive it
+in place — move the camera, start the next block of animation, hold the frame. Cut the recording into
+scenes afterwards.
+
+This requires a control surface. A product that can only be steered by clicking its debug panel cannot be
+filmed cleanly, because the panel is in frame. Ask the product for a thin debug bridge instead: list the
+blocks, play one by name, stop, move the camera, fit a region into the frame.
+
+**Counter-example.** *"Different scenes render the same browser scene, but the reloads are visible and it
+looks bad."* — every showcase was a separate document chosen by a URL parameter, so each scene began with a
+page load.
+
+## 22. Time marks must come from the recording, not from the wall clock
+
+When a script drives the page and writes down "scene two started at 12.3 s", that number is measured by the
+script's own clock, which starts when the script decides — usually after the page has loaded. The video,
+however, starts recording when the page is created. Cutting by the wrong zero shifts every scene, and the
+film ends up describing one thing while showing another.
+
+Take the zero from the moment the recording starts, or write a visible marker into the frame and find it in
+the footage.
+
+**Counter-example.** A caption said "twenty-four tiles rearrange into a ring" over a shot of the roadmap:
+the cut was six seconds late, exactly the time the document took to load.
+
+## 23. Hide debug chrome AFTER it exists, and verify it is gone
+
+A style rule injected before the panels mount matches nothing. Inject it after the application has drawn,
+then read the page text back and fail the shoot if the panel names are still there. A film with a debug
+window over the scene is not shippable, and discovering that after the build costs the whole take.
+
+**Counter-example.** *"And the debug window covers the animations?"* — the rule was applied three seconds
+after load, while the panels appeared later.
+
+## 24. A card arrives as an object, not as a sticker
+
+Fading a card in leaves it looking pasted onto the footage. Give it `motion: "fly"` with the edge it comes
+from: it enters from beyond the frame, overshoots, settles, and leaves the same way. Keep the card beside
+the highlighted region, never on top of it, and never show a card and a caption in the same shot.
+
+**Counter-example.** *"The cards are not tied to the scene at all, they are drawn somewhere in the corners"*
+and *"there are both cards and subtitles, it is not clear what to read"*.
+
+## 25. A video scene with speech is cut to the speech, not to the clip
+
+Give a `video` scene an explicit `duration` when the footage is longer than its narration. Without it the
+scene ends when the sentence ends, and the animation the shot exists for is cut in half.
+
+**Counter-example.** A thirteen-second load shot became seven seconds in the film, and the wave over the
+tiles never finished.

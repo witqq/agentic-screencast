@@ -112,6 +112,15 @@ viewer to rewind.
    Decode the MP4 and inspect the introduction, each action/result and each
    transition at normal speed. Check readable text, factual claims and secrets.
 
+Filming a LIVE application: open it once and drive it in place — no reload
+between scenes. Ask the product for a thin debug bridge (list blocks, play
+one by name, stop, move the camera) so its panel stays out of frame. Cut
+by the recording's zero, not by the script's clock: video starts when the
+page is created, and a mark written after the document loads is late by
+the whole load. Hide debug chrome AFTER it mounts and read the page back
+to prove it is gone. Give a video scene an explicit duration when the
+footage outlasts its narration, or the shot ends with the sentence.
+
 See: agentic-screencast help capture | help overlay
 Examples: example/live-capture.mjs, example/kinetic-video.md and
 example/idea-video.md (a self-contained prototype page).`;

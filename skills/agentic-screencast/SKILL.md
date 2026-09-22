@@ -73,6 +73,36 @@ Read `agentic-screencast help video`, `help capture`, `help overlay`, `help them
 - `overlay.pointer` is a graphic on existing footage; it does not click anything. For real actions use live capture.
 - Draft with the free `stub` voice unless narration was requested.
 
+## Filming a live application
+
+Film the product in ONE unbroken take. Open it once, then drive it in place: move the camera to the next
+area, start the next block of animation, hold the frame. Reloading between scenes puts a blank canvas and a
+reflow into the film, and the viewer sees the tooling instead of the product.
+
+That needs a control surface, not a debug panel: ask the product for a thin bridge on `window` that lists
+the animation blocks, plays one by name, stops, and moves the camera — then the panel itself never enters
+the frame. A worked example from a board application:
+
+```js
+const steps = await page.evaluate(() => window.__showCapture.steps());
+await page.evaluate(rect => window.__showCapture.frame(rect, { padding: 120, durationMs: 1400 }), area);
+await page.evaluate(id => window.__showCapture.play(id), steps[2].id);
+```
+
+Three rules that cost a whole take when broken:
+
+- **Cut by the recording's zero, not by the script's clock.** Video starts when the page is created; a mark
+  written after the document loads is late by the whole load, and every caption then describes the previous
+  scene.
+- **Hide debug chrome after it mounts, and read the page back to prove it is gone.** A style injected
+  before the panels exist matches nothing; fail the shoot instead of discovering a debug window in the film.
+- **Give a `video` scene an explicit `duration`** when the footage is longer than its narration, otherwise
+  the shot ends with the sentence and the animation is cut in half.
+
+Cards arrive as objects: `motion: "fly"` with `from` brings a card in from beyond the frame, overshoots and
+settles; it leaves the same way. Keep it beside the highlighted region, never on top of it, and never put a
+card and a caption in the same shot.
+
 ## Review before handoff
 
 Build one changed scene with `--only`, then the whole film, and verify by measurement rather than impression: duration and frame size; motion present in every shot (two frames 0.4 s apart differ); the caption changes inside a shot; every card appears and leaves; nothing overlaps in key frames; claimed numbers match the recording; no secret leaks. Watch the result at normal speed as well. Fix what you find, rebuild the affected scenes, then show the owner the file itself — a scenario is not the deliverable. Publish or send only to an authorized destination.
