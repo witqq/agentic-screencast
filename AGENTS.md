@@ -13,6 +13,8 @@ Playwright через `agentic-screencast/capture`. Исследование, в
 | Установка, команды и краткий формат входа | `README.md` |
 | Публичный процесс Moira, режим проверки и полномочия | `docs/moira.md`, `docs/moira.ru.md` |
 | Примеры для продукта и идеи без озвучки | `example/agent-video.md`, `example/idea-video.md` |
+| Каким должен быть смотрибельный ролик и чем кончались ошибки | `docs/film-craft.md` |
+| Темы оформления, замедление и остановка времени | `agentic-screencast help themes`, `help overlay`, `help voice` |
 | Синхронная запись кликов, ввода и карточек | `agentic-screencast help capture`, `example/live-capture.mjs` |
 | Полный формат входа, договоры о движке голоса и поставщике материала | `README.ru.md` |
 | Машинно читаемое описание сцены и свой сценарий в той же форме | `agentic-screencast schema`, `agentic-screencast scenes` |

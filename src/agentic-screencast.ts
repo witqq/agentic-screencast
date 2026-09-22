@@ -179,8 +179,11 @@ pointer on imported footage is only a graphic annotation, not synchronized
 interaction.
 
 Cards support position: corners, center, or near-focus; reveal:"type" and
-motion:"rise"|"pop"|"glide". enter/exit are seconds; hold is optional and
+motion:"rise"|"pop"|"glide"|"fly". enter/exit are seconds; hold is optional and
 its minimum grows with text and typing time. Leave 0.35 seconds between cards.
+motion:"fly" with from:"left"|"right"|"top"|"bottom" brings the card in from
+beyond that edge, overshoots, settles, and leaves the same way; from is
+accepted only with fly.
 
 For a held explanation, freezeAt selects a real frame of a video clip:
 
@@ -192,6 +195,12 @@ overlay: {"camera":[{"at":0.8,"move":1.1,"hold":3,"return":1.1,"area":[0.3,0.2,0
 camera.area is [left, top, width, height] in 0–1 frame fractions. For a
 saved page scene, camera.target can name a CSS selector instead. Camera
 moves are time-derived, deterministic under seek, and must not overlap.
+On a video scene the camera also moves over running footage without
+freezeAt: the highlight and its dimming ride under the zoom, while cards
+and the caption stay screen-sized above it, and the caption fades while
+the camera leads. On a freezeAt scene the build refuses a camera area that
+is nearly flat on the frozen frame, naming the scene and the measured
+contrast.
 Show the full interface before and after a focus shot. Keep a near-focus
 card outside the highlighted control; inspect the composed MP4 at normal
 speed, not just a still frame.
@@ -207,7 +216,16 @@ from/to are seconds of the SOURCE clip, rate is playback speed: 0.5 is half
 speed, 2 is double. Spans are ordered, must not overlap, must stay inside
 the clip, and rate is limited to 0.2–4 — beyond that a shot stops reading
 as motion. The scene grows by exactly the time the stretch gains, and the
-retimed clip is cached, so an unchanged scene is not re-encoded.`;
+retimed clip is cached, so an unchanged scene is not re-encoded.
+
+A step {"at":…,"hold":…} stops time inside the same shot: the source
+second at is held for hold seconds (0.5–12) of the finished film, then the
+clip goes on. Spans and holds share one ordered list:
+
+speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
+
+Put the camera and a card on the held seconds instead of cutting the
+freeze into its own scene.`;
 const THEMES_HELP = `Named looks: one word in the header styles the whole film
 
 # My film
