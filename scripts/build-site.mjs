@@ -2,18 +2,22 @@
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
-  copyFile,
   lstat,
   mkdir,
+  readdir,
   readFile,
   realpath,
   rename,
   rm,
   writeFile,
 } from "node:fs/promises";
-import { isAbsolute, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { buildReport } from "agentic-report";
+import { buildReport, generateSitemap } from "agentic-report";
+
+// Публичный адрес лендинга: из него компилятор пишет canonical и OpenGraph, из canonical — sitemap.
+const publicUrl = "https://agentic-screencast.witqq.dev/";
 
 const root = await realpath(".");
 const outputFlag = process.argv.indexOf("--output");
@@ -47,28 +51,26 @@ const backup = resolve(root, `.${outputRelative.replaceAll(sep, "-")}-previous-$
 await mkdir(staging, { recursive: false });
 
 try {
-  const index = resolve(staging, "index.html");
-  await buildReport({ input: resolve(root, "website/landing/report.md"), output: index });
-  await copyFile(resolve(root, "website/robots.txt"), resolve(staging, "robots.txt"));
-  const page = await readFile(index);
-  const robots = await readFile(resolve(staging, "robots.txt"));
+  await buildReport({
+    input: resolve(root, "website/landing/report.md"),
+    output: staging,
+    format: "directory",
+    url: publicUrl,
+  });
+  await generateSitemap({ directory: staging });
+  const compiler = await installedPackage("agentic-report");
+  const files = [];
+  for (const path of await listFiles(staging)) {
+    const bytes = await readFile(resolve(staging, ...path.split("/")));
+    files.push({ path, bytes: bytes.byteLength, sha256: createHash("sha256").update(bytes).digest("hex") });
+  }
   const release = {
     contractVersion: 1,
     package: { name: manifest.name, version: manifest.version },
+    builtWith: { name: compiler.name, version: compiler.version },
     sourceRevision: revision,
     sourceDirty: status.trim() !== "",
-    files: [
-      {
-        path: "index.html",
-        bytes: page.byteLength,
-        sha256: createHash("sha256").update(page).digest("hex"),
-      },
-      {
-        path: "robots.txt",
-        bytes: robots.byteLength,
-        sha256: createHash("sha256").update(robots).digest("hex"),
-      },
-    ],
+    files,
   };
   await writeFile(resolve(staging, "release.json"), `${JSON.stringify(release, null, 2)}\n`, { flag: "wx" });
 
@@ -96,4 +98,32 @@ try {
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
   throw error;
+}
+
+/** Все файлы опубликованного дерева в стабильном порядке, пути через `/`. */
+async function listFiles(directory, prefix = "") {
+  const paths = [];
+  const entries = await readdir(directory, { withFileTypes: true });
+  for (const entry of entries.sort((left, right) => (left.name < right.name ? -1 : 1))) {
+    const path = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isDirectory()) paths.push(...(await listFiles(resolve(directory, entry.name), path)));
+    else paths.push(path);
+  }
+  return paths;
+}
+
+/** Манифест установленного пакета: версия компилятора, которым собран лендинг, пишется в release.json. */
+async function installedPackage(name) {
+  let directory = dirname(fileURLToPath(import.meta.resolve(name)));
+  for (;;) {
+    try {
+      const candidate = JSON.parse(await readFile(resolve(directory, "package.json"), "utf8"));
+      if (candidate.name === name) return candidate;
+    } catch (error) {
+      if (!(error instanceof Error) || !("code" in error) || error.code !== "ENOENT") throw error;
+    }
+    const parent = dirname(directory);
+    if (parent === directory) throw new Error(`installed ${name} package manifest was not found`);
+    directory = parent;
+  }
 }
