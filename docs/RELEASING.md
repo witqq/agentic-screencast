@@ -63,8 +63,12 @@ npm run deploy:prod
 infra-tools status agentic-screencast --server witqq.ru --remote-dir /opt/agentic-screencast
 curl --fail --silent --show-error https://agentic-screencast.witqq.dev/release.json
 curl --fail --silent --show-error --output /dev/null https://agentic-screencast.witqq.dev/
+curl --fail --silent --show-error https://agentic-screencast.witqq.dev/robots.txt
+curl --fail --silent --show-error --output /dev/null https://agentic-screencast.witqq.dev/sitemap.xml
 ```
 
-Confirm trusted TLS, the exact package version and 40-character source revision in `release.json`, HTML delivery, revalidation headers, and a real 404 for an absent path. Update `/Users/mike/WebstormProjects/DEPLOYMENT-INVENTORY.md` in the same deployment task with the observed service, host, remote directory, source, data risk, revision and verification time.
+The landing is built by `scripts/build-site.mjs` with the pinned `agentic-report` as a directory page with the public address `https://agentic-screencast.witqq.dev/`: the page carries canonical and OpenGraph metadata, its assets carry content hashes and are served as immutable, and `generateSitemap` writes `sitemap.xml` and a `robots.txt` that names it. `release.json` lists every published file and the `agentic-report` version in `builtWith`.
+
+Confirm trusted TLS, the exact package version, `builtWith` and 40-character source revision in `release.json`, HTML delivery with the canonical address, `robots.txt` naming the absolute sitemap, `sitemap.xml` served as XML, revalidation headers, and a real 404 for an absent path. Update `/Users/mike/WebstormProjects/DEPLOYMENT-INVENTORY.md` in the same deployment task with the observed service, host, remote directory, source, data risk, revision and verification time.
 
 The site is stateless. To roll back, check out the last accepted tag and run the same deployment contract; do not edit remote files by hand. Inspect the failed stage before retrying, and repeat only that stage and later effects unless repository bytes changed.

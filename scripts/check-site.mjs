@@ -10,13 +10,16 @@ const root = resolve(".");
 const site = resolve(root, "site");
 const release = JSON.parse(await readFile(resolve(site, "release.json"), "utf8"));
 const manifest = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
+const compiler = JSON.parse(await readFile(resolve(root, "node_modules/agentic-report/package.json"), "utf8"));
+const listed = Array.isArray(release.files) ? release.files.map((file) => file.path) : [];
 if (
   release.contractVersion !== 1 ||
   release.package?.name !== manifest.name ||
   release.package?.version !== manifest.version ||
+  release.builtWith?.name !== "agentic-report" ||
+  release.builtWith?.version !== compiler.version ||
   !/^[0-9a-f]{40}$/u.test(release.sourceRevision) ||
-  !Array.isArray(release.files) ||
-  release.files.length !== 2
+  !["index.html", "robots.txt", "sitemap.xml"].every((path) => listed.includes(path))
 ) {
   throw new Error("site release identity is incomplete");
 }
@@ -26,6 +29,23 @@ for (const expected of release.files) {
   if (bytes.byteLength !== expected.bytes || sha256 !== expected.sha256) {
     throw new Error(`site release identity does not match ${expected.path}`);
   }
+}
+
+// Индексация поисковиками: адрес страницы, карта сайта и ссылка на неё в robots.txt.
+const origin = "https://agentic-screencast.witqq.dev";
+const html = await readFile(resolve(site, "index.html"), "utf8");
+if (
+  !html.includes(`<link rel="canonical" href="${origin}/"/>`) ||
+  !html.includes(`<meta property="og:url" content="${origin}/"/>`)
+) {
+  throw new Error("landing has no canonical public address");
+}
+if (Buffer.byteLength(html) > 2_097_152) throw new Error("landing HTML exceeds what search crawlers read");
+if (!(await readFile(resolve(site, "robots.txt"), "utf8")).includes(`Sitemap: ${origin}/sitemap.xml\n`)) {
+  throw new Error("robots.txt does not name the sitemap");
+}
+if (!(await readFile(resolve(site, "sitemap.xml"), "utf8")).includes(`<loc>${origin}/</loc>`)) {
+  throw new Error("sitemap.xml does not list the landing");
 }
 
 const captureRoot = resolve(root, "agent_temp_files_local/site-check");
