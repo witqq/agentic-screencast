@@ -144,7 +144,7 @@ export async function checkSiteStatic(root = resolve(".")) {
   const media = await loadLandingMediaManifest(root);
   if (media) {
     const expected = new Set(media.assets.map(publishedMediaPath));
-    const actual = new Set(release.files.filter((file) => /\.mp4$/u.test(file.path) ||
+    const actual = new Set(release.files.filter((file) => file.path.endsWith(".mp4") ||
       /^assets\/[a-z][a-z0-9-]*\.(?:en|ru)\.(?:landscape|vertical)\.[0-9a-f]{12}\.jpg$/u.test(file.path)).map((file) => file.path));
     if (expected.size !== actual.size || [...expected].some((path) => !actual.has(path))) {
       throw new Error("site media do not match the landing media manifest");
