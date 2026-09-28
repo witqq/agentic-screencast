@@ -22,7 +22,7 @@ jobs:
   release:
     name: Verify and create immutable release
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 30
     permissions:
       contents: write
     env:
@@ -61,17 +61,8 @@ jobs:
           test "${RELEASE_TAG}" = "v${version}"
           git cat-file -e "${RELEASE_TAG}^{tag}"
 
-      - name: Run product gate
-        run: npm test
-
-      - name: Build and verify release candidate
-        run: npm run pack:check -- --output agent_temp_files_local/release-candidate
-
-      - name: Build and verify landing
-        run: npm run site:check
-
-      - name: Verify public Moira workflow contracts
-        run: npm run workflow:check
+      - name: Run the complete gate
+        run: npm run ci:verify
 
       - name: Refuse to replace an existing release
         run: |
@@ -83,7 +74,7 @@ jobs:
       - name: Create GitHub Release from the accepted candidate
         run: |
           set -euo pipefail
-          record="agent_temp_files_local/release-candidate/candidate-evidence.json"
+          record="agent_temp_files_local/package-candidate/candidate-evidence.json"
           asset="$(node -e 'const fs=require("node:fs");const r=JSON.parse(fs.readFileSync(process.argv[1],"utf8"));process.stdout.write(r.tarball.path)' "${record}")"
           version="$(node -p "require('./package.json').version")"
           gh release create "${RELEASE_TAG}" "${asset}" \
@@ -93,4 +84,4 @@ jobs:
             --title "agentic-screencast ${version}"
 
       - name: Report accepted asset identity
-        run: node -e 'const r=require("./agent_temp_files_local/release-candidate/candidate-evidence.json");console.log(JSON.stringify(r.tarball))'
+        run: node -e 'const r=require("./agent_temp_files_local/package-candidate/candidate-evidence.json");console.log(JSON.stringify(r.tarball))'

@@ -13,6 +13,44 @@ export interface SpeedSpan {
   to: number;
   /** Playback rate: 0.5 is half speed, 2 is double speed. */
   rate: number;
+  /**
+   * Seconds of the source over which the rate glides from 1 to `rate` at the start of the span and
+   * back to 1 at its end — a speed ramp instead of a step. At most half the span.
+   */
+  ramp?: number;
+  /**
+   * Draw the frames a slowed stretch lacks instead of repeating them: `motion` estimates movement
+   * between source frames (ffmpeg minterpolate), `blend` cross-fades neighbours (cheaper, softer).
+   */
+  interpolate?: "motion" | "blend";
+}
+
+/**
+ * Секунда готового куска, которой соответствует секунда `s` от начала переигранного куска.
+ *
+ * Без разгона это `s / rate`. С разгоном растяжение k = 1/rate меняется линейно от 1 до K за `ramp`
+ * секунд в начале куска и обратно в конце, а время готового куска — интеграл растяжения: так
+ * кадры исходника расходятся постепенно, без ступеньки на границе куска.
+ */
+export function spanOut(span: SpeedSpan, s: number): number {
+  const L = span.to - span.from, K = 1 / span.rate, a = Math.min(span.ramp ?? 0, L / 2);
+  const x = Math.max(0, Math.min(L, s));
+  if (a <= 0) return K * x;
+  if (x <= a) return x + (K - 1) * x * x / (2 * a);
+  const o1 = a + (K - 1) * a / 2;
+  if (x <= L - a) return o1 + K * (x - a);
+  const v = x - (L - a), o2 = o1 + K * (L - 2 * a);
+  return o2 + K * v - (K - 1) * v * v / (2 * a);
+}
+
+/** Та же кривая выражением ffmpeg от `T` (секунд от начала куска) — для `setpts`. */
+function spanOutExpr(span: SpeedSpan): string {
+  const L = span.to - span.from, K = 1 / span.rate, a = Math.min(span.ramp ?? 0, L / 2);
+  const f = (v: number): string => v.toFixed(6);
+  if (a <= 0) return `T*${f(K)}`;
+  const o1 = a + (K - 1) * a / 2, o2 = o1 + K * (L - 2 * a);
+  return `if(lt(T,${f(a)}),T+${f(K - 1)}*T*T/${f(2 * a)},if(lt(T,${f(L - a)}),${f(o1)}+${f(K)}*(T-${f(a)}),`
+    + `${f(o2)}+${f(K)}*(T-${f(L - a)})-${f(K - 1)}*(T-${f(L - a)})*(T-${f(L - a)})/${f(2 * a)}))`;
 }
 
 /**
@@ -60,7 +98,7 @@ export function parseSpeed(json: string): SpeedStep[] {
   const steps = value.map((raw: unknown, i: number): SpeedStep => {
     if (!object(raw)) throw new Error(`speed[${i}]: expected an object`);
     const hold = raw.hold !== undefined;
-    const allowed = hold ? ["at", "hold"] : ["from", "to", "rate"];
+    const allowed = hold ? ["at", "hold"] : ["from", "to", "rate", "ramp", "interpolate"];
     for (const key of Object.keys(raw)) {
       if (!allowed.includes(key)) {
         throw new Error(`speed[${i}]: unknown property «${key}» for a ${hold ? "hold" : "span"}`);
@@ -86,7 +124,18 @@ export function parseSpeed(json: string): SpeedStep[] {
         throw new Error(`speed[${i}].${name}: expected a number`);
       }
     }
-    const span = { from: from as number, to: to as number, rate: rate as number };
+    const span: SpeedSpan = { from: from as number, to: to as number, rate: rate as number };
+    const { ramp, interpolate } = raw as { ramp?: unknown; interpolate?: unknown };
+    if (ramp !== undefined) {
+      if (typeof ramp !== "number" || !Number.isFinite(ramp) || ramp <= 0) throw new Error(`speed[${i}].ramp: expected seconds of the source`);
+      if (ramp > (span.to - span.from) / 2 + 1e-9) throw new Error(`speed[${i}].ramp: at most half the span (${((span.to - span.from) / 2).toFixed(2)} s)`);
+      span.ramp = ramp;
+    }
+    if (interpolate !== undefined) {
+      const mode = interpolate === true ? "motion" : interpolate;
+      if (mode !== "motion" && mode !== "blend") throw new Error(`speed[${i}].interpolate: expected true, "motion" or "blend"`);
+      span.interpolate = mode;
+    }
     if (span.from < 0) throw new Error(`speed[${i}].from: expected a non-negative second`);
     if (span.to <= span.from) throw new Error(`speed[${i}]: to must be later than from`);
     // Пределы взяты из читаемости, а не из возможностей кодека: медленнее пятой доли скорости
@@ -120,10 +169,20 @@ export function speedFilter(steps: SpeedStep[], duration: number, fps: number): 
   }
   const parts: string[] = [];
   let cursor = 0;
+  // Дорисованный отрезок (`interpolate`) идёт в частоте ролика, а простые части — в частоте клипа
+  // (29,97, 31…): склейка частей разной частоты выдавала кадры без конца. Тогда все части приводятся
+  // к частоте ролика; без дорисовки части идут как есть — метки времени каждого кадра исходника.
+  const cfr = steps.some((st) => !isHold(st) && (st as SpeedSpan).interpolate) ? `,fps=${fps}` : "";
   const plain = (from: number, to: number, rate: number): void => {
     if (to <= from) return;
     parts.push(`[0:v]trim=start=${from}:end=${to},setpts=(PTS-STARTPTS)`
-      + `${rate === 1 ? "" : `/${rate}`}[p${parts.length}]`);
+      + `${rate === 1 ? "" : `/${rate}`}${cfr}[p${parts.length}]`);
+  };
+  // Переигранный кусок: время по кривой разгона и, если названо, дорисованные кадры до частоты ролика.
+  const span = (s: SpeedSpan): void => {
+    const smooth = s.interpolate === "motion" ? `,minterpolate=fps=${fps}:mi_mode=mci:mc_mode=aobmc:me_mode=bidir:vsbmc=1`
+      : s.interpolate === "blend" ? `,minterpolate=fps=${fps}:mi_mode=blend` : "";
+    parts.push(`[0:v]trim=start=${s.from}:end=${s.to},setpts=PTS-STARTPTS,setpts='(${spanOutExpr(s)})/TB'${smooth}${cfr}[p${parts.length}]`);
   };
   for (const step of steps) {
     plain(cursor, stepStart(step), 1);
@@ -131,10 +190,10 @@ export function speedFilter(steps: SpeedStep[], duration: number, fps: number): 
       // Остановка времени — ОДИН кадр, достоенный до нужной длины: клип на этом месте не тратится,
       // поэтому после остановки движение продолжается ровно с того же места.
       parts.push(`[0:v]trim=start=${step.at}:end=${step.at + 1 / fps},setpts=(PTS-STARTPTS),`
-        + `tpad=stop_mode=clone:stop_duration=${step.hold}[p${parts.length}]`);
+        + `tpad=stop_mode=clone:stop_duration=${step.hold}${cfr}[p${parts.length}]`);
       cursor = step.at;
     } else {
-      plain(step.from, step.to, step.rate);
+      if (step.ramp || step.interpolate) span(step); else plain(step.from, step.to, step.rate);
       cursor = step.to;
     }
   }
@@ -149,7 +208,7 @@ export function speedDuration(steps: SpeedStep[], duration: number): number {
   for (const step of steps) {
     if (isHold(step)) { out += step.hold; continue; }
     const length = step.to - step.from;
-    out += length / step.rate - length;
+    out += spanOut(step, length) - length;
   }
   return out;
 }
@@ -169,10 +228,10 @@ export function filmTimeOf(steps: SpeedStep[], sourceTime: number): number {
     }
     if (step.to <= sourceTime) {
       const length = step.to - step.from;
-      out += length / step.rate - length;
+      out += spanOut(step, length) - length;
     } else if (step.from < sourceTime) {
       const length = sourceTime - step.from;
-      out += length / step.rate - length;
+      out += spanOut(step, length) - length;
     }
   }
   return out;

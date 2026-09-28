@@ -49,8 +49,22 @@ test("own variables override the named preset", () => {
   assert.equal(vars["--ink"], THEMES.noir!["--ink"]);
 });
 
-test("a film without a theme keeps the previous look", () => {
-  assert.deepEqual(resolveTheme(undefined), {});
+test("a film without a theme wears neutral from the table", () => {
+  // Прежде ролик без темы получал пустой набор и держался на запасных значениях, вписанных в код
+  // рисования; теперь запасных значений в коде нет, и тема по умолчанию приходит из таблицы тем.
+  assert.deepEqual(resolveTheme(undefined), THEMES.neutral);
+});
+
+test("a theme without a named base and without every token is a parse error that lists what is missing", () => {
+  assert.throws(() => resolveTheme({ "--acc": "#ff0000" }), /without a named base must write every token.*missing \d+: --bg/su);
+  const full = { ...THEMES.noir!, "--acc": "#ff0000" };
+  assert.equal(resolveTheme(full)["--acc"], "#ff0000");
+});
+
+test("colours that ffmpeg and the shaders read must be written as #rrggbb, not silently swapped", () => {
+  assert.throws(() => resolveTheme({ preset: "noir", "--sc-progress": "rgb(255,0,0)" }), /--sc-progress: .*#rrggbb/u);
+  assert.throws(() => resolveTheme({ preset: "noir", "--sc-confetti": "#ff0000,red" }), /--sc-confetti/u);
+  assert.equal(resolveTheme({ preset: "noir", "--sc-progress-track": "#00000059" })["--sc-progress-track"], "#00000059");
 });
 
 test("the header accepts a bare theme name and rejects an unknown one", () => {

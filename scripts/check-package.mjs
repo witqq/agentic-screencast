@@ -43,6 +43,7 @@ const required = [
   "package.json",
   "README.md",
   "README.ru.md",
+  "docs/reference.md",
   "LICENSE",
   "dist/agentic-screencast.js",
   "dist/capture.js",
@@ -54,9 +55,6 @@ const required = [
   "example/kinetic-video.md",
   "example/live-capture.mjs",
   "skills/agentic-screencast/SKILL.md",
-  "docs/moira.md",
-  "docs/moira.ru.md",
-  "workflows/production/flows/agentic-screencast-video.json",
 ];
 for (const path of required) {
   if (!paths.includes(path)) throw new Error(`package candidate is missing ${path}`);

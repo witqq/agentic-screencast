@@ -6,12 +6,15 @@
 import type { KindSpec, Provider } from "./types.js";
 
 const clip: KindSpec = {
-  about: "готовый видеофайл вместо нарисованной страницы",
-  fields: ["file", "freezeAt", "speed", "at"],
+  about: "a finished video file instead of a drawn page: a live take, a screen recording or a supplied clip",
+  fields: ["file", "from", "to", "freezeAt", "speed", "at", "autoZoom", "device", "fit"],
+  shown: [],
+  staging: ["file", "from", "to", "freezeAt", "speed", "at", "autoZoom", "device", "fit"],
   required: [["file"]],
   fileField: "file",
   video: true,
   silentOk: true,
+  moving: true,
   // Видеофайл не двигают и не подсвечивают: он уже смонтирован. Остаются переход на входе и
   // выходе сцены — и подсказка, если сцена несёт речь: рассказ поверх снятого материала и есть
   // обычный случай такого ролика, а у молчаливой сцены подсказка не появится, потому что

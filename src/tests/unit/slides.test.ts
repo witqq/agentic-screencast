@@ -100,7 +100,7 @@ test("каждый узел цепочки лежит в собственной 
     nodes: [{ label: "раз" }, { label: "два" }],
   } as Slide;
   const html = markup(s);
-  assert.equal([...html.matchAll(/<div class="el" data-at="[^"]+"><span class="pairwrap">/g)].length, 2);
+  assert.equal([...html.matchAll(/<div class="el" data-at="[^"]+" data-enter="pop"><span class="pairwrap">/g)].length, 2);
 });
 
 test("величина отдаёт число и подпись, метки — отдельным элементом", () => {
@@ -108,10 +108,14 @@ test("величина отдаёт число и подпись, метки —
     id: "s", kind: "number", title: "Т",
     values: [{ value: "300", label: "узлов" }], tags: ["что", "зачем"],
   } as Slide;
+  // Число докручивается счётчиком: в разметке его значение и по окну на разряд.
   const html = markup(s);
-  assert.match(html, /class="huge">300</);
+  assert.match(html, /class="huge"><span class="count" data-at="i0\/2" data-to="300"/);
+  assert.equal([...html.matchAll(/class="dg" data-k/g)].length, 3);
   assert.match(html, /class="huge-sub">узлов</);
   assert.equal([...html.matchAll(/class="tag"/g)].length, 2);
+  // Счётчик выключается полем сцены, и тогда число — обычный текст.
+  assert.match(markup({ ...s, count: false }), /class="huge">300</);
 });
 
 test("цитата отдаёт подпись и дословный текст, а приписку пишет сцена", () => {

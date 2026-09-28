@@ -1,0 +1,112 @@
+/* Flow — the sample app the overview film records. It is a sample, not a product, and says so in
+   its header. Colours follow the film's midnight theme so the take and the overlay agree. */
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{user-select:none;-webkit-user-select:none;background:#eceeea;font:18px/1.35 "IBM Plex Sans",system-ui,-apple-system,sans-serif;color:#16171a;overflow:hidden}
+button{font:inherit}
+header{display:flex;align-items:center;gap:18px;padding:18px 36px;border-bottom:1px solid #dcddd8;background:#f7f7f5}
+.logo{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#ff7a59,#a35cff)}
+header b{font-size:24px;letter-spacing:.01em}
+.sample{padding:4px 10px;border-radius:999px;border:1px dashed #9a9ca1;color:#5b5e65;font-size:14px;letter-spacing:.06em;text-transform:uppercase}
+.sprint{color:#6b6e75}
+.tabs{display:flex;gap:6px;margin-left:auto;background:#e6e7e3;border:1px solid #dcddd8;border-radius:12px;padding:4px}
+.tabs button{border:0;border-radius:9px;padding:8px 16px;background:transparent;color:#5b5e65;cursor:pointer}
+.tabs button.on{background:#16171a;color:#fffdfb}
+.kbd{color:#6b6e75;font-size:15px}.kbd span{display:inline-block;border:1px solid #cfd0cb;border-radius:7px;padding:1px 7px;margin-right:6px;color:#2d2f33}
+.view{display:none}.view.on{display:block}
+.new{display:flex;align-items:center;gap:14px;padding:18px 36px}
+.new input{flex:0 0 520px;padding:14px 16px;border-radius:12px;border:1px solid #cfd0cb;background:#ffffff;color:#16171a;font-size:18px;cursor:text}
+.new input:focus{outline:2px solid #b3264b;outline-offset:1px}
+.pick{position:relative}
+.pick>button{padding:13px 16px;border-radius:12px;border:1px solid #cfd0cb;background:#ffffff;color:#2d2f33;cursor:pointer}
+.menu{position:absolute;top:56px;left:0;min-width:220px;background:#ffffff;border:1px solid #cfd0cb;border-radius:12px;padding:6px;display:none;z-index:5;box-shadow:0 18px 40px #0002}
+.menu.open{display:block;animation:pop .18s ease-out}
+.menu button{display:flex;gap:10px;align-items:center;width:100%;border:0;border-radius:8px;padding:10px 12px;background:transparent;color:#16171a;text-align:left;cursor:pointer}
+.menu button:hover{background:#ecebe7}
+.est{display:flex;align-items:center;gap:10px;color:#5b5e65}
+.est input{width:180px;accent-color:#b3264b;cursor:pointer}
+.est output{min-width:48px;color:#16171a;font-weight:600}
+.add{padding:13px 20px;border-radius:12px;border:0;background:#b3264b;color:#fffdfb;font-weight:700;cursor:pointer}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;padding:4px 36px}
+.col{background:#fbfbfa;border:1px solid #dcddd8;border-radius:18px;padding:16px;min-height:calc(100vh - 215px);transition:border-color .2s}
+.col.hover{border-color:#b3264b}
+.col h3{display:flex;justify-content:space-between;margin:4px 4px 14px;font-size:15px;letter-spacing:.14em;text-transform:uppercase;color:#5b5e65}
+.col h3 i{font-style:normal;color:#8a8c91}
+.card{position:relative;background:#ffffff;border:1px solid #d6d7d2;border-radius:14px;padding:14px 16px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:12px;cursor:grab;
+  animation:in .45s cubic-bezier(.2,.8,.2,1)}
+.card .t{font-weight:600}
+.card .m{display:flex;gap:8px;align-items:center;margin-top:6px;color:#5b5e65;font-size:15px}
+.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;background:#d6d7d2;color:#2d2f33;font-size:12px;font-weight:700}
+.card button{border:0;border-radius:10px;padding:8px 14px;background:#b3264b;color:#fffdfb;font-weight:700;cursor:pointer;flex:none}
+.col.done .card{background:#e7f0e8;border-color:#3f7a4f}.col.done .card button{display:none}
+.card.ghost{position:fixed;z-index:9;pointer-events:none;opacity:.92;transform:rotate(2deg);box-shadow:0 20px 40px #0002;animation:none}
+.card.lifted{opacity:.35}
+.toast{position:fixed;right:36px;bottom:32px;padding:14px 20px;border-radius:12px;background:#e7f0e8;border:1px solid #3f7a4f;color:#1e3b27;opacity:0;transform:translateY(10px);transition:.3s}
+.toast.on{opacity:1;transform:none}
+.palette{position:fixed;inset:0;background:#16171a33;display:none;place-items:start center;padding-top:150px;z-index:20}
+.palette.on{display:grid}
+.palette .box{width:640px;background:#ffffff;border:1px solid #cfd0cb;border-radius:16px;box-shadow:0 30px 80px #0003;animation:pop .2s ease-out;overflow:hidden}
+.palette input{width:100%;padding:18px 20px;border:0;border-bottom:1px solid #e2e3de;background:transparent;color:#16171a;font-size:20px;outline:0}
+.palette ul{list-style:none;margin:0;padding:8px}
+.palette li{padding:12px 14px;border-radius:10px;color:#2d2f33}
+.palette li.sel{background:#ecebe7;color:#16171a}
+@keyframes in{from{opacity:0;transform:translateY(-12px) scale(.96)}to{opacity:1;transform:none}}
+@keyframes pop{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none}}
+
+/* Report view: the sample team's numbers. */
+.report{padding:22px 36px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:22px}
+.kpi{background:#fbfbfa;border:1px solid #dcddd8;border-radius:18px;padding:20px 22px}
+.kpi small{display:block;color:#5b5e65;font-size:15px;letter-spacing:.08em;text-transform:uppercase}
+.kpi b{display:block;font-size:44px;margin-top:6px;color:#16171a}
+.kpi em{font-style:normal;color:#3f7a4f;font-weight:600}
+.kpi.warn em{color:#b3402a}
+.grid2{display:grid;grid-template-columns:1.05fr 1.6fr;gap:22px;margin-top:22px;height:calc(100vh - 330px)}
+.panel{background:#fbfbfa;border:1px solid #dcddd8;border-radius:18px;padding:20px 22px}
+.panel h4{margin:0 0 14px;font-size:15px;letter-spacing:.12em;text-transform:uppercase;color:#5b5e65}
+.bars{display:flex;align-items:flex-end;gap:18px;height:calc(100% - 40px);padding-top:10px}
+.bar{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+.bar i{display:block;width:100%;border-radius:10px 10px 4px 4px;background:linear-gradient(#9aa0a8,#6f757d);height:0;animation:grow 2.6s cubic-bezier(.2,.8,.2,1) forwards}
+.bar.hot i{background:linear-gradient(#c9466a,#b3264b)}
+.bar span{color:#5b5e65;font-size:15px}
+.bar b{font-size:16px;color:#16171a}
+@keyframes grow{to{height:var(--h)}}
+table{width:100%;border-collapse:collapse;font-size:17px}
+th{text-align:left;color:#6b6e75;font-weight:500;font-size:14px;letter-spacing:.08em;text-transform:uppercase;padding:0 10px 10px}
+td{padding:22px 10px;border-top:1px solid #dcddd8;white-space:nowrap}
+tr.late td{background:#f8e9e6}
+tr.late td:first-child{border-left:3px solid #b3402a}
+.tag{padding:3px 9px;border-radius:999px;font-size:14px;background:#ecebe7;color:#2d2f33}
+.tag.bad{background:#f2d9d3;color:#8a2a1a}
+.live{display:inline-block;width:10px;height:10px;border-radius:50%;background:#b3264b;margin-right:8px;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25;transform:scale(.7)}}
+/* The velocity detail, the target of the morph. */
+.detail{display:grid;place-items:center;height:calc(100% - 71px)}
+.detail .kpi{width:720px;padding:40px 48px}
+.detail .kpi b{font-size:120px}
+.detail svg{width:100%;height:220px;margin-top:10px}
+.detail path{stroke:#b3264b;stroke-width:5;fill:none;stroke-dasharray:1400;stroke-dashoffset:1400;animation:draw 3s .3s ease-out forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+
+/* A phone-width window reflows the app instead of shrinking it. */
+@media (max-width:600px){
+  body{font-size:17px}
+  header{flex-wrap:wrap;gap:10px;padding:16px 18px}
+  .kbd,.sprint{display:none}
+  .tabs{margin-left:0;width:100%}.tabs button{flex:1}
+  .new{padding:14px 18px}.new input{flex:1 1 auto;width:100%}
+  .pick,.est,.add{display:none}
+  .cols{grid-template-columns:1fr;gap:12px;padding:0 18px}
+  .col{min-height:0;padding:12px}
+  .col h3{margin:2px 2px 10px}
+  .card{padding:12px 14px;margin-bottom:8px}
+  .card .m{display:none}
+  #todo .card:nth-of-type(n+3),#doing .card:nth-of-type(n+2),#done .card:nth-last-of-type(n+3){display:none}
+  .toast{left:18px;right:18px;bottom:18px}
+  .report{padding:14px 18px}
+  .kpis{grid-template-columns:1fr 1fr;gap:12px}
+  .kpi{padding:14px 16px}.kpi b{font-size:34px}.kpi small{font-size:13px}.kpi em{font-size:14px}
+  .grid2{grid-template-columns:1fr;height:auto;gap:12px;margin-top:12px}
+  .bars{height:250px;gap:8px}
+  #activity{display:none}
+}

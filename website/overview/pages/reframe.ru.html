@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>reframe</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.rf{flex:1;display:flex;align-items:center;justify-content:center;gap:36px}.land{position:relative;width:1000px}.land img{width:100%;border-radius:14px;display:block}
+.win{position:absolute;top:0;height:100%;width:31.6%;border:5px solid var(--acc);border-radius:10px;box-shadow:0 0 0 2000px color-mix(in srgb,var(--bg) 60%,transparent)}
+.land{overflow:hidden;border-radius:14px}.vert{height:600px}.vert img{height:560px;border-radius:14px;display:block}
+.land span,.vert span{display:block;margin-top:8px;color:var(--mut);font-size:24px;text-align:center}.arrow{font-size:80px;color:var(--acc)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>--format vertical</small><h1>Тот же сценарий, вертикальный кадр</h1></div>
+<div class="rf"><div class="land rv" data-at="b1"><img src="../demo/out/demo.ru.stills/03-live-b2p1.png"><div class="win" id="win"></div><span>горизонтальный кадр</span></div>
+<div class="arrow glow">→</div><div class="vert rv" data-at="b1+1.2"><img src="../demo/out/vertical.ru.stills/03-live-b2p1.png"><span>вертикальный</span></div></div></div>
+<script src="kit.js"></script>
+<script>
+window.onRender = (t, at) => { const a = at(document.querySelector(".land")); const k = Math.max(0, Math.min(1, (t - a - 0.8) / 2.4));
+  const e = k * k * (3 - 2 * k); document.getElementById("win").style.left = (34 + e * 30).toFixed(2) + "%"; };
+</script>
+</body></html>

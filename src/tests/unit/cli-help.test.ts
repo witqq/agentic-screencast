@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseSource } from "../../source.js";
@@ -17,7 +18,8 @@ test("video, capture and overlay help expose the working commands", () => {
   assert.match(capture, /recordTake/);
   assert.match(capture, /actual pointerdown event/);
   assert.match(capture, /withFocusCard/);
-  assert.match(video, /Every UI action shown needs a nearby explanation/);
+  // Режиссёрское правило живёт в сборнике сценариев, а не в справке: справка описывает инструмент.
+  assert.match(readFileSync(resolve(here, "../../../docs/scenario-playbook.md"), "utf8"), /Every UI action\s+shown needs a nearby explanation/);
   assert.match(video, /slides.chapter/);
   assert.match(overlay, /click:true/);
   assert.match(overlay, /0.35 seconds/);

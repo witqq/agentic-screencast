@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>checklist</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.list{flex:1;overflow:hidden;padding:18px 26px}.item{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start;margin:8px 0;font-size:23px;line-height:1.35;color:var(--body)}
+.box{width:34px;height:34px;border:3px solid var(--acc);border-radius:8px;display:grid;place-items:center;margin-top:2px}
+.box i{width:16px;height:9px;border-left:4px solid var(--acc);border-bottom:4px solid var(--acc);transform:rotate(-45deg) scale(var(--k,0));margin-top:-4px}
+.count{font-size:26px;color:var(--body)}.count b{color:var(--acc2);font-size:30px}.prompt{color:var(--acc)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>checklist.md</small><h1>This film's checklist</h1></div>
+<div class="panel list"><div class="item rv" data-at="b1+0.20"><span class="box"><i></i></span><span class="txt">Every dimension of the brief has an answer and its source (owner, inferred from …, default); the</span></div><div class="item rv" data-at="b1+0.65"><span class="box"><i></i></span><span class="txt">The capability table (or, for a film without a product, the material table with licences): every</span></div><div class="item rv" data-at="b1+1.10"><span class="box"><i></i></span><span class="txt">The narration is one continuous text, read aloud: the claim in the first seconds, one next step</span></div><div class="item rv" data-at="b1+1.55"><span class="box"><i></i></span><span class="txt">The owner agreed the outline — chapters, what each scene shows, which interfaces — before any</span></div></div>
+<div class="count mono rv" data-at="b2.end-1.5"><span class="prompt">$</span> grep -c "\- \[ \]" checklist.md → <b>1</b> <span class="mut">open now: the boxes checked on the frames of the built film</span></div></div>
+<script src="kit.js"></script>
+</body></html>

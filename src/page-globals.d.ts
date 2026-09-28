@@ -13,6 +13,13 @@ interface Window {
     mount(scene: unknown): void;
     renderAt(t: number): void;
     targetRect(): { left: number; top: number; width: number; height: number } | null;
+    moving(t: number): boolean;
+    focusX(): number;
+    rectOf(a: unknown): { left: number; top: number; width: number; height: number };
+    fontPx(sel: string): number | null;
+    cutText(sel: string): string[];
+    smallText(min: number): Array<{ text: string; px: number }>;
+    floor(): number;
     readonly scene: { target?: string; mustRead?: string; duration?: number } | null;
   };
   renderAt?: (t: number) => void;

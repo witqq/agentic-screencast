@@ -34,3 +34,7 @@ npm run site:check
 ```
 
 В pull request укажите команды и наблюдаемые результаты. Release, публикацию в npm и deployment выполняет maintainer по [инструкции выпуска](docs/RELEASING.md).
+
+## Ловушки инструментов сборки
+
+Перечень ловушек `ffmpeg`, Chromium и шейдеров, которые не заявляют о себе, — в [CONTRIBUTING.md](CONTRIBUTING.md), раздел «Traps of the assembly tools».

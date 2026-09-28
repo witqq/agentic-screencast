@@ -12,7 +12,7 @@
 // путём через `getUserMedia` и `MediaRecorder`, а мы знаем, что именно
 // «сказал» человек, и можем узнать это в дорожке готового ролика.
 import { chromium, type Page } from "playwright";
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -231,10 +231,24 @@ right: Стало :: свой голос
     // перепутай их или отдай один на всех — это разойдётся.
     const pic = async (url: string, id: string): Promise<Buffer> =>
       Buffer.from(await (await fetch(new URL(`/api/picture/${id}`, url))).arrayBuffer());
+    // Одна и та же сцена, снятая двумя браузерами, совпадает не побайтово: Chromium растрирует
+    // кадр плитками в нескольких потоках, и на швах плиток значения расходятся на 1–2 из 255
+    // (замер: 332 пикселя из 518 400, PSNR 83 дБ). Один поток растра делает кадр повторимым, но
+    // замедляет сборку в полтора раза. Поэтому «та же картинка» — PSNR от 60 дБ: другая сцена
+    // или правленый слайд дают 15–30 дБ, и различие не теряется.
+    const same = (x: Buffer, y: Buffer): boolean => {
+      if (Buffer.compare(x, y) === 0) return true;
+      const fx = join(dir, "pic-x.png"), fy = join(dir, "pic-y.png");
+      writeFileSync(fx, x); writeFileSync(fy, y);
+      const log = spawnSync(FFMPEG, ["-nostdin", "-i", fx, "-i", fy, "-lavfi", "[0:v][1:v]psnr", "-f", "null", "-"],
+        { encoding: "utf8" }).stderr;
+      const db = /average:([\d.]+|inf)/.exec(log)?.[1];
+      return db === "inf" || Number(db) >= 60;
+    };
     const picA = await pic(server.url, "a");
     const picB = await pic(server.url, "b");
-    facts["картинки сцен различны"] = Buffer.compare(picA, picB) === 0 ? "НЕТ" : "да";
-    if (Buffer.compare(picA, picB) === 0) throw new Error("сцены показаны одной картинкой");
+    facts["картинки сцен различны"] = same(picA, picB) ? "НЕТ" : "да";
+    if (same(picA, picB)) throw new Error("сцены показаны одной картинкой");
 
     // Меняется ИСТОЧНИК, а не порождённый слайд: слайды порождаются
     // из сценария при каждом запуске сервера, и правка порождённого
@@ -246,8 +260,8 @@ right: Стало :: свой голос
     try {
       const picA2 = await pic(second.url, "a");
       const picB2 = await pic(second.url, "b");
-      const aChanged = Buffer.compare(picA, picA2) !== 0;
-      const bSame = Buffer.compare(picB, picB2) === 0;
+      const aChanged = !same(picA, picA2);
+      const bSame = same(picB, picB2);
       facts["картинка сцены следует за её слайдом"] = aChanged && bSame ? "да" : "НЕТ";
       if (!aChanged) throw new Error("правка слайда сцены a не изменила её картинку");
       if (!bSame) throw new Error("правка слайда сцены a изменила картинку сцены b");

@@ -27,6 +27,7 @@ const en: Dict = {
   "source.required": "scene {id}: kind {kind} requires field {names}",
   "source.badField": "field «{key}» is not allowed for kind {kind}",
   "source.badFilmField": "unknown film field: {key}",
+  "source.didYouMean": " — did you mean «{name}»?",
   "source.badAnchor": "«{anchor}» is not a time anchor; use b2, b2.end, b2+0.4, 40% or 1.2s",
   "source.beatOutOfRange": "anchor «{anchor}» points past the speech of scene {id}: it has {beats} beat(s)",
   "provider.unknown": "unknown provider «{name}»; known: {known}\n"
@@ -67,6 +68,7 @@ const ru: Dict = {
   "source.required": "сцена {id}: у вида {kind} обязательно поле {names}",
   "source.badField": "поле «{key}» недопустимо у сцены вида {kind}",
   "source.badFilmField": "неизвестное поле ролика: {key}",
+  "source.didYouMean": " — возможно, «{name}»?",
   "source.badAnchor": "«{anchor}» не якорь момента; пишут b2, b2.end, b2+0.4, 40% или 1.2s",
   "source.beatOutOfRange": "якорь «{anchor}» указывает дальше речи сцены {id}: в ней тактов {beats}",
   "provider.unknown": "неизвестный поставщик «{name}»; известны: {known}\n"

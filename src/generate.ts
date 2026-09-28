@@ -7,9 +7,10 @@
 // из пустого места.
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { parseSource, specOf, toPitch, SLIDES_DIR, type Source } from "./source.js";
+import { parseSource, sceneTheme, specOf, toPitch, SLIDES_DIR, type Source } from "./source.js";
 import { providerFor } from "./provider/index.js";
 import { msg } from "./msg.js";
+import { layerSafe } from "./part-label.js";
 
 export interface Generated {
   src: Source;
@@ -31,9 +32,16 @@ export interface Generated {
  */
 export function generate(src: Source): Generated {
   const dir = src.dir;
-  const slidesDir = resolve(dir, SLIDES_DIR);
+  // Каждый язык порождает своё: сборки двух языков рядом не затирают слайды друг друга.
+  const tag = [src.variant, src.reframe ? src.format : undefined].filter(Boolean).join("-");
+  const generated = tag ? `${SLIDES_DIR}-${tag}` : SLIDES_DIR;
+  const slidesDir = resolve(dir, generated);
   const declared = src.providers ?? {};
   const pages: Record<string, string> = {};
+  // Поля слайда — от зоны слоя: у края зоны может стоять название части, и низ слайда уходит над ним.
+  const zone = layerSafe({ safe: src.safe, progress: src.progress, scenes: src.scenes.map((s) => ({
+    chapter: s.fields.part ?? specOf(s, declared).chapterFrom?.map((k) => s.fields[k]).find(Boolean) })) },
+  { width: Number(src.frame?.width ?? 1920), height: Number(src.frame?.height ?? 1080) });
   for (const scene of src.scenes) {
     const spec = specOf(scene, declared);
     // Готовый файл порождать нечего: сцена уже назвала его полем.
@@ -43,11 +51,16 @@ export function generate(src: Source): Generated {
       throw new Error(msg("provider.cannotDraw", { name: scene.provider }));
     }
     pages[scene.id] = provider.page(scene, slidesDir,
-      { frame: src.frame, encode: src.encode, theme: src.theme,
-        pronounce: src.pronounce, lang: src.lang });
+      { frame: src.frame, encode: src.encode,
+        theme: scene.fields.theme ? sceneTheme(scene.fields.theme, src.theme) : src.theme,
+        pronounce: src.pronounce, lang: src.lang, dir: src.dir, ...(zone ? { safe: zone } : {}),
+        ...(src.captions?.everywhere ? { captionsOnSlides: true } : {}),
+        ...(src.captions?.size ? { captionsSize: src.captions.size } : {}),
+        ...((scene.fields.captions ?? src.captions?.position) ? { captionsAt: (scene.fields.captions?.trim() ?? src.captions!.position) as "bottom" | "top" | "middle" | "auto" } : {}),
+        ...(src.progress ? { progressAt: src.progress.position ?? "bottom" } : {}) });
   }
-  const pitchFile = resolve(dir, ".generated-pitch.json");
-  writeFileSync(pitchFile, JSON.stringify(toPitch(src)));
+  const pitchFile = resolve(dir, `.generated-pitch${tag ? `-${tag}` : ""}.json`);
+  writeFileSync(pitchFile, JSON.stringify(toPitch(src, generated)));
   return { src, pitchFile, slidesDir, pages };
 }
 

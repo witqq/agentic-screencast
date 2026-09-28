@@ -173,7 +173,8 @@ test("a click inside an iframe paints the parent-frame cursor and ripple", async
 test("a live explanation remains visible until a slow action ends", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-capture-card-"));
   const video = join(dir, "card.webm");
-  await recordTake({ output: video, viewport: { width: 640, height: 360 },
+  // Карточка ищется тёмной на белом — это карточка ночной темы; умолчание — светлая neutral.
+  await recordTake({ output: video, viewport: { width: 640, height: 360 }, theme: "midnight",
     prepare: async (page) => { await page.setContent("<body style='background:white'></body>"); } },
   async (capture) => {
     await capture.withCard({ title: "Waiting" }, async () => {
@@ -181,7 +182,8 @@ test("a live explanation remains visible until a slow action ends", async () => 
     });
   });
   const pixels = execFileSync(ffmpeg, ["-v", "error", "-ss", "4.5", "-i", video,
-    "-vf", "crop=90:70:400:260,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-"],
+    // Карточка стоит в правом нижнем углу на шаге темы от края; область — внутри неё, правее заголовка.
+    "-vf", "crop=120:30:480:285,format=rgb24", "-frames:v", "1", "-f", "rawvideo", "-"],
   { maxBuffer: 1024 * 1024 });
   let dark = 0;
   for (let i = 0; i < pixels.length; i += 3)

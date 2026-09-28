@@ -20,9 +20,10 @@
 // на 139 пикселях против нуля), и проверка остаётся различающей.
 import { renderScene } from "./render.js";
 import type { RenderScene } from "./render.js";
-import { execFileSync } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
 
 const require = createRequire(import.meta.url);
@@ -40,23 +41,21 @@ const minDistinctArg = process.argv.indexOf("--min-distinct");
 const minDistinct = minDistinctArg > 0 ? Number(process.argv[minDistinctArg + 1]) : null;
 
 const psnrOf = (a: Buffer, b: Buffer): number => {
-  writeFileSync("/tmp/__a.png", a);
-  writeFileSync("/tmp/__b.png", b);
-  let txt = "";
+  const dir = mkdtempSync(join(tmpdir(), "sc-psnr-"));
   try {
-    execFileSync(FFMPEG, ["-nostdin", "-hide_banner", "-i", "/tmp/__a.png", "-i",
-      "/tmp/__b.png", "-lavfi", "psnr", "-f", "null", "-"], { stdio: ["ignore", "pipe", "pipe"] });
-  } catch (e) {
-    txt = String((e as { stderr?: unknown }).stderr ?? "");
+    const first = join(dir, "first.png"), second = join(dir, "second.png");
+    writeFileSync(first, a);
+    writeFileSync(second, b);
+    const result = spawnSync(FFMPEG, ["-nostdin", "-hide_banner", "-i", first, "-i", second,
+      "-lavfi", "psnr", "-f", "null", "-"], { encoding: "utf8" });
+    if (result.error) throw result.error;
+    if (result.status !== 0) throw new Error(`ffmpeg PSNR failed: ${result.stderr}`);
+    const m = result.stderr.match(/average:([0-9.]+|inf)/);
+    if (!m) throw new Error(`ffmpeg did not report PSNR: ${result.stderr}`);
+    return m[1] === "inf" ? Infinity : Number(m[1]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
   }
-  if (!txt) {
-    const r = execFileSync("/bin/sh", ["-c",
-      `${FFMPEG} -nostdin -hide_banner -i /tmp/__a.png -i /tmp/__b.png -lavfi psnr -f null - 2>&1`],
-      { encoding: "utf8" });
-    txt = r;
-  }
-  const m = txt.match(/average:([0-9.]+|inf)/);
-  return m ? (m[1] === "inf" ? Infinity : Number(m[1])) : NaN;
 };
 
 const pass1 = await renderScene(scene, {});

@@ -9,11 +9,14 @@
 //   render.js --scene scene.json --frames-only --at 1.2 (одиночный кадр)
 import { chromium } from "playwright";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
-import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, rmSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
+import { fontFaceCss, themeFamilies, FONT_PROBE } from "./fonts.js";
 import { parseOverlay } from "./overlay.js";
 
 const require = createRequire(import.meta.url);
@@ -65,6 +68,29 @@ export interface RenderOpts {
   at?: number;
   /** заморозить время на этом значении, каким бы ни был номер кадра */
   freeze?: number;
+  /**
+   * Размытие движения: кадр, на котором камера едет, собирается из `samples`
+   * подкадров внутри выдержки `shutter` (доля интервала кадра). Кадры
+   * удержания остаются одиночными и побайтово прежними.
+   */
+  motionBlur?: { samples: number; shutter: number };
+  /**
+   * Окно кадрирования шириной в точках страницы: вместо всего вьюпорта снимается
+   * полоса во всю высоту у цели фокуса (`__stage.focusX`). Так горизонтальная
+   * страница даёт вертикальный кадр в полном разрешении: вьюпорт — её кадр,
+   * `scale` — во сколько раз высота нового кадра больше.
+   */
+  crop?: { width: number };
+  /** Прямоугольники предметов в названные моменты, в точках кадра: так сборка узнаёт, где лупа. */
+  probes?: Array<{ t: number; anchor: unknown }>;
+  /** замеры читаемости: кегль самого мелкого текста цели в момент t, в точках готового кадра */
+  legible?: Array<{ t: number; target: string }>;
+  /** моменты и цели фокусов, у которых проверить строки, срезанные кадром */
+  cuts?: Array<{ t: number; target: string }>;
+  /** момент и порог в точках готового кадра, мельче которого строки страницы называются */
+  small?: { t: number; min: number };
+  /** Селектор, который на кадрах не рисуется: так переход общим элементом получает фон без предмета. */
+  hide?: string;
 }
 
 /** Кадр: номер, картинка и её контрольная сумма. */
@@ -72,6 +98,8 @@ export interface Shot {
   f: number;
   buf: Buffer;
   md5: string;
+  /** левый край окна кадрирования в точках страницы, если кадр вырезан окном */
+  x?: number;
 }
 
 /** Сцена в том виде, в каком её рендерит ядро. */
@@ -93,75 +121,169 @@ export const DEFAULTS: RenderOpts = { fps: 25, width: 1920, height: 1080, scale:
 export async function renderScene(
   scene: RenderScene,
   opts: Partial<RenderOpts> = {},
-): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts }> {
+): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts; rects: Array<{ left: number; top: number; width: number; height: number }>; floor: number; renderer?: string; overflow?: number; legible?: Array<{ t: number; target: string; px: number | null }>; cuts?: Array<{ t: number; target: string; text: string[] }>; small?: Array<{ text: string; px: number }> }> {
   const o = { ...DEFAULTS, ...opts };
   const frames = Math.ceil(scene.duration * o.fps);
   const browser = await chromium.launch();
-  const ctx = await browser.newContext({
-    viewport: { width: o.width, height: o.height },
-    deviceScaleFactor: o.scale,
-  });
-  // Часы внедряются ДО документа — иначе композиция успеет прочитать реальные.
-  await ctx.addInitScript({ content: CLOCK });
-  // Композиция — тоже до документа, а не тегом <script> в него. Причина
-  // в подложках-снимках интерфейса: в файле MHTML скрипты документа
-  // не исполняются вовсе, и добавленный тег молча ничего не делает,
-  // а кадр при этом получается — просто без зума и подсветки.
-  await ctx.addInitScript({ content: STAGE });
-  const page = await ctx.newPage();
-  // Снимок интерфейса самодостаточен: сеть в прогоне запрещена, чтобы
-  // «работает» не означало «дотянулось до живого сервера».
-  if (scene.offline) {
-    await page.route("**", (r) =>
-      r.request().url().startsWith("file:") ? r.continue() : r.abort());
-  }
-  if (scene.__overlayOnly) {
-    await page.goto("about:blank");
-    await page.evaluate(() => { document.documentElement.style.background = "transparent"; });
-  } else {
-    await page.goto(pathToFileURL(resolve(scene.__src ?? HERE, scene.page)).href, {
-      waitUntil: "load",
+  // Браузер закрывается и при ошибке кадра или пробы: иначе процесс ждал бы его вечно.
+  try {
+    const ctx = await browser.newContext({
+      viewport: { width: o.width, height: o.height },
+      deviceScaleFactor: o.scale,
     });
-  }
-  // Direct scene.json/pitch consumers bypass parseSource. Normalize their
-  // cards too, so automatic reading time matches the rendered duration.
-  const staged = scene.overlay
-    ? { ...scene, overlay: parseOverlay(JSON.stringify(scene.overlay)) } : scene;
-  await page.evaluate((s) => window.__stage.mount(s), staged);
-
-  const shots: Shot[] = [];
-  const list = o.at !== undefined ? [Math.round(o.at * o.fps)] : [...Array(frames).keys()];
-  for (const f of list) {
-    const t = f / o.fps;
-    await page.evaluate((tt) => window.__clock.seek(tt), o.freeze ?? t);
-    // Кадры вложенных фреймов: у каждого свои часы.
-    for (const fr of page.frames()) {
-      if (fr === page.mainFrame()) continue;
-      await fr.evaluate((tt) => window.__clock?.seek(tt), o.freeze ?? t).catch(() => {});
+    // Часы внедряются ДО документа — иначе композиция успеет прочитать реальные.
+    await ctx.addInitScript({ content: CLOCK });
+    // Композиция — тоже до документа, а не тегом <script> в него. Причина
+    // в подложках-снимках интерфейса: в файле MHTML скрипты документа
+    // не исполняются вовсе, и добавленный тег молча ничего не делает,
+    // а кадр при этом получается — просто без зума и подсветки.
+    await ctx.addInitScript({ content: STAGE });
+    const page = await ctx.newPage();
+    // Снимок интерфейса самодостаточен: сеть в прогоне запрещена, чтобы
+    // «работает» не означало «дотянулось до живого сервера».
+    if (scene.offline) {
+      await page.route("**", (r) =>
+        r.request().url().startsWith("file:") ? r.continue() : r.abort());
     }
-    const buf = await page.screenshot({ animations: "allow",
-      ...(scene.__overlayOnly ? { omitBackground: true } : {}) });
-    shots.push({ f, buf, md5: createHash("md5").update(buf).digest("hex") });
+    if (scene.__overlayOnly) {
+      await page.goto("about:blank");
+      await page.evaluate(() => { document.documentElement.style.background = "transparent"; });
+    } else {
+      await page.goto(pathToFileURL(resolve(scene.__src ?? HERE, scene.page)).href, {
+        waitUntil: "load",
+      });
+    }
+    // Direct scene.json/pitch consumers bypass parseSource. Normalize their
+    // cards too, so automatic reading time matches the rendered duration.
+    const staged = scene.overlay
+      ? { ...scene, overlay: parseOverlay(JSON.stringify(scene.overlay)) } : scene;
+    // Шрифты темы — из набора, вшитыми в страницу; кадр снимается только после того, как они
+    // загружены на латинице и кириллице, и слайд перемерен уже ими.
+    const families = themeFamilies(scene.theme as Record<string, string> | undefined).map((f) => f.family);
+    await page.evaluate((s) => window.__stage.mount(s), { ...staged, __fontCss: fontFaceCss(scene.theme as Record<string, string> | undefined),
+      ...(o.crop ? { __cropWidth: o.crop.width } : {}) });
+    if (families.length) {
+      await page.evaluate(async ({ fams, probe }) => {
+        await Promise.all(fams.flatMap((f) => ["400", "700"].map((w) => document.fonts.load(`${w} 40px "${f}"`, probe))));
+        await document.fonts.ready;
+        (window as unknown as { __refit?: () => void }).__refit?.();
+      }, { fams: families, probe: FONT_PROBE });
+    }
+    if (o.hide) await page.addStyleTag({ content: `${o.hide}{visibility:hidden!important}` });
+
+    const shots: Shot[] = [];
+    const list = o.at !== undefined ? [Math.round(o.at * o.fps)] : [...Array(frames).keys()];
+    for (const f of list) {
+      const t = f / o.fps;
+      await page.evaluate((tt) => window.__clock.seek(tt), o.freeze ?? t);
+      // Кадры вложенных фреймов: у каждого свои часы.
+      for (const fr of page.frames()) {
+        if (fr === page.mainFrame()) continue;
+        await fr.evaluate((tt) => window.__clock?.seek(tt), o.freeze ?? t).catch(() => {});
+      }
+      // Окно кадрирования: левый край — по середине фокуса, прижат к краям страницы и
+      // округлён до целого пикселя снимка, чтобы кадр оставался побайтово повторимым.
+      let clip: { x: number; y: number; width: number; height: number } | undefined;
+      if (o.crop) {
+        const mid = await page.evaluate(() => window.__stage.focusX());
+        const x = Math.max(0, Math.min(o.width - o.crop.width, mid - o.crop.width / 2));
+        clip = { x: Math.round(x * o.scale) / o.scale, y: 0, width: o.crop.width, height: o.height };
+      }
+      let buf = await page.screenshot({ animations: "allow", ...(clip ? { clip } : {}),
+        ...(scene.__overlayOnly ? { omitBackground: true } : {}) });
+      const mb = o.motionBlur;
+      if (mb && mb.samples > 1 && o.freeze === undefined && !scene.__overlayOnly
+        && await page.evaluate((tt) => window.__stage.moving(tt), t)) {
+        const subs: Buffer[] = [];
+        for (let i = 0; i < mb.samples; i++) {
+          await page.evaluate((tt) => window.__clock.seek(tt), t + ((i + 0.5) / mb.samples - 0.5) * mb.shutter / o.fps);
+          subs.push(await page.screenshot({ animations: "allow", ...(clip ? { clip } : {}) }));
+        }
+        buf = await averageFrames(subs);
+      }
+      shots.push({ f, buf, md5: createHash("md5").update(buf).digest("hex"), ...(clip ? { x: clip.x } : {}) });
+    }
+    const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const probe of o.probes ?? []) {
+      await page.evaluate((tt) => window.__clock.seek(tt), probe.t);
+      rects.push(await page.evaluate((a) => window.__stage.rectOf(a), probe.anchor));
+    }
+    // Кегль текста цели в точках снимка: плотность снимка (у кадрирования — отношение высот
+    // кадров) переводит точки страницы в точки готового кадра.
+    const legible: Array<{ t: number; target: string; px: number | null }> = [];
+    for (const l of o.legible ?? []) {
+      await page.evaluate((tt) => window.__clock.seek(tt), l.t);
+      const css = await page.evaluate((sel) => window.__stage.fontPx(sel), l.target);
+      legible.push({ ...l, px: css === null ? null : Number((css * o.scale).toFixed(1)) });
+    }
+    const cuts: Array<{ t: number; target: string; text: string[] }> = [];
+    for (const c of o.cuts ?? []) {
+      await page.evaluate((tt) => window.__clock.seek(tt), c.t);
+      const text = await page.evaluate((sel) => window.__stage.cutText(sel), c.target);
+      if (text.length) cuts.push({ ...c, text });
+    }
+    // Мелкий текст страницы — в точках готового кадра: порог переводится в точки страницы.
+    let small: Array<{ text: string; px: number }> = [];
+    if (o.small) {
+      await page.evaluate((tt) => window.__clock.seek(tt), o.small.t);
+      small = (await page.evaluate((m) => window.__stage.smallText(m), o.small.min / o.scale))
+        .map((x) => ({ ...x, px: Number((x.px * o.scale).toFixed(1)) }));
+    }
+    // Верх полосы субтитров: над ним сборка держит линзу лупы.
+    const floor = await page.evaluate(() => window.__stage.floor());
+    // Чем нарисован кадр, говорит сама страница: пометку она ставит только после настоящей
+    // отрисовки (экран в перспективе — WebGL). Сборка переносит её в отчёт сцены.
+    const renderer = scene.__overlayOnly ? undefined
+      : await page.evaluate(() => document.body?.dataset.screenRenderer).catch(() => undefined);
+    // Слайд, которому не хватило места и при предельном ужатии, говорит, на сколько точек сетки.
+    const overflow = scene.__overlayOnly ? undefined
+      : await page.evaluate(() => Number(document.body?.dataset.overflow) || undefined).catch(() => undefined);
+    return { frames, shots, opts: o, rects, floor, ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
+  } finally {
+    await browser.close();
   }
-  await browser.close();
-  return { frames, shots, opts: o };
 }
 
-export function encode(shots: Shot[], out: string, o: RenderOpts): string {
+/**
+ * `ffmpeg` без блокировки цикла событий: сборка рисует несколько сцен сразу, и синхронный вызов
+ * остановил бы браузеры соседних сцен.
+ */
+const ffAsync = promisify(execFile);
+
+/** Среднее нескольких снимков одного размера — кадр с размытием движения. */
+async function averageFrames(frames: Buffer[]): Promise<Buffer> {
+  const dir = mkdtempSync(resolve(tmpdir(), "sc-blur-"));
+  try {
+    frames.forEach((b, i) => writeFileSync(resolve(dir, `${String(i).padStart(3, "0")}.png`), b));
+    const { stdout } = await ffAsync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", resolve(dir, "%03d.png"),
+      "-vf", `tmix=frames=${frames.length},select=eq(n\\,${frames.length - 1})`, "-frames:v", "1",
+      "-f", "image2pipe", "-vcodec", "png", "-"], { maxBuffer: 256 * 1024 * 1024, encoding: "buffer" });
+    return stdout;
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+/** Кадры → сегмент. `filter` — граф поверх кадров (лупа), в том же проходе кодирования. */
+export async function encode(shots: Shot[], out: string, o: RenderOpts, filter: string[] = []): Promise<string> {
   const e = o.encode ?? ENCODE;
   const dir = `${out}.frames`;
   rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
-  shots.forEach((s, i) =>
-    writeFileSync(`${dir}/${String(i).padStart(5, "0")}.png`, s.buf),
-  );
-  execFileSync(FFMPEG, [
-    "-nostdin", "-y", "-loglevel", "error",
-    "-framerate", String(o.fps), "-i", `${dir}/%05d.png`,
-    "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
-    "-pix_fmt", e.pix, "-g", String(o.fps * 2), out,
-  ]);
-  rmSync(dir, { recursive: true, force: true });
+  // Кадры на диске — только на время кодирования, и при его ошибке тоже убираются.
+  try {
+    shots.forEach((s, i) =>
+      writeFileSync(`${dir}/${String(i).padStart(5, "0")}.png`, s.buf),
+    );
+    await ffAsync(FFMPEG, [
+      "-nostdin", "-y", "-loglevel", "error",
+      "-framerate", String(o.fps), "-i", `${dir}/%05d.png`, ...filter,
+      "-c:v", "libx264", "-preset", e.preset, "-crf", String(e.crf),
+      "-pix_fmt", e.pix, "-g", String(o.fps * 2), out,
+    ]);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
   return out;
 }
 
@@ -179,7 +301,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
     console.log(JSON.stringify({ frames: shots.length, expected: frames,
       md5: shots.map((s) => s.md5) }, null, 1));
   } else {
-    encode(shots, String(args.out), o);
+    await encode(shots, String(args.out), o);
     console.log(JSON.stringify({ frames: shots.length, out: args.out }));
   }
 }

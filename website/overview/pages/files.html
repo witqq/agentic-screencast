@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>files</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.files{display:grid;grid-template-columns:1.25fr 1fr;gap:30px;flex:1}.f{overflow:hidden}.f pre{margin:10px 0 0;font-size:23px;line-height:1.45;color:var(--body);white-space:pre-wrap}
+.tab{display:inline-block;padding:4px 14px;border-radius:10px;background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--acc2);font-size:22px}
+</style></head><body>
+<div class="wrap"><div class="head"><small>Beside the film</small><h1>Subtitles and chapters as files</h1></div>
+<div class="files"><div class="panel f rv" data-at="b1"><div class="tab mono">demo.srt</div><pre class="mono">1
+00:00:00,000 --&gt; 00:00:03,733
+This is a sample film: four scenes built
+by one command.
+
+2
+00:00:04,160 --&gt; 00:00:08,627
+The task is typed, and the Done button
+moves it to the last column.
+
+3</pre></div><div class="panel f rv" data-at="b1+1.2"><div class="tab mono">demo.chapters.vtt</div><pre class="mono">WEBVTT
+
+1
+00:00:00.000 --&gt; 00:00:04.160
+Opening
+
+2
+00:00:04.160 --&gt; 00:00:12.640
+The board
+
+3
+00:00:12.640 --&gt; 00:00:18.800
+The report</pre></div></div></div>
+<script src="kit.js"></script>
+</body></html>

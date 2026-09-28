@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>typo</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+
+</style></head><body>
+<div class="wrap"><div class="term short"><div class="bar"><i></i><i></i><i></i><span>demo</span></div><pre data-scroll><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b1" data-type="sed -n 12,15p demo/typo.md" data-cps="40"></span></span><span class="line rv " data-at="b1+1.05">## open · slides.hero</span><span class="line rv " data-at="b1+1.17">part: Начало</span><span class="line rv " data-at="b1+1.29">kicker: Пример ролика</span><span class="line rv warn" data-at="b1+1.41">titel: Доска задач за полминуты</span><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b1+2.2" data-type="agentic-screencast lint demo/typo.md" data-cps="40"></span></span><span class="line rv hl" data-at="b1+2.2+1.30">source demo/typo.md: строка 14: поле «titel» недопустимо у сцены вида hero — возможно, «title»?</span></pre></div></div>
+<script src="kit.js"></script>
+</body></html>

@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>story.md</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.split{position:absolute;left:70px;right:70px;top:90px;bottom:250px;display:grid;grid-template-columns:44fr 3fr 53fr;align-items:center;gap:0}
+.code{height:100%;overflow:hidden;padding:18px 22px}.code pre{margin:0;font-size:21px;line-height:1.55;white-space:pre-wrap;word-break:break-word;color:var(--body)}
+.ln{display:block;padding-left:44px;text-indent:-44px}.ln b{display:inline-block;width:44px;text-indent:0;color:var(--mut);font-weight:400}
+.tab{display:inline-block;margin-bottom:10px;padding:4px 14px;border-radius:10px;background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--acc2);font-size:22px}
+.arrow{font-size:80px;color:var(--acc);text-align:center}.shot{padding:16px}.shot img{display:block;width:100%;border-radius:12px}
+</style></head><body>
+<div class="split">
+<div class="panel code" id="code"><div class="tab mono">story.md</div><pre class="mono"><span class="ln rv" data-at="0.10"><b>1</b>## c00-cold · video</span>
+<span class="ln rv" data-at="0.22"><b>2</b>part: Начало</span>
+<span class="ln rv" data-at="0.34"><b>3</b>file: captures/board.ru.webm</span>
+<span class="ln rv" data-at="0.46"><b>4</b>from: @start</span>
+<span class="ln rv" data-at="0.58"><b>5</b>to: @keys</span>
+<span class="ln rv" data-at="0.70"><b>6</b> </span>
+<span class="ln rv" data-at="0.82"><b>7</b>from: @start</span>
+<span class="ln rv" data-at="0.94"><b>8</b>to: @keys</span>
+<span class="ln rv" data-at="1.06"><b>9</b>stills: 25% :: живой наезд на поле, клавиша Enter видна | @added :: новая задача появилась в «К работе» | @done :: карточка «Настоящий клик» рядом с кнопкой, не поверх неё | @typed :: задача набрана | @zoomout :: живой наезд возвращается к общему плану</span>
+<span class="ln rv" data-at="1.18"><b>10</b> </span>
+<span class="ln rv" data-at="1.30"><b>11</b>Этот ролик снял агент. Курсор, клик, наезд на поле и карточка рядом с кнопкой — настоящая запись работающего приложения, а не монтаж.</span>
+<span class="ln rv" data-at="1.42"><b>12</b> </span>
+<span class="ln rv" data-at="1.54"><b>13</b>А собрал его инструмент Agentic Screencast по одному текстовому файлу.</span>
+<span class="ln rv" data-at="1.66"><b>14</b> </span></pre></div>
+<div class="arrow glow">→</div>
+<div class="panel shot" id="frame"><div class="tab">кадр ролика</div><img src="../assets/gen/split-frame.ru.png"></div>
+</div>
+<script src="kit.js"></script>
+</body></html>

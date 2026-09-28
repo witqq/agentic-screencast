@@ -1,0 +1,18 @@
+# Regenerated, not committed: takes (shoot.mjs), the sample film's builds and generated images
+# (make-material.mjs), the tool's generated slides and cache, and audio files over 1 MB (fetch-audio.sh).
+captures/
+demo/out/
+assets/gen/
+slides/
+slides-*/
+.generated-*.json
+.agentic-screencast/
+.story-for-record.md
+audio/film-bed.mp3
+audio/trailer-bed.mp3
+demo/look.md
+demo/typo.md
+demo/untranslated.md
+demo/edited.md
+out/
+.*.sheet.png.frames/

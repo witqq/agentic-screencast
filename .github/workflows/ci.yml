@@ -15,42 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  test:
-    name: Product gate · Node ${{ matrix.node }}
+  verify:
+    name: Complete product gate (npm run ci:verify)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    strategy:
-      fail-fast: false
-      matrix:
-        node:
-          - 20
-          - 24.20.0
-    steps:
-      - name: Check out source
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: ${{ matrix.node }}
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install Chromium
-        run: npx playwright install chromium
-
-      - name: Run product gate
-        run: npm test
-
-  package:
-    name: Package consumer
-    needs: test
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 30
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -69,19 +37,47 @@ jobs:
       - name: Install Chromium
         run: npx playwright install chromium
 
-      - name: Build and verify npm candidate
-        run: npm run pack:check
+      - name: Refuse personal paths and forbidden capture paths
+        run: npm run history:check
 
-      - name: Build and verify landing
-        run: npm run site:check
+      - name: Run the complete gate
+        run: |
+          set -euo pipefail
+          mkdir -p test-results
+          npm run ci:verify 2>&1 | tee test-results/verify.log
 
-      - name: Check public Moira workflow contracts
-        run: npm run workflow:check
-
-      - name: Upload candidate evidence
+      - name: Upload verification diagnostics and candidate
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: npm-candidate-${{ github.sha }}
-          path: agent_temp_files_local/package-candidate/
-          if-no-files-found: error
+          name: verify-results-${{ github.sha }}
+          path: |
+            test-results/
+            agent_temp_files_local/package-candidate/
+          if-no-files-found: ignore
           retention-days: 7
+
+  node20:
+    name: Node 20 compatibility (npm test)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install chromium
+
+      - name: Check supported runtime
+        run: npm test

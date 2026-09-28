@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>zones</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.wide{bottom:250px}.phones{display:flex;justify-content:center;gap:140px}.ph h2{margin:0 0 6px;text-align:center;font:600 30px var(--mono);color:var(--acc2)}
+.scr{fill:var(--card);stroke:var(--line);stroke-width:4}.ui circle,.ui rect{fill:color-mix(in srgb,var(--mut) 40%,transparent)}.zone{fill:color-mix(in srgb,var(--acc) 10%,transparent);stroke:var(--acc);stroke-width:3;stroke-dasharray:10 8}
+.n{fill:var(--acc2);font:22px var(--mono);text-anchor:middle}.sub{fill:var(--ink);font:600 22px var(--sans);text-anchor:middle}
+</style></head><body>
+<div class="wrap wide"><div class="head"><small>1080 × 1920, поля в пикселях</small><h1>Зона зависит от того, где смотрят</h1></div>
+<div class="phones"><div class="ph rv" data-at="b1" id="platform"><h2>zone: platform</h2><svg width="353.2" height="596.8" viewBox="-20 -20 353.2 596.8">
+<rect x="0" y="0" width="313.2" height="556.8" rx="26" class="scr"/>
+<g class="ui"><circle cx="281.2" cy="226.79999999999995" r="20"/><circle cx="281.2" cy="290.79999999999995" r="20"/><circle cx="281.2" cy="354.79999999999995" r="20"/><circle cx="281.2" cy="418.79999999999995" r="20"/><rect x="18" y="436.79999999999995" width="203.2" height="16" rx="8"/><rect x="18" y="464.79999999999995" width="143.2" height="16" rx="8"/><rect x="18" y="498.79999999999995" width="150" height="16" rx="8"/></g>
+<rect x="18.849999999999998" y="49.3" width="242.14999999999998" height="367.14" class="zone"/>
+<text x="156.6" y="41.3" class="n">170</text><text x="156.6" y="442.43999999999994" class="n">484</text>
+<text x="26.849999999999998" y="278.4" class="n" text-anchor="start">65</text><text x="253" y="278.4" class="n" text-anchor="end">180</text>
+<text x="139.925" y="376.43999999999994" class="sub">субтитры здесь</text></svg></div><div class="ph rv" data-at="b2" id="plain"><h2>zone: plain</h2><svg width="353.2" height="596.8" viewBox="-20 -20 353.2 596.8">
+<rect x="0" y="0" width="313.2" height="556.8" rx="26" class="scr"/>
+
+<rect x="18.849999999999998" y="27.839999999999996" width="275.5" height="491.84" class="zone"/>
+<text x="156.6" y="19.839999999999996" class="n">96</text><text x="156.6" y="545.68" class="n">128</text>
+<text x="26.849999999999998" y="278.4" class="n" text-anchor="start">65</text><text x="286.34999999999997" y="278.4" class="n" text-anchor="end">65</text>
+<text x="156.6" y="479.67999999999995" class="sub">субтитры здесь</text></svg></div></div></div>
+<script src="kit.js"></script>
+</body></html>

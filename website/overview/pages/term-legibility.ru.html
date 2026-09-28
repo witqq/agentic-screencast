@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>vertical</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+
+</style></head><body>
+<div class="wrap"><div class="term"><div class="bar"><i></i><i></i><i></i><span>demo</span></div><pre data-scroll><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b1" data-type="agentic-screencast build demo/story.md --format vertical --out vertical.mp4" data-cps="40"></span></span><span class="line rv " data-at="b1+2.27">[1/4] open: взята из кэша</span><span class="line rv " data-at="b1+2.52">[2/4] live: привожу вставку к кадру ролика…</span><span class="line rv " data-at="b1+2.77">[3/4] report: взята из кэша</span><span class="line rv " data-at="b1+3.02">[4/4] end: взята из кэша</span><span class="line rv warn" data-at="b1+3.27">scene report: text of #activity is 25.3 px in the frame at 1.834s, under the 48 px a phone reads; push in harder (scale), pan along a wide subject (pan), or magnify it with a loupe</span><span class="line rv warn" data-at="b1+3.52">scene report: the frame cuts text of #activity at 1.834s — «Последние изменения», «Задача», «Заметка»; lower the scale, pan along it (pan), or focus a smaller part</span><span class="line rv " data-at="b1+3.77">5 stills: demo/out/vertical.ru.stills</span><span class="line rv " data-at="b1+4.03">готово: demo/out/vertical.ru.mp4 — 17.8 с, 1080×1920, 30 кадров, сцен 4</span></pre></div></div>
+<script src="kit.js"></script>
+</body></html>

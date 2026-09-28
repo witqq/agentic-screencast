@@ -81,7 +81,11 @@ test("silent chapters have declared reading time and reveal text from scene time
     await page.evaluate((scene) => window.__stage.mount(scene), { ...pitch, duration: 7 });
     const read = async (at: number): Promise<string[]> => {
       await page.evaluate((t) => window.renderAt!(t), at);
-      return page.locator("[data-type]").allTextContents();
+      // Набор показывает ВИДИМЫЕ знаки: ненабранные графемы стоят на своих
+      // местах скрытыми, поэтому длина текста элемента от времени не зависит.
+      return page.evaluate(() => [...document.querySelectorAll("[data-type]")].map((n) =>
+        [...n.querySelectorAll<HTMLElement>(".__g")].filter((g) => g.style.visibility !== "hidden")
+          .map((g) => g.textContent).join("")));
     };
     const early = await read(1);
     const late = await read(5);
@@ -126,7 +130,8 @@ test("camera, spotlight and typed card return to the same frame after backward s
       await page.evaluate((t) => window.renderAt!(t), at);
       const buf = await page.screenshot();
       const state = await page.evaluate(() => ({
-        title: document.querySelector(".__card-title")?.textContent ?? "",
+        title: [...document.querySelectorAll<HTMLElement>(".__card-title .__g")]
+          .filter((g) => g.style.visibility !== "hidden").map((g) => g.textContent).join(""),
         zoom: document.body.style.transform,
         spot: (document.querySelector("#__spot") as HTMLElement).style.opacity,
       }));
@@ -231,7 +236,8 @@ test("video build composites the same overlay and extends a short source clip", 
   execFileSync(ffmpeg, ["-nostdin", "-y", "-loglevel", "error", "-f", "lavfi",
     "-i", "color=c=#f7f7f7:s=640x360:r=10:d=1", "-an", "-c:v", "libx264", clip]);
   writeFileSync(pitch, JSON.stringify({
-    frame: { width: 640, height: 360, fps: 10, scale: 1 },
+    // Тёмная карточка поверх светлого клипа — карточка ночной темы; умолчание — светлая neutral.
+    frame: { width: 640, height: 360, fps: 10, scale: 1 }, theme: "midnight",
     scenes: [{ id: "clip", page: "clip.mp4", video: true, beats: [], caption: "",
       overlay: { pointer: [{ at: 0, x: 0.1, y: 0.5 }, { at: 1, x: 0.7, y: 0.5, click: true }],
         cards: [{ at: 0, title: "Real footage" }] },
@@ -244,8 +250,10 @@ test("video build composites the same overlay and extends a short source clip", 
   assert.ok(duration >= 4, `Expected a readable hold, got ${duration}s`);
   // White source footage must become a dark, readable card at this pixel.
   // A fade-only segment could change frame hashes without drawing any card.
+  // Точка — в правой части карточки, правее заголовка: карточка шириной 34 единицы стоит у
+  // левого нижнего угла на шаге темы от края безопасной зоны.
   const cardPixel = execFileSync(ffmpeg, ["-v", "error", "-ss", "1.5", "-i", out,
-    "-frames:v", "1", "-vf", "crop=1:1:50:300,format=rgb24", "-f", "rawvideo", "-"]);
+    "-frames:v", "1", "-vf", "crop=1:1:215:320,format=rgb24", "-f", "rawvideo", "-"]);
   assert.ok(cardPixel[0]! < 80 && cardPixel[1]! < 80 && cardPixel[2]! < 110);
   const early = execFileSync(ffmpeg, ["-v", "error", "-ss", "1.0", "-i", out,
     "-frames:v", "1", "-f", "framemd5", "-"]);
