@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>brief</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.calls{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;flex:1}
+.call{padding:22px 24px}.call h2{margin:0 0 14px;font:var(--display-weight) 30px var(--display);color:var(--acc2)}
+.dim{margin:10px 0 14px}.dim span{display:block;color:var(--mut);font-size:22px}
+.dim div{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.dim i{font-style:normal;font-size:22px;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--body)}
+.dim i.rec{background:color-mix(in srgb,var(--acc) 22%,var(--card));color:var(--ink);border:2px solid var(--acc)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>Бриф из скилла</small><h1>Спросить только то, чего не вывести</h1></div>
+<div class="calls"><div class="panel call" id="call1"><h2 class="rv" data-at="b1">Заход 1 · какой ролик</h2><div class="dim rv" data-at="b1+0.40"><span>Жанр</span><div><i class="rec">★ демо продукта</i><i class="">питч</i><i class="">трейлер</i><i class="">объяснение</i><i class="">релиз</i><i class="">короткое</i></div></div><div class="dim rv" data-at="b1+0.75"><span>Кадр</span><div><i class="rec">★ 16:9</i><i class="">9:16 в ленте</i><i class="">9:16 вне ленты</i><i class="">квадрат</i></div></div><div class="dim rv" data-at="b1+1.10"><span>Длина</span><div><i class="rec">★ ≈ 1 минута</i><i class="">≈ 30 с</i><i class="">2–3 минуты</i><i class="">полный обзор</i></div></div><div class="dim rv" data-at="b1+1.45"><span>Глубина</span><div><i class="rec">★ результат и зачем</i><i class="">кадр на возможность</i></div></div></div><div class="panel call" id="call2"><h2 class="rv" data-at="b2">Заход 2 · как звучит</h2><div class="dim rv" data-at="b2+0.40"><span>Голос</span><div><i class="rec">★ движок синтеза</i><i class="">голос владельца</i><i class="">немой</i></div></div><div class="dim rv" data-at="b2+0.75"><span>Звук</span><div><i class="rec">★ нет</i><i class="">музыка</i><i class="">музыка и акценты</i><i class="">свои файлы</i></div></div><div class="dim rv" data-at="b2+1.10"><span>Субтитры</span><div><i class="rec">★ плашка</i><i class="">субтитры</i><i class="">караоке и .srt</i></div></div><div class="dim rv" data-at="b2+1.45"><span>Язык</span><div><i class="rec">★ язык просьбы</i><i class="">медленнее</i><i class="">другой язык</i></div></div></div><div class="panel call" id="call3"><h2 class="rv" data-at="b3">Заход 3 · как выглядит</h2><div class="dim rv" data-at="b3+0.40"><span>Тема</span><div><i class="rec">★ готовая тема</i><i class="">цвета бренда</i><i class="">часть в другой</i><i class="">плюс look</i></div></div><div class="dim rv" data-at="b3+0.75"><span>Переходы</span><div><i class="rec">★ наплывы</i><i class="">WebGL</i><i class="">морф</i></div></div><div class="dim rv" data-at="b3+1.10"><span>Материал</span><div><i class="rec">★ живая съёмка</i><i class="">страницы</i><i class="">ролики владельца</i><i class="">слайды</i></div></div><div class="dim rv" data-at="b3+1.45"><span>Структура</span><div><i class="rec">★ заготовка жанра</i><i class="">план владельца</i><i class="">форма ветки</i></div></div></div></div></div>
+<script src="kit.js"></script>
+</body></html>

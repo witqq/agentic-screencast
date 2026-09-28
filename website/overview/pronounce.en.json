@@ -1,0 +1,17 @@
+{
+  "_": "English reading for SpeechKit john: abbreviations it would read as words are spelled out, site addresses are dropped.",
+  "say": {
+    "MP4": "M P 4",
+    "CSV": "C S V",
+    "SRT": "S R T",
+    "LUFS": "L U F S",
+    "dBTP": "decibels true peak",
+    "WebVTT": "Web V T T",
+    "brief.md": "brief dot M D",
+    "CREDITS.md": "credits dot M D"
+  },
+  "drop": ["\\s*\\b[\\w-]+(?:\\.[\\w-]+)*\\.(?:com|ru|io|dev|org|net)\\b"],
+  "cleanup": [["\\s+([:,.;])", "$1"]],
+  "order": ["drop", "say", "cleanup"],
+  "caseSensitive": true
+}

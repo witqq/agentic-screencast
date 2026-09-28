@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>beats</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.beats{display:flex;flex-direction:column;gap:18px}.beat{display:grid;grid-template-columns:170px 1fr 330px 230px;align-items:center;gap:20px;padding:20px 26px}
+.no{color:var(--acc2);font:600 24px var(--mono)}.txt{font-size:28px}.old{color:var(--mut)}.new{display:block;color:var(--ink)}
+.meta{display:flex;flex-direction:column;gap:4px;font-size:24px;color:var(--mut)}.key{color:var(--body)}.key.new{color:var(--acc)}
+.tag{justify-self:end;padding:6px 16px;border-radius:999px;font-size:24px}.tag.keep{background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--acc2)}.tag.redo{background:color-mix(in srgb,var(--acc) 22%,var(--card));color:var(--ink)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>Beats</small><h1>A paragraph is a beat with its own key</h1></div>
+<div class="beats"><div class="beat panel rv" data-at="b1+0.3">
+<div class="no">live · b1</div>
+<div class="txt">The task is typed, and the Done button moves it to the last column.</div>
+<div class="meta mono"><span>4.47 s</span><span class="key">065d3b09</span></div>
+<div class="tag rv keep" data-at="b2+0.9">from the cache</div></div><div class="beat panel rv" data-at="b1+0.8">
+<div class="no">live · b2</div>
+<div class="txt"><s class="old">The camera pushes in on the card that moved.</s><span class="new rv" data-at="b2+0.3">The camera pushes in on the card in the Done column.</span></div>
+<div class="meta mono"><span>2.93 s</span><span class="key">2afbc95e</span><span class="key new rv" data-at="b2+0.6">→ 237d7c1d</span></div>
+<div class="tag rv redo" data-at="b2+0.9">voiced again</div></div><div class="beat panel rv" data-at="b1+1.3">
+<div class="no">report · b1</div>
+<div class="txt">The report shows what changed during the sprint.</div>
+<div class="meta mono"><span>3.20 s</span><span class="key">bc98b8a6</span></div>
+<div class="tag rv keep" data-at="b2+0.9">from the cache</div></div></div></div>
+<script src="kit.js"></script>
+</body></html>

@@ -1,0 +1,34 @@
+/* Shared look of the film's own pages. Every colour and font is a token of the film's theme: the
+   build puts the theme's variables into :root of every page it renders, so the pages follow the
+   theme the header names. The fallbacks after each var() only serve a preview outside the tool.
+   One quiet constant motion (a faint grid drifting), no glows. Content stays above the subtitles. */
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden}
+body{background:var(--bg,#0b1120);color:var(--ink,#e6edff);font:30px/1.4 var(--sans,system-ui,sans-serif);position:relative}
+body::before{content:"";position:absolute;inset:-80px;z-index:-1;opacity:.35;
+  background-image:linear-gradient(var(--line,#25324f) 1px,transparent 1px),linear-gradient(90deg,var(--line,#25324f) 1px,transparent 1px);
+  background-size:80px 80px;animation:drift 20s linear infinite}
+@keyframes drift{to{transform:translate(80px,40px)}}
+.wrap{position:absolute;left:96px;right:96px;top:70px;bottom:250px;display:flex;flex-direction:column;gap:26px}
+.head small{display:block;color:var(--acc,#7fb4ff);font:500 26px/1.2 var(--sans,system-ui)}
+.head h1{margin:6px 0 0;font:var(--display-weight,600) 52px/1.15 var(--display,system-ui);color:var(--ink,#fff)}
+.rv{opacity:var(--k,0);transform:translateY(calc((1 - var(--k,0)) * 16px))}
+.pop{opacity:var(--k,0);transform:scale(calc(.97 + var(--k,0) * .03))}
+.mono{font-family:var(--mono,ui-monospace,monospace)}
+.acc{color:var(--acc,#62d6c0)}.acc2{color:var(--acc2,#7fb4ff)}.bad{color:var(--bad,#ff8a7a)}.mut{color:var(--mut,#8b9bc4)}
+.panel{background:var(--card,#121a2e);border:2px solid var(--line,#25324f);border-radius:22px;padding:26px 30px}
+/* A terminal window: the theme's code colours. */
+.term{flex:1;min-height:0;display:flex;flex-direction:column;background:var(--code-bg,#0a0f1c);border:2px solid var(--line,#25324f);border-radius:22px;overflow:hidden}
+.term .bar{display:flex;align-items:center;gap:12px;padding:14px 20px;background:var(--card,#141c30);border-bottom:2px solid var(--line,#25324f);color:var(--mut,#8b9bc4);font:24px var(--sans,system-ui)}
+.term .bar i{width:16px;height:16px;border-radius:50%;background:var(--line,#3a4a70)}
+.term .bar span{margin-left:14px}
+.term pre{margin:0;padding:24px 30px;font:28px/1.5 var(--mono,ui-monospace,monospace);color:var(--code-ink,#cfdaf5);white-space:pre-wrap;flex:1;min-height:0;overflow:hidden}
+.term .line{display:block}
+.term .prompt{color:var(--acc,#62d6c0)}
+.term .cmd{color:var(--ink,#fff)}
+.term .hl{background:var(--code-line,#1d3558);box-shadow:-8px 0 0 var(--code-line,#1d3558),8px 0 0 var(--code-line,#1d3558);color:var(--ink,#fff)}
+.term .warn{color:var(--bad,#ffcf7a)}
+.note{color:var(--mut,#8b9bc4);font-size:24px}
+/* A short output fills the frame by size, not by an empty window: larger type, the window centred. */
+.term.short{flex:0 0 auto;margin:auto 0}
+.term.short pre{font-size:38px;line-height:1.55;padding:34px 40px}

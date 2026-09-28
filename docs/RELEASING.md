@@ -14,21 +14,18 @@ Use Node.js 24.20.0 or a compatible newer supported release on a clean feature b
 
 ```sh
 npm ci
-npm test
-npm run pack:check
-npm run site:check
-npm run workflow:check
+npm run ci:verify
 npm run history:check
 git status --short
 ```
 
-`pack:check` writes the accepted tarball and `candidate-evidence.json` under `agent_temp_files_local/package-candidate/`. It rejects generated state, stale build files, local paths and secret-bearing file classes, installs the exact tarball into an isolated consumer, and runs the public CLI with the free `stub` voice.
+`ci:verify` runs the browser-free unit gate, checks the package candidate and verifies the static landing and clip reference frames. The scheduled nightly workflow owns browser and video E2E tests, the product suite and the full browser site check. `pack:check` writes the accepted tarball and `candidate-evidence.json` under `agent_temp_files_local/package-candidate/`. It rejects generated state, stale build files, local paths and secret-bearing file classes, installs the exact tarball into an isolated consumer, and runs the public CLI with the free `stub` voice.
 
 Do not rebuild a candidate after it passes unless repository bytes change. Commit, review, merge and tag the exact accepted tree. Commit and push remain maintainer actions.
 
 ## Create the GitHub Release
 
-Create and push an annotated `vMAJOR.MINOR.PATCH` tag matching `package.json.version`. The `release.yml` workflow checks full history, runs the product and package gates, and creates one GitHub Release with one asset named `agentic-screencast-MAJOR.MINOR.PATCH.tgz`.
+Create and push an annotated `vMAJOR.MINOR.PATCH` tag matching `package.json.version`. The `release.yml` workflow checks full history, runs the fast product and package gates without Chromium, and creates one GitHub Release with one asset named `agentic-screencast-MAJOR.MINOR.PATCH.tgz`.
 
 ```sh
 git tag -a v1.0.0 -m "agentic-screencast 1.0.0"
@@ -69,6 +66,6 @@ curl --fail --silent --show-error --output /dev/null https://agentic-screencast.
 
 The landing is built by `scripts/build-site.mjs` with the pinned `agentic-report` as a directory page with the public address `https://agentic-screencast.witqq.dev/`: the page carries canonical and OpenGraph metadata, its assets carry content hashes and are served as immutable, and `generateSitemap` writes `sitemap.xml` and a `robots.txt` that names it. `release.json` lists every published file and the `agentic-report` version in `builtWith`.
 
-Confirm trusted TLS, the exact package version, `builtWith` and 40-character source revision in `release.json`, HTML delivery with the canonical address, `robots.txt` naming the absolute sitemap, `sitemap.xml` served as XML, revalidation headers, and a real 404 for an absent path. Update `/Users/mike/WebstormProjects/DEPLOYMENT-INVENTORY.md` in the same deployment task with the observed service, host, remote directory, source, data risk, revision and verification time.
+Confirm trusted TLS, the exact package version, `builtWith` and 40-character source revision in `release.json`, HTML delivery with the canonical address, `robots.txt` naming the absolute sitemap, `sitemap.xml` served as XML, revalidation headers, and a real 404 for an absent path. Update the maintainer's deployment inventory in the same deployment task with the observed service, host, remote directory, source, data risk, revision and verification time.
 
 The site is stateless. To roll back, check out the last accepted tag and run the same deployment contract; do not edit remote files by hand. Inspect the failed stage before retrying, and repeat only that stage and later effects unless repository bytes changed.

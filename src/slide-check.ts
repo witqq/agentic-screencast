@@ -10,6 +10,8 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { DEFAULTS } from "./render.js";
 import { specOf } from "./source.js";
+import { assetsForCheck } from "./stage-assets.js";
+import { layerSafe } from "./part-label.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 // Размер кадра берётся У РОЛИКА, а умолчание — у рендера; здесь он
@@ -80,7 +82,8 @@ for (const s of pitch.scenes) {
   // и слой композиции считает такты равными. Для устоявшегося кадра этого
   // достаточно — предмет здесь не длительность, а то, что видно.
   await page.evaluate((sc) => window.__stage.mount(sc),
-    { ...s, duration: s.duration ?? 6, beats: s.beats?.length ?? 1, theme: pitch.theme });
+    { ...s, ...assetsForCheck(s, SRC, pitch), duration: s.duration ?? 6, beats: s.beats?.length ?? 1, theme: s.theme ?? pitch.theme,
+      ...(pitch.safe ? { safe: layerSafe(pitch, FRAME) } : {}) });
   await page.evaluate((t) => window.__clock.seek(t), (s.duration ?? 6) * at);
 
   const m = await page.evaluate(() => {
@@ -105,10 +108,15 @@ for (const s of pitch.scenes) {
      * а все прежние признаки зелены: текст короткий, кегль большой,
      * за край не вылезает, содержание на месте.
      */
+    // Цвет, смешанный через color-mix, браузер отдаёт в записи
+    // `color(srgb 0.97 0.97 0.98 / 0.7)` — каналы там доли единицы, а не
+    // уровни 0…255. Прочитанная как `rgb(…)`, светлая подложка становилась
+    // почти чёрной, и тёмный текст на ней объявлялся нечитаемым.
     const rgb = (v: string): [number, number, number, number] => {
       const m = v.match(/[\d.]+/g);
       if (!m) return [0, 0, 0, 0];
-      return [Number(m[0]), Number(m[1]), Number(m[2]), m[3] === undefined ? 1 : Number(m[3])];
+      const k = v.trim().startsWith("color(") ? 255 : 1;
+      return [Number(m[0]) * k, Number(m[1]) * k, Number(m[2]) * k, m[3] === undefined ? 1 : Number(m[3])];
     };
     const lum = ([r, g, b]: [number, number, number, number]): number => {
       const f = (c: number): number => {
@@ -155,7 +163,11 @@ for (const s of pitch.scenes) {
       if (/\b(undefined|null|NaN|\[object Object\])\b/.test(own)) placeholders.push(own.slice(0, 40));
       const contrast = contrastOf(el);
       if (contrast < minContrast) minContrast = contrast;
-      if (contrast < 3) unreadable.push(`${own.slice(0, 28)} (${contrast.toFixed(2)})`);
+      // Основной текст — 4,5:1, крупный — 3:1 (WCAG AA). Крупным в ролике считается кегль заголовка —
+      // от 48 точек на кадр 1080: слайдовые 28 точек на экране ноутбука становятся 14 CSS px, и
+      // веб-граница «крупного» в 24 px к кадру не подходит.
+      const need = size >= 48 * Math.min(innerWidth, innerHeight) / 1080 ? 3 : 4.5;
+      if (contrast < need) unreadable.push(`${own.slice(0, 28)} (${contrast.toFixed(2)} < ${need})`);
       const r = el.getBoundingClientRect();
       if (r.top < -1 || r.left < -1 || r.bottom > innerHeight + 1 || r.right > innerWidth + 1) {
         overflow.push(`${own.slice(0, 28)} (${Math.round(r.left)},${Math.round(r.top)}–${Math.round(r.right)},${Math.round(r.bottom)})`);
@@ -314,7 +326,7 @@ for (const s of pitch.scenes) {
       ok: m.placeholders.length === 0 && m.overflow.length === 0 &&
         m.chars <= L.chars! && (m.minBody ?? 99) >= L.body! && contentOk &&
         (L.coverShareMin === undefined || (m.cover?.share ?? 0) >= L.coverShareMin) &&
-        (L.contrastMin === undefined || (m.contrast ?? 99) >= L.contrastMin),
+        (L.contrastMin === undefined || ((m.contrast ?? 99) >= L.contrastMin && m.unreadable.length === 0)),
     });
   }
 }

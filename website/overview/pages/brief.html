@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>brief</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.calls{display:grid;grid-template-columns:repeat(3,1fr);gap:26px;flex:1}
+.call{padding:22px 24px}.call h2{margin:0 0 14px;font:var(--display-weight) 30px var(--display);color:var(--acc2)}
+.dim{margin:10px 0 14px}.dim span{display:block;color:var(--mut);font-size:22px}
+.dim div{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}.dim i{font-style:normal;font-size:22px;padding:4px 12px;border-radius:999px;background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--body)}
+.dim i.rec{background:color-mix(in srgb,var(--acc) 22%,var(--card));color:var(--ink);border:2px solid var(--acc)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>The skill's brief</small><h1>Ask only what cannot be inferred</h1></div>
+<div class="calls"><div class="panel call" id="call1"><h2 class="rv" data-at="b1">Round 1 · what film</h2><div class="dim rv" data-at="b1+0.40"><span>Genre</span><div><i class="rec">★ product demo</i><i class="">pitch</i><i class="">trailer</i><i class="">explainer</i><i class="">release</i><i class="">short</i></div></div><div class="dim rv" data-at="b1+0.75"><span>Frame</span><div><i class="rec">★ 16:9</i><i class="">9:16 in a feed</i><i class="">9:16 outside</i><i class="">square</i></div></div><div class="dim rv" data-at="b1+1.10"><span>Length</span><div><i class="rec">★ ≈ 1 minute</i><i class="">≈ 30 s</i><i class="">2–3 minutes</i><i class="">full tour</i></div></div><div class="dim rv" data-at="b1+1.45"><span>Depth</span><div><i class="rec">★ the result and why</i><i class="">a shot per capability</i></div></div></div><div class="panel call" id="call2"><h2 class="rv" data-at="b2">Round 2 · how it sounds</h2><div class="dim rv" data-at="b2+0.40"><span>Voice</span><div><i class="rec">★ a synthesis engine</i><i class="">the owner's voice</i><i class="">silent</i></div></div><div class="dim rv" data-at="b2+0.75"><span>Sound</span><div><i class="rec">★ none</i><i class="">music</i><i class="">music and accents</i><i class="">own files</i></div></div><div class="dim rv" data-at="b2+1.10"><span>Captions</span><div><i class="rec">★ a plate</i><i class="">subtitles</i><i class="">karaoke and .srt</i></div></div><div class="dim rv" data-at="b2+1.45"><span>Language</span><div><i class="rec">★ the request's</i><i class="">slower</i><i class="">another</i></div></div></div><div class="panel call" id="call3"><h2 class="rv" data-at="b3">Round 3 · how it looks</h2><div class="dim rv" data-at="b3+0.40"><span>Theme</span><div><i class="rec">★ a shipped theme</i><i class="">brand colours</i><i class="">a part in another</i><i class="">plus a look</i></div></div><div class="dim rv" data-at="b3+0.75"><span>Transitions</span><div><i class="rec">★ fades</i><i class="">WebGL</i><i class="">morph</i></div></div><div class="dim rv" data-at="b3+1.10"><span>Material</span><div><i class="rec">★ live capture</i><i class="">pages</i><i class="">owner's clips</i><i class="">slides</i></div></div><div class="dim rv" data-at="b3+1.45"><span>Structure</span><div><i class="rec">★ genre skeleton</i><i class="">owner's outline</i><i class="">branch shape</i></div></div></div></div></div>
+<script src="kit.js"></script>
+</body></html>

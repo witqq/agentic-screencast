@@ -4,7 +4,7 @@ voice: {"engine":"stub","name":"silent","cps":15}
 frame: {"width":1280,"height":720,"fps":15,"scale":1}
 
 ## opening · slides.chapter
-kicker: THE QUESTION
+kicker: The question
 title: Where did this result come from?
 body: We will follow one decision from the process map to the recorded run.
 duration: 7

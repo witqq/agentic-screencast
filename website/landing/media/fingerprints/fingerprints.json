@@ -1,0 +1,138 @@
+{
+  "showcase": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 1,
+        "crossLanguageSsim": 0.8286
+      },
+      {
+        "t": 2.5,
+        "crossLanguageSsim": 0.7236
+      },
+      {
+        "t": 4,
+        "crossLanguageSsim": 0.713
+      }
+    ]
+  },
+  "live": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 0.5,
+        "crossLanguageSsim": 0.6183
+      },
+      {
+        "t": 5.5,
+        "crossLanguageSsim": 0.6591
+      },
+      {
+        "t": 8,
+        "crossLanguageSsim": 0.7165
+      }
+    ]
+  },
+  "focus": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 0.5,
+        "crossLanguageSsim": 0.4695
+      },
+      {
+        "t": 6,
+        "crossLanguageSsim": 0.4799
+      },
+      {
+        "t": 7.5,
+        "crossLanguageSsim": 0.4582
+      }
+    ]
+  },
+  "cuts": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 3.5,
+        "crossLanguageSsim": 0.657
+      },
+      {
+        "t": 8.5,
+        "crossLanguageSsim": 0.3724
+      },
+      {
+        "t": 10.5,
+        "crossLanguageSsim": 0.5709
+      }
+    ]
+  },
+  "effects": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 1.5,
+        "crossLanguageSsim": 0.9116
+      },
+      {
+        "t": 3,
+        "crossLanguageSsim": 0.9068
+      },
+      {
+        "t": 5,
+        "crossLanguageSsim": 0.9056
+      }
+    ]
+  },
+  "text": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 5,
+        "crossLanguageSsim": 0.8545
+      },
+      {
+        "t": 6.5,
+        "crossLanguageSsim": 0.8215
+      },
+      {
+        "t": 8.5,
+        "crossLanguageSsim": 0.8198
+      }
+    ]
+  },
+  "charts": {
+    "size": "320:180",
+    "moments": [
+      {
+        "t": 7.5,
+        "crossLanguageSsim": 0.4502
+      },
+      {
+        "t": 9,
+        "crossLanguageSsim": 0.8563
+      },
+      {
+        "t": 11.5,
+        "crossLanguageSsim": 0.2794
+      }
+    ]
+  },
+  "reel": {
+    "size": "180:320",
+    "moments": [
+      {
+        "t": 1.5,
+        "crossLanguageSsim": 0.796
+      },
+      {
+        "t": 7,
+        "crossLanguageSsim": 0.8665
+      },
+      {
+        "t": 9.5,
+        "crossLanguageSsim": 0.4721
+      }
+    ]
+  }
+}

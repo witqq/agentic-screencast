@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { renderScene } from "./render.js";
 import { generate } from "./generate.js";
-import { parseSource, specOf, type RawScene, type Source } from "./source.js";
+import { parseSource, sceneTheme, specOf, type RawScene, type Source } from "./source.js";
 import { speechFor } from "./speech.js";
 import { durationOf, ff } from "./voice/audio.js";
 import { recordingPath, slotFor, storeDir } from "./voice/recorded.js";
@@ -177,12 +177,11 @@ export async function serve(opts: ServerOpts): Promise<Server> {
     if (existsSync(cached)) return readFileSync(cached);
     const scene = src.scenes.find((s) => s.id === id);
     if (!scene) return null;
-    // Кадр берётся ТЕМ ЖЕ ядром, что рисует ролик, и на шестой секунде
-    // сцены. Момент здесь в СЕКУНДАХ, а не в долях сцены, и это важно:
-    // элементы слайда появляются по расписанию, тоже в секундах
-    // (последняя колонка сравнения — на первой), и кадр, снятый раньше,
-    // показал бы полуготовый слайд. Шесть секунд заведомо больше любого
-    // расписания появлений.
+    // Кадр берётся ТЕМ ЖЕ ядром, что рисует ролик, в конце условной
+    // десятисекундной сцены. Речь ещё не записана, и пункты без названных
+    // моментов расходятся ровным шагом по первым 60 % сцены, а набор текста
+    // кончается за 0,6 с до её конца: кадр, снятый раньше, поймал бы пункт
+    // на входе. На 9,5 с слайд заведомо собран.
     // Чем сцена нарисована, говорит поставщик: готовый файл назван полем,
     // порождённая страница лежит в каталоге порождённого. Имени вида
     // сервер не знает — это знание уехало к поставщикам.
@@ -191,14 +190,15 @@ export async function serve(opts: ServerOpts): Promise<Server> {
       ? String(scene.fields[spec.fileField] ?? "")
       : `${slidesDir}/${scene.id}.html`;
     const { shots } = await renderScene(
-      { page, duration: 10, offline: spec.offline ?? true, __src: src.dir, theme: src.theme,
+      { page, duration: 10, offline: spec.offline ?? true, __src: src.dir,
+        theme: scene.fields.theme ? sceneTheme(scene.fields.theme, src.theme) : src.theme,
         effects: { zoom: { from: 0, to: 0, scale: 1 }, cursor: { hidden: true, from: 0, to: 0.01, start: [-500, -500] },
           spot: { from: 9999 }, caption: { from: 9999 }, fade: { in: 0, out: 0 } },
         ...(scene.kind === "screen" ? { target: scene.fields.target, mustRead: scene.fields.mustRead } : {}) },
       // Кадр снимается В ПОЛНЫЙ размер ролика и уменьшается множителем,
       // а не окном поменьше: страница свёрстана под кадр и в узком окне
       // не сжимается, а обрезается — содержимое уезжает за нижний край.
-      { at: 6, width: Number(src.frame?.width ?? 1920),
+      { at: 9.5, width: Number(src.frame?.width ?? 1920),
         height: Number(src.frame?.height ?? 1080), scale: 0.5 },
     );
     const buf = shots[0]!.buf;
@@ -294,6 +294,11 @@ export async function serve(opts: ServerOpts): Promise<Server> {
         return res.end(msg("record.noFile"));
       }
       res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
+      // Страница записи носит тему ролика: её правила читают только переменные темы.
+      if (extname(file) === ".html") {
+        const vars = Object.entries(src.theme ?? {}).map(([k, v]) => `${k}:${v}`).join(";");
+        return res.end(readFileSync(file, "utf8").replace("<head>", `<head><style>:root{${vars}}</style>`));
+      }
       return res.end(readFileSync(file));
     })().catch((e: Error) => {
       json(res, 500, { error: e.message });

@@ -14,12 +14,18 @@ await recordTake({ output, viewport: { width: 1280, height: 720 },
         document.querySelector('#result').textContent = 'The graph is ready.';
       });</script></body></html>`);
   } }, async (take) => {
-  await take.withFocusCard(take.page.getByRole("button", { name: "Show graph" }),
-    { title: "The view changes here", body: "Now the exact route is visible.",
-      reveal: "type", motion: "glide" },
-    async () => take.click(take.page.getByRole("button", { name: "Show graph" }),
-      { until: take.page.getByText("The graph is ready.") }));
+  const graph = take.page.getByRole("button", { name: "Show graph" });
+  // The camera pushes in on the button while the real click happens under it.
+  await take.withFocus(graph, async () => {
+    await take.withFocusCard(graph,
+      { title: "The view changes here", body: "Now the exact route is visible.", reveal: "type", motion: "glide" },
+      async () => take.click(graph, { until: take.page.getByText("The graph is ready.") }));
+  }, { scale: 1.6, hold: 0.8 });
+  // A named moment: the scenario can freeze or focus at @graph without guessing seconds.
+  take.mark("graph");
   await take.type(take.page.getByLabel("Search"), "review");
+  await take.press(take.page.getByLabel("Search"), "Enter");
+  take.mark("searched");
   await take.card({ title: "Follow the actual action",
     body: "The cursor and click are recorded with the changing page.",
     reveal: "type", motion: "pop" });

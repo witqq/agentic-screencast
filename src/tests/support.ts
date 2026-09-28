@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import type { SpawnSyncReturns } from "node:child_process";
+import { execFileSync, type SpawnSyncReturns } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
+
+const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 
 /** Build reports round measured beat times to milliseconds. */
 export function assertBeatBoundary(start: number, previousEnd: number): void {
@@ -18,4 +24,17 @@ export function childFailure(result: Pick<SpawnSyncReturns<string>,
     if (lines.length) sections.push(`${name}:\n${lines.slice(-40).join("\n")}`);
   }
   return sections.join("\n");
+}
+
+/**
+ * Точки картинки (PNG) сырыми байтами формата `pix` — через файл, а не через стандартный ввод
+ * `ffmpeg`. Синхронный запуск с вводом через канал изредка не закрывал канал: `ffmpeg` ждал
+ * конца ввода, тест — конца `ffmpeg`, и прогон стоял до таймаута.
+ */
+export function rawOf(png: Buffer, pix = "rgb24", filter?: string): Buffer {
+  const file = join(mkdtempSync(join(tmpdir(), "sc-raw-")), "in.png");
+  writeFileSync(file, png);
+  try {
+    return execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", file, ...(filter ? ["-vf", filter] : []), "-f", "rawvideo", "-pix_fmt", pix, "-"], { maxBuffer: 256 * 1024 * 1024 });
+  } finally { rmSync(dirname(file), { recursive: true, force: true }); }
 }

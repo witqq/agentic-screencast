@@ -11,8 +11,11 @@ import type { KindSpec, Provider } from "./types.js";
  * место, о котором говорит речь.
  */
 const screen: KindSpec = {
-  about: "готовая страница: снимок интерфейса или любая самодостаточная вёрстка",
+  about: "a finished page: a saved interface snapshot or any self-contained HTML, whose own animations run on the scene's clock",
   fields: ["page", "target", "mustRead", "zoom", "spotFrom", "focus", "at"],
+  // Язык страницы — язык её вёрстки: переводится файлом (`page.ru`), а не полем.
+  shown: [],
+  staging: ["page", "target", "mustRead", "zoom", "spotFrom", "focus", "at"],
   required: [["page"]],
   fileField: "page",
   offline: true,

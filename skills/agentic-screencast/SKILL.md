@@ -7,110 +7,110 @@ description: Make an explanatory or attention-holding MP4 about a product, branc
 
 Make the viewer understand a claim, not merely see a sequence of screens. The film takes its subject from evidence, has a beginning, a middle and an end, and holds attention from the first second to the last. A product demo may need live UI; an idea or prototype may be better served by a saved page, chapter, diagram, or supplied clip. Do not imply a mockup is a real run.
 
-Read [the film-craft knowledge base](../../docs/film-craft.md) before writing a scenario: it collects these rules together with the mistakes that produced them.
+This skill is your map. It holds the path from a request to a finished film, the brief, the voice rules and the judgment of when each technique earns its place. Everything else lives in one place each, and the path below names what to read in full at each step:
 
-## Ask first, then build
+| Question | Where the answer lives |
+|---|---|
+| Which directing rules a watchable film keeps, and the failures that taught them | [film craft](../../docs/film-craft.md) |
+| Which story shape, length, hook and close fit the film's genre | [the scenario playbook](../../docs/scenario-playbook.md), skeletons in `templates/` |
+| How a vertical film reads on a phone, including an architecture or a real interface | [the vertical-video guide](../../docs/vertical-video.md) |
+| How a film should look so it does not read as generated: visual clichés and their cure, one accent, type norms, signs of quality | [the visual-design guide](../../docs/visual-design.md) |
+| Where free pictures, clips, icons, emoji and fonts come from, and their licences | [the visual-assets guide](../../docs/visual-assets.md) |
+| Where free music and sound effects come from, how to pick and credit them | [the sound guide](../../docs/sound.md) |
+| What every field, command and check does, with its numbers | `agentic-screencast help` and its topics: `help video` (scenes, the build, the checking commands), `help capture`, `help overlay`, `help slides`, `help vertical` (vertical builds, stills, lint, the build report, languages), `help text`, `help transitions`, `help sound`, `help themes`, `help voice`, `help web` |
+| A kind's fields and how to write them | `agentic-screencast schema <kind>`, `schema film` for the header |
+| Working examples | [live capture](../../example/live-capture.mjs), [a multi-scene scenario](../../example/kinetic-video.md), [a saved-page idea](../../example/idea-video.md) |
+| The scenario grammar and the voice-engine and provider contracts | [the reference](../../docs/reference.md) |
 
-The look, the length and the voice of a film are the owner's decisions, not defaults to pick quietly. Before the first take, ask for everything the request and the repository do not already answer, and offer the options:
+The help is short enough to read all of it before the first film; do so.
 
-- **theme** — `midnight`, `calm-paper`, `synthwave`, `noir`, or their own variables (`agentic-screencast help themes`);
-- **length** — a tight trailer of about a minute, or a full walkthrough of several;
-- **narration** — silent, synthesized (which engine and voice), or read by a person (`help voice`);
-- **language and pace** — they set reading time and pronunciation rules;
-- **depth** — an overview of the result, or a shot per capability including control surfaces and behaviour under load.
+## From a request to a finished film
 
-Ask as one structured question with choices, not as free-form prose, and record the answers next to the scenario. A film built on assumed answers gets re-shot, not corrected.
+A request like "make a screencast film about X" or "a film for Y" starts this whole path, in this order. Each step leaves an artifact and ends with a check; do not start the next one before the check passes, and do not hand over anything but the film itself.
 
-## Subject and story
+As soon as the brief's first question has settled the genre, run `agentic-screencast new <genre>` once, in the film's own folder next to `brief.md` (`explainer`, `pitch`, `product-demo`, `reel`, `release`, `trailer`; `--lang` and `--format vertical|square` as the brief says): it writes the genre skeleton `story.md`, its pages, and `checklist.md` — the path below as a short list of boxes, followed by the menu of techniques and the list of film-craft rules to consult (no boxes there). Close each box with its evidence (a file, a frame, a number) or `n/a:` with why; hand the film over when `grep -c "\- \[ \]" checklist.md` prints 0.
 
-- Take the subject from the source: the commits of the branch, the ticket, the diff, the running product. Never invent a "before" state; if the film claims something used to be different, that must be visible in the history.
-- Structure: what was missing → what appeared → what it can do → how much it holds under load → how it is controlled → where to get it. Each part ends by returning to the overview.
-- Write the narration as ONE continuous text in whole sentences, then cut it into shots. Each sentence picks up the previous one; telegraphic labels are not narration.
-- One text layer at a time: a bottom caption during motion, a card only on a held frame — never both at once, and never more than two lines on screen.
-- Cover the inventory. List the capabilities from the code first, then give every line either a shot number or a written reason for its absence: control panels, per-item playback, error reports and load behaviour included. Count the APPLICATIONS too, not only the one you happened to open: a branch that touched two products owes the film a chapter each.
-- Write requirements only from what the owner said, and mark each line with its source. A requirement you invented — "the debug panels must be hidden" — turns your own taste into a defect report, and it can hide the very surface the branch built.
+**Keep verification light.** One check per step, done once: do not re-build, re-watch or re-review the same thing, and do not spawn reviewers unless the owner asks for a heavy review. Tokens and the owner's time are the budget.
 
-## Time stops inside the shot
+1. **Brief** → `brief.md`. Collect [the brief](#brief-first-ask-what-you-cannot-infer): what film, how it sounds and reads, how it looks, and for whom (an external audience needs a real player; the voice follows [the voice rules](#voice-agree-it-never-default-to-a-system-voice)). Infer what the request and the repository answer, ask the owner only the rest in at most three structured questions. *Check:* every dimension has an answer and a source.
+2. **Evidence** → the capability table in `brief.md`. Read the subject where it lives — the product, the branch, the ticket, the diff, the data — and list its capabilities, every application it touches included. Name the strongest result: it gets the film's strongest shot. *Read:* film craft rules 2, 11, 27 and 40; for a branch result or a new feature, the playbook's section on it. *Check:* every line of the table has a planned shot or a written reason to leave it out. **A film without a product of its own** — a parody, a teaser for an idea, a story told with other people's footage — keeps a **material table** in its place: every clip, picture, sound and track with its source URL, author, licence and the scene that uses it. *Read:* the playbook's "A film without a product", the video section of the visual-assets guide and the sound guide; lay each clip out with `agentic-screencast sheet` to choose its pieces, and leave out any file whose licence you cannot name. *Check:* every row has a licence that allows the film and a scene or a reason to drop it.
+3. **Story.** *Read in full:* film craft — every rule there was paid for by a failed film — and the playbook's shared rules plus the section for your genre; a vertical film also the vertical-video guide, and a vertical film about an architecture or an interface its section "Architecture and real interfaces on a phone". Open the genre skeleton `new` wrote, write the narration as one continuous text, then cut it into beats and scenes, and check every factual clause against its source (film craft 56). *Check:* read it aloud; it states the claim in the first seconds and ends on one next step. **Then stop and agree the content with the owner** — the chapters, what each scene shows and which interfaces appear — before any capture or build, even in an autonomous run: a film shot before its content is agreed gets thrown away. Send the outline in one message and wait for the answer.
+4. **Material.** Record live takes with `recordTake`, save pages, fetch pictures, clips, music and effects with their licences. *Read:* `help capture`; film craft rules 19 (the frame budget), 21–23, 28–30, 32, 42, 43, 46 and 53–55 before a live take; the visual-assets and sound guides before any downloaded file. *Check:* the unique-frame budget of every take and a `.marks.json` beside it with its theme; a credit line for every downloaded file.
+5. **Scenario** → `story.md`. Choose techniques with [the table below](#choosing-techniques), one idea per scene. Put a `stills:` line on every scene with a moment that must be right. *Read:* the help topic of every technique you use and `schema <kind>` for every kind; the visual-design guide in full before choosing the theme, the backgrounds, the film look and the slide kinds. *Check:* `agentic-screencast lint story.md` (and `--lang` for every translation) is clean, and every sign in its `cliches` count is a decision you can name — four or more and the film is average.
+6. **Draft** → `draft.mp4`, its `.stills/` and the build report. Build on the free `stub` voice, look at `agentic-screencast frames` (its `empty` list names a drawn frame with an empty third) and at every file in `<film>.stills/`. *Check:* each still matches its note; nothing covers the subject or the subtitles; the report names no slide `overflow`, no `cut` text, no `legibility` or `small` warning in a vertical build, and no warning left unexplained. Then show the owner the draft and fix what they name — that is the review.
+7. **Final.** Build with the chosen voice, music and look; `--format vertical` and `--lang` variants if the brief asks — independent variants in parallel. *Check:* the stills and the report of the final build, once. When the owner asks for a heavy review, give one subagent that did not write the film the stills, `agentic-screencast sheet <film> --every 1` and [the visual-design guide](../../docs/visual-design.md); otherwise do not.
+8. **Handoff.** Send the MP4 itself (and `agentic-screencast web` output for a page), with the credits the licences ask for, and name the decisions you took without the owner. Publish or send only to an authorized destination. *Check:* the owner has the file, not a scenario; `checklist.md` has no open box.
 
-Do not cut a freeze into its own scene. Inside one continuous take: motion runs, `speed` stops time
-at a named second, the camera moves over the video with everything outside the focus dimmed, a card
-explains the moment next to it, and time resumes. The bottom caption fades while the camera leads,
-so exactly one text layer is on screen. A freeze cut into a separate scene jumps, detaches the card
-from its moment, and stands still once the clip runs out.
+## Choosing techniques
 
-## Captions say what is on screen now
+Every technique below has a place where it earns attention and a place where it only adds noise. Use them actively — a film that uses none of them is a screen recording — but pick each one for a reason you could say aloud. What each one does and how to write it is in the help topic named in the checklist's technique menu.
 
-Write each caption from the frame, not from the plan: name what the viewer is looking at this
-second, in the product's own words. A caption that could sit over any frame carries nothing.
+| Technique | Use it when | Avoid it when |
+|---|---|---|
+| `spotlight` (push-in and dim; `ring: false, dim: 0` for a film push-in without an interface frame; `scale: 1` to highlight without a push-in; `pan` along a wide subject) | the narration names one thing on a busy screen; `scale: 1` when the whole screen must stay in view | the subject fills the frame already |
+| `speed` / spotlight `slow` / `"slow":"stop"` | a state forms too fast to read, or the viewer must read a card | nothing on screen changes; a stopped frame needs a camera move over it |
+| `freezeAt` on a clip | a dense interface must be explained on one real frame with camera moves over it | the moment is in motion; stop time inside the shot with `speed` instead |
+| video `from` / `to` (seconds or `@marks`) | one long take serves several scenes, each cut to its piece | the piece has nothing happening; cut it shorter or pass it faster |
+| video `fit: cover [x y]` | a clip of another shape (square, 4:3, portrait stock footage) must fill the frame without bars | a captured interface: cover crops its edges, keep the default `contain` |
+| `autoZoom` (`follow: cursor`), `device` | the camera should follow the take's recorded actions, and inside a push-in the cursor; a clip should sit in a browser or phone frame, or in a plain styled window on the theme's background (`device: frame`) | the take has hand-placed spotlights already; a frame around a full-screen app adds nothing |
+| `overlay.loupe` | a small detail must be read while the camera stays on the whole | the subject is large: the magnification drops — use a push-in instead |
+| `overlay.marks` (circle, arrow, underline; on a take `"area":"@name"` aims at an element recorded with `take.mark(name, locator)`) | pointing at a number or a control the narration names | the camera is moving; marks compete with a push-in |
+| `overlay.glints`, `overlay.bursts` | a moment of success or a card worth a glance | more than once or twice per film; they lose meaning |
+| `flash`, `shake` on a scene | an impact in a trailer: a card slamming in, a punch, a title — with a hit in `sfx` on the same anchor | an explainer or a demo; every repeat makes the next one weaker |
+| cards (`overlay.cards`, spotlight `card`) | a held frame needs one explanation beside the subject | a caption is under it; one text layer at a time (film craft 5) |
+| titles, lower thirds, callouts, stickers | a claim (title), a name (lower third), a label on a control (callout) | an interface is already full of text; a top title over a UI hides it |
+| kinetic `text` styles on slides | an opening, a chapter, a claim that should land | body text the viewer must read calmly |
+| `transition` and a scene's `fade` | a change of place or topic, the same number carried to its detail (`morph`), a hard cut on the beat (`cut`), a pause into black or white before a title (`dip`) | every cut needing an effect; one or two kinds per film (film craft 52) |
+| trailer cards (`slides.card`, `slides.titlecard`) | a trailer or a teaser: one to three words that slam in on a hit, a title card before the button | calm explainers and product demos: the slam reads as a joke there |
+| slide kinds (`chart`, `counter`, `timeline`, `steps`, `beforeafter`, `perspective`, `parallax`, `code`) | the evidence is a number series, a sequence, a change or code; `outro` with `image` ends the film over its result | a live product can show the same thing for real; `features` whose cards say the same kind of thing — one claim with its evidence reads better, and emoji icons read as a template |
+| a `page` you write | an effect or a diagram the tool lacks: its own CSS animations run on the scene's clock, and `window.renderAt(t)` with `data-at` anchors draws it word by word (`help video`, `page`) | a real interface exists and can be filmed |
+| `theme` per scene, `theme --from logo.png`, `look` | parts of a film differ in mood, or the product has a brand | a single short film; one look reads better |
+| `captions` (karaoke, subtitles, `srt`, `size`, `look`) | the film may be watched without sound — almost always | never — at least subtitles for a narrated film |
+| subtitles at the top or in the middle (`captions.position`, a scene's `captions: top`; `auto` lets the build pick the emptiest band per scene) | the lower part of the frame carries the subject — a real phone screen filled to its bottom, a list, a tab bar being discussed; move the subtitles, never add empty space under the content to make room for them | a top progress bar or a top title in the same scene; the middle over anything the viewer must see |
+| `progress` with parts, `pip` | a film longer than a minute needs a sense of where it is; a presenter's face adds trust | a short teaser; a presenter who only repeats the narration |
+| `music`, `sfx`, transition `sound`, `speechAt`, `audio: false` | energy must rise, cuts need weight; a track per act, or a music stop before a punchline; `audio: false` for a film played muted on a page | the voice is dense; speech always wins the mix |
+| `format: vertical` or `build --format vertical` | Reels, Shorts, TikTok, or colleagues watching on a phone | a wide interface that stops reading at phone width and cannot be pushed in or panned |
+| several languages (`.ru` fields, `[ru]` blocks, `--lang ru`) | the audience speaks more than one language | a translation nobody checked in its own frames |
+| `stills` | every scene with a moment that must be right | — it costs nothing and does not re-render |
+| live capture helpers (`take.clickAt`, `click({force})`, `withFocus`, `withCard`, `mark`; `click: spot | echo` for a quieter or louder click) | the real product must act on screen | a mockup would be dishonest; `overlay.pointer` on existing footage is only a graphic and clicks nothing |
 
-## Measure the take before you build
+## Brief first: ask what you cannot infer
 
-A screen recording has its own frame budget. Count the unique frames of a take (`mpdecimate`): if a
-five-second stretch holds fewer than ~60 of them, the shot will look like a slideshow whatever the
-scenario says. Lighten the document, shorten the shot, or record the real screen of a normal browser
-window instead of a headless one.
+The genre, the frame, the length, the voice, the sound and the look of a film are the owner's decisions, not defaults to pick quietly. Before the first take, collect a brief: for every dimension below, take the answer from the request or the repository if it is there, and ask only for the rest. A film built on assumed answers gets re-shot, not corrected.
 
-## Nothing in frame stands still
+**Do not ask what you already know.** A request that says "a 30-second vertical teaser, no voice" has answered format, length and narration; a repository with a logo and a brand palette has half-answered the theme. Put inferred answers into one confirming line ("I'll make it 9:16, silent with karaoke subtitles — say if not") instead of a question.
 
-A static slide, diagram or card turns the film back into a dull presentation. Slides carry an ambient layer of their own — breathing glow, drifting grid, travelling sheen — elements keep a faint float after they appear, and cards breathe while held. All of it is a pure function of scene time, so frames stay reproducible. If the product's own animation is small, make it bigger before shooting: a gesture that does not read on screen is not evidence.
+**The form of the question.** Ask with the host's structured input, not free prose. `AskUserQuestion` takes at most four questions per call, each with two to four options plus the owner's own answer, so group the open dimensions into at most three calls in the order below and drop every question already answered. Put the recommended option first and mark it "(Recommended)". Where the host offers a decision page (the `decide` skill), all open dimensions may go on one page instead.
 
-## What the tool gives you
+| Call | Dimension | Options (recommended first) |
+|---|---|---|
+| 1 · what film | genre and purpose | product demo (`product-demo`) · pitch (`pitch`) · trailer or teaser (`trailer`) · explainer (`explainer`) · release notes (`release`) · vertical short (`reel`) — the name in brackets is the skeleton `agentic-screencast new` takes |
+| 1 | frame and where it is watched | landscape 16:9 (`format: landscape`) · vertical 9:16 in a Reels, Shorts or TikTok feed, whose buttons cover the right side and the bottom (`format: vertical`, `zone: platform`) · vertical 9:16 on a phone outside a feed — a messenger, colleagues, a page — with even margins (`format: vertical`, `zone: plain`) · square (`format: square`). The answer also places the subtitles: at the bottom by default, at the top when the lower frame carries the subject (`captions.position`). A request that names the platform or the audience answers this; do not ask it again |
+| 1 | length | ≈ 1 minute · ≈ 30 seconds · 2–3 minutes · a full walkthrough |
+| 1 | depth | the result and why it matters · a shot per capability, including control surfaces and behaviour under load |
+| 2 · how it sounds and reads | narration | synthesized by an engine built into the tool (set one up if none is configured, see [Voice](#voice-agree-it-never-default-to-a-system-voice)) · read by the owner (`agentic-screencast record`) · silent film with captions — drafts are always on the silent `stub`; a system voice is never offered as a default |
+| 2 | sound | none · a free music bed the agent finds, downloads and credits (`music`, the sound guide) · music plus accents on cuts and words (`sfx`, transition `sound`) · the owner's own files |
+| 2 | captions | a bottom caption plate (`bar`) · subtitles · karaoke subtitles with the spoken word lit, plus an `.srt` (`captions:`) |
+| 2 | language and pace | the request's language at a normal pace · slower for a dense subject · another language |
+| 3 · how it looks | theme and look | the default `neutral` or another shipped theme (`help themes` lists each with its mood, fonts and subtitle face; `synthwave` and `blockbuster` are genre themes for games, music and parody trailers only) · the brand's colours (`agentic-screencast theme --from logo.png`) · a part of the film in another theme (`theme:` on a scene) · plus a film look (`look: cinematic`) |
+| 3 | transitions | plain fades between scenes (no `transition` field) · energetic WebGL cuts (`help transitions`) · a shared element carried across (`morph`) |
+| 3 | material | live capture of the running product (`recordTake`) · saved pages and screenshots (`page`, `slides.shot`) · clips the owner supplies (`video`) · free-licence clips the agent finds, for a film without a product (see step 2) · slides only |
+| 3 | scenario structure | the genre skeleton from the playbook · the owner's own outline · the playbook's shape for a branch result or a new feature |
 
-- **Scenes** come from providers: `slides.*` (`chapter`, `compare`, `chain`, `number`, `quote`), `page` (a saved or self-contained HTML page), `video` (a finished clip). A project can add its own provider as a command (`provider-check`).
-- **Live capture**: `recordTake` / `capturePage` drive a real browser — `take.click/hover/type/press/drag/range` on Playwright locators, `{ until: locator }` for asynchronous results, `withFocusCard(locator, card, action)` for an explanation beside the real action (`help capture`).
-- **Camera and annotation** for page and video scenes: `overlay.camera` (`area` or CSS `target`, `scale`, `move/hold/return`) with a dimming highlight, `overlay.cards` (`position`, `reveal`, `motion`, `enter/exit/hold`), decorative `overlay.pointer`, and `freezeAt` to hold a genuine frame (`help overlay`).
-- **Retiming**: `speed: [{"from":…,"to":…,"rate":…}]` slows or speeds a stretch of a clip; the scene grows by exactly what that stretch gains.
-- **Themes**: one named look for slides, captions and cards at once (`help themes`).
-- **Narration modes**: `stub` silence, `speechkit`, `say`, `piper`, `recorded` human takes, or an external engine; `agentic-screencast record` opens the reading interface (`help voice`).
-- **Checks**: `scenes`, `order`, `script`, `schema`, `check` (frame criterion; a finished clip is reported as outside its scope), `verify`, `voices`, `paths`.
+**Record the answers** in `brief.md` next to the scenario, one line per dimension with its source — "owner", "inferred from <file or sentence>" or "default" — and keep it current when the owner changes their mind. The scenario header then follows the brief: `format`, `zone`, `theme`, `look`, `captions`, `music`, `voice`.
 
-## Capture and assemble
+**When the owner cannot answer** — an autonomous run, a delegated task, a session with nobody on the other side — do not stop and do not ask into the void. Take the answer the request or the repository implies; where nothing implies one, take the recommended option (the first one in the table). Write each such line into `brief.md` with the source "inferred from …" or "default (owner unavailable)", say in the handoff which decisions were yours, and prefer choices that are cheap to change later: no music, the default `neutral` theme. The voice is the exception — an unavailable owner has not allowed a system voice: build on the silent `stub` with subtitles and name the voice as the open decision in the handoff. The content agreement at the end of step 3 is the other exception: do not capture or build before the owner has seen the outline; send it and wait.
 
-Read `agentic-screencast help video`, `help capture`, `help overlay`, `help themes`, `help voice`; use [the runnable capture example](../../example/live-capture.mjs), [the multi-scene scenario](../../example/kinetic-video.md), or [the saved-page idea example](../../example/idea-video.md). The scenario file is the single authored assembly source.
+## Voice: agree it, never default to a system voice
 
-- Authenticate before recording and never record passwords or private data.
-- Zoom and pan inside the product itself where possible, so the frame shows a live editor rather than a cropped recording.
-- Keep debug and tooling windows off the subject: move them to the edge of the frame before the take.
-- `overlay.pointer` is a graphic on existing footage; it does not click anything. For real actions use live capture.
-- Draft with the free `stub` voice unless narration was requested.
+**Whether the film speaks is the owner's decision.** If the request or its context settles it — "a silent teaser", "voice it with <engine>", the voice the owner accepted for the previous film of the same project — take that answer and put it in the confirming line. If nothing settles it, ask in the brief's second call. Do not ask what the context already answers.
 
-## Filming a live application
+**What to offer when you ask.** Put these options in front of the owner, recommended first:
 
-Film the product in ONE unbroken take. Open it once, then drive it in place: move the camera to the next
-area, start the next block of animation, hold the frame. Reloading between scenes puts a blank canvas and a
-reflow into the film, and the viewer sees the tooling instead of the product.
+- **Synthesis through an engine built into the tool.** `agentic-screencast help voice` lists the engines the tool ships today, and `voices` lists an engine's voices; the set grows, so take it from there rather than from memory. If no engine is set up on this machine yet, offer to set one up: name what it needs (a key in the environment or in `.env`, never in the scenario), and ask the owner for it.
+- **The owner's own voice.** `agentic-screencast record --source story.md` opens a localhost page that shows the beats one by one and records each from the microphone; the `recorded` engine then takes those files, addressed by the beat's text.
+- **A silent film** with subtitles and cards carrying the meaning.
 
-That needs a control surface, not a debug panel: ask the product for a thin bridge on `window` that lists
-the animation blocks, plays one by name, stops, and moves the camera — then the panel itself never enters
-the frame. A worked example from a board application:
+**System voices are banned by default.** The operating system's built-in synthesizer (macOS `say` and the like) is free and always there, and that is exactly why an agent reaches for it — but it sounds robotic, and the viewer hears it in the first sentence. Use one only if you proposed it to the owner as an option, said what it costs the film, and the owner explicitly allowed it. "It is free", "no key is configured" or "the owner is unavailable" are not permission: in those cases build on the silent `stub` with subtitles and hand over with the voice named as an open decision.
 
-```js
-const steps = await page.evaluate(() => window.__showCapture.steps());
-await page.evaluate(rect => window.__showCapture.frame(rect, { padding: 120, durationMs: 1400 }), area);
-await page.evaluate(id => window.__showCapture.play(id), steps[2].id);
-```
-
-One chapter is one document. Scenes that live in separate documents cannot be a single take: every change is
-a page load. Ask the product for one document holding them all — a board with areas, a deck whose slides are
-the showcases — and move between them with the camera and with slide switches.
-
-Four rules that cost a whole take when broken:
-
-- **Cut by the recording's zero, not by the script's clock.** Video starts when the page is created; a mark
-  written after the document loads is late by the whole load, and every caption then describes the previous
-  scene.
-- **Throw on a page error.** An animation that fails to compile does not look broken: the shapes stand still
-  and the caption over them still promises movement. One `page.on('pageerror', …)` catches the whole class.
-- **Decide about debug chrome with the owner, and keep it off the subject either way.** Hiding it is not a
-  default: a control panel may be the point of the film. What is never acceptable is a panel lying over the
-  figures being discussed — close it, drag it aside, or frame the shot around it.
-- **Give a `video` scene an explicit `duration`** when the footage is longer than its narration, otherwise
-  the shot ends with the sentence and the animation is cut in half.
-
-Cards arrive as objects: `motion: "fly"` with `from` brings a card in from beyond the frame, overshoots and
-settles; it leaves the same way. Keep it beside the highlighted region, never on top of it, and never put a
-card and a caption in the same shot.
-
-## Review before handoff
-
-Build one changed scene with `--only`, then the whole film, and verify by measurement rather than impression: duration and frame size; motion present in every shot (two frames 0.4 s apart differ); the caption changes inside a shot; every card appears and leaves; nothing overlaps in key frames; claimed numbers match the recording; no secret leaks. Put each frame beside its own caption and check that the sentence names what is actually there — a caption stays true of an earlier take long after the take is gone. Look for the fixture's own demo assets while you are there: a joke picture or a placeholder name reads as sloppiness in a film for an audience. Watch the result at normal speed as well. Fix what you find, rebuild the affected scenes, then show the owner the file itself — a scenario is not the deliverable. Publish or send only to an authorized destination.
+**Drafts are silent.** Every draft is built on `stub` — silence of the beat's estimated length, no network, no bill — whatever voice the final film will have. A network engine charges per beat, and its cache key is the beat's text plus the voice data: settle the text before the final synthesis, and do not change the voice or its pace late. Before the first draft, measure the final voice's pace on one scene and give the stub that `cps` (`help voice`, the stub's pace), so the draft's scene lengths are the final's.

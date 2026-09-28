@@ -12,7 +12,7 @@ The Playwright capture API records real browser actions with a cursor and click 
 
 Start with the [Agentic Screencast skill](skills/agentic-screencast/SKILL.md), the [agent entry point](AGENTS.md), and a [small scenario](example/agent-video.md). A request naming a product or feature is enough to begin: the agent can inspect available sources and choose a storyline, then ask only for genuinely missing access or a consequential decision. It should build a free silent draft before requesting paid narration.
 
-For a guided process, use the public **Agentic Screencast Video** workflow in Moira: `admin/agentic-screencast-video`. It covers facts, scenario, materials, draft, narration, review and repair. Moira supplies the steps; the agent runs the CLI in its own workspace. See the [Moira integration guide](docs/moira.md) for setup, launch, review modes and permissions. The CLI also works without Moira.
+Work through the skill: it carries the path from a request to a checked film, the brief the agent must collect and the knowledge base it reads. Claude Code and Codex install skills themselves, so ask your agent for it, for example: *"Install the Agentic Screencast skill from skills/agentic-screencast in this repository and use it to make a one-minute film about our export feature."*
 
 ## Install
 
@@ -45,7 +45,7 @@ await recordTake({
 });
 ```
 
-`click`, `hover`, `type`, `press`, `drag`, and `range` include comfortable pacing; `{ until: locator }` waits for an asynchronous result without a guessed delay. `withFocusCard` places an explanation beside a locator while the real action runs. `range(locator, 0.75)` seeks to 75% of that input's track. `type` refuses password fields; perform credential entry before recording. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service. The output WebM is a normal `video` scene input. Run `agentic-screencast help capture` for the concise API guide.
+A take can also push in on an element, place an explanation card beside it while the real action runs, name a moment for the scenario to refer to, and wait for an asynchronous result without a guessed delay. `type` refuses password fields; perform credential entry in `prepare`. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service, and `agentic-screencast help capture` is the API guide. The output WebM is a normal `video` scene input.
 
 ## Build a video
 
@@ -92,49 +92,34 @@ The first beat introduces the problem.
 The second beat reveals the result.
 ```
 
-Built-in material providers cover animated opening/chapter scenes, comparison, chain, number and quote slides, saved pages, and existing video clips. External providers can add scene kinds through a language-independent JSON subprocess contract.
+Speech sets the length of a scene; slides, pages and recorded clips are the picture. What else a scenario can say, and where each field is described:
 
-Give viewers an orientation before asking them to interpret a busy screen. A short `slides.chapter` can introduce the question or a new section; its title and body type in over a declared silent `duration`. A `video` scene with `freezeAt` holds one genuine frame while `overlay.camera` moves to a region, highlights it, and returns to the overview. On a saved `page` scene the camera can use a CSS `target` instead of frame coordinates. Cards support `position: "near-focus"`, `reveal: "type"`, and `motion: "pop"`/`"glide"`/`"fly"` to explain an action beside its result. These effects are calculated from scene time, so seeking and rebuilding a scene give the same frame.
-
-```markdown
-## opening · slides.chapter
-kicker: THE QUESTION
-title: What changed, and why does it matter?
-body: We will follow one action from the overview to its result.
-duration: 7
-
-## detail · video
-file: captures/real-action.webm
-freezeAt: 5
-overlay: {"camera":[{"at":0.8,"hold":3,"area":[0.35,0.2,0.3,0.35],"scale":1.7}],"cards":[{"at":1.4,"title":"The result is visible here","body":"This is the state produced by the action.","position":"near-focus","reveal":"type"}]}
-```
-
-### Direct the film
-
-A film's look is one word in the scenario header. `theme: midnight` (the default look), `calm-paper`, `synthwave`, or `noir` styles slides, captions, and cards together; `theme: {"preset":"noir","--acc":"#7aa2ff"}` keeps a preset and replaces one variable, and an unknown name is a parse error listing the available ones. Slides carry an ambient layer of their own, elements float faintly after they appear, and held cards breathe, so no frame stands still. All of it is a function of scene time, so frames stay reproducible.
-
-A `video` scene can retime its own clip with `speed`. A span `{"from":4.2,"to":6.0,"rate":0.5}` plays that stretch of the source at half speed, and a hold `{"at":7,"hold":3}` stops time on second 7 for three seconds of the finished film, inside the same shot. The scene grows by exactly what the retiming adds, and the retimed clip is cached. The camera moves over running footage as well as over a frozen frame: the highlight and its dimming ride under the zoom, while cards and the caption stay screen-sized above it. Cards can fly in: `motion: "fly"` with `from: "left"|"right"|"top"|"bottom"` enters from beyond that edge, settles, and leaves the same way.
-
-```markdown
-# Release film
-theme: calm-paper
-
-## moment · video
-file: captures/run.webm
-speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
-overlay: {"camera":[{"at":5.5,"move":0.8,"hold":1.6,"return":0.6,"area":[0.3,0.2,0.35,0.3],"scale":1.6}],"cards":[{"at":6.0,"title":"The check turns green","position":"near-focus","motion":"fly","from":"right"}]}
-```
-
-Before the first take, ask the owner what the request does not already answer: theme, length, narration mode, language, pace, and depth. The [film-craft knowledge base](docs/film-craft.md) collects the rules for a watchable film, each paired with the mistake that produced it, including how to film a live application in one unbroken take. `agentic-screencast help themes` and `help voice` list the looks and narration modes.
-
-Use a narrative arc rather than a feature list: orient the viewer, show an action, name the visible change, and explain its consequence. Give the viewer time to read each idea. The [kinetic video scenario](example/kinetic-video.md) demonstrates live clips; the [self-contained idea example](example/idea-video.md) presents a saved HTML prototype without implying it is a measured result. Silent `page` scenes require `duration` just like chapters.
-
-For a walkthrough of real actions, record clips with the Playwright capture API and reference them as `video` scenes. The [kinetic video scenario](example/kinetic-video.md) shows how to join two takes. The common `overlay` field can add post-production cards or a decorative pointer to video or pages, but its `click:true` only paints a ripple: it does not act on the UI and should not be used to reconstruct real clicks. Live `take.card()` calculates reading time without manual timestamps.
+| To learn about | Read |
+|---|---|
+| Scene kinds, build flags and the commands that check a scenario | `agentic-screencast help video` |
+| Real browser actions recorded with Playwright | `agentic-screencast help capture` |
+| Camera, spotlight, cards, loupe, slowing and stopping time | `agentic-screencast help overlay` |
+| Slide kinds, live backgrounds and device frames | `agentic-screencast help slides` |
+| A vertical or square film, and legibility on a phone | `agentic-screencast help vertical` |
+| Subtitles, titles, callouts, stickers, hand-drawn marks | `agentic-screencast help text` |
+| Transitions between scenes | `agentic-screencast help transitions` |
+| Music, sound accents and loudness | `agentic-screencast help sound` |
+| Themes, fonts and colour grading | `agentic-screencast help themes`; which look a film should have and which clichés to avoid — [the visual-design guide](docs/visual-design.md) |
+| Narration: engines, pace, pronunciation, your own voice | `agentic-screencast help voice` |
+| A film for a web page | `agentic-screencast help web` |
+| The machine-readable contract of every scene kind | `agentic-screencast schema` |
+| The scenario grammar, provider and voice-engine contracts, environment variables | [the reference](docs/reference.md) (in Russian: [README.ru.md](README.ru.md)) |
+| How to make a film worth watching, genre by genre | [the skill](skills/agentic-screencast/SKILL.md) and the documents it points to |
 
 ```sh
 agentic-screencast help video
 agentic-screencast help capture
 agentic-screencast help overlay
+agentic-screencast help slides
+agentic-screencast help vertical
+agentic-screencast help text
+agentic-screencast help transitions
+agentic-screencast help sound
 agentic-screencast help themes
 agentic-screencast help voice
 ```
@@ -147,8 +132,6 @@ agentic-screencast scenes --source story.md
 agentic-screencast script --source story.md
 ```
 
-The complete scenario grammar, provider contract, visual checks, snapshot configuration, cache rules, and speech settings are documented in the [Russian reference](README.ru.md).
-
 ## Record narration
 
 The `recorded` engine addresses each take by beat text. The recording UI binds only to loopback and stores normalized 48 kHz mono WAV files in the configured data directory.
@@ -157,7 +140,7 @@ The `recorded` engine addresses each take by beat text. The recording UI binds o
 agentic-screencast record --source story.md
 ```
 
-By default, cache, recordings, and output live in `.agentic-screencast/` under the current working directory. Set `AGENTIC_SCREENCAST_HOME` to choose another location.
+By default, cache, recordings, and output live in `.agentic-screencast/` under the current working directory. Set `AGENTIC_SCREENCAST_HOME` to choose another location; the other environment variables are listed in the [Russian reference](README.ru.md).
 
 ## Verify the result
 
@@ -171,7 +154,7 @@ agentic-screencast provider-check 'python3 /path/provider.py'
 
 `check` evaluates the settled frame using thresholds declared by its material provider; a finished `video` clip is reported as outside that frame criterion rather than failed. `order` verifies reveal timing. `verify` checks deterministic rendering, animation, frozen time, and seeking against real Chromium frames.
 
-These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. See the [Moira guide](docs/moira.md) for coverage and path limitations before automating acceptance.
+These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. Their coverage is partial: `check` does not inspect video clips, and `order` skips MHTML and video scenes, exiting with code 2 when nothing is applicable.
 
 ## Voice and secret boundary
 
@@ -183,11 +166,10 @@ Changing text, voice data, a recorded take, rendering settings, page bytes, Chro
 
 ```sh
 npm ci
-npm test
-npm run pack:check
+npm run ci:verify
 ```
 
-`npm test` builds the CLI and recording UI, checks both TypeScript targets and lint, then runs unit and product-level Chromium/ffmpeg tests. `pack:check` builds the exact npm candidate, rejects generated or sensitive state, installs it into an isolated consumer, and exercises the public CLI.
+`ci:verify` builds the CLI and recording UI, checks types, lint and browser-free unit tests, then verifies the npm candidate and static landing without installing Chromium. The scheduled nightly workflow runs the Chromium and video E2E tests, the product suite and the full browser site check. For a focused local run, install Chromium with `npx playwright install chromium` and use `npm run e2e`. `pack:check` installs the exact candidate into an isolated consumer and exercises its public CLI.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [release runbook](docs/RELEASING.md) before submitting changes or publishing a version.
 

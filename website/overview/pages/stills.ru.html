@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>stills</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:14px 40px;align-items:start;width:840px;margin:-10px auto 0}figure{margin:0}figure img{width:100%;border-radius:12px;border:2px solid var(--line);display:block}
+figcaption{margin-top:10px;font-size:23px;color:var(--body)}figcaption b{display:block;color:var(--acc2);font-weight:500}
+</style></head><body>
+<div class="wrap"><div class="head"><small>stills: момент :: что проверить</small><h1>Контрольные кадры рядом с роликом</h1></div>
+<div class="grid"><figure class="rv" data-at="b1+0.3"><img src="../demo/out/demo.ru.stills/01-open-b1.end.png"><figcaption><b class="mono">open · b1.end</b> заголовок и текст целиком</figcaption></figure><figure class="rv" data-at="b1+0.7"><img src="../demo/out/demo.ru.stills/02-live-5.928.png"><figcaption><b class="mono">live · @5.928</b> карточка легла в «Готово»</figcaption></figure><figure class="rv" data-at="b1+1.1"><img src="../demo/out/demo.ru.stills/03-live-b2p1.png"><figcaption><b class="mono">live · b2+1</b> наезд на перенесённую карточку</figcaption></figure><figure class="rv" data-at="b1+1.5"><img src="../demo/out/demo.ru.stills/04-report-b1p1.5.png"><figcaption><b class="mono">report · b1+1.5</b> таблица изменений в фокусе</figcaption></figure></div></div>
+<script src="kit.js"></script>
+</body></html>

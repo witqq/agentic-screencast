@@ -23,6 +23,7 @@ import { chromium } from "playwright";
 import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { assetsForCheck } from "./stage-assets.js";
 
 // Слой композиции нужен и здесь: моменты появления записаны ЯКОРЯМИ
 // (`b2`, `40%`), и разрешает их он. Без него в разметке лежали бы строки,
@@ -75,7 +76,7 @@ for (const s of pitch.scenes) {
   const p = await ctx.newPage();
   await p.goto(pathToFileURL(resolve(SRC, s.page)).href, { waitUntil: "load" });
   await p.evaluate((sc) => window.__stage.mount(sc),
-    { ...s, duration: s.duration ?? 6, beats: s.beats?.length ?? 1 });
+    { ...s, ...assetsForCheck(s, SRC, pitch), duration: s.duration ?? 6, beats: s.beats?.length ?? 1 });
   const ats = await p.evaluate(() =>
     [...document.querySelectorAll<HTMLElement>(".el")].map((e) => Number(e.dataset.at || 0)));
   const declared = await p.evaluate(() => document.body.dataset.slidecastElements ?? null);

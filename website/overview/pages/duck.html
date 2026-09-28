@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>duck</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.chart{flex:1;padding:20px}.chart svg{width:100%;height:100%}.lbl{fill:var(--mut);font:28px var(--sans)}
+.sp{fill:var(--acc2)}.music{fill:none;stroke:var(--acc);stroke-width:8;stroke-linejoin:round}.head{stroke:var(--mut);stroke-width:3}
+.note2{fill:var(--acc);font:26px var(--sans)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>Music under speech · a diagram</small><h1>Drops under every beat, returns in the pauses</h1></div>
+<div class="panel chart"><svg viewBox="0 0 1600 440" id="svg">
+<text x="10" y="70" class="lbl">speech</text><text x="10" y="300" class="lbl">music</text>
+<g id="speech"></g><path id="music" class="music"/><line id="head" y1="20" y2="420" class="head"/>
+<text x="1590" y="200" class="note2" text-anchor="end">−24 dB in a pause</text>
+<text x="1590" y="400" class="note2" text-anchor="end">20 dB under the beat</text></svg></div>
+<i data-at="b1"></i><i data-at="b1.end"></i><i data-at="b2"></i><i data-at="b2.end"></i></div>
+<script src="kit.js"></script>
+<script>
+window.onRender = (t, at) => {
+  const m = [...document.querySelectorAll("i[data-at]")].map(at);
+  const end = m[3] + 0.8, X = (s) => 150 + (s / end) * 1420, k = end / 10;
+  const beats = [[0.6, 3.1], [4.3, 6.6], [7.8, 9.4]].map(([a, b]) => [a * k, b * k]);
+  document.getElementById("speech").innerHTML = beats.map(([a, b]) => '<rect x="' + X(a) + '" y="40" width="' + Math.max(0, X(Math.min(b, t)) - X(a)) + '" height="60" rx="10" class="sp"/>').join("");
+  const level = (s) => { for (const [a, b] of beats) { if (s >= a - 0.3 && s <= b + 0.3) { const e = Math.min(1, (s - a + 0.3) / 0.3, (b + 0.3 - s) / 0.3); return 200 + e * 180; } } return 200; };
+  let d = ""; for (let s = 0; s <= Math.min(t, end); s += end / 400) d += (d ? " L" : "M") + X(s).toFixed(1) + " " + level(s).toFixed(1);
+  document.getElementById("music").setAttribute("d", d);
+  const h = document.getElementById("head"); h.setAttribute("x1", X(Math.min(t, end))); h.setAttribute("x2", X(Math.min(t, end)));
+};
+</script>
+</body></html>

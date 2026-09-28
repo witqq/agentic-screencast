@@ -15,11 +15,11 @@ An agent writes the scenario and checks the result.
 The viewer receives a video presentation.
 
 ## process · slides.chain
-kicker: With Moira
+kicker: The path
 title: From source to video
 nodes: Facts | Scenario | Draft | Review
 at: b1 b1 b1 b2 b2
 
-Moira guides the agent through facts and a scenario.
+The skill leads the agent from facts to a scenario.
 
 Agentic Screencast builds a free silent draft for review.

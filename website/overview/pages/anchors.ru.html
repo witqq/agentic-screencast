@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>anchors</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.svg{width:100%;flex:1}.lbl{fill:var(--mut);font:26px var(--sans)}.bt{fill:var(--bg);font:700 26px var(--mono)}
+.b1{fill:var(--acc2)}.b2{fill:var(--acc)}.sc{fill:none;stroke:var(--line);stroke-width:3;stroke-dasharray:8 8}
+.tick{stroke:var(--acc2);stroke-width:3}.an{fill:var(--acc2);font:24px var(--mono);text-anchor:middle}
+.chip{fill:var(--card);stroke:var(--acc2);stroke-width:3}.ct{fill:var(--ink);font:24px var(--sans);text-anchor:middle}
+</style></head><body>
+<div class="wrap"><div class="head"><small>Якоря</small><h1>Моменты называются по речи</h1></div>
+<svg viewBox="0 0 1728 560" class="svg"><g class="rv" data-at="b1"><text x="0" y="178" class="lbl">15 знаков/с</text>
+<rect x="250" y="140" width="491.36999999999995" height="56" rx="12" class="b1"/><text x="266" y="178" class="bt">b1</text>
+<rect x="741.3699999999999" y="140" width="300.63" height="56" rx="12" class="b2"/><text x="757.3699999999999" y="178" class="bt">b2</text>
+<rect x="250" y="140" width="910.8" height="56" rx="12" class="sc"/>
+<line x1="250" x2="250" y1="128" y2="210" class="tick"/><text x="250" y="118" class="an">b1</text><line x1="614.3199999999999" x2="614.3199999999999" y1="128" y2="210" class="tick"/><text x="614.3199999999999" y="244" class="an">40%</text><line x1="741.3699999999999" x2="741.3699999999999" y1="128" y2="210" class="tick"/><text x="741.3699999999999" y="118" class="an">b2</text><line x1="785.37" x2="785.37" y1="128" y2="210" class="tick"/><text x="785.37" y="244" class="an">b2+0.4</text><line x1="1042" x2="1042" y1="128" y2="210" class="tick"/><text x="1042" y="118" class="an">b2.end</text>
+<g transform="translate(741.3699999999999,70)"><rect x="-4" y="0" width="200" height="44" rx="10" class="chip"/><text x="96" y="30" class="ct">наезд @ b2</text></g></g><g class="rv" data-at="b2"><text x="0" y="438" class="lbl">10 знаков/с</text>
+<rect x="250" y="400" width="737" height="56" rx="12" class="b1"/><text x="266" y="438" class="bt">b1</text>
+<rect x="987" y="400" width="450.99999999999994" height="56" rx="12" class="b2"/><text x="1003" y="438" class="bt">b2</text>
+<rect x="250" y="400" width="1306.8000000000002" height="56" rx="12" class="sc"/>
+<line x1="250" x2="250" y1="388" y2="470" class="tick"/><text x="250" y="378" class="an">b1</text><line x1="772.72" x2="772.72" y1="388" y2="470" class="tick"/><text x="772.72" y="504" class="an">40%</text><line x1="987" x2="987" y1="388" y2="470" class="tick"/><text x="987" y="378" class="an">b2</text><line x1="1031" x2="1031" y1="388" y2="470" class="tick"/><text x="1031" y="504" class="an">b2+0.4</text><line x1="1438" x2="1438" y1="388" y2="470" class="tick"/><text x="1438" y="378" class="an">b2.end</text>
+<g transform="translate(987,330)"><rect x="-4" y="0" width="200" height="44" rx="10" class="chip"/><text x="96" y="30" class="ct">наезд @ b2</text></g></g></svg></div>
+<script src="kit.js"></script>
+</body></html>

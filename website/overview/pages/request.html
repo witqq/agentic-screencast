@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>request</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.bubble{max-width:1400px;border-radius:30px 30px 30px 8px;background:var(--card)}.who{color:var(--acc);font-size:24px}.bubble p{margin:10px 0 0;font-size:38px;line-height:1.35;color:var(--ink);min-height:3em}
+.next{display:flex;align-items:center;gap:22px;font-size:32px}.next span{padding:10px 22px;border-radius:999px;background:color-mix(in srgb,var(--acc) 14%,var(--card));color:var(--body)}.next b{color:var(--acc)}
+</style></head><body>
+<div class="wrap"><div class="head"><small>An example request from the README</small><h1>The first film starts with one sentence</h1></div>
+<div class="bubble panel pop" data-at="b1"><span class="who">You → your agent</span><p data-at="b1+0.3" data-type="Install the Agentic Screencast skill from skills/agentic-screencast in this repository and use it to make a one-minute film about our export feature." data-cps="34"></p></div>
+<div class="next"><span class="rv" data-at="b2+0.2">the brief</span><b class="rv" data-at="b2">→</b><span class="rv" data-at="b2+0.8">a genre skeleton</span><b class="rv" data-at="b2">→</b><span class="rv" data-at="b2+1.4">a silent draft</span><b class="rv" data-at="b2">→</b><span class="rv" data-at="b2+2.0">a checked MP4</span></div></div>
+<script src="kit.js"></script>
+</body></html>

@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>cache</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+
+</style></head><body>
+<div class="wrap"><div class="term"><div class="bar"><i></i><i></i><i></i><span>demo</span></div><pre data-scroll><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b1" data-type="agentic-screencast build demo/story.md --out demo.mp4" data-cps="40"></span></span><span class="line rv " data-at="b1+1.73">[1/4] open: взята из кэша</span><span class="line rv " data-at="b1+1.83">[2/4] live: взята из кэша</span><span class="line rv " data-at="b1+1.93">[3/4] report: взята из кэша</span><span class="line rv " data-at="b1+2.03">[4/4] end: взята из кэша</span><span class="line rv " data-at="b1+2.13">…</span><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b1+2.4" data-type="agentic-screencast build demo/story.md --out demo.mp4" data-cps="40"></span></span><span class="line rv hl" data-at="b1+2.4+1.73">[1/4] open: взята из кэша</span><span class="line rv hl" data-at="b1+2.4+1.83">[2/4] live: взята из кэша</span><span class="line rv hl" data-at="b1+2.4+1.93">[3/4] report: взята из кэша</span><span class="line rv hl" data-at="b1+2.4+2.03">[4/4] end: взята из кэша</span><span class="line rv " data-at="b1+2.4+2.13">готово: demo/out/demo.ru.mp4 — 17.8 с, 1920×1080, 25 кадров, сцен 4</span><span class="line"><span class="prompt">$ </span><span class="cmd" data-at="b2" data-type="agentic-screencast build demo/story.md --only live --out live.mp4" data-cps="40"></span></span><span class="line rv hl" data-at="b2+2.02">[2/4] live: взята из кэша</span><span class="line rv " data-at="b2+2.15">готово: demo/out/live.ru.mp4 — 8.3 с, 1920×1080, 25 кадров, сцен 1</span></pre></div></div>
+<script src="kit.js"></script>
+</body></html>
