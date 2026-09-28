@@ -33,7 +33,7 @@ Run the fast release gate before opening a pull request:
 npm run ci:verify
 ```
 
-The nightly workflow runs the browser and video E2E tests, the product suite, and `site:check`. That site check recognises each landing clip's language by reference frames in `website/landing/media/fingerprints/`, computed from the clips themselves. The fast gate still checks those frames and the static site release. After replacing a clip, rewrite its references with `node scripts/landing-fingerprints.mjs --write` and commit the frames with the clip.
+The nightly workflow runs the browser and video E2E tests, the product suite, and `site:check`. The fast gate builds the static landing and checks its clips against fixed reference frames from the source render, as well as each poster against its clip. To change landing media, regenerate the selected excerpts with `node website/overview/build-landing-media.mjs` after preparing the overview captures and material. Commit the manifest and compact source reference frames; the MP4/JPEG files stay in the ignored content-addressed cache and are published as a separate media release. `landing-fingerprints.mjs --write` is not used with the manifest because it would derive evidence from the delivered clip itself.
 
 Describe the commands and observed results in the pull request. A maintainer performs release, npm publication, and deployment by following [docs/RELEASING.md](docs/RELEASING.md).
 

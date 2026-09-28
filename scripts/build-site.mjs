@@ -3,6 +3,7 @@ import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
   lstat,
+  copyFile,
   mkdir,
   readdir,
   readFile,
@@ -15,6 +16,7 @@ import { dirname, isAbsolute, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildReport, generateSitemap } from "agentic-report";
+import { checkLandingMediaFile, loadLandingMediaManifest, sha256 } from "./check-site-static.mjs";
 
 // Публичный адрес лендинга: из него компилятор пишет canonical и OpenGraph, из canonical — sitemap.
 const publicUrl = "https://agentic-screencast.witqq.dev/";
@@ -49,8 +51,41 @@ if (manifest.name !== "agentic-screencast" || typeof manifest.version !== "strin
 const staging = resolve(root, `.${outputRelative.replaceAll(sep, "-")}-stage-${randomBytes(8).toString("hex")}`);
 const backup = resolve(root, `.${outputRelative.replaceAll(sep, "-")}-previous-${randomBytes(8).toString("hex")}`);
 await mkdir(staging, { recursive: false });
+const createdMedia = [];
 
 try {
+  const landingMedia = await loadLandingMediaManifest(root);
+  if (landingMedia) {
+    const cache = resolve(root, "agent_temp_files_local/landing-media-cache");
+    await mkdir(cache, { recursive: true });
+    for (const asset of landingMedia.assets) {
+      const extension = asset.kind === "video" ? "mp4" : "jpg";
+      const cached = resolve(cache, `${asset.sha256}.${extension}`);
+      const source = resolve(root, "website/landing", asset.source);
+      if (!(await exists(cached))) {
+        if (await exists(source)) {
+          await checkLandingMediaFile(source, asset);
+          await copyFile(source, cached);
+        } else {
+          let response;
+          try { response = await fetch(asset.url); }
+          catch (error) { throw new Error(`${asset.source}: exact media is absent from local cache and download failed: ${error.message}`); }
+          if (!response.ok) throw new Error(`${asset.source}: media download failed with HTTP ${response.status}`);
+          const bytes = Buffer.from(await response.arrayBuffer());
+          if (bytes.length !== asset.bytes || sha256(bytes) !== asset.sha256) {
+            throw new Error(`${asset.source}: downloaded bytes differ from manifest`);
+          }
+          await writeFile(cached, bytes, { flag: "wx" });
+        }
+      }
+      await checkLandingMediaFile(cached, asset);
+      if (await exists(source)) await checkLandingMediaFile(source, asset);
+      else {
+        await copyFile(cached, source);
+        createdMedia.push(source);
+      }
+    }
+  }
   await buildReport({
     input: resolve(root, "website/landing/report.md"),
     output: staging,
@@ -98,6 +133,13 @@ try {
 } catch (error) {
   await rm(staging, { recursive: true, force: true });
   throw error;
+} finally {
+  for (const path of createdMedia) await rm(path, { force: true });
+}
+
+async function exists(path) {
+  try { await lstat(path); return true; }
+  catch (error) { if (error?.code === "ENOENT") return false; throw error; }
 }
 
 /** Все файлы опубликованного дерева в стабильном порядке, пути через `/`. */

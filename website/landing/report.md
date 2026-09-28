@@ -24,14 +24,14 @@ tokens:
 ::action[See the evidence]{href="#films" kind="secondary"}
 ::::
 
-::video{src="media/showcase.en.mp4" poster="media/showcase.en.jpg" caption="An example film built from a scenario. The current silent opening excerpt will replace this earlier clip."}
+::video{src="media/showcase.en.landscape.mp4" poster="media/showcase.en.landscape.jpg" caption="The silent opening excerpt begins on a real recording of the sample app."}
 
 ::::::section{title="A real product, clicked for real" id="films" nav="Live product"}
 :::lead
 The agent drives a working browser app through Playwright. The recording keeps the real cursor path, clicks, typing and named moments that the scenario can reuse.
 :::
 
-::video{src="media/live.en.mp4" poster="media/live.en.jpg" caption="A recorded task board responds to typing and clicks. This earlier clip is a temporary fixture for the selected live-capture excerpt."}
+::video{src="media/live.en.landscape.mp4" poster="media/live.en.landscape.jpg" caption="The sample task board responds to recorded typing and clicks while the camera follows the action."}
 
 The cursor changes shape over a control, the camera follows recorded actions, and a named mark keeps the same result available to another scene. The example is a sample app made for filming, labelled as such in the recording.
 ::::::
@@ -41,7 +41,7 @@ The cursor changes shape over a control, the camera follows recorded actions, an
 A line of the scenario names the subject when the narration reaches it. The camera moves from the whole screen to that element and can travel to the next without losing the interface around it.
 :::
 
-::video{src="media/focus.en.mp4" poster="media/focus.en.jpg" caption="A metric on the report becomes the subject. This earlier clip is a temporary fixture for the selected attention excerpt."}
+::video{src="media/focus.en.landscape.mp4" poster="media/focus.en.landscape.jpg" caption="The camera directs attention from a report metric to a chart peak and a task row."}
 
 `spotlight` can dim everything else, read a wide row along its length, or leave the camera wide and highlight one number. A loupe, hand-drawn mark or held frame serves a different kind of detail; the film chooses the one the viewer needs.
 ::::::
@@ -100,7 +100,7 @@ The [visual-design guide](https://github.com/witqq/agentic-screencast/blob/main/
 `format: vertical` makes a 1080×1920 film at 30 frames a second. The camera follows the relevant part of a wide capture; slides can reflow and a page can provide a separate portrait layout.
 :::
 
-::video{src="media/reel.en.mp4" poster="media/reel.en.jpg" caption="A portrait example at 1080×1920. This earlier clip is a temporary fixture for the selected phone excerpt."}
+::video{src="media/reel.en.vertical.mp4" poster="media/reel.en.vertical.jpg" caption="A silent 1080×1920 excerpt of a real phone-sized sample app take."}
 
 The frame can reserve space for a feed's controls or use even margins in a messenger. The build reports text that falls below the phone reading floor and a focus that cuts off its subject.
 ::::::

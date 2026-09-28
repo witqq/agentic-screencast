@@ -1,0 +1,361 @@
+{
+  "version": 1,
+  "scenario": {
+    "path": "website/overview/story.md",
+    "sha256": "e2059e3a8ff28564641d35f167ab2050a6e0701f726a048db92fe8675fa2f3de"
+  },
+  "assets": [
+    {
+      "source": "media/showcase.ru.landscape.mp4",
+      "kind": "video",
+      "slot": "showcase",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c00-cold"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/showcase.ru.landscape.mp4",
+      "sha256": "42d8131540551e736b9f5cfe02e5eadc0e3086dda307cab4da8b2626622145fa",
+      "bytes": 3081095,
+      "referenceFrames": [
+        {
+          "t": 3.464,
+          "path": "website/landing/media/fingerprints/showcase.ru.landscape.0.png",
+          "sha256": "43895640d7daf801efab2709808a725738cc8e77dc6603ada6f37018fe4a5f58"
+        },
+        {
+          "t": 8.66,
+          "path": "website/landing/media/fingerprints/showcase.ru.landscape.1.png",
+          "sha256": "793a6d8a1eeedc859478079057ac5753e0136de548c3452dbb6c19252644df11"
+        },
+        {
+          "t": 13.856,
+          "path": "website/landing/media/fingerprints/showcase.ru.landscape.2.png",
+          "sha256": "12bb6b3852742e996bca2b80a63c35dee390add1c4d65ac04f1aefdc46be24de"
+        }
+      ]
+    },
+    {
+      "source": "media/showcase.ru.landscape.jpg",
+      "kind": "poster",
+      "slot": "showcase",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c00-cold"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/showcase.ru.landscape.jpg",
+      "sha256": "e046119a36a632fd606c506f58373e2ad8b3112dd2103adfba55828a073167e6",
+      "bytes": 145029,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/live.ru.landscape.mp4",
+      "kind": "video",
+      "slot": "live",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c03-auto"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/live.ru.landscape.mp4",
+      "sha256": "9297a02fe2c7d37f2056d7faf254ad05852c3918701e0ac93844994c70a5664b",
+      "bytes": 2476516,
+      "referenceFrames": [
+        {
+          "t": 2.224,
+          "path": "website/landing/media/fingerprints/live.ru.landscape.0.png",
+          "sha256": "2f04fe84fa291820dec072e3f787455410d35fd8659fce0e972dfc3d3a1e2c68"
+        },
+        {
+          "t": 5.56,
+          "path": "website/landing/media/fingerprints/live.ru.landscape.1.png",
+          "sha256": "92e3f83cfcb940dbe68e6435571bb9c81ebd1044947cd5c641043e36e96fb79f"
+        },
+        {
+          "t": 8.896,
+          "path": "website/landing/media/fingerprints/live.ru.landscape.2.png",
+          "sha256": "6df785a2148090348d1678f072f9efe92c9b7030dfeb313b7c5eb8dc94c741f3"
+        }
+      ]
+    },
+    {
+      "source": "media/live.ru.landscape.jpg",
+      "kind": "poster",
+      "slot": "live",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c03-auto"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/live.ru.landscape.jpg",
+      "sha256": "ddba6fc178c6be86949d2d702d617856b7d080619ce349ef48abbf14c7febab2",
+      "bytes": 149640,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/focus.ru.landscape.mp4",
+      "kind": "video",
+      "slot": "focus",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c04-chain"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/focus.ru.landscape.mp4",
+      "sha256": "74a490cad028b6abc7de1e393baac6cd4bf2cb6d4bce65421b378b8854c91156",
+      "bytes": 4501081,
+      "referenceFrames": [
+        {
+          "t": 4.664,
+          "path": "website/landing/media/fingerprints/focus.ru.landscape.0.png",
+          "sha256": "065410e91c1000789c47455a62bb5875c8a75ab75b13b131ae7a6e43042ce8b4"
+        },
+        {
+          "t": 11.66,
+          "path": "website/landing/media/fingerprints/focus.ru.landscape.1.png",
+          "sha256": "a5eb2c8e9c45eb3898a89e81aa3d1748144cf42a84141f7c131437a6fa7259a0"
+        },
+        {
+          "t": 18.656,
+          "path": "website/landing/media/fingerprints/focus.ru.landscape.2.png",
+          "sha256": "dc925615d453a8b180395f17d97d6be1fea4acc4bf12a4292dadaf5cadc3698b"
+        }
+      ]
+    },
+    {
+      "source": "media/focus.ru.landscape.jpg",
+      "kind": "poster",
+      "slot": "focus",
+      "lang": "ru",
+      "format": "landscape",
+      "sceneIds": [
+        "c04-chain"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/focus.ru.landscape.jpg",
+      "sha256": "5f224879c1d18e4b44ea4a2fc54e479ceed8aaeab1a71010dcd650d16c834569",
+      "bytes": 128516,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/reel.ru.vertical.mp4",
+      "kind": "video",
+      "slot": "reel",
+      "lang": "ru",
+      "format": "vertical",
+      "sceneIds": [
+        "c11-phone"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/reel.ru.vertical.mp4",
+      "sha256": "69370bfd133d3fa8a6c8df8274cbb8fb19e4f5993eff258c6cb37524f5552611",
+      "bytes": 891937,
+      "referenceFrames": [
+        {
+          "t": 2.633,
+          "path": "website/landing/media/fingerprints/reel.ru.vertical.0.png",
+          "sha256": "6ffcede1afd7be82e73c3d254458e9ed25965c0783f7a75ab65495876675e18a"
+        },
+        {
+          "t": 6.583,
+          "path": "website/landing/media/fingerprints/reel.ru.vertical.1.png",
+          "sha256": "54e9471cf3adfb01e192c8a0c980a0a91f8b7877c79756fed7df649b2fb2f46a"
+        },
+        {
+          "t": 10.534,
+          "path": "website/landing/media/fingerprints/reel.ru.vertical.2.png",
+          "sha256": "a999ade8a4ff10e34cb57560dfa31345118b6a2d927db525f5cc744e63bbd249"
+        }
+      ]
+    },
+    {
+      "source": "media/reel.ru.vertical.jpg",
+      "kind": "poster",
+      "slot": "reel",
+      "lang": "ru",
+      "format": "vertical",
+      "sceneIds": [
+        "c11-phone"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/reel.ru.vertical.jpg",
+      "sha256": "6055dc86542f3f2b25d6dd2cd8b3ee3057f038f446ae2617b8e73f2a9c8caed9",
+      "bytes": 134672,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/showcase.en.landscape.mp4",
+      "kind": "video",
+      "slot": "showcase",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c00-cold"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/showcase.en.landscape.mp4",
+      "sha256": "d5fc86135432a689bf4f5e117d58aa7d22e2dc8cdba0e606361f3517ac5b61bd",
+      "bytes": 2535337,
+      "referenceFrames": [
+        {
+          "t": 2.72,
+          "path": "website/landing/media/fingerprints/showcase.en.landscape.0.png",
+          "sha256": "b5915be553d1caa07c7353e6e6e9b543b5ed2901259d0b79a40316d2c9e9d2e6"
+        },
+        {
+          "t": 6.8,
+          "path": "website/landing/media/fingerprints/showcase.en.landscape.1.png",
+          "sha256": "a5db75f84d5ff029d7b5ab4fc69ed4c87dca3bd45c4add4665d6182f3bdb1060"
+        },
+        {
+          "t": 10.88,
+          "path": "website/landing/media/fingerprints/showcase.en.landscape.2.png",
+          "sha256": "a434e4f438878ac3a5a56abb596a5e1fac11bdf08a8a6b8384126c5ad0530633"
+        }
+      ]
+    },
+    {
+      "source": "media/showcase.en.landscape.jpg",
+      "kind": "poster",
+      "slot": "showcase",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c00-cold"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/showcase.en.landscape.jpg",
+      "sha256": "369b0376ff76c857ef6b2c8cecaede86abb09db3f58babc36c414490f4974f3a",
+      "bytes": 131670,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/live.en.landscape.mp4",
+      "kind": "video",
+      "slot": "live",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c03-auto"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/live.en.landscape.mp4",
+      "sha256": "0e22aa8ba65d6451ea9560f1766bc4e1b8de2417570adf5e3883ec8b9b869aae",
+      "bytes": 2300638,
+      "referenceFrames": [
+        {
+          "t": 2.288,
+          "path": "website/landing/media/fingerprints/live.en.landscape.0.png",
+          "sha256": "3b6dd53f311626eea99aedcc6ad84bc227f33109bd11a028c012f3544ef98a18"
+        },
+        {
+          "t": 5.72,
+          "path": "website/landing/media/fingerprints/live.en.landscape.1.png",
+          "sha256": "067b8a11719161b0787f9c5343ead8960c3a87d7dd0483e948235220f596763c"
+        },
+        {
+          "t": 9.152,
+          "path": "website/landing/media/fingerprints/live.en.landscape.2.png",
+          "sha256": "c55c992ab1568f1d28882be9c89965b43d2a486a1cb127cb8ce87829e76e09fd"
+        }
+      ]
+    },
+    {
+      "source": "media/live.en.landscape.jpg",
+      "kind": "poster",
+      "slot": "live",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c03-auto"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/live.en.landscape.jpg",
+      "sha256": "7350299c512b4bededc8620e98e1347af19b78a597fd7005a165225f5c55402b",
+      "bytes": 142565,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/focus.en.landscape.mp4",
+      "kind": "video",
+      "slot": "focus",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c04-chain"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/focus.en.landscape.mp4",
+      "sha256": "a0f068a69c29cb516903a3e980b3bd03ca6b88ad8d21851bfd884b00c74d30e9",
+      "bytes": 3895087,
+      "referenceFrames": [
+        {
+          "t": 3.824,
+          "path": "website/landing/media/fingerprints/focus.en.landscape.0.png",
+          "sha256": "e4a29c230bcac704d281281e3b4b76cfeb702347368655b8af5d5556a0297dce"
+        },
+        {
+          "t": 9.56,
+          "path": "website/landing/media/fingerprints/focus.en.landscape.1.png",
+          "sha256": "49fd9e0a1c382f97af5f8547c0fddf0a0d4ed7c86c4bc57eacc7e5f434505f0f"
+        },
+        {
+          "t": 15.296,
+          "path": "website/landing/media/fingerprints/focus.en.landscape.2.png",
+          "sha256": "de0fe308f277d72f8b0ffd316f4c45bcd40a9175d7169e9f0c9f6337d83c3d1f"
+        }
+      ]
+    },
+    {
+      "source": "media/focus.en.landscape.jpg",
+      "kind": "poster",
+      "slot": "focus",
+      "lang": "en",
+      "format": "landscape",
+      "sceneIds": [
+        "c04-chain"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/focus.en.landscape.jpg",
+      "sha256": "90e3001a536f5eb6fab1079cab14adfd5bd30273c24e89d11679f97d73533fb1",
+      "bytes": 119490,
+      "referenceFrames": []
+    },
+    {
+      "source": "media/reel.en.vertical.mp4",
+      "kind": "video",
+      "slot": "reel",
+      "lang": "en",
+      "format": "vertical",
+      "sceneIds": [
+        "c11-phone"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/reel.en.vertical.mp4",
+      "sha256": "8ece2b1c68f24e31888fa619479f1c3d27a7538dba316697a92c1af408f8891b",
+      "bytes": 863300,
+      "referenceFrames": [
+        {
+          "t": 2.093,
+          "path": "website/landing/media/fingerprints/reel.en.vertical.0.png",
+          "sha256": "6dc0e736eba9fd4748a458c5c178784e0aae59a803159d274246021cbc60a91f"
+        },
+        {
+          "t": 5.234,
+          "path": "website/landing/media/fingerprints/reel.en.vertical.1.png",
+          "sha256": "993542d254ed4369d3a675bef22e8464b48c702d638ec5c8652ff4f382c6ef5c"
+        },
+        {
+          "t": 8.374,
+          "path": "website/landing/media/fingerprints/reel.en.vertical.2.png",
+          "sha256": "3776794c0d3811b7e84a7589f8c8928d3e0a428b2c753b977114c774fdbd3c26"
+        }
+      ]
+    },
+    {
+      "source": "media/reel.en.vertical.jpg",
+      "kind": "poster",
+      "slot": "reel",
+      "lang": "en",
+      "format": "vertical",
+      "sceneIds": [
+        "c11-phone"
+      ],
+      "url": "https://github.com/witqq/agentic-screencast/releases/download/landing-media-20260928/reel.en.vertical.jpg",
+      "sha256": "24f0b1df2e2fc556049c3eb31290bfd9bc9ee923378fcaf9593cf9dd6d20b6b1",
+      "bytes": 133560,
+      "referenceFrames": []
+    }
+  ]
+}

@@ -302,5 +302,4 @@ claim a new visual acceptance of their frames.
 Not suited for vertical clips, because their point is two things side by side or a dense grid of small
 text that a 9:16 window cannot hold: `c00-file` and `c14-bookend` (the scenario beside its frame),
 `c01-brief` (three columns of options), `c13-credits` (the licence list is small text), `c12-stills`
-(four stills side by side). The vertical landing clips of chapters 0, 1, 12, 13 and 14 should be cut
-around them.
+(four stills side by side). Any later portrait excerpt must exclude them.

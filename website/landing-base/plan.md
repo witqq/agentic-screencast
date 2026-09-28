@@ -2,7 +2,7 @@
 
 This map answers what the English and Russian landing pages say, what evidence each section uses,
 and which small silent excerpts of the overview source become moving examples. The pages live in
-`website/landing/`; `clips.md` fixes the selected source scenes and current temporary media slots.
+`website/landing/`; `clips.md` fixes the selected source scenes and media slots.
 
 ## The landing's argument
 
@@ -147,12 +147,12 @@ ru: Попросите агента поставить скилл из `skills/a
 
 ## Media and page design boundary
 
-`clips.md` selects exactly four source scenes in each language. The current `showcase`, `live`,
-`focus` and `reel` MP4/JPG pairs remain layout fixtures until the next integration unit replaces
-them with silent, source-matched excerpts and posters. No selected excerpt includes the scene that
-photographs the landing itself; the portrait selection also avoids all five wide-page scenes listed
-in the overview brief. The page's written claims about voice and music describe what the product
-can do, while the landing examples themselves play without sound.
+`clips.md` selects exactly four source scenes in each language. The `showcase`, `live`, `focus` and
+`reel` MP4/JPG pairs are silent, source-matched excerpts and posters addressed by the manifest's
+SHA-256 hashes and fixed media-release URLs. No selected excerpt includes the scene that photographs
+the landing itself; the portrait selection also avoids all five wide-page scenes listed in the
+overview brief. The page's written claims about voice and music describe what the product can do,
+while the landing examples themselves play without sound.
 
 The page uses the existing agentic-report Markdown vocabulary: a real example immediately after
 the promise, sections in the order of the argument, one four-card comparison of slide roles,

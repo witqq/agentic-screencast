@@ -47,15 +47,16 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 7. Final
 
-- [ ] Build only the excerpts and formats selected by the landing, with no audio stream. The selected
-      clips must use current scenes, keep their captions readable by the renderer's checks, and leave
-      the five unsuitable scenes out of portrait media. No standalone long film or paid voice is needed.
-      Selection and output belong to the landing-media integration after the page is designed.
+- [ ] The selected silent excerpts and posters are built locally from current scenes, with the five
+      unsuitable scenes absent from portrait media. Verify their public media URLs and editorial
+      readability before treating the final page as accepted; new visual viewing remains open under
+      the owner's current direction. No standalone long film or paid voice is needed.
 
 ## 8. Handoff
 
-- [ ] The silent clips and posters are available to the landing build with the required credits;
-      name the decisions taken without the owner and the limit from skipping new visual inspection.
+- [ ] The silent clips and posters are available to the landing build locally; publish their exact
+      files with the required credits and hand the page to the owner, naming the limit from skipping
+      new visual inspection.
 
 ## Techniques — the menu, pick what serves the film
 
