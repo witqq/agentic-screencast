@@ -378,6 +378,8 @@ export interface SceneMusic {
 
 export interface Pitch {
   scenes: PitchScene[];
+  /** Явные части из авторского сценария, независимо от порождённого списка глав. */
+  authoredParts?: string[];
   tail?: number;
   /** посторонние поставщики: их объявил ролик, и проверкам они тоже нужны */
   providers?: Record<string, string>;
@@ -1286,6 +1288,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     };
   });
   const pitch: Pitch = { scenes };
+  if (explicitParts) pitch.authoredParts = src.scenes.flatMap((s) => s.fields.part ? [s.fields.part] : []);
   if (src.tail !== undefined) pitch.tail = src.tail;
   if (src.providers) pitch.providers = src.providers;
   if (src.frame) pitch.frame = src.frame;

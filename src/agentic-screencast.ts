@@ -162,7 +162,11 @@ Building:
       landscape scenario (help vertical)
 The build prints its report as JSON on stdout and writes the same report
 beside the film as <film>.report.json: each scene's start and end, beats,
-stills, marks, audio, warnings and timing.
+stills, marks, audio, audit, warnings and timing. audit compares decoded
+video frames and final audio/video durations with the scene timeline, and
+WebVTT chapter cues with the named parts. Its issues have stable codes and
+measured values; each is also printed as a warning on stderr. A peak above
+-1 dBTP after AAC correction fails the build.
 A build failure prints one line, build failed: …, naming the scene;
 AGENTIC_SCREENCAST_DEBUG=1 adds the stack. The header's frame (width,
 height, fps, scale) and encode (crf, preset, pix, audio bitrate) set the
@@ -685,15 +689,21 @@ speechAt: 0.8 on a scene starts its narration that many seconds into the
 scene — a hit or a card first, the voice after it; the beats, subtitles and
 the ducking of music and accents move with it.
 Every film with sound — narration alone too — is normalised to -14 LUFS
-with its true peak under -1 dBTP, unless loudness names another target;
-a silent track (the stub voice) is left as it is.
+unless loudness names another target. The build measures the finished AAC
+and corrects audio-only if its decoded true peak exceeds -1 dBTP; if it
+cannot meet that ceiling, the build fails. Peak correction can leave the
+achieved loudness below the target. A silent track (the stub voice) is left
+as it is.
 audio: false in the header writes a film without a sound track: the
 narration still sets every scene's length, but the MP4 carries only video.
 
 The build report shows audio.music, audio.sfx[].underSpeech and
 audio.loudness (target, input — the mix before normalising — and measured,
-the finished sound). Where to find free music and sounds, how to choose them by
-genre and tempo, and how to credit them: docs/sound.md.`;
+the finished AAC's integrated loudness, or null for silence or a stream too
+short to measure). audio.encoded gives its final truePeak in dBTP and
+corrected flag; audio: false has no audio measurement. Where to find free
+music and sounds, how to choose them by genre and tempo, and how to credit
+them: docs/sound.md.`;
 const THEMES_HELP = `Named looks: one word in the header styles the whole film
 
 # My film
@@ -1012,10 +1022,12 @@ Helpers that save a full build:
       a built-in slide in a vertical frame under the 36 px floor for
       secondary text, also named on stderr — "renderer"), "beats"
       (each beat's start in the film), "stills", "marks", "srt",
-      "chapters", "audio" (music and its spans, accents, loudness),
+      "chapters", "audio" (music and its spans, accents, final AAC loudness
+      and true peak), "audit" (expected and encoded stream lengths, decoded
+      frames, chapter cues and coded issues),
       "hits" (flashes and shakes), "transitions",
       "timing" (where the build spent its time), "segments" (each scene's
-      cached clip and its checksum), "warnings" (muxer complaints).
+      cached clip and its checksum), "warnings" (muxer and audit findings).
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).

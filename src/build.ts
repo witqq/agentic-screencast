@@ -31,6 +31,8 @@ import { layerSafe } from "./part-label.js";
 import type { Captions, Pip, Progress, SceneMusic, SfxCue } from "./source.js";
 import { assembleVideo, timeline, transitionFrames } from "./assemble.js";
 import { mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
+import { ensureEncodedPeak, EncodedPeakError } from "./encoded-audio.js";
+import { auditFilm } from "./film-audit.js";
 import { MORPH, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
@@ -270,6 +272,7 @@ async function main() {
   const SRC = dirname(PITCH_FILE);
   const pitch = JSON.parse(readFileSync(PITCH_FILE, "utf8")) as {
     scenes: BuiltScene[]; tail?: number;
+    authoredParts?: string[];
     frame?: Partial<RenderOpts>; encode?: Partial<typeof ENCODE>; theme?: Record<string, string>;
     pronounce?: unknown; lang?: string; dir?: string;
     captions?: Captions; pip?: Pip; progress?: Progress; emoji?: { dir: string };
@@ -1253,11 +1256,25 @@ async function main() {
     execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", out, "-map", "0:v", "-map_metadata", "0", "-c", "copy", "-an", "-movflags", "+faststart", silent]);
     renameSync(silent, out);
   }
+  let encodedAudio: ReturnType<typeof ensureEncodedPeak> | undefined;
+  if (pitch.audio !== false) {
+    try { encodedAudio = ensureEncodedPeak(out, opts.encode!.audio); }
+    catch (error) {
+      if (error instanceof EncodedPeakError)
+        throw new Error(msg("build.encodedPeakExceeded", { measured: error.measured ?? "unknown", limit: error.limit }));
+      throw error;
+    }
+  }
   const srt = pitch.captions?.srt ? writeSrt(out, filmScenes, subMax) : undefined;
   // Главы есть у всякого ролика с частями, а не только с полосой хода: они же — оглавление
   // для плеера страницы (`agentic-screencast web` подключает этот файл дорожкой).
   if (!chapters.length) chapters = chaptersOf(filmScenes);
   const chaptersFile = writeChapters(out, chapters);
+  const expectedPartNames = pitch.authoredParts === undefined ? undefined
+    : only ? (taken[0]?.chapter ? [taken[0].chapter] : []) : pitch.authoredParts;
+  const audit = auditFilm({ file: out, expectedFrames: Math.round(tl.total * opts.fps), fps: opts.fps,
+    audio: pitch.audio !== false, ...(chaptersFile ? { chaptersFile } : {}),
+    ...(expectedPartNames ? { expectedPartNames } : {}), reportedChapters: chapters });
 
   // Контрольные кадры: моменты, названные сценой, снимаются из готового ролика в каталог рядом
   // с ним — агент смотрит их сразу по окончании сборки. Каталог каждый раз собирается заново,
@@ -1297,7 +1314,17 @@ async function main() {
     });
   });
 
-  const warnings = mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l));
+  const warnings = [
+    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)),
+    ...audit.issues.map((issue) => msg("build.auditIssue", { code: issue.code,
+      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") })),
+  ];
+  for (const warning of warnings) process.stderr.write(warning + "\n");
+  const finalAudioReport = audioReport ? { ...audioReport,
+    ...(audioReport.loudness && encodedAudio
+      ? { loudness: { ...audioReport.loudness, measured: encodedAudio.integrated } } : {}),
+    ...(encodedAudio ? { encoded: encodedAudio } : {}) }
+    : encodedAudio ? { encoded: encodedAudio } : undefined;
   // Человеческая строка — в поток ошибок, отчёт — в стандартный вывод:
   // разбирающему нужен чистый JSON, а человеку одна строка вместо того,
   // чтобы искать длительность и путь в двух экранах вывода.
@@ -1315,7 +1342,7 @@ async function main() {
     beats: filmScenes.flatMap((fs, i) => fs.beats.map((b, k) => ({ scene: taken[i]!.id,
       start: Number((fs.at! + (fs.starts[k] ?? 0)).toFixed(3)), spoken: Number(b.spoken.toFixed(3)) }))),
     ...(transitionsDone.length ? { transitions: transitionsDone } : {}),
-    ...(audioReport ? { audio: audioReport } : {}),
+    ...(finalAudioReport ? { audio: finalAudioReport } : {}),
     ...(hits ? { hits: { flash: flashes.map((h) => Number(h.at.toFixed(3))), shake: shakes.map((h) => Number(h.at.toFixed(3))) } } : {}),
     ...(srt ? { srt } : {}), ...(chapters.length ? { chapters, chaptersFile } : {}),
     ...(stills.length ? { stills } : {}), ...(takeMarks.length ? { marks: takeMarks } : {}),
@@ -1325,7 +1352,7 @@ async function main() {
     ...(pitch.reframe ? { reframe: { from: pitch.reframe } } : {}), ...(pitch.lookNote ? { look: pitch.lookNote } : {}),
     // Темп, от которого считались доли: названный автором или найденный в файле.
     ...(tempo ? { tempo } : {}),
-    duration: dur(out), warnings,
+    duration: dur(out), audit, warnings,
     // Где ушло время сборки, секунды: озвучка и расписание сцен (по порядку), кадры и сегменты
     // сцен (одновременно, `jobs` штук), склейка, звук и проход ролика.
     timing: { jobs: Math.min(sceneJobs(), Math.max(1, jobs.length)), plan: Number(((tVoice - t0) / 1000).toFixed(1)), scenes: Number(((tScenes - tVoice) / 1000).toFixed(1)),

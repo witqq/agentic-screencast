@@ -168,6 +168,8 @@ agentic-screencast provider-check 'python3 /path/provider.py'
 
 These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. Their coverage is partial: `check` does not inspect video clips, and `order` skips MHTML and video scenes, exiting with code 2 when nothing is applicable.
 
+The build report beside the MP4 includes `audit.expected` and `audit.measured` for decoded video frames, final audio/video durations and WebVTT chapter cues. Review `audit.issues` and `warnings`: a mismatch is named with its measured values. For measurable sound, `audio.encoded.truePeak` comes from the final AAC and must be at most −1 dBTP; `audio.loudness.measured` is the achieved final level. Silence has a null peak, and `audio: false` has no sound measurement. An empty audit does not replace watching the film or checking its captions.
+
 Use `stills: @saved :: confirm the result` in a video scene to request a control frame at a named take mark. A full build writes these frames beside the MP4 and reports each frame's `scene`, `moment`, film `time`, note, and file. `lint` also flags a clip piece that crosses an unnamed mark, an abrupt unmarked screen change, a top title over an interface, and text typed too quickly to read.
 
 ## Voice and secret boundary

@@ -155,6 +155,16 @@ into the data directory (`$AGENTIC_SCREENCAST_HOME/pitch.mp4`). Build progress g
 error stream line by line — scene after scene — and the report goes to standard output
 as a single JSON.
 
+The same report is written beside the MP4 as `<film>.report.json`. Its `audit.expected`
+has the frame timeline and explicit `part:` names; `audit.measured` has the decoded
+video frame count, final video and audio stream durations, stream presence and
+WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
+mismatch with measured values; the same findings appear in `warnings` and on
+the error stream. An empty issues list means these encoded properties match
+within one video frame and AAC packet padding, not that the film has been
+watched or its captions judged. A film with no parts has no chapter file;
+rebuilding one without parts removes an older file at that output path.
+
 **While you are tuning a scene, build it alone:**
 
 ```bash
@@ -504,8 +514,8 @@ npx agentic-screencast provider-check 'python3 /path/provider.py'
 
 ## Checks
 
-**The build does not judge the frame.** It returns the finished file, however it
-turned out: too much text, a line overflowing the edge and an unreadable
+**The build audits encoded streams and chapters, but does not judge the visual
+frame.** Too much text, a line overflowing the edge and an unreadable
 caption are the business of `check`, and you have to run it yourself.
 
 ```bash

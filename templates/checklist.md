@@ -41,7 +41,10 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 ## 7. Final
 
 - [ ] Built with the chosen voice, music and look (variants in parallel); its stills and report checked
-      once; loudness within 1 LU of its target.
+      once; `audit.issues` empty or every finding resolved, chapters match the authored parts, and
+      the MP4 watched for framing and captions. With measurable sound, final AAC true peak is at most
+      −1 dBTP and achieved loudness is read from `audio.loudness.measured` (peak correction can put it
+      below the target); silence has a null peak and `audio: false` has no sound measurement.
 
 ## 8. Handoff
 
