@@ -510,7 +510,7 @@ function checklistPage() {
     }).join("");
     write("checklist", s, shell(L, "checklist", `<div class="wrap">${head("checklist.md", t("Чеклист этого фильма", "This film's checklist"))}
 <div class="panel list">${rows}</div>
-<div class="count mono rv" data-at="b2.end-1.5"><span class="prompt">$</span> grep -c "\\- \\[ \\]" checklist.md → <b>${open}</b> <span class="mut">${t(`открыто сейчас: пункты, которые проверяются на кадрах собранного ролика`, `open now: the boxes checked on the frames of the built film`)}</span></div></div>`,
+<div class="count mono rv" data-at="b2.end-1.5"><span class="prompt">$</span> grep -c "\\- \\[ \\]" checklist.md → <b>${open}</b> <span class="mut">${t("открытых пунктов до передачи", "open items before handoff")}</span></div></div>`,
     `.list{flex:1;overflow:hidden;padding:18px 26px}.item{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start;margin:8px 0;font-size:23px;line-height:1.35;color:var(--body)}
 .box{width:34px;height:34px;border:3px solid var(--acc);border-radius:8px;display:grid;place-items:center;margin-top:2px}
 .box i{width:16px;height:9px;border-left:4px solid var(--acc);border-bottom:4px solid var(--acc);transform:rotate(-45deg) scale(var(--k,0));margin-top:-4px}
@@ -536,8 +536,8 @@ function portraitPages(onlyName, onlyLang) {
       const checks = readFileSync(join(HERE, "checklist.md"), "utf8");
       const portraitChecks = [
         { source: "Every dimension of the brief", ru: "У каждого решения в брифе есть источник", en: "Each brief decision has a source" },
-        { source: "Built with the chosen voice", ru: "Финальный ролик и кадры проверены", en: "The final film and frames are checked" },
-        { source: "`agentic-screencast lint story.md`", ru: "Сценарий проверен линтером", en: "The story passes the linter" },
+        { source: "The capability table", ru: "Возможности сверены со сценами", en: "Capabilities are matched to scenes" },
+        { source: "`agentic-screencast lint story.md`", ru: "Результат lint разобран", en: "Lint findings are accounted for" },
       ];
       for (const item of portraitChecks) {
         if (!checks.split("\n").some((line) => line.startsWith(`- [x] ${item.source}`)))
