@@ -38,8 +38,8 @@ const decode = (png: Buffer, w: number): { px: (x: number, y: number) => RGB; w:
 
 /** Проба элемента: заливка в точке (доли прямоугольника) или цвет букв. */
 interface Probe { name: string; sel: string; token: string; mode: "fill" | "text"; at?: [number, number];
-  /** у букв: где взять фон элемента (доли прямоугольника), если угол прямоугольника — не он */
-  bgAt?: [number, number];
+  /** скрыть только буквы, сохранив заливку самого элемента */
+  textOnly?: boolean;
   /** выражение страницы перед замером: убрать движущийся блик, который не есть заливка */
   prep?: string;
   /** образец, собранный из токенов темы, если заливка — не один токен (градиент двух акцентов) */
@@ -56,25 +56,34 @@ async function probe(p: Page, pr: Probe): Promise<{ got: RGB; want: RGB }> {
   }, pr.sel);
   assert.ok(rect && rect.w > 2 && rect.h > 2, `${pr.name}: ${pr.sel} is on the frame`);
   const shot = decode(await p.screenshot(), W);
-  let got: RGB;
+  let got: RGB = [0, 0, 0];
   if (pr.mode === "fill") {
     const [fx, fy] = pr.at ?? [0.92, 0.9];
     got = shot.px(rect.x + rect.w * fx, rect.y + rect.h * fy);
-  } else {
-    // Буква: точка прямоугольника, дальше всего отстоящая от фона у его края.
-    const bg = pr.bgAt ? shot.px(rect.x + rect.w * pr.bgAt[0], rect.y + rect.h * pr.bgAt[1]) : shot.px(rect.x + 1, rect.y + 1);
-    let best: RGB = bg, d = -1;
-    for (let y = rect.y + 1; y < rect.y + rect.h - 1; y += 1) for (let x = rect.x + 1; x < rect.x + rect.w - 1; x += 1) {
-      const c = shot.px(x, y), e = far(c, bg);
-      if (e > d) { d = e; best = c; }
-    }
-    got = best;
   }
-  // Образец токена на месте элемента; сам элемент на это время скрыт.
-  await p.evaluate(({ sel, token, rect: r }) => {
+  // Скрываем элемент и сравниваем два кадра в одной точке времени. Так образец текста
+  // берётся из действительно нарисованной буквы, а не из неоднородного фона.
+  await p.evaluate(({ sel, textOnly }) => {
     const el = document.querySelector(sel) as HTMLElement;
-    el.dataset.hiddenForSwatch = el.style.visibility;
-    el.style.visibility = "hidden";
+    if (textOnly) {
+      el.dataset.hiddenColorForSwatch = el.style.color;
+      el.style.color = "transparent";
+    } else {
+      el.dataset.hiddenForSwatch = el.style.visibility;
+      el.style.visibility = "hidden";
+    }
+  }, { sel: pr.sel, textOnly: pr.textOnly });
+  if (pr.mode === "text") {
+    const backdrop = decode(await p.screenshot(), W);
+    let change = 0;
+    for (let y = rect.y + 1; y < rect.y + rect.h - 1; y += 1) for (let x = rect.x + 1; x < rect.x + rect.w - 1; x += 1) {
+      const c = shot.px(x, y), delta = far(c, backdrop.px(x, y));
+      if (delta > change) { change = delta; got = c; }
+    }
+    assert.ok(change > 8, `${pr.name}: text is visible on the frame`);
+  }
+  // Образец токена на месте скрытого элемента.
+  await p.evaluate(({ token, rect: r }) => {
     const s = document.createElement("div");
     s.id = "__swatch";
     // Страница слайда увеличена (zoom корня): прямоугольник элемента уже в точках кадра, а
@@ -84,14 +93,15 @@ async function probe(p: Page, pr: Probe): Promise<{ got: RGB; want: RGB }> {
       + `background:${token}`;
     // Токены слоя задаются на #__st (там живёт --u): образец кладётся туда, если слой есть.
     (document.getElementById("__st") ?? document.body).appendChild(s);
-  }, { sel: pr.sel, token: pr.css ?? `var(${pr.token})`, rect, mode: pr.mode });
+  }, { token: pr.css ?? `var(${pr.token})`, rect });
   const sw = decode(await p.screenshot(), W);
   const [fx, fy] = pr.mode === "fill" ? pr.at ?? [0.92, 0.9] : [0.5, 0.5];
   const want = sw.px(rect.x + rect.w * fx, rect.y + rect.h * fy);
   await p.evaluate((sel) => {
     document.getElementById("__swatch")?.remove();
     const el = document.querySelector(sel) as HTMLElement;
-    el.style.visibility = el.dataset.hiddenForSwatch ?? "";
+    if (el.dataset.hiddenColorForSwatch !== undefined) el.style.color = el.dataset.hiddenColorForSwatch;
+    else el.style.visibility = el.dataset.hiddenForSwatch ?? "";
   }, pr.sel);
   return { got, want };
 }
@@ -116,6 +126,18 @@ function check(theme: string, name: string, token: string, r: { got: RGB; want: 
   assert.ok(far(r.got, r.want) <= tol, `${theme} · ${name}: drawn ${r.got.join(",")}, the token ${token} gives ${r.want.join(",")}`);
   const m = seen.get(name) ?? new Map<string, RGB>(); m.set(theme, r.got); seen.set(name, m);
 }
+
+test("text colour probe reads a glyph instead of a changing background", async () => {
+  const browser = await chromium.launch();
+  try {
+    const page = await browser.newPage({ viewport: { width: W, height: H } });
+    await page.setContent(`<style>:root{--acc:#8a5c00}body{margin:0;background:linear-gradient(90deg,#d48f00,#111)}
+      .label{position:absolute;left:100px;top:100px;width:360px;height:80px;font:bold 48px sans-serif;color:var(--acc)}</style>
+      <div class="label">Timeline</div>`);
+    const result = await probe(page, { name: "text on gradient", sel: ".label", token: "--acc", mode: "text" });
+    assert.ok(far(result.got, result.want) <= 12, `the glyph ${result.got} uses the token ${result.want}`);
+  } finally { await browser.close(); }
+});
 /** Там, где у светлой и тёмной темы токен разный, разный и цвет на кадре. */
 function contrast(name: string, token: string): void {
   if (THEMES.midnight![token] === THEMES.daylight![token]) return;
@@ -149,10 +171,10 @@ test("the overlay — cards, lower thirds, callouts, badges, titles, subtitles, 
         { name: "lower third fill", sel: ".__lower", token: "--sc-card-bg", mode: "fill", at: [0.5, 0.92] },
         { name: "callout fill", sel: ".__callout", token: "--sc-card-bg", mode: "fill", at: [0.96, 0.5] },
         { name: "badge fill", sel: ".__badge", token: "--sc-badge-bg", mode: "fill", at: [0.5, 0.12] },
-        { name: "badge text", sel: ".__badge", token: "--sc-badge-ink", mode: "text", bgAt: [0.5, 0.12] },
+        { name: "badge text", sel: ".__badge", token: "--sc-badge-ink", mode: "text", textOnly: true },
         { name: "subtitle plate", sel: "#__sub .__line", token: "--sc-sub-bg", mode: "fill", at: [0.004, 0.5] },
         { name: "karaoke word", sel: "#__sub .__word.__now", token: "--sc-karaoke-bg", mode: "fill", at: [0.5, 0.06] },
-        { name: "mark stroke", sel: ".__mark-body", token: "--sc-mark", mode: "text", bgAt: [0.5, 2.5] },
+        { name: "mark stroke", sel: ".__mark-body", token: "--sc-mark", mode: "text" },
       ];
       for (const pr of probes) check(name, pr.name, pr.token, await probe(p, pr), pr.mode === "text" ? 34 : 18);
       await p.context().close();

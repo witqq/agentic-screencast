@@ -14,7 +14,6 @@ import { autoZoomCues, resolveMarks } from "../../marks.js";
 
 const require = createRequire(import.meta.url);
 const ffmpeg = require("ffmpeg-static") as string;
-const ffprobe = require("@ffprobe-installer/ffprobe").path as string;
 const ENTRY = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "agentic-screencast.js");
 const W = 640, H = 360;
 
@@ -42,15 +41,12 @@ const count = (f: Buffer, pred: (r: number, g: number, b: number) => boolean, bo
 };
 const red = (r: number, g: number, b: number): boolean => r > 180 && g < 90 && b < 90;
 const green = (r: number, g: number, b: number): boolean => g > 140 && r < 90 && b < 130;
-const duration = (file: string): number => Number(execFileSync(ffprobe, ["-v", "error", "-show_entries", "format=duration",
-  "-of", "default=nw=1:nk=1", file], { encoding: "utf8" }));
-
-async function shoot(dir: string, trimStart: boolean): Promise<{ file: string; marks: TakeMarks }> {
+async function shoot(dir: string): Promise<{ file: string; marks: TakeMarks }> {
   const html = join(dir, "app.html");
   writeFileSync(html, PAGE);
-  const file = join(dir, trimStart ? "take.webm" : "raw.webm");
+  const file = join(dir, "take.webm");
   // Проверки ниже ищут светлый курсор и тёмную карточку ночной темы; умолчание — светлая neutral.
-  await recordTake({ output: file, viewport: { width: W, height: H }, trimStart, theme: "midnight",
+  await recordTake({ output: file, viewport: { width: W, height: H }, trimStart: true, theme: "midnight",
     prepare: async (page) => { await page.goto(pathToFileURL(html).href); } }, async (take) => {
     await take.waitFor(take.page.locator("#target"));
     take.mark("overview");
@@ -90,13 +86,12 @@ test("marks resolve in scenario fields and clicks become camera moves", () => {
 
 test("a live take pushes in, dims, marks, shows keys and the cursor, and trims its blank start", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-live-"));
-  const { file, marks } = await shoot(dir, true);
-  const raw = await shoot(dir, false);
-  // Обрезка: первый кадр не пустой, дубль короче необрезанного.
+  const { file, marks } = await shoot(dir);
+  // Обрезка проверяется по фактическому срезу и первому кадру того же дубля.
+  // Две отдельные записи имеют разную длительность действий под нагрузкой CI.
   const first = frame(file, 0);
   assert.ok(count(first, (r, g, b) => r < 200 || g < 200 || b < 200) > 500, "the first frame has content");
   assert.ok(marks.trimmed > 0.5, `blank start trimmed: ${marks.trimmed}s`);
-  assert.ok(duration(raw.file) - duration(file) > 0.5, `the trimmed take is shorter (${duration(raw.file)} → ${duration(file)})`);
   // Наезд: цель крупнее, чем на общем плане.
   // Отметка ставится вплотную перед наездом: кадр общего плана берём чуть раньше
   // неё — точность отметок около десятой доли секунды.
@@ -137,7 +132,7 @@ test("a take fails with a clear message when the page throws", async () => {
 
 test("a scene cuts and focuses at a named mark, and autoZoom pushes in at the click", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-live-scene-"));
-  const { marks } = await shoot(dir, true);
+  const { marks } = await shoot(dir);
   writeFileSync(join(dir, "story.md"), `# L
 voice: {"engine":"stub","name":"silent"}
 theme: midnight

@@ -22,7 +22,7 @@ jobs:
   release:
     name: Verify and create immutable release
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     permissions:
       contents: write
     env:

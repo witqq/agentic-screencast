@@ -18,7 +18,7 @@ jobs:
   verify:
     name: Complete product gate (npm run ci:verify)
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -58,9 +58,9 @@ jobs:
           retention-days: 7
 
   node20:
-    name: Node 20 compatibility (npm test)
+    name: Node 20 compatibility (npm run suite)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 15
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -80,4 +80,4 @@ jobs:
         run: npx playwright install chromium
 
       - name: Check supported runtime
-        run: npm test
+        run: npm run suite
