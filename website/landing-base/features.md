@@ -149,7 +149,7 @@ build.
 | Feature | Switched on by | How to show | Landing |
 |---|---|---|---|
 | Free silent drafts of the right length | `engine: stub` | the draft and the final side by side | yes |
-| Yandex SpeechKit synthesis | `engine: speechkit` | the overview's own narration | no |
+| Yandex SpeechKit synthesis | `engine: speechkit` | the engine's voice list and an optional voiced film | no |
 | A person reads the beats in a browser UI | `record`, `engine: recorded` | the recording page | yes |
 | Local synthesis offline (Piper) and the macOS voice with permission | `engine: piper`, `say` | — | no |
 | Your own engine by a contract | any command; `voice-check`, `voices` | — | no |

@@ -1,157 +1,163 @@
 ---
 contractVersion: 1
 title: Agentic Screencast — your agent makes the product film
-description: Give an AI agent the product and the point. It writes a scenario, films the real interface with real clicks and hands you a finished MP4, rebuilt from one text file.
+description: One scenario lets your agent film a real product, direct the viewer's attention and check the finished MP4 against documented rules.
 language: en
 localizations:
   ru: report.ru.md
-theme: dark
-layout: mixed
-preset: cinematic
+theme: light
+layout: landing
+preset: editorial
 scrollProgress: true
 tokens:
   accent: teal
   width: wide
-  radius: round
+  radius: sharp
 ---
 
 # Your agent makes the product film.
 
-**Give an AI agent the product and the point. It writes the scenario, films the real interface with real clicks and hands you a finished MP4 — rebuilt from one text file.**
+**Give the agent a product and a point to make. It writes one scenario, records the working interface, builds the MP4 and checks the result against directing rules.**
 
 ::::actions{placement="inline"}
-::action[Give it to your agent]{href="#start" kind="primary" effect="magnetic"}
-::action[Watch the films]{href="#films" kind="secondary"}
+::action[Make your first film]{href="#start" kind="primary"}
+::action[See the evidence]{href="#films" kind="secondary"}
 ::::
 
-::video{src="media/showcase.en.mp4" poster="media/showcase.en.jpg" caption="Made by the tool: slides that move, live backgrounds and phrases that assemble word by word."}
+::video{src="media/showcase.en.mp4" poster="media/showcase.en.jpg" caption="An example film built from a scenario. The current silent opening excerpt will replace this earlier clip."}
 
-::::::section{title="What comes out" id="films" nav="Films"}
+::::::section{title="A real product, clicked for real" id="films" nav="Live product"}
 :::lead
-Each clip was built by Agentic Screencast from a scenario file, with no video editor involved.
+The agent drives a working browser app through Playwright. The recording keeps the real cursor path, clicks, typing and named moments that the scenario can reuse.
 :::
 
-::::cards
-:::card{title="A real product, clicked for real"}
-::video{src="media/live.en.mp4" poster="media/live.en.jpg" caption="The take pushes in while typing and holds the moment a card lands in Done."}
-:::
-:::card{title="Attention in one line"}
-::video{src="media/focus.en.mp4" poster="media/focus.en.jpg" caption="The camera travels from number to chart and stops time at the peak."}
-:::
-:::card{title="Cuts and sound"}
-::video{src="media/cuts.en.mp4" poster="media/cuts.en.jpg" caption="WebGL transitions between scenes; music ducks under the narration."}
-:::
-:::card{title="Text that types in place"}
-::video{src="media/text.en.mp4" poster="media/text.en.jpg" caption="Every glyph lands where the finished line will hold it; titles, lower thirds and karaoke subtitles."}
-:::
-:::card{title="Charts from a CSV"}
-::video{src="media/charts.en.mp4" poster="media/charts.en.jpg" caption="Bars grow one after another and the peak lights up; the Russian film reads its own CSV."}
-:::
-:::card{title="Effects that point the eye"}
-::video{src="media/effects.en.mp4" poster="media/effects.en.jpg" caption="A circle, an arrow and an underline draw themselves, a glint and confetti mark success, a loupe holds the peak."}
-:::
-::::
+::video{src="media/live.en.mp4" poster="media/live.en.jpg" caption="A recorded task board responds to typing and clicks. This earlier clip is a temporary fixture for the selected live-capture excerpt."}
+
+The cursor changes shape over a control, the camera follows recorded actions, and a named mark keeps the same result available to another scene. The example is a sample app made for filming, labelled as such in the recording.
 ::::::
 
-::::::section{title="Vertical in one line" id="vertical" nav="Vertical"}
+::::::section{title="The camera knows where to look" id="attention" nav="Attention"}
 :::lead
-`format: vertical` turns the same scenario into a 9:16 short: slides reflow into a column, and karaoke subtitles, cards and stickers stay inside the safe zone of Reels, TikTok and Shorts.
+A line of the scenario names the subject when the narration reaches it. The camera moves from the whole screen to that element and can travel to the next without losing the interface around it.
+:::
+
+::video{src="media/focus.en.mp4" poster="media/focus.en.jpg" caption="A metric on the report becomes the subject. This earlier clip is a temporary fixture for the selected attention excerpt."}
+
+`spotlight` can dim everything else, read a wide row along its length, or leave the camera wide and highlight one number. A loupe, hand-drawn mark or held frame serves a different kind of detail; the film chooses the one the viewer needs.
+::::::
+
+::::::section{title="Slides that never stand still" id="slides" nav="Slides"}
+:::lead
+Twenty slide kinds give different evidence its own form; a slide is drawn at the scene's time, so a frame can be reproduced.
 :::
 
 ::::cards
-:::card{title="Built vertical"}
-::video{src="media/reel.en.mp4" poster="media/reel.en.jpg" caption="A 1080×1920 short, shown as built."}
+:::card{title="A sequence"}
+Steps enter with their spoken beats; a timeline draws toward each stop.
 :::
-:::card{title="Or cut from a landscape film"}
-`agentic-screencast build story.md --format vertical` makes a landscape scenario vertical without a rewrite: slides are drawn anew in portrait, and pages and clips are cut by a 9:16 window that follows the spotlight and the clicks at full resolution.
+:::card{title="A measurement"}
+A chart reads CSV data and highlights its peak; a counter lands on a sourced number.
 :::
-::::
-::::::
-
-::::::section{title="How a film gets made" id="how" nav="How"}
-:::steps{title="Three moves"}
-
-1. **Write one scenario.** Prose is the narration — each paragraph is a beat with its own take and length — and each scene names what is on screen.
-2. **Film the real product.** The Playwright capture API clicks, types and pushes in on the live page while recording, and names moments the scenario can refer to.
-3. **Build and check.** One command renders, voices and assembles the MP4; the tool checks every frame for readable text and shows a sheet of frames before a build.
+:::card{title="A mechanism"}
+Code types in place, while a chain draws the hand-off from scenario to MP4.
 :::
-
-```markdown
-# a scene of the film
-## done · video
-file: captures/board.webm
-spotlight: {"area":[0.66,0.2,0.32,0.46],"at":"@done","slow":"stop","card":{"title":"Moved by a real click"}}
-
-The card lands in Done — the camera holds it.
-```
-::::::
-
-::::::section{title="What is in the kit" id="kit" nav="Kit"}
-::::cards
-:::card{title="Slides that move"}
-Twenty slide kinds — hero, steps, features, timeline, counter, a chart from a CSV, before and after, parallax, a screen in perspective, code, photo, device shot, outro, a trailer card, a title card and the classic five — on live WebGL backgrounds, with fourteen ways to assemble a phrase.
-:::
-:::card{title="Attention on the real UI"}
-`spotlight` pushes in and dims the rest in one line, `autoZoom` follows the recorded clicks, and `device` frames a clip in a browser or a phone.
-:::
-:::card{title="Cuts and sound"}
-Twelve WebGL transitions between scenes and a morph that carries one element to its new place; cuts land on the music's beat, which the build finds by itself; music ducks under every beat of speech, and the mix is normalised to −14 LUFS.
-:::
-:::card{title="Effects that point the eye"}
-Marks that draw themselves, a glint across a card, seeded confetti and sparks at the moment of success, and a loupe that magnifies a detail while the camera stands — each is one line of the scenario.
-:::
-:::card{title="Every language from one file"}
-Translations sit beside the original lines; `agentic-screencast build --lang ru` builds the Russian film from the same montage, and `agentic-screencast lint --lang ru` names every visible line left untranslated.
-:::
-:::card{title="Ready for a web page"}
-`agentic-screencast web` writes the film as AV1, VP9 and H.264 with a poster, chapters and seek thumbnails, checks every copy against the film, and prints the video tag for the page.
-:::
-:::card{title="Your voice, or none yet"}
-Record the narration yourself with `agentic-screencast record`, synthesise it, or draft for free with the `stub` voice: silence of the right length, no network, no bill.
-:::
-:::card{title="A look, not a pile of colours"}
-Eleven themes — neutral by default, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint and the genre themes synthwave and blockbuster — a theme from your brand colours, any part of the film in its own theme with `theme` on a scene, and a film look with grade, vignette and grain.
-:::
-:::card{title="Checked before you watch"}
-`frames` shows a frame of every scene without a build, `lint` catches two text layers at once, `check` and `verify` judge readability and reproducibility.
+:::card{title="A change"}
+Before-and-after images share one divider, and a saved page can respond to the scene clock.
 :::
 ::::
+
+Fourteen ways to assemble a phrase are available when the phrase itself is the subject. The other words stay still long enough to read.
+::::::
+
+::::::section{title="Words stay readable" id="text" nav="Text"}
+Karaoke subtitles follow speech. On a busy interface the author can choose a dense plate; when the lower band contains the subject, subtitles move to the top or the build finds a less occupied band. Titles, lower thirds and callouts are placed at the moment they explain, with the named control protected from overlap.
+
+The examples on this page play silently; their captions carry the point without requiring a speaker. Full films can include narration and an SRT subtitle file.
+::::::
+
+::::::section{title="Cuts, sound and a voice" id="sound" nav="Sound"}
+:::steps{title="The soundtrack follows the words"}
+
+1. **Cut with purpose.** Twelve WebGL transitions are available; a morph carries a visible element into the next scene, while a hard cut or dip serves a trailer.
+2. **Give speech room.** In a voiced film, music ducks under each measured beat, can change by chapter and can stop before a title. The mix targets −14 LUFS, and the finished AAC is checked against a −1 dBTP true-peak ceiling.
+3. **Choose the voice.** SpeechKit, a recorded voice or a local engine can narrate. The free `stub` gives a silent draft its planned timing without a network call.
+
+:::
+::::::
+
+::::::section{title="A trailer, too" id="trailer" nav="Trailer"}
+The same scenario language can make a short trailer: one-to-three-word cards, a flash on an impact, hard cuts and a pause before the title. The [overview scenario's trailer chapter](https://github.com/witqq/agentic-screencast/blob/main/website/overview/story.md) is a concrete example; the landing does not need another long video to explain it.
+::::::
+
+::::::section{title="A look that belongs to the film" id="look" nav="Look"}
+Eleven themes style the slides and everything drawn over them: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, synthwave and blockbuster. The default neutral theme keeps the material in front. A logo can supply brand colours, and a trailer can use a different theme without restyling the whole film.
+
+The [visual-design guide](https://github.com/witqq/agentic-screencast/blob/main/docs/visual-design.md) explains the type, colour and composition choices; the scenario linter counts signs of a template film before a build.
+::::::
+
+::::::section{title="Made for a phone" id="vertical" nav="Phone"}
+:::lead
+`format: vertical` makes a 1080×1920 film at 30 frames a second. The camera follows the relevant part of a wide capture; slides can reflow and a page can provide a separate portrait layout.
+:::
+
+::video{src="media/reel.en.mp4" poster="media/reel.en.jpg" caption="A portrait example at 1080×1920. This earlier clip is a temporary fixture for the selected phone excerpt."}
+
+The frame can reserve space for a feed's controls or use even margins in a messenger. The build reports text that falls below the phone reading floor and a focus that cuts off its subject.
+::::::
+
+::::::section{title="Checked before you watch" id="checks" nav="Checks"}
+The checks are tied to the film's actual material:
+
+1. A scenario linter names risks such as overlapping text, a static page or a cropped focus before rendering.
+2. A labelled frame sheet and authored control moments make specific scenes inspectable.
+3. The build report compares scene timing, encoded video and audio, chapter cues and measured sound; it names overflow, cut text and small portrait labels.
+
+These checks give evidence. A person's judgment of whether a film communicates well remains a separate decision.
+::::::
+
+::::::section{title="The agent knows the craft" id="craft" nav="Craft"}
+:::lead
+The film is guided by documented decisions as well as rendering code. Before filming, the agent asks for what the request cannot settle, agrees the content, then follows eight steps with evidence on a checklist.
+:::
+
+- [65 directing rules](https://github.com/witqq/agentic-screencast/blob/main/docs/film-craft.md) record the failures that taught them, including when to move subtitles away from an interface.
+- The [scenario playbook](https://github.com/witqq/agentic-screencast/blob/main/docs/scenario-playbook.md) draws genre shapes from 79 sources.
+- The [phone guide](https://github.com/witqq/agentic-screencast/blob/main/docs/vertical-video.md) draws on 64 sources and names the space real interfaces need to read.
+- The [film checklist](https://github.com/witqq/agentic-screencast/blob/main/templates/checklist.md) keeps a step open until its result has evidence.
+
+The result is a film with an argued beginning, a readable middle and one next step, rather than a sequence of attractive screens.
+::::::
+
+::::::section{title="Ready to ship" id="delivery" nav="Delivery"}
+A completed film can be packaged for a page as AV1, VP9 and H.264, with a poster, chapters and seek thumbnails. The same scenario can carry English and Russian wording; a web package, GIF, subtitles and chapter file give the result a place in a page, README or message. The agent still checks the files it hands over and credits any licensed sound or artwork.
 ::::::
 
 ::::::section{title="Your agent's first film" id="start" nav="Start"}
 :::lead
-Ask the agent to explain a product to a named audience, in a chosen language and length. Start from a genre skeleton and a free silent draft.
+Ask your agent to explain one product to one audience. Begin with a genre skeleton and a free silent draft; decide on the final voice with the owner before paid synthesis.
 :::
 
 ```sh
-# install
 npm i -D agentic-screencast
-npx playwright install \
-  chromium
-# a skeleton and a draft
-npx agentic-screencast \
-  new product-demo
-npx agentic-screencast \
-  build --out draft.mp4
+npx playwright install chromium
+npx agentic-screencast new product-demo
+npx agentic-screencast build --out draft.mp4
 ```
-
-The skeleton uses the free `stub` voice, so the first draft costs nothing. Look at `npx agentic-screencast frames` before the build and at the MP4 after it.
 
 ::::actions{placement="inline"}
 ::action[Read the guide]{href="https://github.com/witqq/agentic-screencast#readme" kind="primary"}
-::action[See a complete example]{href="https://github.com/witqq/agentic-screencast/blob/main/example/agent-video.md" kind="secondary"}
 ::action[View the source]{href="https://github.com/witqq/agentic-screencast" kind="secondary"}
 ::::
 ::::::
 
 ::::::section{title="Boundaries" id="boundaries" nav="Boundaries"}
 :::disclosure{title="What the tool does not promise" open="false"}
-It records browsers driven by Playwright, not the desktop or other applications. It does not choose a voice for you, judge whether a script persuades, or publish a film on your behalf.
+It records browsers driven by Playwright, not arbitrary desktop applications. It does not choose a voice, decide whether a script persuades or publish a film on your behalf.
 :::
 
 :::disclosure{title="Where credentials belong" open="false"}
-Voice and capture credentials come from environment variables or an ignored `.env`, never from scenario voice data: that data takes part in cache identity and build reports.
+Voice and capture credentials come from environment variables or an ignored `.env`, never from scenario voice data that can enter cache identity and build reports.
 :::
 
-Agentic Screencast is licensed under GPL-3.0-or-later because its runtime dependency includes GPL ffmpeg. No music or sound effects ship with it; the sound guide says where to find free ones and how to credit them.
+Agentic Screencast is licensed under GPL-3.0-or-later because its runtime dependency includes GPL ffmpeg. Music and effects are selected separately and credited with their source and licence.
 ::::::
