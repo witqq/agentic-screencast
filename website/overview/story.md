@@ -149,6 +149,8 @@ After the story the agent shows you what will be on screen and films only once y
 spotlight: [{"target":".term pre","at":"b1+0.3","pan":true,"ring":false,"dim":0}]
 page: pages/term-new.ru.html
 page.en: pages/term-new.html
+pageVertical: pages/term-new.vertical.ru.html
+pageVertical.en: pages/term-new.vertical.html
 stills: b1.end :: команда и её вывод целиком
 
 Как только ясен жанр, одна команда кладёт рядом заготовку сценария под этот жанр, её страницы и чеклист.
@@ -157,9 +159,11 @@ stills: b1.end :: команда и её вывод целиком
 As soon as the genre is settled, one command puts a skeleton scenario for that genre next to the brief, with its pages and a checklist.
 
 ## c01-checklist · page
-spotlight: [{"target":".list","at":"b1+0.3","pan":true,"ring":false,"dim":0},{"target":".list","at":"b2+0.3","pan":true,"ring":false,"dim":0}]
+spotlight: [{"target":".list","at":"b1+0.3","scale":1,"ring":false,"dim":0},{"target":".list","at":"b2+0.3","scale":1,"ring":false,"dim":0}]
 page: pages/checklist.ru.html
 page.en: pages/checklist.html
+pageVertical: pages/checklist.vertical.ru.html
+pageVertical.en: pages/checklist.vertical.html
 stills: b1+1 :: строки чеклиста читаются | b2.end-0.5 :: пункты закрыты свидетельствами, внизу счётчик открытых пунктов
 
 Чеклист короткий: по пункту на шаг, а под ними — меню приёмов и правила режиссуры для сверки.
@@ -311,6 +315,8 @@ Shared reading rules for Latin words and abbreviations sit in the film's header.
 spotlight: [{"target":"svg","at":"b1+0.3","pan":true,"ring":false,"dim":0},{"target":"svg","at":"b2+0.3","pan":true,"ring":false,"dim":0}]
 page: pages/anchors.ru.html
 page.en: pages/anchors.html
+pageVertical: pages/anchors.vertical.ru.html
+pageVertical.en: pages/anchors.vertical.html
 stills: b1.end :: такты и якоря подписаны | b2.end-0.5 :: такты растянуты, метка уехала вместе со вторым тактом
 
 Моменты в сценарии называются по речи: начало второго такта, полсекунды после него, конец его речи или доля сцены.

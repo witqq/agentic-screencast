@@ -7,7 +7,7 @@
 // из пустого места.
 import { existsSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { MissingMaterialError, parseSource, sceneTheme, specOf, toPitch, SLIDES_DIR,
+import { materialFileOf, MissingMaterialError, parseSource, sceneTheme, specOf, toPitch, SLIDES_DIR,
   type Source, type UnavailableMaterial } from "./source.js";
 import { providerFor } from "./provider/index.js";
 import { msg } from "./msg.js";
@@ -56,9 +56,9 @@ export function generate(src: Source, opts: { recording?: boolean; onlyScene?: s
     const spec = specOf(scene, declared);
     // Готовый файл порождать нечего: сцена уже назвала его полем.
     if (spec.fileField) {
-      const file = scene.fields[spec.fileField]!;
-      if (opts.recording && !existsSync(resolve(dir, file))) {
-        skipped.push({ id: scene.id, kind: spec.video ? "video" : "page", file });
+      const material = materialFileOf(src, scene, spec);
+      if (opts.recording && !existsSync(resolve(dir, material.file))) {
+        skipped.push({ id: scene.id, kind: spec.video ? "video" : "page", file: material.file });
         continue;
       }
       ready.push(scene);

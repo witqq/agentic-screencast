@@ -518,8 +518,91 @@ function checklistPage() {
   }
 }
 
+// Portrait pages use the same real command output and checklist as their landscape originals.
+// This pass can run from the checked-in pages before the demo takes have been recorded.
+function portraitPages(onlyName, onlyLang) {
+  const page = (name, s) => readFileSync(join(PAGES, `${name}${s}.html`), "utf8");
+  const writePortrait = (name, s, html) => writeFileSync(join(PAGES, `${name}.vertical${s}.html`), html);
+  const portraitCss = `.wrap{left:80px;right:80px;top:112px;bottom:360px;gap:32px}
+.head small{font-size:34px}.head h1{font-size:58px}`;
+  for (const [L, s] of LANGS) {
+    if (onlyLang && onlyLang !== L) continue;
+    const terminalPage = page("term-new", s);
+    if (!onlyName || onlyName === "term-new") writePortrait("term-new", s, terminalPage.replace("</style>", `${portraitCss}
+.term .bar{font-size:36px;padding:22px}.term pre,.term.short pre{font-size:49px;line-height:1.3;padding:28px;overflow-wrap:anywhere;white-space:pre-wrap}
+</style>`));
+
+    if (!onlyName || onlyName === "checklist") {
+      const checks = readFileSync(join(HERE, "checklist.md"), "utf8");
+      const portraitChecks = [
+        { source: "Every dimension of the brief", ru: "У каждого решения в брифе есть источник", en: "Each brief decision has a source" },
+        { source: "Built with the chosen voice", ru: "Финальный ролик и кадры проверены", en: "The final film and frames are checked" },
+        { source: "`agentic-screencast lint story.md`", ru: "Сценарий проверен линтером", en: "The story passes the linter" },
+      ];
+      for (const item of portraitChecks) {
+        if (!checks.split("\n").some((line) => line.startsWith(`- [x] ${item.source}`)))
+          throw new Error(`checklist.md: closed item missing: ${item.source}`);
+      }
+      const rows = portraitChecks.map((item, i) => `<div class="item rv" data-at="b${i === 0 ? 1 : 2}+${i * 0.4 + 0.2}"><span class="box"><i></i></span><span class="txt">${esc(item[L])}</span></div>`).join("");
+      const checklist = page("checklist", s).replace(/<div class="panel list">[\s\S]*?<\/div>\n<div class="count/, `<div class="panel list">${rows}</div>\n<div class="count`);
+      if (!checklist.includes(rows)) throw new Error(`checklist${s}.html: list panel missing`);
+      writePortrait("checklist", s, checklist.replace("</style>", `${portraitCss}
+.wrap{bottom:480px}
+.list{flex:none;padding:32px}.item{grid-template-columns:54px 1fr;gap:20px;margin:24px 0;font-size:50px;line-height:1.22}
+.box{width:42px;height:42px}.count{font-size:38px}.count b{font-size:44px}
+</style>`));
+    }
+
+    if (onlyName && onlyName !== "anchors") continue;
+    // The two measured durations come from the same generated timing diagram, then reflow
+    // into stacked, phone-sized tracks. The second track remains longer when the voice slows.
+    const widths = [...page("anchors", s).matchAll(/<rect x="[^"]+" y="(?:140|400)" width="([^"]+)" height="56" rx="12" class="b[12]"\/>/g)]
+      .map((m) => Number(m[1]));
+    const sourceTicks = [...page("anchors", s).matchAll(/<line x1="([^"]+)" x2="[^"]+" y1="(?:128|388)" y2="(?:210|470)" class="tick"\/>/g)]
+      .map((m) => Number(m[1]));
+    const sourceOutline = [...page("anchors", s).matchAll(/<rect x="250" y="(?:140|400)" width="([^"]+)" height="56" rx="12" class="sc"\/>/g)]
+      .map((m) => Number(m[1]));
+    if (widths.length !== 4 || widths.some((w) => !Number.isFinite(w) || w <= 0))
+      throw new Error(`anchors${s}.html: measured timing bars are missing`);
+    if (sourceTicks.length !== 10 || sourceTicks.some((x) => !Number.isFinite(x)) || sourceOutline.length !== 2)
+      throw new Error(`anchors${s}.html: positioned timing marks are missing`);
+    const scale = 820 / (widths[2] + widths[3]);
+    const track = (at, y, label, a, b, sourceMarks, outline) => {
+      const first = Math.round(a * scale), second = Math.round(b * scale);
+      const [start, share, beat2, afterBeat2, end] = sourceMarks.map((x) => Math.round((x - 250) * scale));
+      const camera = L === "ru" ? "наезд @ b2" : "push-in @ b2";
+      return `<g class="rv" data-at="${at}"><text x="0" y="${y}" class="label">${esc(label)}</text>
+<rect x="0" y="${y + 35}" width="${first}" height="100" rx="16" class="first"/>
+<rect x="${first}" y="${y + 35}" width="${second}" height="100" rx="16" class="second"/>
+<text x="24" y="${y + 104}" class="beat">b1</text><text x="${first + 24}" y="${y + 104}" class="beat">b2</text>
+<rect x="0" y="${y + 35}" width="${Math.round(outline * scale)}" height="100" rx="16" class="outline"/>
+${[start, share, beat2, afterBeat2, end].map((x) => `<line x1="${x}" x2="${x}" y1="${y + 25}" y2="${y + 151}" class="tick"/>`).join("")}
+<text x="${share}" y="${y + 220}" class="mark" text-anchor="middle">40%</text>
+<text x="${afterBeat2 + 22}" y="${y + 293}" class="mark" text-anchor="start">b2+0.4</text>
+<text x="${end}" y="${y + 220}" class="mark" text-anchor="end">b2.end</text>
+<path d="M ${beat2} ${y + 152} V ${y + 316}" class="leader"/>
+<rect x="${beat2 - 190}" y="${y + 316}" width="380" height="64" rx="16" class="chip"/>
+<text x="${beat2}" y="${y + 361}" class="callout" text-anchor="middle">${camera}</text></g>`;
+    };
+    const title = L === "ru" ? "Моменты называются по речи" : "Moments follow the speech";
+    const labelFast = L === "ru" ? "15 знаков/с" : "15 chars/s";
+    const labelSlow = L === "ru" ? "10 знаков/с" : "10 chars/s";
+    writePortrait("anchors", s, shell(L, "anchors", `<div class="wrap portrait">
+${head(L === "ru" ? "Якоря" : "Anchors", title)}
+<svg viewBox="0 0 900 1080" aria-label="${esc(title)}">${track("b1", 100, labelFast, widths[0], widths[1], sourceTicks.slice(0, 5), sourceOutline[0])}${track("b2", 550, labelSlow, widths[2], widths[3], sourceTicks.slice(5), sourceOutline[1])}</svg>
+</div>`, `${portraitCss}
+.portrait svg{width:100%;height:auto;max-height:1250px;flex:1;overflow:visible}
+.label{font:600 56px var(--sans);fill:var(--ink)}.beat{font:700 54px var(--mono);fill:var(--bg)}
+.mark{font:48px var(--mono);fill:var(--body)}.first{fill:var(--acc2)}.second{fill:var(--acc)}
+.outline{fill:none;stroke:var(--line);stroke-width:5;stroke-dasharray:12 12}
+.tick,.leader{stroke:var(--acc2);stroke-width:5}.leader{fill:none;stroke-dasharray:8 8}
+.chip{fill:var(--card);stroke:var(--acc2);stroke-width:4}.callout{fill:var(--ink);font:600 48px var(--sans)}`));
+  }
+}
+
 if (args.includes("--demo")) { variants(); demo(); }
 if (args.length === 0) { variants(); outputs(); await images(); }
-if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); }
+if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); portraitPages(); }
+if (args.includes("--portrait-pages")) portraitPages(args[args.indexOf("--portrait-pages") + 1], args[args.indexOf("--portrait-pages") + 2]);
 if (args.includes("--frames")) frames();
 console.log("material ready");

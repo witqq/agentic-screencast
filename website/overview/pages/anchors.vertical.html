@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>anchors</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.wrap{left:80px;right:80px;top:112px;bottom:360px;gap:32px}
+.head small{font-size:34px}.head h1{font-size:58px}
+.portrait svg{width:100%;height:auto;max-height:1250px;flex:1;overflow:visible}
+.label{font:600 56px var(--sans);fill:var(--ink)}.beat{font:700 54px var(--mono);fill:var(--bg)}
+.mark{font:48px var(--mono);fill:var(--body)}.first{fill:var(--acc2)}.second{fill:var(--acc)}
+.outline{fill:none;stroke:var(--line);stroke-width:5;stroke-dasharray:12 12}
+.tick,.leader{stroke:var(--acc2);stroke-width:5}.leader{fill:none;stroke-dasharray:8 8}
+.chip{fill:var(--card);stroke:var(--acc2);stroke-width:4}.callout{fill:var(--ink);font:600 48px var(--sans)}
+</style></head><body>
+<div class="wrap portrait">
+<div class="head"><small>Anchors</small><h1>Moments follow the speech</h1></div>
+<svg viewBox="0 0 900 1080" aria-label="Moments follow the speech"><g class="rv" data-at="b1"><text x="0" y="100" class="label">15 chars/s</text>
+<rect x="0" y="135" width="330" height="100" rx="16" class="first"/>
+<rect x="330" y="135" width="217" height="100" rx="16" class="second"/>
+<text x="24" y="204" class="beat">b1</text><text x="354" y="204" class="beat">b2</text>
+<rect x="0" y="135" width="626" height="100" rx="16" class="outline"/>
+<line x1="0" x2="0" y1="125" y2="251" class="tick"/><line x1="251" x2="251" y1="125" y2="251" class="tick"/><line x1="330" x2="330" y1="125" y2="251" class="tick"/><line x1="360" x2="360" y1="125" y2="251" class="tick"/><line x1="547" x2="547" y1="125" y2="251" class="tick"/>
+<text x="251" y="320" class="mark" text-anchor="middle">40%</text>
+<text x="382" y="393" class="mark" text-anchor="start">b2+0.4</text>
+<text x="547" y="320" class="mark" text-anchor="end">b2.end</text>
+<path d="M 330 252 V 416" class="leader"/>
+<rect x="140" y="416" width="380" height="64" rx="16" class="chip"/>
+<text x="330" y="461" class="callout" text-anchor="middle">push-in @ b2</text></g><g class="rv" data-at="b2"><text x="0" y="550" class="label">10 chars/s</text>
+<rect x="0" y="585" width="495" height="100" rx="16" class="first"/>
+<rect x="495" y="585" width="325" height="100" rx="16" class="second"/>
+<text x="24" y="654" class="beat">b1</text><text x="519" y="654" class="beat">b2</text>
+<rect x="0" y="585" width="898" height="100" rx="16" class="outline"/>
+<line x1="0" x2="0" y1="575" y2="701" class="tick"/><line x1="359" x2="359" y1="575" y2="701" class="tick"/><line x1="495" x2="495" y1="575" y2="701" class="tick"/><line x1="525" x2="525" y1="575" y2="701" class="tick"/><line x1="820" x2="820" y1="575" y2="701" class="tick"/>
+<text x="359" y="770" class="mark" text-anchor="middle">40%</text>
+<text x="547" y="843" class="mark" text-anchor="start">b2+0.4</text>
+<text x="820" y="770" class="mark" text-anchor="end">b2.end</text>
+<path d="M 495 702 V 866" class="leader"/>
+<rect x="305" y="866" width="380" height="64" rx="16" class="chip"/>
+<text x="495" y="911" class="callout" text-anchor="middle">push-in @ b2</text></g></svg>
+</div>
+<script src="kit.js"></script>
+</body></html>

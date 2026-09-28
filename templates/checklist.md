@@ -76,7 +76,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Theme with its fonts, a scene in another theme, brand theme, film look — `theme`, `theme --from`, `look`, `help themes`
 - Music, a track per part or a music stop, accents (a hit before the voice: `speechAt`), loudness, a film without sound — `music` (header and scene), `sfx`, `loudness`, `audio: false`, `help sound`
 - Voice agreed with the owner (or settled by the request): an engine built into the tool, the owner's own voice, or silent; drafts on `stub`; a system voice (`say`) only with the owner's explicit permission — `voice`, `agentic-screencast record`, `help voice`, skill section Voice
-- Vertical and square films: the feed's margins or even ones by where the film is watched; an architecture or an interface on a phone read at 48 px or more (`legibility` in the build report, `pan` along a wide subject) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`
+- Vertical and square films: choose margins for where the film is watched; reflow a `page` with `pageVertical` or use `pan` along a wide subject, then inspect the final phone frame for key UI at 48 px or more and subtitles clear of it (`legibility` in the build report) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`
 - Several languages — `.ru` fields, `[ru]` blocks, `--lang`, `help vertical`
 - Control frames — `stills`, `help vertical`
 - Web page output, a GIF for a README or chat — `agentic-screencast web` (`--gif`), `help web`

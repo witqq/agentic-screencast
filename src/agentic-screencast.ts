@@ -66,8 +66,8 @@ const rest = process.argv.slice(3);
     useLang(rest[i + 1]);
     rest.splice(i, 2);
   }
-  // Формат сборки: `build --format vertical` у горизонтального сценария кадрирует
-  // его страницы и клипы. У `new` флаг значит своё — формат заготовки.
+  // Формат сборки: `build --format vertical` пересобирает слайды, берёт
+  // pageVertical у страницы либо кадрирует её исходник и видеоклипы.
   const f = rest.indexOf("--format");
   if (f >= 0 && process.argv[2] !== "new") {
     if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error("--format: name one, e.g. --format vertical"); process.exit(2); }
@@ -119,7 +119,10 @@ film or a part; help slides lists them all), page (a saved
 or self-contained HTML page), video (a finished clip or a live take — help
 capture). agentic-screencast schema <kind> prints a kind's fields.
 
-  page    page: file.html; target: a CSS selector the camera and the frame
+  page    page: file.html; optional pageVertical: file.vertical.html replaces
+          that page in a vertical build (pageVertical.en for an English film).
+          A selected portrait file is required and also used by frames and
+          the recorder preview. target: a CSS selector the camera and the frame
           check use; mustRead: text the frame check must find readable;
           zoom: 1.2 enlarges the whole page for the scene; spotFrom: 2.5
           starts its spot of light at that second; focus: selector @ anchor
@@ -961,7 +964,9 @@ A landscape film made vertical without a rewrite:
   agentic-screencast build story.md --format vertical --out short.mp4
 Slides are drawn anew in portrait. A page is rendered in its own landscape
 frame at full density and cut by a 9:16 window that follows the spotlight
-target; a clip or a frozen frame is cut by a window that glides between the
+target unless the scene names pageVertical: pages/phone.html. That HTML is
+drawn directly in the portrait viewport, without the landscape crop; a
+missing selected file fails the build. A clip or a frozen frame is cut by a window that glides between the
 focus areas and recorded clicks. Captions, titles and cards are laid out
 again inside the vertical safe zone; a card set near the focus moves to the
 top. Letterbox bars from look are left out and the build report says so; a
@@ -971,7 +976,7 @@ Translations live in the same scenario: title.ru:, key.ru: fields
 (kicker.ru:, overlay.ru:, voice.ru: in the header) and a [ru] narration block per scene with the same
 number of beats, since anchors like b2 count beats. A page or a clip that
 shows an interface needs its own translated file: page.ru: page.ru.html,
-file.ru: take.ru.webm. --lang ru on build, lint, frames, script or scenes
+pageVertical.ru: page.vertical.ru.html, file.ru: take.ru.webm. --lang ru on build, lint, frames, script or scenes
 picks the variant, each language generating into its own place; run lint
 --lang ru before a build — it names every visible field left untranslated.
 
@@ -1013,6 +1018,7 @@ Helpers that save a full build:
       paths of the subtitle and chapter files ("srt", "chaptersFile").
       The report on stdout is JSON: "out", "duration", "scenes" (per scene:
       "start" and "end" in the film, transitions' overlaps included,
+      "nativePortrait" for a page selected through pageVertical,
       "legibility" — the smallest text of each focus's subject at the
       middle of its hold, in frame pixels, against the 48 px a phone reads
       on a 1080 frame (stderr names every subject under it),

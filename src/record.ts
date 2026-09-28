@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { renderScene } from "./render.js";
 import { generate } from "./generate.js";
-import { parseSource, sceneTheme, specOf, type RawScene, type Source } from "./source.js";
+import { materialFileOf, parseSource, sceneTheme, specOf, type RawScene, type Source } from "./source.js";
 import { speechFor } from "./speech.js";
 import { durationOf, ff } from "./voice/audio.js";
 import { recordingPath, slotFor, storeDir } from "./voice/recorded.js";
@@ -187,7 +187,7 @@ export async function serve(opts: ServerOpts): Promise<Server> {
     // сервер не знает — это знание уехало к поставщикам.
     const spec = specOf(scene, src.providers ?? {});
     const page = spec.fileField
-      ? String(scene.fields[spec.fileField] ?? "")
+      ? materialFileOf(src, scene, spec).file
       : `${slidesDir}/${scene.id}.html`;
     const { shots } = await renderScene(
       { page, duration: 10, offline: spec.offline ?? true, __src: src.dir,

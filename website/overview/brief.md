@@ -280,14 +280,15 @@ line against the command that printed it (`make-material.mjs`).
 
 ## The vertical cut
 
-The landscape pages stay; for the vertical build every terminal page (`c01-new`, `c02-cache`,
-`c02-untranslated`, `c02-typo`, `c08-voices`, `c10-brand`, `c11-legible`, `c12-lint`, `c12-report`,
-`c14-web`) and every wide diagram (`c02-anchors`, `c07-duck`, `c02-beats`, `c01-checklist`,
-`c12-stills`, `c14-files`, `c11-reframe`) carries a `spotlight` with `pan` along its text on every
-beat, and `c11-zones`, `c13-credits` and `c14-ask` a `focus` per beat, so the 9:16 window reads the
-text instead of cutting it (checked on single-scene vertical builds of `c01-new`, `c02-anchors` and
-`c01-checklist`: the window travels along the lines; the build still reports text of 42–43 px against
-the 48 px floor there). In landscape the pan stays near the whole page.
+The landscape pages stay. In the vertical build, `c01-new`, `c01-checklist` and `c02-anchors`
+select separately laid-out `pageVertical` pages in both languages. The terminal command, checklist
+and positioned timing marks are readable at the phone's 48 px floor, with the subtitles below them.
+The checklist focus stays at scale 1 so the whole list and its count remain in view. Other terminal
+pages (`c02-cache`, `c02-untranslated`, `c02-typo`, `c08-voices`, `c10-brand`, `c11-legible`,
+`c12-lint`, `c12-report`, `c14-web`) and wide diagrams (`c07-duck`, `c02-beats`, `c12-stills`,
+`c14-files`, `c11-reframe`) still use a `spotlight` with `pan` along their text on every beat.
+`c11-zones`, `c13-credits` and `c14-ask` use a `focus` per beat. In landscape the original pages
+remain the material; the complete vertical film still needs frame-by-frame acceptance.
 
 Not suited for vertical clips, because their point is two things side by side or a dense grid of small
 text that a 9:16 window cannot hold: `c00-file` and `c14-bookend` (the scenario beside its frame),

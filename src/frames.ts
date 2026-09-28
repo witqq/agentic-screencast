@@ -56,7 +56,7 @@ try { g = generateFrom(resolve(source), { ...(only ? { onlyScene: only } : {}), 
 const SRC = dirname(g.pitchFile);
 const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as {
   scenes: Array<RenderScene & { id: string; provider: string; kind: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
-    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto" }>;
+    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true }>;
   frame?: { width?: number; height?: number }; theme?: Record<string, string>; tail?: number;
   safe?: { top: number; bottom: number; left: number; right: number };
   emoji?: { dir: string }; dir?: string;
@@ -110,6 +110,11 @@ for (const s of pitch.scenes) {
   const { starts, ends } = estimateBeats(s.beats, Number(s.speechAt ?? 0), cps);
   const spoken = ends.at(-1) ?? (s.beats.length ? Number(s.speechAt ?? 0) : 0);
   const page = resolve(SRC, String(s.page));
+  if (!existsSync(page)) {
+    const field = s.nativePortrait ? "pageVertical" : specOf(s, pitch.providers).fileField ?? "page";
+    console.error(msg("frames.source", { path: args[0]!, why: msg("source.fileMissing", { field, file: s.page }) }));
+    process.exit(2);
+  }
   // Видеосцена играет кусок клипа (from/to): и длина, и кадр — из куска, а секунды сцены и
   // freezeAt считаются от его начала, как в сборке.
   const whole = s.video ? clipLength(page) : 0;

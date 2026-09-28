@@ -260,6 +260,14 @@ The tool brings three providers with it:
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
 | `video` | a ready video file instead of a drawn page | `file` |
 
+For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 frame.
+It is selected when the film is vertical, including with `build --format vertical`;
+otherwise `page` is used. Translate file choices with `page.en` and
+`pageVertical.en` when the film has an English variant. Without `pageVertical`,
+a landscape page keeps the usual moving crop in a vertical build. The selected
+portrait page also appears in `frames` and the recording preview; a missing
+selected file is an error, not a reason to use the landscape file.
+
 The third column names only the required fields; the other allowed ones
 are listed by `agentic-screencast schema`. For the chain that is `back` — the caption of the
 return arrow; for the quantity, `label` and `tags`; for a screen scene, `zoom`,
@@ -272,6 +280,9 @@ at the start of an entry becomes its icon. If `at` has not named the moments, th
 come out each on its own beat when there are enough beats, and otherwise at an even step
 over the whole speech of the scene. Images and code are embedded into the generated page,
 so replacing a file under the same name rebuilds the scene.
+For a dense `slides.steps`, six to eight items use two columns in landscape and
+a vertical sequence in portrait. Four short `slides.chain` nodes share one
+landscape row and stack in portrait. Check the rendered frame for longer copy.
 
 A video insert is fitted to the film's frame: it is scaled preserving
 proportions, padded to the required size and converted to the film's

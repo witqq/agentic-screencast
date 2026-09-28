@@ -252,9 +252,14 @@ subject and `overlay.loupe` for one detail (`help overlay`, `help text`); a diag
 narration's beats as a `page` of your own — its elements carry `data-at` anchors and
 `window.renderAt(t)` draws them, as `help video` shows under `page` — or a slide that enters its
 items one by one (`help slides`); a spotlight per beat walking the flow, consecutive focuses travelling without a
-return to the overview (`help overlay`). A page written for a vertical film is laid out in frame
-pixels, so its text is at least 48 px; a live take of your own product recorded at a phone-width
-viewport reflows instead of being zoomed (`help capture`).
+return to the overview (`help overlay`). For one scenario shipped in landscape and portrait,
+give a `page` scene both `page: pages/diagram.html` and
+`pageVertical: pages/diagram.vertical.html`; add `.en` variants for translated pages.
+The portrait page replaces the landscape page in a vertical build instead of being cropped.
+Lay it out in frame pixels so the text the viewer must read reaches at least 48 px, then
+inspect `frames --format vertical` and the final film: the report's size alone does not
+prove that subtitles leave the page visible. A live take of your own product recorded at
+a phone-width viewport reflows instead of being zoomed (`help capture`).
 
 A diagram built piece by piece, one part per beat of narration, read at a phone pace:
 

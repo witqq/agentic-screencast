@@ -232,7 +232,7 @@ function Chain({ s, w }: Props): JSX.Element {
   return (
     <>
       <Head s={s} kicker={s.kicker ?? w.chain} title={s.title} />
-      <div className="chain">
+      <div className="chain" data-n={nodes.length}>
         {nodes.map((n, i) => (
           <Reveal at={at(s, i, total)} enter={enterOf(s, "pop")} key={`${n.label}-${i}`}>
             <span className="pairwrap">
@@ -384,7 +384,7 @@ function Steps({ s }: Props): JSX.Element {
   return (
     <Stage s={s} cls="k-steps" move="drift">
       <KHead s={s} />
-      <ol className="steps" data-n={items.length}>
+      <ol className="steps" data-n={items.length} data-layout={items.length >= 6 && items.length <= 8 ? "two" : "rail"}>
         <span className="steps-rail"><span className="steps-fill" /></span>
         {items.map((it, i) => (
           <li key={i}>

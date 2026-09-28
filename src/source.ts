@@ -314,6 +314,8 @@ export interface PitchScene {
   kind: string;
   /** страница либо готовый файл: что именно, знает поставщик */
   page: string;
+  /** A page authored for the portrait viewport, selected instead of cropping a landscape page. */
+  nativePortrait?: true;
   /** материал — видеофайл, а не страница */
   video?: boolean;
   target?: string;
@@ -429,6 +431,16 @@ export function specOf(scene: { provider: string; kind: string },
       kinds: Object.keys(kinds).join(", ") || "—" }));
   }
   return spec;
+}
+
+/** Select a ready material file once for build, frames, lint, and recorder pictures. */
+export function materialFileOf(src: Source, scene: RawScene, spec: KindSpec): { file: string; nativePortrait?: true } {
+  if (!spec.fileField) throw new Error(`scene ${scene.id} does not name a ready material file`);
+  const portrait = scene.provider === "page" && src.format === "vertical" && scene.fields.pageVertical !== undefined;
+  const field = portrait ? "pageVertical" : spec.fileField;
+  const file = scene.fields[field]?.trim() ?? "";
+  if (!file) throw new SourceError(msg("source.fileMissing", { field, file }));
+  return { file, ...(portrait ? { nativePortrait: true } : {}) };
 }
 
 export class SourceError extends Error {
@@ -1232,7 +1244,8 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     const spec = specOf(s, src.providers ?? {});
     // Материал: готовый файл, названный полем, либо страница, которую
     // поставщик порождает рядом с источником.
-    const page = spec.fileField ? f[spec.fileField]! : `${slidesDir}/${s.id}.html`;
+    const material = spec.fileField ? materialFileOf(src, s, spec) : undefined;
+    const page = material ? material.file : `${slidesDir}/${s.id}.html`;
     const effects: Record<string, unknown> = { ...spec.effects };
     // Наезд и пятно — ручки самой сцены поверх умолчаний поставщика.
     const zoom = effects.zoom as Record<string, unknown> | undefined;
@@ -1265,6 +1278,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       provider: s.provider,
       kind: s.kind,
       page,
+      ...(material?.nativePortrait ? { nativePortrait: true } : {}),
       caption: s.caption,
       effects,
       ...(f.overlay ? { overlay: parseOverlay(f.overlay, overlayMoment(s.beats, f, src.voice)) } : {}),

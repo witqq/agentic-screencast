@@ -116,6 +116,7 @@ interface BuiltBeat {
 interface BuiltScene {
   id: string;
   page: string;
+  nativePortrait?: true;
   caption: string;
   beats: BuiltBeat[];
   tail?: number;
@@ -652,7 +653,7 @@ async function main() {
     // сцены раньше, а кадры этой сцены от него не зависят.
     // Кадрируется ли сцена из горизонтального кадра — часть ключа: тот же материал в том же
     // кадре выглядит иначе, если его не перекладывают, а вырезают окном.
-    const reframe = pitch.reframe && (s.provider === "page" || s.video) ? pitch.reframe : null;
+    const reframe = pitch.reframe && ((s.provider === "page" && !s.nativePortrait) || s.video) ? pitch.reframe : null;
     // Контрольные кадры снимаются из готового ролика и сегмента не меняют: в ключ они не входят.
     const key = keyOf({ ...s, __at: undefined, stills: undefined, __speech: s.beats.map((b) => b.__speech), __starts: starts,
       // Тема, которой рисуется слой: у слайда она вписана и в страницу, а у видеосцены страница —
@@ -1085,6 +1086,7 @@ async function main() {
   for (const entry of log) {
     if (entry.overflow) process.stderr.write(msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }) + "\n");
     const sc = pitch.scenes.find((x) => x.id === entry.id);
+    if (sc?.nativePortrait) entry.nativePortrait = true;
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;
     if (sc?.__autoZoom !== undefined) entry.camera = sc.overlay?.camera?.map((c) => ({ at: Number(c.at.toFixed(3)), area: c.area }));
   }

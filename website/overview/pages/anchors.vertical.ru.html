@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>anchors</title>
+<link rel="stylesheet" href="kit.css">
+<style>
+/* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
+/* One quiet motion on the scene's clock: the grid of kit.css drifting. */
+body::before{animation:drift 20s linear infinite}
+.wrap{left:80px;right:80px;top:112px;bottom:360px;gap:32px}
+.head small{font-size:34px}.head h1{font-size:58px}
+.portrait svg{width:100%;height:auto;max-height:1250px;flex:1;overflow:visible}
+.label{font:600 56px var(--sans);fill:var(--ink)}.beat{font:700 54px var(--mono);fill:var(--bg)}
+.mark{font:48px var(--mono);fill:var(--body)}.first{fill:var(--acc2)}.second{fill:var(--acc)}
+.outline{fill:none;stroke:var(--line);stroke-width:5;stroke-dasharray:12 12}
+.tick,.leader{stroke:var(--acc2);stroke-width:5}.leader{fill:none;stroke-dasharray:8 8}
+.chip{fill:var(--card);stroke:var(--acc2);stroke-width:4}.callout{fill:var(--ink);font:600 48px var(--sans)}
+</style></head><body>
+<div class="wrap portrait">
+<div class="head"><small>Якоря</small><h1>Моменты называются по речи</h1></div>
+<svg viewBox="0 0 900 1080" aria-label="Моменты называются по речи"><g class="rv" data-at="b1"><text x="0" y="100" class="label">15 знаков/с</text>
+<rect x="0" y="135" width="339" height="100" rx="16" class="first"/>
+<rect x="339" y="135" width="208" height="100" rx="16" class="second"/>
+<text x="24" y="204" class="beat">b1</text><text x="363" y="204" class="beat">b2</text>
+<rect x="0" y="135" width="629" height="100" rx="16" class="outline"/>
+<line x1="0" x2="0" y1="125" y2="251" class="tick"/><line x1="251" x2="251" y1="125" y2="251" class="tick"/><line x1="339" x2="339" y1="125" y2="251" class="tick"/><line x1="370" x2="370" y1="125" y2="251" class="tick"/><line x1="547" x2="547" y1="125" y2="251" class="tick"/>
+<text x="251" y="320" class="mark" text-anchor="middle">40%</text>
+<text x="392" y="393" class="mark" text-anchor="start">b2+0.4</text>
+<text x="547" y="320" class="mark" text-anchor="end">b2.end</text>
+<path d="M 339 252 V 416" class="leader"/>
+<rect x="149" y="416" width="380" height="64" rx="16" class="chip"/>
+<text x="339" y="461" class="callout" text-anchor="middle">наезд @ b2</text></g><g class="rv" data-at="b2"><text x="0" y="550" class="label">10 знаков/с</text>
+<rect x="0" y="585" width="509" height="100" rx="16" class="first"/>
+<rect x="509" y="585" width="311" height="100" rx="16" class="second"/>
+<text x="24" y="654" class="beat">b1</text><text x="533" y="654" class="beat">b2</text>
+<rect x="0" y="585" width="902" height="100" rx="16" class="outline"/>
+<line x1="0" x2="0" y1="575" y2="701" class="tick"/><line x1="361" x2="361" y1="575" y2="701" class="tick"/><line x1="509" x2="509" y1="575" y2="701" class="tick"/><line x1="539" x2="539" y1="575" y2="701" class="tick"/><line x1="820" x2="820" y1="575" y2="701" class="tick"/>
+<text x="361" y="770" class="mark" text-anchor="middle">40%</text>
+<text x="561" y="843" class="mark" text-anchor="start">b2+0.4</text>
+<text x="820" y="770" class="mark" text-anchor="end">b2.end</text>
+<path d="M 509 702 V 866" class="leader"/>
+<rect x="319" y="866" width="380" height="64" rx="16" class="chip"/>
+<text x="509" y="911" class="callout" text-anchor="middle">наезд @ b2</text></g></svg>
+</div>
+<script src="kit.js"></script>
+</body></html>
