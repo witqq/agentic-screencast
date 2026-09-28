@@ -443,9 +443,9 @@ export interface MorphInput { aBg: string; bBg: string; aFull: string; bFull: st
 /**
  * Кадры перехода общим элементом. Фон — наплыв кадра первой сцены без предмета в кадр
  * второй без предмета; предмет — один прямоугольник, который едет и меняет размер от
- * своего места в первой сцене к месту во второй (smoothstep), а его картинка по пути
- * перетекает из вида в первой сцене в вид во второй. Старого и нового места в середине
- * перехода предмет не занимает: там фон без него.
+ * своего места в первой сцене к месту во второй (smoothstep). Содержимое предмета
+ * меняется на полпути: смешение двух разных раскладок текста даёт нечитаемые двойные
+ * надписи. Старого и нового места в середине перехода предмет не занимает: там фон без него.
  */
 export async function renderMorph(opts: MorphInput & { width: number; height: number; n: number; out: string }):
 Promise<{ frames: string[]; renderer: Renderer }> {
@@ -477,8 +477,12 @@ Promise<{ frames: string[]; renderer: Renderer }> {
           vec4 bg = mix(texture(abg, uv), texture(bbg, uv), e);
           vec4 r = mix(ra, rb, e);
           vec2 l = (uv - r.xy) / r.zw;
-          if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0)
-            color = mix(texture(af, ra.xy + l * ra.zw), texture(bf, rb.xy + l * rb.zw), e);
+          if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0) {
+            if (progress < 0.5)
+              color = texture(af, ra.xy + l * ra.zw);
+            else
+              color = texture(bf, rb.xy + l * rb.zw);
+          }
           else color = bg;
         }`);
       if (!vs || !fs) return false;

@@ -3,7 +3,7 @@ lang: en
 format: vertical
 zone: platform
 voice: {"engine":"stub","name":"silent","cps":13}
-captions: {"style":"karaoke","everywhere":true,"srt":true}
+captions: {"style":"karaoke","look":"plate","everywhere":true,"srt":true}
 
 ## hook · slides.hero
 kicker: <Who it is for>

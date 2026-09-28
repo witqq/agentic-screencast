@@ -11,6 +11,16 @@
  */
 import type { OverlayCamera } from "./overlay.js";
 
+// Provenance belongs to the build, not the authored overlay grammar. A symbol survives
+// deviceFor's object spread but is absent from JSON sent to the scene renderer.
+const automaticCue = Symbol("automatic camera cue");
+type CameraCue = OverlayCamera & { [automaticCue]?: true };
+export function markAutomaticCamera<T extends OverlayCamera>(cue: T): T {
+  (cue as CameraCue)[automaticCue] = true;
+  return cue;
+}
+const isAutomaticCamera = (cue: OverlayCamera): boolean => (cue as CameraCue)[automaticCue] === true;
+
 /**
  * Доля прохождения с плавным началом и концом — та же кривая, что у слоя
  * композиции (smootherstep): подсветка и картинка едут в одном темпе. В
@@ -75,21 +85,34 @@ function cursorAt(path: CursorPath, t: number): { x: number; y: number } | null 
  * этой зоны, с мягким догоном. Шаг — десятая секунды; результат — ровные отрезки пути, чистая
  * функция пути курсора и времени сцены.
  */
-function followLegs(path: CursorPath, from: number, to: number, z: number, start: { x: number; y: number }): { legs: Leg[]; end: { x: number; y: number } } {
+function followLegs(path: CursorPath, from: number, to: number, z: number, start: { x: number; y: number },
+  view = { x: 1, y: 1 }): { legs: Leg[]; end: { x: number; y: number } } {
   const legs: Leg[] = [];
-  const half = 0.5 / z, dead = 0.3 / z, dt = 0.1;
+  const halfX = 0.5 * view.x / z, halfY = 0.5 * view.y / z;
+  const deadX = 0.3 * view.x / z, deadY = 0.3 * view.y / z, dt = 0.1;
   let { x, y } = start;
-  const clampC = (v: number): number => Math.min(1 - half, Math.max(half, v));
+  const clampC = (v: number, half: number): number => Math.min(1 - half, Math.max(half, v));
   for (let t = from; t < to - 1e-6; t += dt) {
     const t1 = Math.min(to, t + dt), c = cursorAt(path, t1);
     if (!c) break;
-    const want = (cur: number, v: number): number => (v > cur + dead ? v - dead : v < cur - dead ? v + dead : cur);
+    const want = (cur: number, v: number, dead: number): number => (v > cur + dead ? v - dead : v < cur - dead ? v + dead : cur);
     const k = Math.min(1, dt * 6);
-    const nx = clampC(x + (want(x, c.x) - x) * k), ny = clampC(y + (want(y, c.y) - y) * k);
+    const nx = clampC(x + (want(x, c.x, deadX) - x) * k, halfX);
+    const ny = clampC(y + (want(y, c.y, deadY) - y) * k, halfY);
     if (Math.abs(nx - x) > 1e-5 || Math.abs(ny - y) > 1e-5) legs.push({ t0: t, t1, dz: 0, dx: nx - x, dy: ny - y, linear: true });
     x = nx; y = ny;
   }
   return { legs, end: { x, y } };
+}
+
+/** Generated action cues keep their subject until the pointer first reaches that subject. */
+function followStart(cue: OverlayCamera, path: CursorPath, end: number): number | null {
+  const [left, top, width, height] = cue.area!;
+  const inside = (p: { x: number; y: number } | null): boolean => Boolean(p
+    && p.x >= left && p.x <= left + width && p.y >= top && p.y <= top + height);
+  if (inside(cursorAt(path, cue.at))) return cue.at;
+  for (const point of path) if (point.t >= cue.at && point.t <= end && inside(point)) return point.t;
+  return null;
 }
 
 /**
@@ -106,9 +129,12 @@ export function cameraLegs(cues: readonly OverlayCamera[], path: CursorPath = []
     ({ z, x, y } = to);
     const end = cue.at + move + cue.hold;
     if (cue.follow === "cursor" && path.length) {
-      const f = followLegs(path, cue.at + move, end, z, { x, y });
-      legs.push(...f.legs);
-      ({ x, y } = f.end);
+      const entered = isAutomaticCamera(cue) ? followStart(cue, path, end) : cue.at;
+      if (entered !== null) {
+        const f = followLegs(path, Math.max(cue.at + move, entered), end, z, { x, y });
+        legs.push(...f.legs);
+        ({ x, y } = f.end);
+      }
     }
     if (cue.keep) continue;
     legs.push({ t0: end, t1: end + back, dz: 1 - z, dx: 0.5 - x, dy: 0.5 - y });
@@ -139,17 +165,45 @@ export function cameraFilter(cues: readonly OverlayCamera[], fps: number, path: 
   return { z: `min(6,${zoom})`, x: span("iw", "x"), y: span("ih", "y") };
 }
 
-/** Шаги пути окна кадрирования: переезд к середине области за [t0, t1]. */
-function windowLegs(cues: readonly OverlayCamera[]): { x0: number; legs: Array<{ t0: number; t1: number; dx: number }> } {
+/** Дополнительный масштаб портретного окна, ограниченный полным вмещением предмета. */
+function windowZoom(cue: OverlayCamera, share: number): number {
+  const area = cue.area!;
+  const asked = cue.scale ?? 1;
+  return Math.max(1, Math.min(asked, PUSH_ROOM * share / Math.max(area[2], 1e-6),
+    PUSH_ROOM / Math.max(area[3], 1e-6)));
+}
+
+/** Шаги портретного окна: наезд и тот же мягкий догон курсора, что у горизонтальной камеры. */
+function windowLegs(cues: readonly OverlayCamera[], path: CursorPath = [], share = 1): { start: { x: number; y: number; z: number }; legs: Leg[] } {
   const list = [...cues].filter((c) => c.area).sort((a, b) => a.at - b.at);
   let x = list.length ? centre(list[0]!).x : 0.5;
-  const x0 = x, legs: Array<{ t0: number; t1: number; dx: number }> = [];
-  for (const cue of list.slice(1)) {
-    const to = centre(cue).x;
-    if (to !== x) legs.push({ t0: cue.at, t1: cue.at + Math.max(1e-3, cue.move ?? 0.9), dx: to - x });
-    x = to;
+  let y = list.length ? centre(list[0]!).y : 0.5, z = 1;
+  const start = { x, y, z }, legs: Leg[] = [];
+  for (const cue of list) {
+    const target = centre(cue), nextZ = windowZoom(cue, share);
+    const move = cue.move ?? 0.9;
+    if (target.x !== x || target.y !== y || nextZ !== z)
+      legs.push({ t0: cue.at, t1: cue.at + Math.max(1e-3, move), dx: target.x - x, dy: target.y - y, dz: nextZ - z });
+    ({ x, y } = target); z = nextZ;
+    if (cue.follow === "cursor" && path.length) {
+      const end = cue.at + move + cue.hold;
+      const entered = isAutomaticCamera(cue) ? followStart(cue, path, end) : cue.at;
+      if (entered !== null) {
+        const followed = followLegs(path, Math.max(cue.at + move, entered), end, z, { x, y }, { x: share, y: 1 });
+        legs.push(...followed.legs);
+        ({ x, y } = followed.end);
+      }
+    }
   }
-  return { x0, legs };
+  return { start, legs };
+}
+
+const legPhase = (l: Leg, time: string): string => (l.linear ? clip : (v: string): string => smooth(clip(v)))
+  (`(${time}-${l.t0})/${Math.max(1e-3, l.t1 - l.t0)}`);
+function windowExpr(cues: readonly OverlayCamera[], axis: "x" | "y" | "z", path: CursorPath, share: number): string {
+  const { start, legs } = windowLegs(cues, path, share);
+  return legs.filter((l) => l[axis === "z" ? "dz" : axis === "x" ? "dx" : "dy"] !== 0)
+    .reduce((acc, l) => `${acc}+(${l[axis === "z" ? "dz" : axis === "x" ? "dx" : "dy"]})*(${legPhase(l, "t")})`, String(start[axis]));
 }
 
 /**
@@ -161,15 +215,37 @@ function windowLegs(cues: readonly OverlayCamera[]): { x0: number; legs: Array<{
  * (smootherstep), и после фокуса остаётся у последней области — окно само и есть
  * наезд, возвращаться к общему плану ему некуда. Без фокусов окно стоит по центру.
  */
-export function windowFilter(cues: readonly OverlayCamera[]): string {
-  const { x0, legs } = windowLegs(cues);
-  const path = legs.reduce((acc, l) => `${acc}+(${l.dx})*(${smooth(clip(`(t-${l.t0})/${l.t1 - l.t0}`))})`, String(x0));
-  return `max(0,min(iw-ow,(${path})*iw-ow/2))`;
+export function windowFilter(cues: readonly OverlayCamera[], path: CursorPath = [], share = 1, width = "iw"): string {
+  return `max(0,min((${width})-ow,(${windowExpr(cues, "x", path, share)})*(${width})-ow/2))`;
+}
+
+/** Верх окна после портретного увеличения: без увеличения он остаётся нулём. */
+export function windowYFilter(cues: readonly OverlayCamera[], path: CursorPath = [], share = 1, height = "ih"): string {
+  return `max(0,min((${height})-oh,(${windowExpr(cues, "y", path, share)})*(${height})-oh/2))`;
+}
+
+/** Увеличение окна как выражение ffmpeg; базовая высота источника уже приведена к высоте кадра. */
+export function windowZoomFilter(cues: readonly OverlayCamera[], path: CursorPath = [], share = 1): string {
+  return windowExpr(cues, "z", path, share);
+}
+
+/** Требуется ли менять размер окна, а не только вести его по исходному кадру. */
+export function windowNeedsZoom(cues: readonly OverlayCamera[], share: number): boolean {
+  return cues.some((c) => c.area && windowZoom(c, share) > 1 + 1e-6);
+}
+
+/** Числовое положение окна: тот же путь используется для лупы и проверки итогового кадра. */
+export function windowPose(cues: readonly OverlayCamera[], t: number, path: CursorPath = [], share = 1): { x: number; y: number; z: number } {
+  const { start, legs } = windowLegs(cues, path, share);
+  const phase = (l: Leg): number => {
+    const q = Math.min(1, Math.max(0, (t - l.t0) / Math.max(1e-3, l.t1 - l.t0)));
+    return l.linear ? q : q * q * q * (q * (q * 6 - 15) + 10);
+  };
+  return legs.reduce((pose, l) => ({ x: pose.x + l.dx * phase(l), y: pose.y + l.dy * phase(l),
+    z: pose.z + l.dz * phase(l) }), start);
 }
 
 /** Та же середина окна в доле ширины кадра — числом, для проверок пути без ffmpeg. */
-export function windowCentre(cues: readonly OverlayCamera[], t: number): number {
-  const { x0, legs } = windowLegs(cues);
-  const p = (v: number): number => { const q = Math.min(1, Math.max(0, v)); return q * q * q * (q * (q * 6 - 15) + 10); };
-  return legs.reduce((acc, l) => acc + l.dx * p((t - l.t0) / (l.t1 - l.t0)), x0);
+export function windowCentre(cues: readonly OverlayCamera[], t: number, path: CursorPath = [], share = 1): number {
+  return windowPose(cues, t, path, share).x;
 }

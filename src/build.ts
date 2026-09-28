@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraFilter, fitScale, windowCentre, windowFilter } from "./camera.js";
+import { cameraFilter, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
@@ -552,11 +552,20 @@ async function main() {
     if (s.autoZoom && s.video) {
       const take = trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim);
       const clicks = take?.clicks ?? [];
+      // In a portrait crop the visible source width is much narrower than in the landscape
+      // take. Keep the automatic subject box inside that width so a small element can grow;
+      // an explicitly named size remains the author's choice.
+      const portraitShare = pitch.reframe ? (opts.width / opts.height) / (pitch.reframe.width / pitch.reframe.height) : 1;
+      const auto = pitch.reframe && s.autoZoom.size === undefined
+        ? { ...s.autoZoom, size: Math.min(0.36, portraitShare / 2) } : s.autoZoom;
       // Дубль, записавший действия с элементами, наезжает по действиям; прежний — по кликам.
-      const cues = take?.actions?.length ? actionZoomCues(take.actions, clicks, s.autoZoom) : autoZoomCues(clicks, s.autoZoom);
+      const cues = take?.actions?.length ? actionZoomCues(take.actions, clicks, auto) : autoZoomCues(clicks, auto);
       try {
-        s.overlay = parseOverlay(JSON.stringify({ ...s.overlay,
-          camera: [...(s.overlay?.camera ?? []), ...cues].sort((a, b) => a.at - b.at) }));
+        const ordered = [...(s.overlay?.camera ?? []).map((cue) => ({ cue, automatic: false })),
+          ...cues.map((cue) => ({ cue, automatic: true }))].sort((a, b) => a.cue.at - b.cue.at);
+        const checked = parseOverlay(JSON.stringify({ ...s.overlay, camera: ordered.map(({ cue }) => cue) }));
+        checked.camera?.forEach((cue, index) => { if (ordered[index]!.automatic) markAutomaticCamera(cue); });
+        s.overlay = checked;
       } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
     }
@@ -618,20 +627,58 @@ async function main() {
       console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message }));
       process.exit(1);
     }
-    // Место субтитров `auto` решается по кадру самой сцены: клип смотрится как его впишет
-    // сцена, нарисованная сцена — одним кадром без подписи посередине своей длительности.
+    // Плоская кнопка может иметь меньше краёв, чем пустой декоративный фон. У auto есть
+    // более сильное свидетельство: прямоугольники целей, уже названных сценой и камерой.
+    // Их меряет тот же рендер, который рисует пробный кадр; ручное место не меняем.
     let captionPos = s.captionsAt ?? pitch.captions?.position;
     if (captionPos === "auto") {
       const zone = stageSafe ?? { top: Math.round(opts.height * 0.03), bottom: Math.round(opts.height * 0.03) };
       const theme = (s.theme ?? pitch.theme) as Record<string, string>;
+      const selectors = [...new Set([s.mustRead, s.target].filter((x): x is string => typeof x === "string" && x !== "body" && x.trim() !== ""))];
+      const targets = [...selectors.map((target) => ({ t: s.duration! / 2, anchor: { target } })),
+        ...((s.focus as Array<{ sel: string; at: string }> | undefined) ?? []).map((f) => ({
+          t: anchorSeconds(f.at, starts.length ? starts : [0], s.duration!, s.beats.map((b, i) => starts[i]! + (b.__spoken ?? 0))),
+          anchor: { target: f.sel } })),
+        ...(s.overlay?.camera ?? []).filter((c) => c.target).map((c) => ({
+          t: Math.min(s.duration! - 1 / opts.fps, c.at + (c.move ?? 0.9) + c.hold / 2),
+          // The slide shorthand el2 is resolved by the camera's target helper, not querySelector.
+          anchor: /^el\d+$/.test(c.target!) ? { cue: c.target! } : { target: c.target! } }))];
+      const crop = pitch.reframe && s.provider === "page" && !s.nativePortrait ? pitch.reframe : undefined;
+      const k = crop ? opts.height / crop.height : 1;
+      const cameraCues = s.overlay?.camera ?? [];
+      const takePath = s.video ? trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim)?.path ?? [] : [];
+      const share = pitch.reframe ? (opts.width / opts.height) / (pitch.reframe.width / pitch.reframe.height) : 1;
+      const subjects = cameraCues.flatMap((c) => {
+        if (!c.area) return [];
+        if (!pitch.reframe) return [{ left: c.area[0] * opts.width, top: c.area[1] * opts.height,
+          width: c.area[2] * opts.width, height: c.area[3] * opts.height }];
+        if (!s.video) return []; // Page targets are measured in the actual cropped render below.
+        const t = Math.min(s.duration! - 1 / opts.fps, c.at + (c.move ?? 0.9) + c.hold / 2);
+        const pose = windowPose(cameraCues, t, takePath, share);
+        const height = opts.height * pose.z;
+        const top = Math.max(0, Math.min(height - opts.height, pose.y * height - opts.height / 2));
+        // Portrait captions span the viewport width. Protect the focused element's vertical
+        // band even as the horizontal window follows it or the recorded cursor.
+        return [{ left: 0, top: c.area[1] * height - top, width: opts.width,
+          height: c.area[3] * height }];
+      });
       captionPos = await autoBand({ frame: { width: opts.width, height: opts.height }, zone,
         share: bandShare({ width: opts.width, height: opts.height }, Boolean(pitch.safe), pitch.captions?.size ?? 1),
+        subjects,
         ...(s.video
           ? { clip: { file: resolve(SRC, String(s.page)), from: s.trim?.from ?? 0, to: (s.trim?.from ?? 0) + s.duration!,
             vf: fitFilter(s.fit, opts.width, opts.height, ffmpegColour(theme["--sc-letterbox"]!)) } }
-          : { render: async () => (await renderScene({ ...s, stills: undefined, emoji: assets.emoji, __stickers: assets.stickers,
+          : { render: async () => {
+            const got = await renderScene({ ...s, stills: undefined, emoji: assets.emoji, __stickers: assets.stickers,
             ...(stageSafe ? { safe: stageSafe } : {}), __src: SRC, beats: s.beats.length, starts, theme } as RenderScene,
-          { ...opts, at: s.duration! / 2 })).shots[0]!.buf }) });
+              { ...opts, ...(crop ? { width: crop.width, height: crop.height, scale: k * (opts.scale ?? 1),
+                crop: { width: opts.width / k } } : {}), at: s.duration! / 2, probes: targets });
+            const shot = got.shots[0]!;
+            // A focus may be measured at another moment than this screenshot; its crop window
+            // then has another x. Protect its vertical band across the whole portrait lane.
+            return { image: shot.buf, subjects: got.rects.map((r) => crop
+              ? { left: 0, top: r.top * k, width: opts.width, height: r.height * k } : r) };
+          } }) });
       autoPlaces.push({ scene: s.id, position: captionPos });
     }
     // Всё, что слой знает о сцене сверх её данных: эмодзи, стикеры, стиль
@@ -929,6 +976,8 @@ async function main() {
         // его копии), поэтому размывается только движение камеры, а удержание остаётся резким.
         const sub = opts.motionBlur ? opts.motionBlur.samples : 1;
         const camera = cut ? null : cameraFilter(overlay?.camera ?? [], opts.fps * sub, cursorPath);
+        const windowCues = overlay?.camera ?? [];
+        const windowShare = cut ? (opts.width / opts.height) / (cut.width / cut.height) : 1;
         // Верх полосы субтитров в кадре сцены: его знает экранная половина слоя.
         let floor = opts.height;
         const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
@@ -959,7 +1008,18 @@ async function main() {
               + `s=${opts.width}x${opts.height}:fps=${opts.fps * sub}`
               + (sub > 1 ? `,tmix=frames=${shutter},select='eq(mod(n,${sub}),${sub - 1})',setpts=N/(${opts.fps}*TB),fps=${opts.fps}` : "")
             : "";
-          const window = cut ? `scale=-2:${opts.height}:flags=lanczos,crop=${opts.width}:${opts.height}:'${windowFilter(overlay?.camera ?? [])}':0` : "";
+          const dynamicWindow = cut && windowNeedsZoom(windowCues, windowShare);
+          const windowZoom = dynamicWindow ? windowZoomFilter(windowCues, cursorPath, windowShare) : "1";
+          // crop's iw/ih are configured from its first input frame even when scale later
+          // changes dimensions. Use the same explicit dimensions as scale on every frame.
+          const scaledWidth = cut ? `trunc(${cut.width}*${opts.height / cut.height}*(${windowZoom})/2)*2` : "iw";
+          const scaledHeight = cut ? `trunc(${cut.height}*${opts.height / cut.height}*(${windowZoom})/2)*2` : "ih";
+          const windowScale = dynamicWindow
+            ? `scale=w='${scaledWidth}':h='${scaledHeight}':eval=frame:flags=lanczos`
+            : `scale=-2:${opts.height}:flags=lanczos`;
+          const window = cut ? `${windowScale},crop=${opts.width}:${opts.height}`
+            + `:'${windowFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledWidth : "iw")}'`
+            + `:'${windowYFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledHeight : "ih")}'` : "";
           const inputs = needsOverlay && (camera || cut) ? [...frames(sceneDir), ...frames(screenDir)]
             : needsOverlay ? frames(screenDir) : [];
           const videoFilter = cut
@@ -981,8 +1041,13 @@ async function main() {
             const plain = byFractions(loupe);
             if (!cut) return { loupe, rect: plain, floor };
             const b = loupe.area ?? [loupe.point![0], loupe.point![1], 0, 0];
-            const x = Math.max(0, Math.min(wide - opts.width, windowCentre(overlay?.camera ?? [], loupe.at) * wide - opts.width / 2));
-            return { loupe, rect: { left: b[0] * wide - x, top: b[1] * opts.height, width: b[2] * wide, height: b[3] * opts.height }, floor };
+            const pose = windowPose(windowCues, loupe.at, cursorPath, windowShare);
+            const scaledWide = Math.round(wide * pose.z / 2) * 2;
+            const scaledHeight = Math.round(opts.height * pose.z / 2) * 2;
+            const x = Math.max(0, Math.min(scaledWide - opts.width, pose.x * scaledWide - opts.width / 2));
+            const y = Math.max(0, Math.min(scaledHeight - opts.height, pose.y * scaledHeight - opts.height / 2));
+            return { loupe, rect: { left: b[0] * scaledWide - x, top: b[1] * scaledHeight - y,
+              width: b[2] * scaledWide, height: b[3] * scaledHeight }, floor };
           });
           const graph = withLoupes(videoFilter, items, opts, sceneTheme);
           notes = geometry(items, opts, cut ? [] : areaPushes(overlay));
@@ -1186,7 +1251,8 @@ async function main() {
         }
         const k = transitionFrames(t, opts.fps);
         const shot = async (scene: RenderScene, at: number, hide: boolean, name: string): Promise<{ file: string; rect: MorphInput["ra"] }> => {
-          const r = await renderScene(scene, { ...opts, at, ...(hide ? { hide: t.element! } : {}), probes: [{ t: at, anchor: { target: t.element } }] });
+          const r = await renderScene(scene, { ...opts, at, morphTarget: t.element!, ...(hide ? { hide: t.element! } : {}),
+            probes: [{ t: at, anchor: { target: t.element } }] });
           const file = `${CACHE}/morph-${s.__key}-${name}.png`;
           writeFileSync(file, r.shots[0]!.buf);
           return { file, rect: r.rects[0]! };

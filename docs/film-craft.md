@@ -37,6 +37,10 @@ A bottom caption plate lives on overview and motion shots; a card lives only on 
 ## 6. A caption must not cover what it describes
 
 Place the text away from the evidence, and check the composed frame, not the plan.
+For a flat but important control, name it as the scene target and use
+`captions: auto`; the placement then protects that target before it compares
+image detail. Open the final frame in every format, since the subject can move
+inside a portrait crop.
 
 **Counter-example.** A debug window sat on top of the very animation the shot was about: *"and the debug window covers the animations?"* Tooling windows are moved to the edge of the frame before the take.
 
@@ -206,6 +210,14 @@ and *"there are both cards and subtitles, it is not clear what to read"*.
 
 Give a `video` scene an explicit `duration` when the footage is longer than its narration. Without it the
 scene ends when the sentence ends, and the animation the shot exists for is cut in half.
+
+When a short action finishes before the line explaining it, choose its order
+on the finished film. Typing can run with the words; a pointer move that needs
+context can follow an introductory beat. For the latter, an initial `speed`
+hold keeps the first clip frame until that beat ends, then releases the
+recorded motion. Size the hold from the measured final voice and inspect both
+the held frame and the action after it. A scene using `autoZoom` cannot also
+use `speed`: put the introductory pause into its recorded take instead.
 
 **Counter-example.** A thirteen-second load shot became seven seconds in the film, and the wave over the
 tiles never finished.
@@ -457,13 +469,14 @@ The check had to be run on the finished frames, not on the scenario.
 
 ## 51. Subtitles: readable first, big enough, one accent at most
 
-Subtitles are the words for everyone watching without sound, so they must read on any frame: white
-letters with a black outline of about a tenth of the letter height (the default), or a dense plate
-behind the line (`captions: {"look":"plate"}`) when accessibility comes first. A drop shadow alone or
-coloured letters without an outline fall apart on a light interface. Keep them large — about 8% of
+Subtitles are the words for everyone watching without sound, so they must read on any frame. The
+default outline uses white letters with a dark edge and no plate. On a busy
+interface choose the dense plate explicitly with `captions: {"look":"plate"}`;
+it separates the line from coloured detail. A drop shadow alone or
+coloured letters without backing fall apart on a light interface. Keep them large — about 8% of
 the frame height per line in a landscape film, and larger in a vertical one (`help text` gives the sizes
 the tool draws) — and within two lines. Colour carries at most one word per line: the karaoke word or a
-keyword, in a colour that still reads against the outline. Sources and numbers:
+keyword, in a colour that still reads against its backing. Sources and numbers:
 [the subtitles research](research/subtitles.md).
 
 **Counter-example.** The first subtitles were 41 px in a 1080p frame — under 4% of its height —

@@ -259,7 +259,14 @@ The portrait page replaces the landscape page in a vertical build instead of bei
 Lay it out in frame pixels so the text the viewer must read reaches at least 48 px, then
 inspect `frames --format vertical` and the final film: the report's size alone does not
 prove that subtitles leave the page visible. A live take of your own product recorded at
-a phone-width viewport reflows instead of being zoomed (`help capture`).
+a phone-width viewport reflows instead of being zoomed (`help capture`). For
+a landscape take used in a portrait film, `autoZoom: {"follow":"cursor"}`
+uses its recorded actions and pointer path to scale a specific subject and
+hold that subject until the pointer reaches it; the crop then follows the
+pointer when it leaves the central region. A whole-viewport
+action without a specific nearby click adds no automatic focus. Name a flat
+important control as a target when using `captions: auto`, and inspect the
+encoded phone frame to check that the caption remains clear of it.
 
 A diagram built piece by piece, one part per beat of narration, read at a phone pace:
 

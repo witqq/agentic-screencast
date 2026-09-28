@@ -1,7 +1,7 @@
 # Demo: <product> solves <problem>
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
-captions: {"style":"subtitle"}
+captions: {"style":"subtitle","look":"plate"}
 
 ## situation · slides.hero
 kicker: The situation

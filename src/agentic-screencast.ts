@@ -123,7 +123,8 @@ capture). agentic-screencast schema <kind> prints a kind's fields.
           that page in a vertical build (pageVertical.en for an English film).
           A selected portrait file is required and also used by frames and
           the recorder preview. target: a CSS selector the camera and the frame
-          check use; mustRead: text the frame check must find readable;
+          check use; mustRead: a selector whose text the frame check must
+          find readable;
           zoom: 1.2 enlarges the whole page for the scene; spotFrom: 2.5
           starts its spot of light at that second; focus: selector @ anchor
           | … moves the spot from subject to subject with the words while
@@ -224,10 +225,11 @@ auto-wait, scroll, move the visible cursor and pace the recording. The
 cursor travels on a gentle curve, leans a little as it moves, and takes the
 shape of the element under it — a hand over a link or a button with
 cursor:pointer, a text cursor over a field, an open hand over what is
-dragged. A click is drawn by the actual pointerdown event, so it cannot lead
-the UI: the cursor dips and bounces, and click: "ripple" (default) | "spot"
-| "echo" in the take's options picks the ripple, a soft spot of light or an
-echo of two ripples.
+dragged. Long trips show intermediate pointer positions, typing enters
+visible characters at a readable pace, and a drag's real pointer path is
+saved with the take. A click is drawn by the actual pointerdown event, so
+it cannot lead the UI: the cursor dips and bounces. The take's click option
+chooses "ripple" (default), "spot" (a soft light) or "echo" (two ripples).
 withFocusCard(locator, card, action) places the explanation next to the
 control while the real action runs; no authored card coordinates are needed.
 Cards can use reveal:"type" and motion:"rise"|"pop"|"glide".
@@ -275,11 +277,18 @@ are one push-in on their common area with a margin, typing holds it until
 the text is typed, and a far or later action gets its own push-in; close
 push-ins travel to each other without the overview. {"hold":1.2,"size":0.36,
 "scale":1.8} tune the hold after the last action, the smallest area and a
-fixed magnification (without scale the area decides it); "follow":"cursor"
-lets the zoomed window follow the recorded cursor while it holds — it stands
-while the cursor stays in its middle and glides after it when it leaves.
-"follow":"cursor" on an overlay.camera move over a take does the same. A take recorded
-before actions were stored pushes in at each click.
+fixed magnification (without scale the subject is fitted); a whole-viewport
+action without a nearby click adds no focus. Automatic moves dim around the
+specific subject without drawing a full-screen focus ring. "follow":"cursor"
+lets the zoomed window follow the recorded cursor after it reaches the
+focused action — it stands while the cursor stays in its middle and glides
+after it when it leaves.
+"follow":"cursor" on a hand-authored overlay.camera move over a take
+starts following after that move, even when the pointer is outside its named
+area. A take recorded
+before actions were stored pushes in at each click. In a vertical cut of a
+landscape take, the crop also scales a small subject and follows that path;
+inspect the finished phone frame to confirm the interface remains readable.
 from: @opened and to: @saved (or seconds) on a video scene play only that
 piece of the take, so one take serves several scenes; inside the scene
 every clip second — marks, speed, freezeAt, stills — counts from the start
@@ -390,6 +399,13 @@ clip goes on. Spans and holds share one ordered list:
 
 speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
 
+For narration before an action, hold the clip's first frame at 0 for the
+measured introductory beat, then let the recorded action play. Leave the
+clip at its normal speed when the spoken line and visible action should run
+together. A changed voice or line needs the hold checked against the final
+audio. autoZoom and speed cannot be combined on one video scene; record the
+pause in the take when that scene also needs automatic camera following.
+
 Why time stops inside the shot rather than in a scene of its own:
 docs/film-craft.md, rule 17.
 
@@ -482,12 +498,12 @@ captions: {"style":"karaoke","everywhere":true,"srt":true}
   bar       the plate at the bottom with the whole scene's line (default)
   subtitle  the current beat in pieces of at most two lines
   karaoke   the same, with the spoken word highlighted
-Subtitles are white letters with a black outline and a soft shadow, with no
-plate, in the theme's text font; the karaoke word takes the theme's light
-accent. They read on light and dark footage alike. "look":"plate" puts them
-on a dense plate instead (the theme's --sc-sub-bg), which is the choice for
-accessibility-first delivery. Both are 64 px in a 1080p landscape frame and
-about 67 px in a vertical one.
+Subtitles use white letters with a black outline and soft shadow by default,
+without a plate. "look":"plate" uses the theme's dense --sc-sub-bg backing
+to keep the text distinct over busy interfaces. The karaoke word takes the
+theme's light accent. Both looks use the theme's subtitle
+font. They are 64 px in a 1080p landscape frame and about 67 px in a
+vertical one.
 Subtitles show on video scenes; everywhere adds slides and pages, whose
 text they would otherwise leave alone; srt writes film.srt beside the
 MP4, each beat starting where its audio starts. Subtitles stay on while a
@@ -502,13 +518,14 @@ itself with captions: top | middle | bottom | auto.
 At the top, cards and titles set at the top stand below the subtitles and
 slides keep the top band free; in the middle, nothing moves aside, so choose
 it only over an empty part of the frame. "auto" lets the build choose per
-scene: it looks at the scene's frames — a clip sampled twice a second, a
-drawn scene once in its middle — and puts the subtitles in the band (top,
-middle or bottom of the zone) with the least detail, keeping the bottom
-unless another band is clearly emptier; the build report lists each choice
-as captionPlaces, and frames draws such scenes at the bottom. lint names subtitles at the top
-together with a progress bar at the top (captions-top-progress). Karaoke timing is an
-estimate: a beat's measured duration is shared between its words in
+scene: it avoids bands occupied by named targets and camera subjects,
+including the visible band of a portrait crop, then compares image detail
+in the remaining bands. A clip is sampled twice a second and a drawn scene
+once in its middle. Bottom stays preferred unless another safe band is
+clearly emptier; the build report lists each choice as captionPlaces.
+frames draws such scenes at the bottom. lint names subtitles at the top
+together with a progress bar at the top (captions-top-progress). Karaoke
+timing is an estimate: a beat's measured duration is shared between words in
 proportion to their length — there is no speech recognition — so a new
 voice or pace moves the highlight with the audio.
 
@@ -624,7 +641,9 @@ A shared element moves between two drawn scenes (slides or pages):
 transition: {"kind":"morph","element":"#total","duration":1}
 The element — present in both scenes under the same selector — travels in one
 piece from its place in the first scene to its place in the second and
-takes the second look on the way, while the background dissolves under it;
+takes the second look halfway through, so different text layouts do not
+double while the background dissolves under it. Exactly one visible match
+is selected in each scene, even when a hidden view repeats its selector;
 the build renders both scenes' frames with and without it to do so. Without
 WebGL it becomes a plain dissolve, and the report says ffmpeg.
 Any CSS selector works. On generated slides the number of slides.number is
@@ -966,9 +985,12 @@ Slides are drawn anew in portrait. A page is rendered in its own landscape
 frame at full density and cut by a 9:16 window that follows the spotlight
 target unless the scene names pageVertical: pages/phone.html. That HTML is
 drawn directly in the portrait viewport, without the landscape crop; a
-missing selected file fails the build. A clip or a frozen frame is cut by a window that glides between the
-focus areas and recorded clicks. Captions, titles and cards are laid out
-again inside the vertical safe zone; a card set near the focus moves to the
+missing selected file fails the build. A clip or frozen frame is cut by a
+window that glides between focus areas and recorded clicks. With autoZoom,
+a small named action grows inside that window; follow:"cursor" keeps that
+subject visible until the pointer reaches it, then follows the pointer out
+of the central zone. Captions, titles and cards are
+laid out again inside the vertical safe zone; a card near focus moves to the
 top. Letterbox bars from look are left out and the build report says so; a
 clip in a device frame is re-laid in the portrait frame instead of cut.
 

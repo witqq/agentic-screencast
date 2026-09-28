@@ -42,7 +42,10 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 - [ ] Built with the chosen voice, music and look (variants in parallel); its stills and report checked
       once; `audit.issues` empty or every finding resolved, chapters match the authored parts, and
-      the MP4 watched for framing and captions. With measurable sound, final AAC true peak is at most
+      the MP4 watched for framing, captions and actual cursor/camera movement. Check that the named
+      subject stays visible through each move and that narrated actions occur in the intended order
+      relative to speech; write `n/a:` with a reason when a film has no such action. With measurable
+      sound, final AAC true peak is at most
       −1 dBTP and achieved loudness is read from `audio.loudness.measured` (peak correction can put it
       below the target); silence has a null peak and `audio: false` has no sound measurement.
 
