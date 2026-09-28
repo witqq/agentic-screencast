@@ -7,9 +7,11 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { pieces, scanText, scanTree, sourceFiles, type Form } from "../theming-scan.js";
 import { NON_COLOUR_TOKENS, THEMES, THEME_KEYS, THEME_NAMES, resolveTheme } from "../../theme.js";
+import { selfHash } from "../../self-hash.js";
 
 const SRC = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "..", "src");
 
@@ -35,6 +37,7 @@ export const ALLOWED: Array<{ file: string; text: string; why: string }> = [
   { file: "transition.ts", text: "#000000", why: "the word black a scenario may name as the colour of a dip: the author's colour, not a theme's" },
   { file: "transition.ts", text: "#ffffff", why: "the word white a scenario may name as the colour of a dip: the author's colour, not a theme's" },
   { file: "transition.ts", text: "black", why: "the word black a scenario may name as the colour of a dip: the author's colour, not a theme's" },
+  { file: "msg.ts", text: "black", why: "validation explains the author's named dip colour; this is prose, not a drawing value" },
   { file: "transition.ts", text: "fadeblack", why: "without WebGL ffmpeg dips only to black or white: the fallback takes the one nearer the dip's colour" },
   { file: "transition.ts", text: "fadewhite", why: "without WebGL ffmpeg dips only to black or white: the fallback takes the one nearer the dip's colour" },
   { file: "transition.ts", text: "(1.0 - w) * 9.0 / 11.0", why: "the flip transition darkens its face by 9/11 of the theme's --tr-shade: a property of the kind, the strength comes from the theme" },
@@ -57,7 +60,7 @@ test("every exception is still needed, so the list cannot grow stale", () => {
   }
 });
 
-/** Образец каждой формы литерала: подброшенный в новый файл `src/`, он обязан уронить проверку. */
+/** Образец каждой формы литерала: новый файл в отдельном сканируемом дереве обязан обнаружиться. */
 const PLANTED: Array<[Form, string]> = [
   ["hex", 'export const a = "color:#12ab34";'],
   ["hex", 'export const a = "color:#1a3";'],
@@ -85,14 +88,18 @@ const PLANTED: Array<[Form, string]> = [
 ];
 
 test("the scanner catches every form of a visual literal planted in a new source file", () => {
-  const dir = mkdtempSync(join(SRC, ".planted-"));
+  // Never mutate the real source tree: it is part of every scene's cache key, and a
+  // concurrent film build must see the same product before and after this test.
+  const before = selfHash();
+  const dir = mkdtempSync(join(tmpdir(), "sc-theme-planted-"));
   try {
     PLANTED.forEach(([, code], k) => writeFileSync(join(dir, `p${k}.ts`), `${code}\n`));
-    const found = scanTree(SRC);
+    const found = scanTree(dir);
     PLANTED.forEach(([form, code], k) => {
       const here = found.filter((f) => f.file.endsWith(`p${k}.ts`));
       assert.ok(here.some((f) => f.form === form), `planted ${form} «${code}» is not caught (${here.map((f) => f.form).join(",") || "nothing"})`);
     });
+    assert.equal(selfHash(), before, "scanner fixtures must not change the film renderer's source fingerprint");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 

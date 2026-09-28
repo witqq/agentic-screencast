@@ -15,6 +15,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { micReason } from "../../mic-reason.js";
 import { cardsOf, estimateOf, serve } from "../../record.js";
+import { generate } from "../../generate.js";
 import { FFMPEG, FFPROBE } from "../../voice/audio.js";
 import { parseSource } from "../../source.js";
 import { slotFor } from "../../voice/recorded.js";
@@ -86,6 +87,110 @@ test("такты страницы адресуются тем же слепко�
   assert.equal(cards[0]!.beats[0]!.recorded, false);
   assert.equal(cards[0]!.duration, null, "длительности нет, пока записан не каждый такт");
   assert.ok(cards[0]!.beats[0]!.estimate > 0, "ориентир есть всегда");
+});
+
+test("страница записи открывается при отсутствующих дубле и картинке других сцен", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "slidecast-record-unavailable-"));
+  const source = join(dir, "story.md");
+  writeFileSync(join(dir, "present.webm"), "a take whose marks have not been written yet");
+  writeFileSync(source, `# Recording
+lang: en
+voice: {"engine":"recorded"}
+
+## ready · slides.number
+values: 1 :: available
+
+Read this beat.
+
+## take · video
+file: missing.webm
+from: @start
+
+This take has yet to be filmed.
+
+## marks · video
+file: present.webm
+from: @start
+
+This take has no marks yet.
+
+## image · slides.hero
+title: Image
+image: missing.png
+
+This image has yet to be made.
+`);
+  assert.throws(() => parseSource(source), /unknown mark @start/, "normal build parsing remains strict");
+  const server = await serve({ source, voice: { ...voice, dir: join(dir, "recordings") } });
+  try {
+    const response = await fetch(new URL("/api/scenes", server.url));
+    assert.equal(response.status, 200);
+    const data = await response.json() as {
+      scenes: Array<{ id: string; beats: Array<{ text: string }> }>;
+      skipped: Array<{ id: string; kind: string; file: string }>;
+    };
+    assert.deepEqual(data.scenes.map((scene) => scene.id), ["ready"]);
+    assert.equal(data.scenes[0]!.beats[0]!.text, "Read this beat.");
+    assert.deepEqual(data.skipped, [
+      { id: "take", kind: "video", file: "missing.webm" },
+      { id: "marks", kind: "marks", file: "present.webm.marks.json" },
+      { id: "image", kind: "image", file: "missing.png" },
+    ]);
+  } finally {
+    await server.close();
+  }
+  const invalid = join(dir, "invalid.md");
+  writeFileSync(invalid, readFileSync(source, "utf8").replace("values: 1 :: available", "valuess: 1 :: available"));
+  await assert.rejects(serve({ source: invalid, voice }), /valuess/, "an unrelated scenario error remains fatal");
+  const invalidTake = join(dir, "invalid-take.md");
+  writeFileSync(invalidTake, readFileSync(source, "utf8").replace("file: missing.webm", "file: missing.webm\noverlay: not-json"));
+  await assert.rejects(serve({ source: invalidTake, voice }), /overlay/, "a missing take cannot hide its own malformed overlay");
+  const invalidSlide = join(dir, "invalid-slide.md");
+  writeFileSync(invalidSlide, readFileSync(source, "utf8").replace("image: missing.png", "image: missing.png\npoint: invalid"));
+  await assert.rejects(serve({ source: invalidSlide, voice }), /point/, "a missing image cannot hide a later invalid slide field");
+  const invalidChart = join(dir, "invalid-chart.md");
+  writeFileSync(invalidChart, `# Recording\nlang: en\n\n## chart · slides.chart\ndata: missing.csv\ntype: pie\n\nA beat.\n`);
+  await assert.rejects(serve({ source: invalidChart, voice }), /type/, "missing chart data cannot hide an invalid chart type");
+  const invalidCode = join(dir, "invalid-code.md");
+  writeFileSync(invalidCode, `# Recording\nlang: en\n\n## code · slides.code\nfile: missing.ts\ncps: 999\n\nA beat.\n`);
+  await assert.rejects(serve({ source: invalidCode, voice }), /cps/, "a missing code file cannot hide an invalid typing rate");
+  const imageSource = join(dir, "image.md");
+  writeFileSync(imageSource, `# Image\nlang: en\n## image · slides.hero\ntitle: Image\nimage: missing.png\n\nA spoken beat.\n`);
+  assert.throws(() => generate(parseSource(imageSource)), /image not found/, "normal slide generation remains strict");
+});
+
+test("record CLI reaches its server when the take named in the scenario is still missing", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "slidecast-record-cli-missing-"));
+  const source = join(dir, "story.md");
+  writeFileSync(source, `# Recording\nlang: en\nvoice: {"engine":"recorded"}\n\n## ready · slides.number\nvalues: 1 :: available\n\nRead this beat.\n\n## missing · video\nfile: not-recorded.webm\nfrom: @start\n\nRecord this take later.\n`);
+  const child = spawn("node", [CLI, "record", "--source", source, "--port", "0"], {
+    cwd: dir, env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") }, stdio: ["ignore", "pipe", "pipe"],
+  });
+  let stderr = "";
+  let stdout = "";
+  child.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+  try {
+    const url = await new Promise<string>((ok, no) => {
+      const timer = setTimeout(() => no(new Error(`record did not open: ${stderr}`)), 15_000);
+      child.stdout.on("data", (chunk: Buffer) => {
+        stdout += chunk.toString();
+        const match = /http:\/\/127\.0\.0\.1:\d+\//.exec(stdout);
+        if (match) { clearTimeout(timer); ok(match[0]); }
+      });
+      child.on("exit", (code) => { clearTimeout(timer); no(new Error(`record exited ${code}: ${stderr}`)); });
+    });
+    const response = await fetch(new URL("/api/scenes", url));
+    assert.match(stdout, /recording page: http:\/\/127\.0\.0\.1:/, "the English scenario gets English server status");
+    const data = await response.json() as { scenes: Array<{ id: string }>; skipped: Array<{ id: string }> };
+    assert.deepEqual(data.scenes.map((scene) => scene.id), ["ready"]);
+    assert.deepEqual(data.skipped.map((scene) => scene.id), ["missing"]);
+  } finally {
+    if (child.exitCode === null && child.signalCode === null) {
+      const exited = new Promise<void>((ok) => child.once("exit", () => ok()));
+      child.kill("SIGINT");
+      await exited;
+    }
+  }
 });
 
 test("произносимый вариант такта задаётся строкой с «~» и адресует запись", () => {

@@ -15,7 +15,14 @@ The fields — `music` in the header and on a scene, `sfx`, `transition.sound` a
 practice: music sits 18–25 dB under the voice and louder in the pauses, and a film for the web is
 normalised to −14 LUFS with a −1 dBTP ceiling [77] — the build does it for every film with sound,
 narration alone included. Check the result by listening, and by
-`audio.music`, `audio.sfx[].underSpeech` and `audio.loudness` in the build report. The sections
+`audio.music`, `audio.sfx[].underSpeech` and `audio.loudness` in the build report.
+The build measures the finished AAC after encoding; `audio.encoded.truePeak` is
+its decoded peak in dBTP and `audio.encoded.corrected` says whether an audio-only
+correction was needed. A peak that remains above −1 dBTP fails the build.
+`audio.loudness.measured` is the achieved final AAC level, which can fall below
+the target when peak correction takes priority; silence or audio too short for
+an integrated reading gives `null`. With `audio: false`, the MP4 has no audio
+stream or encoded sound measurement. The sections
 below cover what the help does not: where the files come from, how to choose them and how to
 credit them.
 

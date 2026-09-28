@@ -108,7 +108,8 @@ window.__stage = (() => {
   /* Субтитры контуром (умолчание, captions.look: outline): белый текст с чёрной обводкой в 0,08
      кегля и мягкой тенью, без плашки — читается и на светлом, и на тёмном кадре, как у плеера с
      «Outline Text». Обводка — кольцо теней: -webkit-text-stroke в Chromium ложится поверх буквы и
-     съедает её. Шрифт и насыщенность — подобранные темой для субтитров (--sub-font, --sub-weight). Плашка — captions.look: plate. */
+     съедает её. Шрифт и насыщенность — подобранные темой для субтитров (--sub-font, --sub-weight).
+     Плотная плашка — явный выбор captions.look: plate для пёстрого интерфейса. */
   #__sub[data-look="outline"]{color:var(--sc-sub-outline-ink);text-shadow:var(--sc-sub-outline-shadow);letter-spacing:.02em}
   #__sub[data-look="outline"] .__line{background:none;padding-left:0;padding-right:0}
   #__sub[data-look="outline"][data-style="karaoke"] .__word.__now{color:var(--sc-sub-accent);background:none;box-shadow:none}

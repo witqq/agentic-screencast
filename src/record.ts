@@ -20,7 +20,7 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { renderScene } from "./render.js";
 import { generate } from "./generate.js";
-import { parseSource, sceneTheme, specOf, type RawScene, type Source } from "./source.js";
+import { materialFileOf, parseSource, sceneTheme, specOf, type RawScene, type Source } from "./source.js";
 import { speechFor } from "./speech.js";
 import { durationOf, ff } from "./voice/audio.js";
 import { recordingPath, slotFor, storeDir } from "./voice/recorded.js";
@@ -157,9 +157,9 @@ export interface Server {
 }
 
 export async function serve(opts: ServerOpts): Promise<Server> {
-  const src = parseSource(opts.source);
+  const source = parseSource(opts.source, { recording: true });
+  const { src, slidesDir, pitchFile, skipped } = generate(source, { recording: true });
   useLang(src.lang);
-  const { slidesDir, pitchFile } = generate(src);
   const store = storeDir(opts.voice);
   mkdirSync(store, { recursive: true });
 
@@ -187,7 +187,7 @@ export async function serve(opts: ServerOpts): Promise<Server> {
     // сервер не знает — это знание уехало к поставщикам.
     const spec = specOf(scene, src.providers ?? {});
     const page = spec.fileField
-      ? String(scene.fields[spec.fileField] ?? "")
+      ? materialFileOf(src, scene, spec).file
       : `${slidesDir}/${scene.id}.html`;
     const { shots } = await renderScene(
       { page, duration: 10, offline: spec.offline ?? true, __src: src.dir,
@@ -214,7 +214,7 @@ export async function serve(opts: ServerOpts): Promise<Server> {
       if (path === "/api/scenes") {
         // Язык — от РОЛИКА: страница подписана тем же языком, на котором
         // написан сценарий, который человек будет читать вслух.
-        return json(res, 200, { scenes: cardsOf(src, opts.voice), store, lang: src.lang ?? "en" });
+        return json(res, 200, { scenes: cardsOf(src, opts.voice), skipped, store, lang: src.lang ?? "en" });
       }
 
       const pic = path.match(/^\/api\/picture\/([\w.-]+)$/);
@@ -331,7 +331,7 @@ if (invokedDirectly) {
   };
   const voiceJson = arg("voice-json");
   const source = arg("source", "story.md")!;
-  const src = parseSource(source);
+  const src = parseSource(source, { recording: true });
   // Данные голоса берутся из сценария, если их не назвали флагом: каталог
   // записей обязан совпасть с тем, из которого потом читает сборка.
   const voice: VoiceData = voiceJson
@@ -351,7 +351,7 @@ if (invokedDirectly) {
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, () => { void server.close().then(() => process.exit(0)); });
   }
-  console.log(`интерфейс записи: ${url}`);
-  console.log(`хранилище записей: ${storeDir(voice)}`);
-  console.log("остановить: Ctrl+C");
+  console.log(msg("record.started", { url }));
+  console.log(msg("record.store", { path: storeDir(voice) }));
+  console.log(msg("record.stop"));
 }

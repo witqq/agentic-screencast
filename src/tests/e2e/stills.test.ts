@@ -36,15 +36,15 @@ The second beat follows it right away.
 
 ## v · video
 file: take.mp4
-stills: @done :: the take is done, even if @done appears in the note | 0.5
+stills: @done :: the take is done, even if @done appears in the note | @done+0.2 :: shortly after the mark | 0.5
 `);
   const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "film.mp4"], { cwd: dir, encoding: "utf8",
     env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
   assert.equal(r.status, 0, r.stderr.slice(-600));
   const report = JSON.parse(r.stdout) as { beats: Array<{ scene: string; start: number }>; scenes: Array<{ id: string; frames: number }>;
     stills: Array<{ scene: string; moment: string; time: number; note?: string; file: string }> };
-  assert.equal(report.stills.length, 4);
-  const [b2, half, done, early] = report.stills;
+  assert.equal(report.stills.length, 5);
+  const [b2, half, done, offset, early] = report.stills;
   const beat2 = report.beats.filter((b) => b.scene === "p")[1]!.start;
   assert.ok(Math.abs(b2!.time - (beat2 + 0.2)) < 0.002, `b2+0.2 is 0.2s after the measured second beat (${b2!.time} vs ${beat2})`);
   assert.equal(b2!.note, "the second beat has begun");
@@ -52,7 +52,9 @@ stills: @done :: the take is done, even if @done appears in the note | 0.5
   assert.ok(Math.abs(half!.time - pDur / 2) < 0.051, `50% is the middle of the scene (${half!.time} vs ${pDur / 2})`);
   // Вторая сцена начинается сразу за первой; отметка @done — 2,5 с клипа.
   assert.ok(Math.abs(done!.time - (pDur + 2.5)) < 0.051, `@done is 2.5s into the take (${done!.time} vs ${pDur + 2.5})`);
-  assert.equal(done!.moment, "@2.5");
+  assert.equal(done!.moment, "@done");
+  assert.ok(Math.abs(offset!.time - (pDur + 2.7)) < 0.051, `@done+0.2 is 2.7s into the take (${offset!.time} vs ${pDur + 2.7})`);
+  assert.equal(offset!.moment, "@done+0.2");
   assert.ok(Math.abs(early!.time - (pDur + 0.5)) < 0.051);
   // Файлы лежат рядом с роликом, это кадры ролика (его размер), и разные моменты — разные кадры:
   // страница в кадре p и полосы испытательного клипа в кадре v.
@@ -82,12 +84,12 @@ stills: @done :: the take is done, even if @done appears in the note | 0.5
 
 test("a still names a moment the scenario understands, and a mark only on a take", () => {
   assert.deepEqual(parseStills("b2 | b3.end-0.3 :: last words | 80% | 1.5", "x").map((s) => s.at), ["b2", "b3.end-0.3", "80%", "1.5"]);
-  assert.throws(() => parseStills("soon", "scene s stills"), /«soon» is not a moment/);
+  assert.throws(() => parseStills("soon", "scene s stills"), /«soon» (?:is not a moment|не является моментом)/);
   const dir = mkdtempSync(join(tmpdir(), "sc-stills-bad-"));
   writeFileSync(join(dir, "story.md"), `# S\nvoice: {"engine":"stub","name":"silent"}\n\n## a · slides.hero\ntitle: Hi\nduration: 3\nstills: @done\n`);
   const r = spawnSync("node", [ENTRY, "check", "--source", "story.md"], { cwd: dir, encoding: "utf8" });
   assert.notEqual(r.status, 0);
-  assert.match(r.stderr + r.stdout, /a take's @mark works only on a video scene/);
+  assert.match(r.stderr + r.stdout, /a take's @mark works only on a video scene|отметка дубля @имя работает только у видеосцены/);
 });
 
 
@@ -103,8 +105,8 @@ test("bN.end in a still is the end of that beat's speech, not the scene's tail w
 
 test("stills: every 1s samples the scene at that step, beside the named moments, and refuses a wrong step", () => {
   assert.deepEqual(parseStills("every 1s :: the page does not change", "s"), [{ at: "every 1s", every: 1, note: "the page does not change" }]);
-  assert.throws(() => parseStills("every 0.1s", "s"), /the step is 0\.25–10 seconds/);
-  assert.throws(() => parseStills("every 30", "s"), /the step is 0\.25–10 seconds/);
+  assert.throws(() => parseStills("every 0.1s", "s"), /the step is 0\.25–10 seconds|шаг должен быть от 0,25 до 10 секунд/);
+  assert.throws(() => parseStills("every 30", "s"), /the step is 0\.25–10 seconds|шаг должен быть от 0,25 до 10 секунд/);
   const dir = mkdtempSync(join(tmpdir(), "sc-every-"));
   writeFileSync(join(dir, "story.md"), `# E\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n## a · slides.chapter\ntitle: Sampling\nbody: A frame a second\nduration: 5\nstills: every 1s | 50% :: the middle\n`);
   const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "film.mp4"], { cwd: dir, encoding: "utf8",

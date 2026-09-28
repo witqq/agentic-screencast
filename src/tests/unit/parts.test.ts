@@ -2,10 +2,11 @@
 // ещё и каждый титр, hero и заставку темы отдельной частью — в полосе хода и в главах WebVTT.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseSource, toPitch } from "../../source.js";
+import { writeChapters } from "../../film.js";
 
 const film = (body: string): string[] => {
   const file = join(mkdtempSync(join(tmpdir(), "sc-parts-")), "story.md");
@@ -27,4 +28,12 @@ duration: 2
 test("a film that names its parts gets only those; a film without part: gets one per chapter slide", () => {
   assert.deepEqual(film(SCENES("part: Look\n")), ["Look", ""]);
   assert.deepEqual(film(SCENES("")), ["Opening", "Theme"]);
+});
+
+test("rebuilding without parts removes an old chapter track beside the film", () => {
+  const out = join(mkdtempSync(join(tmpdir(), "sc-chapters-")), "film.mp4");
+  const track = writeChapters(out, [{ name: "Old", start: 0, end: 2 }]);
+  assert.ok(track && existsSync(track));
+  assert.equal(writeChapters(out, []), undefined);
+  assert.equal(existsSync(track), false);
 });

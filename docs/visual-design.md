@@ -39,8 +39,8 @@ Film craft 48 records the same lesson for films.
 
 **The self-check threshold.** Four or more of the signs below in one film: it is an average film, not
 a distinctive one [1]. `agentic-screencast lint` counts the signs a scenario shows in its `cliches`
-field, and `agentic-screencast frames` names a drawn frame with an empty third in `empty`; the rest
-only the frames show.
+field, and `agentic-screencast frames` names an ordinary drawn frame with an empty third in `empty`
+(trailer cards are intentionally sparse); the rest only the frames show.
 
 ## Catalogue of clichés and their cure
 

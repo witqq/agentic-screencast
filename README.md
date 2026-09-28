@@ -47,6 +47,8 @@ await recordTake({
 
 A take can also push in on an element, place an explanation card beside it while the real action runs, name a moment for the scenario to refer to, and wait for an asynchronous result without a guessed delay. `type` refuses password fields; perform credential entry in `prepare`. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service, and `agentic-screencast help capture` is the API guide. The output WebM is a normal `video` scene input.
 
+Capture writes `<take>.marks.json` beside the WebM. Named moments and element rectangles let the scenario address a recorded action with `@name`; `cameraMoves` records focus and unfocus motion already visible in the take, so `lint` can distinguish it from an unexplained screen change.
+
 ## Build a video
 
 The scenario is the assembly source. Generated slides and build data live beside it and are replaced on the next build; recorded clips are referenced from it.
@@ -72,6 +74,8 @@ Build one scene from the scenario below during iteration, with an explicit free 
 agentic-screencast build --source story.md --only e1 --out e1.mp4 --voice-json '{"engine":"stub","name":"silent","cps":15}'
 ```
 
+Preview frames without synthesizing speech: `frames --source story.md --scene e1 --out e1.png` renders only that scene, while `frames --source story.md --except e1 --out sheet.png` makes a sheet of the others. A video preview includes its subtitle and overlay when the scene has speech or an overlay. The sheet reports a large flat empty band for drawn scenes, except intentional trailer cards.
+
 ## Scenario format
 
 Speech is ordinary prose. A paragraph is a beat with its own recording, duration, and cache key. Visual timing can follow beat anchors such as `b2`, so a new voice or speaking rate moves the picture with the audio.
@@ -90,6 +94,12 @@ at: b1 b1 b2
 The first beat introduces the problem.
 
 The second beat reveals the result.
+
+## e2 · slides.chapter
+title: The next step
+body: Show the result
+
+Now move to the result.
 ```
 
 Speech sets the length of a scene; slides, pages and recorded clips are the picture. What else a scenario can say, and where each field is described:
@@ -140,6 +150,8 @@ The `recorded` engine addresses each take by beat text. The recording UI binds o
 agentic-screencast record --source story.md
 ```
 
+The page opens while video takes, mark files, or other scene material are still missing. It lists the affected scene IDs, missing files, and what to create; ready scenes remain recordable. A normal build still requires every referenced material.
+
 By default, cache, recordings, and output live in `.agentic-screencast/` under the current working directory. Set `AGENTIC_SCREENCAST_HOME` to choose another location; the other environment variables are listed in the [Russian reference](README.ru.md).
 
 ## Verify the result
@@ -155,6 +167,10 @@ agentic-screencast provider-check 'python3 /path/provider.py'
 `check` evaluates the settled frame using thresholds declared by its material provider; a finished `video` clip is reported as outside that frame criterion rather than failed. `order` verifies reveal timing. `verify` checks deterministic rendering, animation, frozen time, and seeking against real Chromium frames.
 
 These source checks use estimated beat timing; inspect the finished MP4 for actual audio/visual agreement. Their coverage is partial: `check` does not inspect video clips, and `order` skips MHTML and video scenes, exiting with code 2 when nothing is applicable.
+
+The build report beside the MP4 includes `audit.expected` and `audit.measured` for decoded video frames, final audio/video durations and WebVTT chapter cues. Review `audit.issues` and `warnings`: a mismatch is named with its measured values. For measurable sound, `audio.encoded.truePeak` comes from the final AAC and must be at most −1 dBTP; `audio.loudness.measured` is the achieved final level. Silence has a null peak, and `audio: false` has no sound measurement. An empty audit does not replace watching the film or checking its captions.
+
+Use `stills: @saved :: confirm the result` in a video scene to request a control frame at a named take mark. A full build writes these frames beside the MP4 and reports each frame's `scene`, `moment`, film `time`, note, and file. `lint` also flags a clip piece that crosses an unnamed mark, an abrupt unmarked screen change, a top title over an interface, and text typed too quickly to read.
 
 ## Voice and secret boundary
 

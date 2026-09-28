@@ -49,6 +49,8 @@ export interface TakeMarks {
   path?: Array<{ t: number; x: number; y: number }>;
   /** действия дубля: вид, начало и конец, прямоугольник элемента в долях кадра */
   actions?: Array<{ kind: TakeActionKind; t: number; end: number; rect?: TakeRect }>;
+  /** интервалы наезда и возврата камеры, уже впечённые в кадры дубля */
+  cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором: `take.mark(name, locator)` */
   rects?: Record<string, TakeRect>;
 }
@@ -234,8 +236,9 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   const marks: Record<string, number> = {};
   // Что нужно монтажу без ручных замеров: путь курсора, действия с их элементами и прямоугольники
   // элементов у отметок. Время — часы съёмки от нуля записи, как у отметок.
-  const path: Array<{ t: number; x: number; y: number }> = [];
+  let moves = 0;
   const actions: NonNullable<TakeMarks["actions"]> = [];
+  const cameraMoves: NonNullable<TakeMarks["cameraMoves"]> = [];
   const rects: Record<string, TakeRect> = {};
   const pending: Array<Promise<void>> = [];
   const now = (): number => (Date.now() - zero) / 1000;
@@ -289,12 +292,13 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     });
     const from = previous ?? { x: viewport.width * 0.18, y: viewport.height * 0.22 };
     await page.mouse.move(from.x, from.y);
-    path.push({ t: now(), x: from.x / viewport.width, y: from.y / viewport.height });
     const dist = Math.hypot(x - from.x, y - from.y);
-    const steps = Math.max(8, Math.min(24, Math.ceil(dist / 40)));
+    // Дальняя цель требует больше записанных промежуточных кадров: фиксированный предел в 24
+    // шага проводил курсор через весь рабочий стол примерно за полсекунды.
+    const steps = Math.max(8, Math.min(90, Math.ceil(dist / 24)));
     // Рука ведёт мышь дугой, а не по линейке: точка изгиба сдвинута поперёк пути на восьмую его
     // длины, в сторону, которая чередуется от движения к движению.
-    const bow = (path.length % 2 ? 1 : -1) * Math.min(90, dist * 0.12);
+    const bow = (++moves % 2 ? 1 : -1) * Math.min(90, dist * 0.12);
     const nx = dist ? -(y - from.y) / dist : 0, ny = dist ? (x - from.x) / dist : 0;
     const mx = (from.x + x) / 2 + nx * bow, my = (from.y + y) / 2 + ny * bow;
     for (let i = 1; i <= steps; i++) {
@@ -303,8 +307,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       const px = Math.max(0, Math.min(viewport.width - 1, (1 - e) * (1 - e) * from.x + 2 * (1 - e) * e * mx + e * e * x));
       const py = Math.max(0, Math.min(viewport.height - 1, (1 - e) * (1 - e) * from.y + 2 * (1 - e) * e * my + e * e * y));
       await page.mouse.move(px, py);
-      path.push({ t: now(), x: px / viewport.width, y: py / viewport.height });
-      await page.waitForTimeout(23);
+      await page.waitForTimeout(24);
     }
     // Настоящие pointermove браузер отдаёт странице к следующему кадру, а клик, доставленный
     // элементу, приходит сразу: без ожидания запоздавшие движения уводили курсор назад на
@@ -360,17 +363,21 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     if (!(scale >= 1.2 && scale <= 3)) throw new Error("focus scale must be 1.2–3");
     const ms = Math.round((options.move ?? 0.9) * 1000);
     await target.scrollIntoViewIfNeeded();
+    const from = now();
     await target.evaluate((el, o) => {
       const st = (window as unknown as Record<string, { focus?: (e: Element, x: unknown) => void }>).__agenticScreencastCapture_v1;
       st?.focus?.(el, o);
     }, { scale, ms, dim: options.dim ?? true });
     await page.waitForTimeout(ms + 120);
+    cameraMoves.push({ from, to: now() });
   };
   const unfocus = async (options: { move?: number } = {}): Promise<void> => {
     active();
     const ms = Math.round((options.move ?? 0.9) * 1000);
+    const from = now();
     await overlayCall("unfocus", ms);
     await page.waitForTimeout(ms + 120);
+    cameraMoves.push({ from, to: now() });
   };
   const withCard = async (card: CaptureCard, action: () => Promise<void>,
     anchor?: { x: number; y: number; width: number; height: number }): Promise<void> => {
@@ -450,7 +457,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
         await moveTo(target);
         await target.click();
         await target.fill("");
-        await target.pressSequentially(value, { delay: 28 });
+        await target.pressSequentially(value, { delay: 80 });
       });
       await settle(options);
     },
@@ -499,11 +506,14 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       finished = true;
       await Promise.all(pending);
       await page.waitForTimeout(350);
-      const trace = await page.evaluate(() => {
-        const st = (window as unknown as { __agenticScreencastCapture_v1?: { trace: Array<{ kind: string; x: number; y: number; at: number }> } })
+      const recorded = await page.evaluate(() => {
+        const st = (window as unknown as { __agenticScreencastCapture_v1?: {
+          trace: Array<{ kind: string; x: number; y: number; at: number }>;
+          moves: Array<{ x: number; y: number; at: number }> } })
           .__agenticScreencastCapture_v1;
-        return st?.trace ?? [];
-      }).catch(() => []);
+        return { trace: st?.trace ?? [], moves: st?.moves ?? [] };
+      }).catch(() => ({ trace: [], moves: [] }));
+      const { trace, moves: pointerMoves } = recorded;
       await initScript.dispose();
       await page.screencast.stop();
       page.off("pageerror", onError);
@@ -511,15 +521,30 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       const trimmed = capOptions.trimStart === false ? 0 : trimBlankStart(output);
       const viewport = page.viewportSize() ?? size;
       const round = (v: number): number => Math.round(v * 1000) / 1000;
+      const stamped = pointerMoves.map((p) => ({ t: (p.at - pageZero) / 1000, x: p.x, y: p.y }));
+      const beforeCut = stamped.filter((p) => p.t < trimmed).at(-1);
+      const shownPath = [
+        ...(beforeCut ? [{ ...beforeCut, t: trimmed }] : []),
+        ...stamped.filter((p) => p.t >= trimmed),
+      ].map((p) => ({ t: round(p.t - trimmed), x: round(p.x / viewport.width), y: round(p.y / viewport.height) }));
+      // Two DOM events can share one millisecond. Keep its final position for interpolation;
+      // pre-trim points must not pile up at t=0 and pin the camera to an old location.
+      const path: typeof shownPath = [];
+      for (const p of shownPath) {
+        if (path.at(-1)?.t === p.t) path[path.length - 1] = p;
+        else path.push(p);
+      }
       const file: TakeMarks = { version: 1, trimmed: round(trimmed),
         marks: Object.fromEntries(Object.entries(marks).map(([k, v]) => [k, round(Math.max(0, v - trimmed))])),
         clicks: trace.filter((e) => e.kind === "down")
           .map((e) => ({ t: round(Math.max(0, (e.at - pageZero) / 1000 - trimmed)),
             x: round(e.x / viewport.width), y: round(e.y / viewport.height) })),
         size: viewport, theme: themeFingerprint(theme),
-        path: path.map((p) => ({ t: round(Math.max(0, p.t - trimmed)), x: round(p.x), y: round(p.y) })),
+        path,
         actions: actions.map((a) => ({ ...a, t: round(Math.max(0, a.t - trimmed)), end: round(Math.max(0, a.end - trimmed)),
           ...(a.rect ? { rect: a.rect.map(round) as TakeRect } : {}) })),
+        cameraMoves: cameraMoves.map((move) => ({ from: round(Math.max(0, move.from - trimmed)),
+          to: round(Math.max(0, move.to - trimmed)) })),
         ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}) };
       writeFileSync(`${output}.marks.json`, JSON.stringify(file, null, 1));
       if (pageErrors.length) throw new Error(`page error during the take: ${pageErrors[0]}`);

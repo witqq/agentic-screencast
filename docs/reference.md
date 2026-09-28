@@ -64,6 +64,11 @@ Put the finished WebM in the `file:` of a video scene and build the MP4 with the
 The [runnable example](../example/live-capture.mjs) works without an external site.
 Short help: `agentic-screencast help capture`.
 
+Capture writes `<take>.marks.json` beside the WebM: named moments, rectangles
+of marked elements and `cameraMoves`, the intervals of focus and unfocus motion
+already painted into the take. A scenario addresses a moment or element as `@name`;
+`lint` accounts for camera motion when looking for an unexplained screen change.
+
 ## Environment variables
 
 | Variable | What it sets | Default |
@@ -150,14 +155,38 @@ into the data directory (`$AGENTIC_SCREENCAST_HOME/pitch.mp4`). Build progress g
 error stream line by line — scene after scene — and the report goes to standard output
 as a single JSON.
 
+The same report is written beside the MP4 as `<film>.report.json`. Its `audit.expected`
+has the frame timeline and explicit `part:` names; `audit.measured` has the decoded
+video frame count, final video and audio stream durations, stream presence and
+WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
+mismatch with measured values; the same findings appear in `warnings` and on
+the error stream. An empty issues list means these encoded properties match
+within one video frame and AAC packet padding, not that the film has been
+watched or its captions judged. A film with no parts has no chapter file;
+rebuilding one without parts removes an older file at that output path.
+
 **While you are tuning a scene, build it alone:**
 
 ```bash
-npx agentic-screencast build --source story.md --only e1 --out try.mp4
+npx agentic-screencast build --source story.md --only s03 --out try.mp4
 ```
 
 A full film of a couple of dozen scenes takes minutes to build, one scene takes seconds,
 and the segment is exactly the same one that will go into the finished file.
+
+Preview a frame without synthesising speech with `frames`:
+
+```bash
+npx agentic-screencast frames --source story.md --scene s03 --out s03.png
+npx agentic-screencast frames --source story.md --except s03 --out sheet.png
+```
+
+`--scene` generates only the selected scene; `--except` makes a sheet of the
+others, even if the omitted scene's material does not exist yet. The flags
+cannot be combined. Beat timing is estimated here. A video preview includes
+its subtitles and overlay when the scene has speech or an `overlay`. The sheet
+reports a large flat empty band on a drawn scene; an intentionally sparse
+trailer card is exempt.
 
 ## How the input is organised
 
@@ -191,6 +220,12 @@ The first beat: it is recorded and voiced separately.
 
 The second beat of the same scene.
 ~ The second beat of the same scene, written the way it should be pronounced.
+
+## s04 · slides.chapter
+title: Next step
+body: Show the result
+
+Now move to the result.
 ```
 
 **A scene's kind belongs to the material PROVIDER, not to the tool.**
@@ -225,6 +260,14 @@ The tool brings three providers with it:
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
 | `video` | a ready video file instead of a drawn page | `file` |
 
+For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 frame.
+It is selected when the film is vertical, including with `build --format vertical`;
+otherwise `page` is used. Translate file choices with `page.en` and
+`pageVertical.en` when the film has an English variant. Without `pageVertical`,
+a landscape page keeps the usual moving crop in a vertical build. The selected
+portrait page also appears in `frames` and the recording preview; a missing
+selected file is an error, not a reason to use the landscape file.
+
 The third column names only the required fields; the other allowed ones
 are listed by `agentic-screencast schema`. For the chain that is `back` — the caption of the
 return arrow; for the quantity, `label` and `tags`; for a screen scene, `zoom`,
@@ -237,6 +280,9 @@ at the start of an entry becomes its icon. If `at` has not named the moments, th
 come out each on its own beat when there are enough beats, and otherwise at an even step
 over the whole speech of the scene. Images and code are embedded into the generated page,
 so replacing a file under the same name rebuilds the scene.
+For a dense `slides.steps`, six to eight items use two columns in landscape and
+a vertical sequence in portrait. Four short `slides.chain` nodes share one
+landscape row and stack in portrait. Check the rendered frame for longer copy.
 
 A video insert is fitted to the film's frame: it is scaled preserving
 proportions, padded to the required size and converted to the film's
@@ -263,6 +309,12 @@ the button in the source recording: record real actions with Playwright capture.
 For a scene with `freezeAt` the build measures the brightness spread in every `area` region
 on the frozen frame and fails if a region is almost empty: the failure names
 the scene and the measured contrast.
+
+The scene field `stills: @saved :: check the result` requests a control frame
+at a named take mark. A beat (`b2+0.3`), scene share (`80%`) or step
+(`every 1s`) also works. A full build writes frames to `<film>.stills/`
+and reports each `scene`, `moment`, `time` in finished-film seconds, `note`
+and `file`; `--only` does not extract them.
 
 Field values are written as a short marked-up list. There are two separators,
 and they mean their own thing in each field — here are all of them:
@@ -473,8 +525,8 @@ npx agentic-screencast provider-check 'python3 /path/provider.py'
 
 ## Checks
 
-**The build does not judge the frame.** It returns the finished file, however it
-turned out: too much text, a line overflowing the edge and an unreadable
+**The build audits encoded streams and chapters, but does not judge the visual
+frame.** Too much text, a line overflowing the edge and an unreadable
 caption are the business of `check`, and you have to run it yourself.
 
 ```bash
@@ -512,6 +564,11 @@ is not judged by the frame criterion: `check` marks such a scene with a separate
 give identical frames), liveness (frames change), absence of real
 time in the frame, and seekability (a frame from the middle of a scene matches
 the end-to-end run).
+
+`lint` warns about a top title over an interface, subtitles alongside a top
+progress bar, typing too fast to read, a take piece crossing a mark not named
+in `stills`, and an abrupt screen change outside marks and `cameraMoves`.
+It places speech anchors by estimate; check the finished film after recording.
 
 ## The voice-engine contract
 
@@ -630,6 +687,11 @@ and re-recording one beat does not touch its neighbours. You can choose the inpu
 the list of microphones is next to the permission button; the browser shows device names
 only after permission is granted, which is why it is asked for in advance.
 
+The page opens even when a video take, its marks file or another scene's
+material has not been created. Ready scenes can be recorded; a separate list
+names the skipped scenes, missing files and required action. A normal build
+still requires all material.
+
 While recording is in progress you cannot switch to another scene — the scene labels
 and navigation buttons are locked: the line being recorded is bound to the scene
 selected when the button was pressed, and switching in the middle of reading would mean sound
@@ -679,6 +741,12 @@ and no rules can be found by it, so the voice data may name them directly:
 
 Changing the engine, voice or tempo invalidates both the sound and the frame cache —
 by design: the scene duration is derived from the length of the line.
+
+The draft `stub` voice's `cps` is only an estimate. For a closer draft,
+voice one scene with the final voice using `build --only <scene> --keys-only
+--voice-json '<voice>'`, divide its spoken-character count by its beats'
+`spoken` seconds in the report, and use the result as `cps`. The sound is
+cached for the final build.
 
 ### SpeechKit access key
 

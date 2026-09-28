@@ -2,13 +2,13 @@
 
 | Dimension | Answer | Source |
 |---|---|---|
-| Genre and purpose | A product walkthrough of Agentic Screencast itself: everything the tool can do and everything it knows, told as one film whose chapters stand on their own. Each chapter becomes an example clip on the landing (`website/landing-base/plan.md`). Skeleton: `product-demo`. | owner ("единый большой обзорный ролик … составные части станут примерами для лендоса") |
-| Frame and where it is watched | Two builds: landscape 16:9 (`format: landscape`) and vertical 9:16 with even margins (`zone: plain`), because the clips play on a landing page and in messengers, not in a feed. Subtitles at the bottom; `captions: top` or `auto` on scenes where the lower frame carries the subject. | owner (two formats), inferred from the landing use (zone) |
-| Length | No limit: completeness first. Each chapter runs as long as its features need, one idea per scene. Estimated on the stub at 15 characters a second: 18.6 min in Russian, 19.7 min in English, 134 scenes. | owner |
+| Genre and purpose | A product walkthrough of Agentic Screencast itself, authored in chapters that can stand on their own. The landing selects only the excerpts it needs from this source (`website/landing-base/plan.md`). Skeleton: `product-demo`. | owner (minimum landing videos) |
+| Frame and where it is watched | Build only the selected landscape 16:9 or vertical 9:16 excerpts, with even margins (`zone: plain`), for the landing and messengers. Subtitles sit at the bottom, or move to `top`/`auto` where the lower frame carries the subject. | owner (minimum landing videos), inferred from landing use (zone) |
+| Length | The source retains its 134 scenes and 15 chapters; only selected short excerpts are encoded for the landing. | owner (minimum landing videos) |
 | Depth | A shot per capability: every row of `website/landing-base/features.md` gets a scene or a written reason (the capability table below). | owner ("со всеми нашими фичами, знаниями") |
-| Narration | Planned final (team lead's decision): `voice: {"engine":"speechkit","name":"filipp"}` and `voice.en: {"engine":"speechkit","name":"john","lang":"en-US"}` — the English voice needs `"lang":"en-US"`, or the engine synthesises it as Russian (`src/voice/builtin.ts`; frictions 10). Drafts on `stub` at the measured pace: filipp reads 12.1 and 11.9 characters a second on c02-anchors and c01-steps2 (`build --only <scene> --keys-only --voice-json`), so the Russian stub runs at `cps: 12`; john reads 15.9 and 15.9, so the English stub runs at `cps: 16`. Reading rules: `pronounce.ru.json`, `pronounce.en.json`. | owner (voices), team lead (voice data, stub pace) |
-| Sound | Music bed "Inspired" (Incompetech, CC BY 4.0) under the film; "Exciting Trailer" as the trailer chapter's own bed with a music stop before the title; "Discovery Hit" on the title card; Kenney CC0 accents: a whoosh on every push between chapters, hits on the trailer cards, one confirmation on the confetti. Credits in `assets/CREDITS.md` and on the credits card. | owner (music + accents) |
-| Captions | Karaoke subtitles on every scene (`everywhere`) with an `.srt`; the text chapter shows `top` and `auto`. | inferred from the playbook (films are watched muted) |
+| Narration | The source keeps bilingual speech for timing and captions. `stub` supplies free silent timing at 12 characters/s in Russian and 16 in English; the delivered landing clips have no audio track. SpeechKit remains an optional product capability shown by the source, not a voice used for these clips. Reading rules remain in `pronounce.ru.json` and `pronounce.en.json`. | owner (silent landing videos) |
+| Sound | The source demonstrates the credited "Inspired" and "Exciting Trailer" beds and sound accents, but exported landing clips omit audio. Credits for the source material remain in `assets/CREDITS.md` and on its credits card. | owner (silent landing videos), source credits |
+| Captions | Karaoke subtitles use an explicit dense plate and remain visible on silent clips; the source can write an `.srt`, and the text chapter shows `top` and `auto`. | owner (silent landing videos), current scenario |
 | Language and pace | Russian original with an English translation in the same scenario (`--lang en`); normal pace. | owner (ru and en) |
 | Theme and look | `neutral`, the tool's default, for the film (grey paper, ink, one ochre accent); the trailer chapter in the genre theme `blockbuster`; the look chapter names the default and shows the other ten themes, a brand theme from a logo (`theme --from`, base neutral, one accent) and a film look (on the sample film, not on this one: film craft 63). The sample app is light and quiet so it agrees with the film's theme (film craft 43). | owner (neutral, via the team lead) |
 | Transitions | Quiet fades inside chapters; one kind between chapters (`push` with a whoosh, cut on the music beat); the transitions chapter shows all twelve WebGL kinds, a morph, `cut` and `dip`; the trailer uses `cut` and `dip`. | inferred from film craft 52 |
@@ -46,8 +46,8 @@ topic, so each can be cut out as a landing clip. Between chapters: `push`.
 | 13 | Знания / Knowledge | 7 | 77 | 76 | 11 The agent knows the craft |
 | 14 | Выпуск / Delivery | 10 | 71 | 71 | 12 Ready to ship, 13 First film |
 
-Lengths are the stub's estimate at 15 characters a second, before transitions overlap; the final
-voice changes them.
+Lengths in the table are earlier stub estimates for the source chapters, before transition overlap;
+they are not the durations of the selected landing excerpts.
 
 ## Capability table
 
@@ -147,7 +147,7 @@ reason it is left out. Scene ids are the headings of `story.md`.
 | Feature | Scene | Note |
 |---|---|---|
 | Captions: karaoke | every scene; c06-open narrates it | `bar` and `subtitle` left out: one caption style per film |
-| `everywhere`, `size`, `look`, `srt` | header (`everywhere`, `srt`); c06-more (size, plate, SRT named) | a larger size or a plate would change the whole film's captions |
+| `everywhere`, `size`, `look`, `srt` | header (`everywhere`, explicit plate, `srt`); c06-more (size, plate, SRT named) | selected silent clips retain readable captions |
 | Position top, middle, bottom, auto | c06-top (`top`), c06-auto and the report scenes (`auto`) | `middle` left out: no scene of this film has an empty middle |
 | Subtitles centred, even in a platform zone | the vertical build (lead's step) | |
 | Titles | c06-title (`slam`) | |
@@ -185,7 +185,7 @@ reason it is left out. Scene ids are the headings of `story.md`.
 | Feature | Scene | Note |
 |---|---|---|
 | Free silent drafts | c01-draft | |
-| SpeechKit | c08-modes, c08-voices (real `voices` output) | the film's final narration |
+| SpeechKit | c08-modes, c08-voices (real `voices` output) | optional engine shown in the source; landing clips stay silent |
 | Recording page, `recorded` | c08-record (a real take of `record` on this film) | nothing is recorded in the take |
 | Piper, `say` with permission | c08-modes, c08-rule | |
 | Own engine by a contract, `voice-check` | c08-modes (narrated) | `voice-check` needs an engine to check; nothing to film |
@@ -219,7 +219,7 @@ reason it is left out. Scene ids are the headings of `story.md`.
 
 | Feature | Scene | Note |
 |---|---|---|
-| Director rules (`lint`) | c12-lint (seven rule ids on a flawed scenario, then this film clean) | |
+| Director rules (`lint`) | c12-lint (seven rule ids on a flawed scenario, then the landscape source with no findings) | portrait lint still reports long-beat advisories |
 | `frames` | c12-frames (the sheet of this film) | |
 | `sheet` | c12-sheet (the board take) | |
 | Stills | c12-stills (the sample film's control frames with their notes) | |
@@ -250,7 +250,15 @@ reason it is left out. Scene ids are the headings of `story.md`.
 
 The count of directing rules on screen (c13-count) is 65: film craft numbers its rules 1–66 and keeps
 rule 20 in `CONTRIBUTING.md` (`grep -c "^## [0-9]" docs/film-craft.md` → 65, checked 2026-09-27).
-The landing base still says 56 (`knowledge.md`, `plan.md`) and needs the same update.
+
+## Rebuilding the source material
+
+From the repository root, run `node website/overview/shoot.mjs` to regenerate the language-specific
+takes and marks, then `node website/overview/make-material.mjs` to regenerate the sample film,
+terminal pages and source images. The scripts keep heavy captures and generated media out of Git;
+the generated HTML pages are tracked alongside their authoring script. To check the authored source,
+run `node dist/agentic-screencast.js lint --source website/overview/story.md` and repeat with
+`--lang en`. Export only the excerpts selected by the landing; the landing clips have no audio track.
 
 ## Narration
 
@@ -275,22 +283,23 @@ line against the command that printed it (`make-material.mjs`).
 - the two signs `lint` still counts are decisions: `transition-kinds` (the transitions chapter shows
   all twelve kinds, by the brief; between chapters only `push`) and `emoji-icons` (`c05-kinds`, the
   scene that shows the emoji feature itself);
-- `c09-button`, a trailer card, keeps the empty band `frames` names under its two words: the card
-  kind lays a short phrase that way, and the trailer's cards are one to three words by genre.
+- `c09-button` keeps a sparse trailer-card frame under its two words; the trailer's cards are one
+  to three words by genre, so judge their rhythm visually.
 
 ## The vertical cut
 
-The landscape pages stay; for the vertical build every terminal page (`c01-new`, `c02-cache`,
-`c02-untranslated`, `c02-typo`, `c08-voices`, `c10-brand`, `c11-legible`, `c12-lint`, `c12-report`,
-`c14-web`) and every wide diagram (`c02-anchors`, `c07-duck`, `c02-beats`, `c01-checklist`,
-`c12-stills`, `c14-files`, `c11-reframe`) carries a `spotlight` with `pan` along its text on every
-beat, and `c11-zones`, `c13-credits` and `c14-ask` a `focus` per beat, so the 9:16 window reads the
-text instead of cutting it (checked on single-scene vertical builds of `c01-new`, `c02-anchors` and
-`c01-checklist`: the window travels along the lines; the build still reports text of 42–43 px against
-the 48 px floor there). In landscape the pan stays near the whole page.
+The landscape pages stay. In the vertical build, `c01-new`, `c01-checklist` and `c02-anchors`
+select separately laid-out `pageVertical` pages in both languages. The terminal command, checklist
+and positioned timing marks are readable at the phone's 48 px floor, with the subtitles below them.
+The checklist focus stays at scale 1 so the whole list and its count remain in view. Other terminal
+pages (`c02-cache`, `c02-untranslated`, `c02-typo`, `c08-voices`, `c10-brand`, `c11-legible`,
+`c12-lint`, `c12-report`, `c14-web`) and wide diagrams (`c07-duck`, `c02-beats`, `c12-stills`,
+`c14-files`, `c11-reframe`) still use a `spotlight` with `pan` along their text on every beat.
+`c11-zones`, `c13-credits` and `c14-ask` use a `focus` per beat. In landscape the original pages
+remain the material. Only portrait excerpts selected by the landing are built; this task does not
+claim a new visual acceptance of their frames.
 
 Not suited for vertical clips, because their point is two things side by side or a dense grid of small
 text that a 9:16 window cannot hold: `c00-file` and `c14-bookend` (the scenario beside its frame),
 `c01-brief` (three columns of options), `c13-credits` (the licence list is small text), `c12-stills`
-(four stills side by side). The vertical landing clips of chapters 0, 1, 12, 13 and 14 should be cut
-around them.
+(four stills side by side). Any later portrait excerpt must exclude them.

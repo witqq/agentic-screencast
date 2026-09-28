@@ -5,6 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { cameraLegs } from "../../camera.js";
 import { parseOverlay } from "../../overlay.js";
+import { useLang } from "../../msg.js";
 
 /** Центр окна в момент t: сумма пройденных долей отрезков. */
 function centreAt(legs: ReturnType<typeof cameraLegs>, t: number): { x: number; y: number; z: number } {
@@ -18,6 +19,7 @@ function centreAt(legs: ReturnType<typeof cameraLegs>, t: number): { x: number; 
 }
 
 test("the push-in window follows a cursor that leaves its middle and stands while the cursor stays inside", () => {
+  useLang("en");
   const cues = parseOverlay('{"camera":[{"at":0,"move":0.5,"hold":4,"area":[0.3,0.3,0.4,0.4],"scale":2,"follow":"cursor","return":0.5}]}').camera!;
   // Курсор 1–1.5 с стоит в середине окна, затем уходит к правому краю кадра.
   const path = [{ t: 0, x: 0.5, y: 0.5 }, { t: 1.5, x: 0.52, y: 0.5 }, { t: 2.5, x: 0.95, y: 0.55 }, { t: 4.5, x: 0.95, y: 0.55 }];

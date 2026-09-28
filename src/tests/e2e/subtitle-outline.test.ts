@@ -1,16 +1,21 @@
-// Субтитры по умолчанию — контуром: белый текст с чёрной обводкой без плашки, шрифтом субтитров темы
-// (`--sub-font`, у каждой темы свой), крупнее прежнего. Плашка — по выбору (captions.look: plate).
+// Контур без плашки остаётся опубликованным умолчанием. Явная плотная плашка помогает
+// на пёстром интерфейсе и не меняет оформление существующего сценария.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { execFileSync, spawnSync } from "node:child_process";
+import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { createRequire } from "node:module";
 import { THEMES, THEME_NAMES } from "../../theme.js";
 import { parseCaptions } from "../../source.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CLOCK = readFileSync(resolve(here, "..", "..", "browser", "clock.js"), "utf8");
 const STAGE = readFileSync(resolve(here, "..", "..", "browser", "stage.js"), "utf8");
+const ENTRY = resolve(here, "..", "..", "agentic-screencast.js");
+const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 type RGB = [number, number, number];
 const hex = (h: string): RGB => { const v = Number.parseInt(h.slice(1, 7), 16); return [(v >> 16) & 255, (v >> 8) & 255, v & 255]; };
 const lum = (c: RGB): number => { const f = (v: number): number => { const s = v / 255; return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
@@ -28,7 +33,7 @@ test("every theme's outline subtitles read: text and the karaoke word against th
   assert.throws(() => parseCaptions('{"look":"box"}'), /captions\.look/);
 });
 
-test("subtitles default to the outline look in the theme's subtitle font, larger than before; plate is a choice", async () => {
+test("subtitles keep the outline default; explicit plate keeps the theme's font and two-line fit", async () => {
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
   try {
@@ -54,10 +59,39 @@ test("subtitles default to the outline look in the theme's subtitle font, larger
       assert.equal(m.family, THEMES[name]!["--sub-font"]!.split(",")[0]!.replace(/["']/g, "").trim(), `${name}: subtitles in the theme's subtitle font`);
       assert.ok(m.size >= 62, `${name}: the subtitle is 62 px or more at 1080 (${m.size.toFixed(0)})`);
       assert.ok(m.lines <= 2, `${name}: a piece stays within two lines (${m.lines})`);
+      const plate = await probe(1920, 1080, name, "plate");
+      assert.notEqual(plate.bg, "rgba(0, 0, 0, 0)", `${name}: explicit plate draws its backing`);
+      assert.ok(plate.lines <= 2, `${name}: the explicit plate stays within two lines (${plate.lines})`);
     }
     const v = await probe(1080, 1920, "midnight");
     assert.ok(v.size >= 64 && v.lines <= 2, `vertical: ${v.size.toFixed(0)} px in ${v.lines} lines`);
-    const plate = await probe(1920, 1080, "midnight", "plate");
-    assert.notEqual(plate.bg, "rgba(0, 0, 0, 0)", "captions.look: plate draws the plate");
   } finally { await browser.close(); }
+});
+
+test("the public build keeps outline without look and gives explicit plate a dense encoded backing", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-caption-look-"));
+  writeFileSync(join(dir, "page.html"), `<!doctype html><body style="margin:0;height:100vh;background:repeating-linear-gradient(45deg,#cf4e83 0 18px,#1d5d9d 18px 36px,#e8ae52 36px 54px)"></body>`);
+  const darkPixels = (file: string): number => {
+    const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-ss", "1.5", "-i", file,
+      "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"]);
+    let dark = 0;
+    for (let y = 25; y < 60; y++) for (let x = 110; x < 530; x++) {
+      const k = (y * 640 + x) * 3;
+      if (raw[k]! + raw[k + 1]! + raw[k + 2]! < 150) dark++;
+    }
+    return dark;
+  };
+  const build = (look?: "plate"): number => {
+    const name = look ?? "default";
+    writeFileSync(join(dir, `${name}.md`), `# Caption\nframe: {"width":640,"height":360,"fps":8}\ntheme: synthwave\nvoice: {"engine":"stub","name":"silent","cps":15}\ncaptions: {"style":"subtitle","everywhere":true,"position":"top"${look ? ',"look":"plate"' : ""}}\n\n## page · page\npage: page.html\nduration: 3\n\nSave the result using this control.\n`);
+    const result = spawnSync(process.execPath, [ENTRY, "build", `${name}.md`, "--out", `${name}.mp4`], { cwd: dir, encoding: "utf8",
+      env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
+    assert.equal(result.status, 0, result.stderr.slice(-600));
+    const report = JSON.parse(result.stdout) as { audit: { issues: unknown[] }; warnings: unknown[] };
+    assert.equal(report.audit.issues.length, 0);
+    assert.equal(report.warnings.length, 0);
+    return darkPixels(join(dir, `${name}.mp4`));
+  };
+  const outline = build(), plate = build("plate");
+  assert.ok(plate > outline + 3000, `explicit plate covers the busy background beneath the subtitle (${outline} → ${plate} dark pixels)`);
 });

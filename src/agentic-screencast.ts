@@ -38,7 +38,7 @@ import { engineFor } from "./voice/index.js";
 import { builtinPaths } from "./voice/builtin.js";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { msg } from "./msg.js";
+import { msg, useLang } from "./msg.js";
 import { KINDS as TRANSITIONS } from "./transition.js";
 import { KINETIC } from "./overlay.js";
 import { brandTheme, dominantColors, parseHex } from "./brand.js";
@@ -62,10 +62,12 @@ const rest = process.argv.slice(3);
   if (i >= 0) {
     if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error("--lang: name a language, e.g. --lang ru"); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_LANG = rest[i + 1];
+    process.env.AGENTIC_SCREENCAST_LANG = rest[i + 1];
+    useLang(rest[i + 1]);
     rest.splice(i, 2);
   }
-  // Формат сборки: `build --format vertical` у горизонтального сценария кадрирует
-  // его страницы и клипы. У `new` флаг значит своё — формат заготовки.
+  // Формат сборки: `build --format vertical` пересобирает слайды, берёт
+  // pageVertical у страницы либо кадрирует её исходник и видеоклипы.
   const f = rest.indexOf("--format");
   if (f >= 0 && process.argv[2] !== "new") {
     if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error("--format: name one, e.g. --format vertical"); process.exit(2); }
@@ -89,7 +91,7 @@ Usage:
   agentic-screencast verify [--scene scene.json]
   agentic-screencast lint [--source story.md]
   agentic-screencast new <genre> [--lang ru] [--format vertical|square] [--out story.md]
-  agentic-screencast frames [--source story.md] [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]
+  agentic-screencast frames [--source story.md] [--at 0.8|80%|2.4s|b2+0.5] [--scene id | --except id] [--out sheet.png]
   agentic-screencast sheet <clip> [--count 12 | --every 2] [--from s --to s] [--out sheet.png]
   agentic-screencast theme --from logo.png [--base neutral] | --colors "#a,#b"
   agentic-screencast web <film.mp4> [--out web] [--formats av1,vp9,h264] [--width 1280] [--quality high|balanced|small] [--mute] [--thumbs 2] [--gif 2-8]
@@ -117,8 +119,12 @@ film or a part; help slides lists them all), page (a saved
 or self-contained HTML page), video (a finished clip or a live take — help
 capture). agentic-screencast schema <kind> prints a kind's fields.
 
-  page    page: file.html; target: a CSS selector the camera and the frame
-          check use; mustRead: text the frame check must find readable;
+  page    page: file.html; optional pageVertical: file.vertical.html replaces
+          that page in a vertical build (pageVertical.en for an English film).
+          A selected portrait file is required and also used by frames and
+          the recorder preview. target: a CSS selector the camera and the frame
+          check use; mustRead: a selector whose text the frame check must
+          find readable;
           zoom: 1.2 enlarges the whole page for the scene; spotFrom: 2.5
           starts its spot of light at that second; focus: selector @ anchor
           | … moves the spot from subject to subject with the words while
@@ -160,7 +166,11 @@ Building:
       landscape scenario (help vertical)
 The build prints its report as JSON on stdout and writes the same report
 beside the film as <film>.report.json: each scene's start and end, beats,
-stills, marks, audio, warnings and timing.
+stills, marks, audio, audit, warnings and timing. audit compares decoded
+video frames and final audio/video durations with the scene timeline, and
+WebVTT chapter cues with the named parts. Its issues have stable codes and
+measured values; each is also printed as a warning on stderr. A peak above
+-1 dBTP after AAC correction fails the build.
 A build failure prints one line, build failed: …, naming the scene;
 AGENTIC_SCREENCAST_DEBUG=1 adds the stack. The header's frame (width,
 height, fps, scale) and encode (crf, preset, pix, audio bitrate) set the
@@ -215,10 +225,11 @@ auto-wait, scroll, move the visible cursor and pace the recording. The
 cursor travels on a gentle curve, leans a little as it moves, and takes the
 shape of the element under it — a hand over a link or a button with
 cursor:pointer, a text cursor over a field, an open hand over what is
-dragged. A click is drawn by the actual pointerdown event, so it cannot lead
-the UI: the cursor dips and bounces, and click: "ripple" (default) | "spot"
-| "echo" in the take's options picks the ripple, a soft spot of light or an
-echo of two ripples.
+dragged. Long trips show intermediate pointer positions, typing enters
+visible characters at a readable pace, and a drag's real pointer path is
+saved with the take. A click is drawn by the actual pointerdown event, so
+it cannot lead the UI: the cursor dips and bounces. The take's click option
+chooses "ripple" (default), "spot" (a soft light) or "echo" (two ripples).
 withFocusCard(locator, card, action) places the explanation next to the
 control while the real action runs; no authored card coordinates are needed.
 Cards can use reveal:"type" and motion:"rise"|"pop"|"glide".
@@ -257,18 +268,27 @@ name. The marks file keeps what the edit needs without measuring: the
 clicks, the cursor's path ("path"), every action with its kind, start, end
 and element rectangle ("actions": click, type, press, drag, range, hover)
 and the marks' rectangles ("rects"), all in frame fractions and seconds
-from the recording's zero. autoZoom: true on the video scene pushes the
+from the recording's zero. "cameraMoves" records the start and end of
+focus/unfocus motion already painted into the take, so lint does not mistake
+that motion for navigation. autoZoom: true on the video scene pushes the
 camera in at the actions, like Screen Studio: actions close in time and
 place (a click on a field, the typing, the choice in the list it opened)
 are one push-in on their common area with a margin, typing holds it until
 the text is typed, and a far or later action gets its own push-in; close
 push-ins travel to each other without the overview. {"hold":1.2,"size":0.36,
 "scale":1.8} tune the hold after the last action, the smallest area and a
-fixed magnification (without scale the area decides it); "follow":"cursor"
-lets the zoomed window follow the recorded cursor while it holds — it stands
-while the cursor stays in its middle and glides after it when it leaves.
-"follow":"cursor" on an overlay.camera move over a take does the same. A take recorded
-before actions were stored pushes in at each click.
+fixed magnification (without scale the subject is fitted); a whole-viewport
+action without a nearby click adds no focus. Automatic moves dim around the
+specific subject without drawing a full-screen focus ring. "follow":"cursor"
+lets the zoomed window follow the recorded cursor after it reaches the
+focused action — it stands while the cursor stays in its middle and glides
+after it when it leaves.
+"follow":"cursor" on a hand-authored overlay.camera move over a take
+starts following after that move, even when the pointer is outside its named
+area. A take recorded
+before actions were stored pushes in at each click. In a vertical cut of a
+landscape take, the crop also scales a small subject and follows that path;
+inspect the finished phone frame to confirm the interface remains readable.
 from: @opened and to: @saved (or seconds) on a video scene play only that
 piece of the take, so one take serves several scenes; inside the scene
 every clip second — marks, speed, freezeAt, stills — counts from the start
@@ -379,6 +399,13 @@ clip goes on. Spans and holds share one ordered list:
 
 speed: [{"from":1.0,"to":2.5,"rate":0.5},{"at":4.0,"hold":3}]
 
+For narration before an action, hold the clip's first frame at 0 for the
+measured introductory beat, then let the recorded action play. Leave the
+clip at its normal speed when the spoken line and visible action should run
+together. A changed voice or line needs the hold checked against the final
+audio. autoZoom and speed cannot be combined on one video scene; record the
+pause in the take when that scene also needs automatic camera following.
+
 Why time stops inside the shot rather than in a scene of its own:
 docs/film-craft.md, rule 17.
 
@@ -471,12 +498,12 @@ captions: {"style":"karaoke","everywhere":true,"srt":true}
   bar       the plate at the bottom with the whole scene's line (default)
   subtitle  the current beat in pieces of at most two lines
   karaoke   the same, with the spoken word highlighted
-Subtitles are white letters with a black outline and a soft shadow, with no
-plate, in the theme's text font; the karaoke word takes the theme's light
-accent. They read on light and dark footage alike. "look":"plate" puts them
-on a dense plate instead (the theme's --sc-sub-bg), which is the choice for
-accessibility-first delivery. Both are 64 px in a 1080p landscape frame and
-about 67 px in a vertical one.
+Subtitles use white letters with a black outline and soft shadow by default,
+without a plate. "look":"plate" uses the theme's dense --sc-sub-bg backing
+to keep the text distinct over busy interfaces. The karaoke word takes the
+theme's light accent. Both looks use the theme's subtitle
+font. They are 64 px in a 1080p landscape frame and about 67 px in a
+vertical one.
 Subtitles show on video scenes; everywhere adds slides and pages, whose
 text they would otherwise leave alone; srt writes film.srt beside the
 MP4, each beat starting where its audio starts. Subtitles stay on while a
@@ -491,13 +518,14 @@ itself with captions: top | middle | bottom | auto.
 At the top, cards and titles set at the top stand below the subtitles and
 slides keep the top band free; in the middle, nothing moves aside, so choose
 it only over an empty part of the frame. "auto" lets the build choose per
-scene: it looks at the scene's frames — a clip sampled twice a second, a
-drawn scene once in its middle — and puts the subtitles in the band (top,
-middle or bottom of the zone) with the least detail, keeping the bottom
-unless another band is clearly emptier; the build report lists each choice
-as captionPlaces, and frames draws such scenes at the bottom. lint names subtitles at the top
-together with a progress bar at the top (captions-top-progress). Karaoke timing is an
-estimate: a beat's measured duration is shared between its words in
+scene: it avoids bands occupied by named targets and camera subjects,
+including the visible band of a portrait crop, then compares image detail
+in the remaining bands. A clip is sampled twice a second and a drawn scene
+once in its middle. Bottom stays preferred unless another safe band is
+clearly emptier; the build report lists each choice as captionPlaces.
+frames draws such scenes at the bottom. lint names subtitles at the top
+together with a progress bar at the top (captions-top-progress). Karaoke
+timing is an estimate: a beat's measured duration is shared between words in
 proportion to their length — there is no speech recognition — so a new
 voice or pace moves the highlight with the audio.
 
@@ -517,8 +545,11 @@ and a card's reveal they are the phrase styles. The frame dims and blurs under a
 title so it reads over a busy interface. position: center | top | bottom.
 lower: a name plate at the bottom left or right (side). callouts: a label
 with an arrow whose end lies inside the subject (side: auto | left | right |
-top | bottom picks where the label stands); the subject is a CSS
-target on a page, an area [x,y,w,h] or a point [x,y] in frame fractions.
+top | bottom picks where the label stands). Each callout must name exactly
+one subject field: target is a CSS selector on a page; area is
+[left,top,width,height] in frame fractions from 0 to 1; point is [x,y]
+in frame fractions. A video callout uses area or point, since it has no
+page element to select.
 stickers: one of emoji, image (svg, png, jpg, webp; gif, webm or
 animated png play frame by frame on scene time) or text (a badge);
 motion: pop | float | spin. Every hold has a reading-time minimum, and the
@@ -610,7 +641,9 @@ A shared element moves between two drawn scenes (slides or pages):
 transition: {"kind":"morph","element":"#total","duration":1}
 The element — present in both scenes under the same selector — travels in one
 piece from its place in the first scene to its place in the second and
-takes the second look on the way, while the background dissolves under it;
+takes the second look halfway through, so different text layouts do not
+double while the background dissolves under it. Exactly one visible match
+is selected in each scene, even when a hidden view repeats its selector;
 the build renders both scenes' frames with and without it to do so. Without
 WebGL it becomes a plain dissolve, and the report says ffmpeg.
 Any CSS selector works. On generated slides the number of slides.number is
@@ -678,15 +711,21 @@ speechAt: 0.8 on a scene starts its narration that many seconds into the
 scene — a hit or a card first, the voice after it; the beats, subtitles and
 the ducking of music and accents move with it.
 Every film with sound — narration alone too — is normalised to -14 LUFS
-with its true peak under -1 dBTP, unless loudness names another target;
-a silent track (the stub voice) is left as it is.
+unless loudness names another target. The build measures the finished AAC
+and corrects audio-only if its decoded true peak exceeds -1 dBTP; if it
+cannot meet that ceiling, the build fails. Peak correction can leave the
+achieved loudness below the target. A silent track (the stub voice) is left
+as it is.
 audio: false in the header writes a film without a sound track: the
 narration still sets every scene's length, but the MP4 carries only video.
 
 The build report shows audio.music, audio.sfx[].underSpeech and
 audio.loudness (target, input — the mix before normalising — and measured,
-the finished sound). Where to find free music and sounds, how to choose them by
-genre and tempo, and how to credit them: docs/sound.md.`;
+the finished AAC's integrated loudness, or null for silence or a stream too
+short to measure). audio.encoded gives its final truePeak in dBTP and
+corrected flag; audio: false has no audio measurement. Where to find free
+music and sounds, how to choose them by genre and tempo, and how to credit
+them: docs/sound.md.`;
 const THEMES_HELP = `Named looks: one word in the header styles the whole film
 
 # My film
@@ -890,8 +929,10 @@ agentic-screencast web film.mp4 --out web [--width 1280] [--quality balanced] [-
 
 The build writes H.264 at high quality — the format for review, which every
 player opens. A page does better with AV1: in this product's measurements it
-is about 40% lighter than H.264 at the same frame similarity, and VP9 sits
-between them. Not every browser plays AV1 (older Safari), so web writes all
+is about 40% lighter than H.264 at the same frame similarity. VP9's size
+depends on the material and the chosen quality; it can be larger than H.264.
+The web report gives each output's measured bytes. Not every browser plays
+AV1 (older Safari), so web writes all
 three and a <video> snippet whose <source> lines go in order of preference;
 the browser takes the first it can play and H.264 stays last as the fallback.
 
@@ -942,9 +983,14 @@ A landscape film made vertical without a rewrite:
   agentic-screencast build story.md --format vertical --out short.mp4
 Slides are drawn anew in portrait. A page is rendered in its own landscape
 frame at full density and cut by a 9:16 window that follows the spotlight
-target; a clip or a frozen frame is cut by a window that glides between the
-focus areas and recorded clicks. Captions, titles and cards are laid out
-again inside the vertical safe zone; a card set near the focus moves to the
+target unless the scene names pageVertical: pages/phone.html. That HTML is
+drawn directly in the portrait viewport, without the landscape crop; a
+missing selected file fails the build. A clip or frozen frame is cut by a
+window that glides between focus areas and recorded clicks. With autoZoom,
+a small named action grows inside that window; follow:"cursor" keeps that
+subject visible until the pointer reaches it, then follows the pointer out
+of the central zone. Captions, titles and cards are
+laid out again inside the vertical safe zone; a card near focus moves to the
 top. Letterbox bars from look are left out and the build report says so; a
 clip in a device frame is re-laid in the portrait frame instead of cut.
 
@@ -952,7 +998,7 @@ Translations live in the same scenario: title.ru:, key.ru: fields
 (kicker.ru:, overlay.ru:, voice.ru: in the header) and a [ru] narration block per scene with the same
 number of beats, since anchors like b2 count beats. A page or a clip that
 shows an interface needs its own translated file: page.ru: page.ru.html,
-file.ru: take.ru.webm. --lang ru on build, lint, frames, script or scenes
+pageVertical.ru: page.vertical.ru.html, file.ru: take.ru.webm. --lang ru on build, lint, frames, script or scenes
 picks the variant, each language generating into its own place; run lint
 --lang ru before a build — it names every visible field left untranslated.
 
@@ -962,8 +1008,9 @@ Helpers that save a full build:
       reel) with its pages, ready to build on the free stub voice; with
       --format vertical or square the header also gets zone: platform (the
       brief decides where the film is watched) and the phone pace, cps 13
-  agentic-screencast frames --source story.md [--at 0.8|80%|2.4s|b2+0.5] [--scene id]
-      one frame per scene on a labelled sheet, or one still; beats are
+  agentic-screencast frames --source story.md [--at 0.8|80%|2.4s|b2+0.5] [--scene id | --except id]
+      one frame per scene on a labelled sheet, or one still with --scene;
+      --except omits one scene from the sheet. The two flags cannot be combined. Beats are
       estimated from the text, nothing is synthesised; the film-wide layers
       (progress bar, part label, presenter) are not drawn. A drawn scene
       whose frame has a flat empty band a third of its height or more is
@@ -986,13 +1033,14 @@ Helpers that save a full build:
       start, for what happens between named moments — a page change in the
       middle of a shot. The build writes them to
       <film>.stills/ (a whole-film build; --only leaves them) and lists them in
-      its report ("stills": scene, moment, second, note, file); look at
+      its report ("stills": scene, moment, time, note, file); look at
       them right after the build instead of guessing seconds. Naming stills
       does not re-render a scene. The report also gives every take's marks
       in film time after speed ("marks": scene, mark, clip, film) and the
       paths of the subtitle and chapter files ("srt", "chaptersFile").
       The report on stdout is JSON: "out", "duration", "scenes" (per scene:
       "start" and "end" in the film, transitions' overlaps included,
+      "nativePortrait" for a page selected through pageVertical,
       "legibility" — the smallest text of each focus's subject at the
       middle of its hold, in frame pixels, against the 48 px a phone reads
       on a 1080 frame (stderr names every subject under it),
@@ -1002,10 +1050,12 @@ Helpers that save a full build:
       a built-in slide in a vertical frame under the 36 px floor for
       secondary text, also named on stderr — "renderer"), "beats"
       (each beat's start in the film), "stills", "marks", "srt",
-      "chapters", "audio" (music and its spans, accents, loudness),
+      "chapters", "audio" (music and its spans, accents, final AAC loudness
+      and true peak), "audit" (expected and encoded stream lengths, decoded
+      frames, chapter cues and coded issues),
       "hits" (flashes and shakes), "transitions",
       "timing" (where the build spent its time), "segments" (each scene's
-      cached clip and its checksum), "warnings" (muxer complaints).
+      cached clip and its checksum), "warnings" (muxer and audit findings).
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
@@ -1083,8 +1133,15 @@ its own cache key, so rewriting one sentence re-renders one beat. A line
 starting with ~ gives the spoken variant of that beat, while the screen keeps
 the written one. Reading rules (pronounce) and lang belong to the film.
 
-The stub's cps is the pace a draft assumes; a real voice has its own —
-SpeechKit's kuznetsov at speed 1 reads about 10 characters a second, not 15. Scenes timed on a wrong pace come out longer or shorter in the final,
+The stub's cps is the pace a draft assumes; a real voice has its own.
+Measured SpeechKit pace at speed 1, in spoken characters per second:
+
+  kuznetsov  about 10
+  filipp     about 12
+  john       about 16
+
+These are starting estimates for the measured voices and material, not
+promised durations for every text. Scenes timed on a wrong pace come out longer or shorter in the final,
 and their timing has to be redone. Measure the pace first: voice one scene
 with the final voice without drawing it —
   build --only <scene> --keys-only --voice-json '<the final voice>'
@@ -1149,14 +1206,14 @@ function readSource(path: string): Source {
 }
 
 /** Готовые данные в обход сценария: внятная ошибка вместо стека. */
-function requireFile(path: string, what: string): string {
+function requireFile(path: string, what: "Slides" | "Scenes" | "Scene"): string {
   if (existsSync(path)) return path;
   // Подсказка называет источник только там, где подкоманда его принимает:
   // у `verify` входом служит сцена, и совет «--source» увёл бы читателя.
   const hint = ["build", "check", "script", "slides"].includes(cmd)
-    ? `Вход инструмента — файл сценария: agentic-screencast ${cmd} --source story.md`
-    : `Укажите существующий файл: agentic-screencast ${cmd} --scene scene.example.json`;
-  console.error(`${what} не найден: ${path}\n${hint}`);
+    ? msg("cli.hintSource", { cmd: String(cmd) })
+    : msg("cli.hintScene", { cmd: String(cmd) });
+  console.error(`${msg("cli.fileMissing", { what: msg(`cli.file${what}`), path })}\n${hint}`);
   process.exit(2);
 }
 
@@ -1264,7 +1321,7 @@ switch (cmd) {
     }
     const deck = arg("deck");
     if (deck) {
-      requireFile(deck, "файл слайдов");
+      requireFile(deck, "Slides");
       const r = spawnSync("node", [resolve(HERE, "slides.js"), deck,
         resolve(dirname(deck), SLIDES_DIR)], { stdio: "inherit" });
       if (r.status) process.exit(r.status);
@@ -1272,7 +1329,7 @@ switch (cmd) {
     // Голос задаётся либо парой флагов, либо объектом целиком: у провайдера
     // могут быть свои параметры (темп у SpeechKit), и они не должны теряться.
     const voiceJson = arg("voice-json");
-    run("build.js", ["--pitch", requireFile(arg("pitch", ""), "файл сцен"),
+    run("build.js", ["--pitch", requireFile(arg("pitch", ""), "Scenes"),
       "--out", arg("out", `${HOME}/pitch.mp4`),
       ...(voiceJson ? ["--voice-json", voiceJson]
         : ["--voice", arg("voice", "kuznetsov"), "--engine", arg("engine", "speechkit")]),
@@ -1284,7 +1341,7 @@ switch (cmd) {
     // единственным, что нельзя пересобрать из сценария одной командой.
     const source = arg("deck") ? undefined : sourceArg();
     if (source) { const { slidesDir } = generate(source); console.log(slidesDir); break; }
-    const deck = requireFile(arg("deck") ?? "", "файл слайдов");
+    const deck = requireFile(arg("deck") ?? "", "Slides");
     run("slides.js", [deck, arg("out", resolve(dirname(deck), SLIDES_DIR))]);
     break;
   }
@@ -1293,14 +1350,14 @@ switch (cmd) {
     // и к этому дефекту слеп по устройству.
     const source = arg("pitch") ? undefined : sourceArg();
     const pitchFile = source ? generate(source).pitchFile
-      : requireFile(arg("pitch") ?? "", "файл сцен");
+      : requireFile(arg("pitch") ?? "", "Scenes");
     run("order-check.js", [pitchFile]);
     break;
   }
   case "check": {
     const source = arg("pitch") ? undefined : sourceArg();
     const pitchFile = source ? generate(source).pitchFile
-      : requireFile(arg("pitch") ?? "", "файл сцен");
+      : requireFile(arg("pitch") ?? "", "Scenes");
     run("slide-check.js", [pitchFile, arg("at", "0.95")]);
     break;
   }
@@ -1309,7 +1366,7 @@ switch (cmd) {
     // потом флаги. Иначе флаг занимает позицию списка моментов и роняет разбор.
     // Образец сцены и каталог примера лежат в КОРНЕ продукта, а не рядом
     // с собранным кодом: они входят в поставку как данные, а не как модули.
-    const scene = requireFile(arg("scene", resolve(HERE, "..", "scene.example.json")), "файл сцены");
+    const scene = requireFile(arg("scene", resolve(HERE, "..", "scene.example.json")), "Scene");
     // Подложка сцены-образца порождаема, и в свежем клоне её ещё нет:
     // проверка ядра рендера падала сразу после клонирования, а в рабочем
     // дереве проходила на слайдах, оставшихся от прошлых запусков.

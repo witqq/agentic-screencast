@@ -34,13 +34,20 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 6. Draft
 
-- [ ] Built on `stub` at the measured `cps`; the report has no `overflow`, `cut` or unexplained
-      warning; the stills match their notes; the owner has seen the draft and their remarks are fixed.
+- [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles and the
+      rhythm of sparse trailer cards; the report has no `overflow`, `cut` or unexplained warning;
+      the stills match their notes; the owner has seen the draft and their remarks are fixed.
 
 ## 7. Final
 
 - [ ] Built with the chosen voice, music and look (variants in parallel); its stills and report checked
-      once; loudness within 1 LU of its target.
+      once; `audit.issues` empty or every finding resolved, chapters match the authored parts, and
+      the MP4 watched for framing, captions and actual cursor/camera movement. Check that the named
+      subject stays visible through each move and that narrated actions occur in the intended order
+      relative to speech; write `n/a:` with a reason when a film has no such action. With measurable
+      sound, final AAC true peak is at most
+      −1 dBTP and achieved loudness is read from `audio.loudness.measured` (peak correction can put it
+      below the target); silence has a null peak and `audio: false` has no sound measurement.
 
 ## 8. Handoff
 
@@ -72,7 +79,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Theme with its fonts, a scene in another theme, brand theme, film look — `theme`, `theme --from`, `look`, `help themes`
 - Music, a track per part or a music stop, accents (a hit before the voice: `speechAt`), loudness, a film without sound — `music` (header and scene), `sfx`, `loudness`, `audio: false`, `help sound`
 - Voice agreed with the owner (or settled by the request): an engine built into the tool, the owner's own voice, or silent; drafts on `stub`; a system voice (`say`) only with the owner's explicit permission — `voice`, `agentic-screencast record`, `help voice`, skill section Voice
-- Vertical and square films: the feed's margins or even ones by where the film is watched; an architecture or an interface on a phone read at 48 px or more (`legibility` in the build report, `pan` along a wide subject) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`
+- Vertical and square films: choose margins for where the film is watched; reflow a `page` with `pageVertical` or use `pan` along a wide subject, then inspect the final phone frame for key UI at 48 px or more and subtitles clear of it (`legibility` in the build report) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`
 - Several languages — `.ru` fields, `[ru]` blocks, `--lang`, `help vertical`
 - Control frames — `stills`, `help vertical`
 - Web page output, a GIF for a README or chat — `agentic-screencast web` (`--gif`), `help web`

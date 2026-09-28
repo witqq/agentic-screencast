@@ -21,6 +21,32 @@ test("new --lang writes the film's language into the skeleton", () => {
   assert.notEqual(spawnSync("node", [ENTRY, "new", "trailer", "--lang", "Русский", "--out", "b.md"], { cwd: dir, encoding: "utf8" }).status, 0);
 });
 
+test("a CLI file error follows the requested run language", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-cli-language-"));
+  const run = (args: string[]) => spawnSync("node", [ENTRY, "build", "--pitch", "missing.json", ...args],
+    { cwd: dir, encoding: "utf8", env: { ...process.env, LANG: "en_US.UTF-8", AGENTIC_SCREENCAST_LANG: "en" } });
+  const en = run([]), ru = run(["--lang", "ru"]);
+  assert.equal(en.status, 2);
+  assert.equal(ru.status, 2);
+  assert.match(en.stderr, /scene file not found: missing\.json\nThe tool input is a scenario file/);
+  assert.match(ru.stderr, /файл сцен не найден: missing\.json\nВход инструмента — файл сценария/);
+});
+
+test("build validates voice settings in the scenario's language", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-build-language-"));
+  const story = `# Film\nlang: ru\nvoice: {"engine":"stub","name":"silent","pitch":30}\n\n## one · slides.number\nvalues: 1 :: item\n\nA spoken beat.\n`;
+  writeFileSync(join(dir, "story.md"), story);
+  const run = () => spawnSync("node", [ENTRY, "build", "--source", "story.md", "--out", "film.mp4"],
+    { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home"), LANG: "en_US.UTF-8" } });
+  const ru = run();
+  assert.equal(ru.status, 2);
+  assert.match(ru.stderr, /voice\.pitch: укажите полутоны от -12 до 12/);
+  writeFileSync(join(dir, "story.md"), story.replace("lang: ru", "lang: en"));
+  const en = run();
+  assert.equal(en.status, 2);
+  assert.match(en.stderr, /voice\.pitch: expected semitones from -12 to 12/);
+});
+
 test("new --format vertical gives a phone skeleton: the zone to decide and the phone pace, and it builds on the stub", () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-new-vert-"));
   const r = spawnSync("node", [ENTRY, "new", "explainer", "--format", "vertical"], { cwd: dir, encoding: "utf8" });
@@ -51,7 +77,7 @@ test("pitch shifts a beat's voice by semitones and keeps its length", () => {
     recordingPath(line, { engine: "recorded", dir: recs })]);
   writeFileSync(join(dir, "p.html"), "<html><body style='margin:0;background:#222'></body></html>");
   const build = (pitch: string): { beat: number; crossings: number } => {
-    writeFileSync(join(dir, "story.md"), `# P\nvoice: {"engine":"recorded","dir":"${recs}"${pitch}}\nframe: {"width":160,"height":90,"fps":10,"scale":1}\n\n## one · page\npage: p.html\n\n${line}\n`);
+    writeFileSync(join(dir, "story.md"), `# P\nlang: en\nvoice: {"engine":"recorded","dir":"${recs}"${pitch}}\nframe: {"width":160,"height":90,"fps":10,"scale":1}\n\n## one · page\npage: p.html\n\n${line}\n`);
     const r = spawnSync("node", [ENTRY, "build", "--source", "story.md", "--out", "f.mp4"],
       { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
     assert.equal(r.status, 0, r.stderr);

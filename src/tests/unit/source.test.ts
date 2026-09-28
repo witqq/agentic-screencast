@@ -6,16 +6,16 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { parseSource, toPitch, toScript } from "../../source.js";
+import { MissingMaterialError, parseSource, toPitch, toScript } from "../../source.js";
 import { slideOf } from "../../provider/slides/from-scene.js";
 
 const dir = mkdtempSync(join(tmpdir(), "slidecast-source-"));
 let n = 0;
 /** Кладёт сценарий во временный файл и разбирает его. */
-const parse = (text: string): ReturnType<typeof parseSource> => {
+const parse = (text: string, opts: Parameters<typeof parseSource>[1] = {}): ReturnType<typeof parseSource> => {
   const file = join(dir, `story-${n++}.md`);
   writeFileSync(file, text);
-  return parseSource(file);
+  return parseSource(file, opts);
 };
 
 const COMPARE = `# Ролик
@@ -84,7 +84,7 @@ test("колонка без разделителя — ошибка, но при
   const bad = COMPARE.replace("left: Что вы просите :: Одна фраза", "left: Одна фраза");
   const src = parse(bad);
   assert.equal(src.scenes.length, 1);
-  assert.throws(() => slideOf(src.scenes[0]!), /колонка описывается/);
+  assert.throws(() => slideOf(src.scenes[0]!), /колонка описывается|write a column as/);
 });
 
 test("колонка с перечнем и колонка с текстом различаются", () => {
@@ -208,9 +208,11 @@ title: Т
 });
 
 test("читаемый сценарий печатает все реплики и их число", () => {
-  const out = toScript(parse(COMPARE));
+  const out = toScript(parse(COMPARE.replace("# Ролик", "# Ролик\nlang: ru")));
   assert.match(out, /Реплика первой сцены\./);
   assert.match(out, /Сцен: 1\./);
+  const english = toScript(parse(COMPARE.replace("# Ролик", "# Film\nlang: en")));
+  assert.match(english, /Scenes: 1\. Beats: 1\./);
 });
 
 test("язык сообщений называет ролик, а не инструмент", () => {
@@ -259,4 +261,64 @@ kikcer: опечатка
     if (was === undefined) delete process.env.AGENTIC_SCREENCAST_LANG;
     else process.env.AGENTIC_SCREENCAST_LANG = was;
   }
+});
+
+test("one rejected video scene names every incompatible timing pair", () => {
+  const clip = `conflicts-${n++}.mp4`;
+  writeFileSync(join(dir, `${clip}.marks.json`), JSON.stringify({ marks: {}, clicks: [] }));
+  const source = `# Film\nlang: en\nvoice: {"engine":"stub","name":"silent"}\n\n## v · video\nfile: ${clip}\nautoZoom: true\nspeed: [{"from":0,"to":1,"rate":0.5}]\nspotlight: [{"area":[0.1,0.1,0.3,0.3],"at":"b1","slow":0.5}]\n\nA spoken beat.\n`;
+  assert.throws(() => parse(source), (error: unknown) => {
+    const message = (error as Error).message;
+    return message.includes("autoZoom + speed") && message.includes("spotlight.slow + speed");
+  });
+});
+
+test("Russian source validation keeps scene and film errors in the film's language", () => {
+  assert.throws(() => parse(`# Film\nlang: ru\n\n## s · slides.chapter\ntitle: Title\nbody: Body\nduration: -1\n`),
+    /длительность сцены s должна быть больше 0 и не больше 600 секунд/);
+  assert.throws(() => parse(`# Film\nlang: ru\ncaptions: {"size":2}\n\n## s · slides.chapter\ntitle: Title\nbody: Body\nduration: 2\n`),
+    /captions\.size: ожидается число от 0,8 до 1,6/);
+});
+
+test("Russian source wraps a still moment error without switching to English", () => {
+  assert.throws(() => parse(`# Film\nlang: ru\n\n## s · slides.chapter\ntitle: Title\nbody: Body\nduration: 2\nstills: every 0.1s\n`),
+    /stills:.*шаг должен быть от 0,25 до 10 секунд/);
+});
+
+test("Russian slide diagnostics name missing material and invalid values in Russian", () => {
+  const missing = parse(`# Film\nlang: ru\n\n## photo · slides.photo\nimage: missing.png\nduration: 2\n`).scenes[0]!;
+  assert.throws(() => slideOf(missing, dir), (error: unknown) => {
+    const found = error as MissingMaterialError;
+    return found instanceof MissingMaterialError && found.kind === "image" && found.file === "missing.png"
+      && /сцена photo: изображение не найдено: missing\.png/.test(found.message);
+  });
+  const bad = parse(`# Film\nlang: ru\n\n## quote · slides.quote\nparts: кто :: ответ\nalign: middle\nduration: 2\n\nРеплика.\n`).scenes[0]!;
+  assert.throws(() => slideOf(bad, dir), /сцена quote: align: выберите top \| center \| bottom \| fill/);
+});
+
+test("missing marked take defers its seconds while checking independent speed values", () => {
+  const story = `# Film\nlang: en\n\n## take · video\nfile: absent.webm\nfrom: @start\nspeed: [{"from":"@start","to":"@done","rate":0.5,"ramp":1}]\n\nA beat.\n`;
+  assert.deepEqual(parse(story, { recording: true }).scenes[0]!.recordUnavailable,
+    { kind: "video", file: "absent.webm" });
+  assert.throws(() => parse(story.replace('"rate":0.5', '"rate":7'), { recording: true }), /rate/);
+  assert.throws(() => parse(story.replace("from: @start", "from: invalid"), { recording: true }), /from/);
+  const overlap = story.replace('[{"from":"@start","to":"@done","rate":0.5,"ramp":1}]',
+    '[{"from":1,"to":3,"rate":0.5},{"from":2,"to":4,"rate":0.5},{"from":"@start","to":"@done","rate":0.5}]');
+  assert.throws(() => parse(overlap, { recording: true }), /must not overlap/);
+});
+
+test("offset take marks keep their authored still names and remain valid before the take exists", () => {
+  const file = "offset-take.webm";
+  writeFileSync(join(dir, `${file}.marks.json`), JSON.stringify({ version: 1, trimmed: 0,
+    marks: { click: 1.5, done: 2.5 }, clicks: [] }));
+  const story = `# Film\nlang: en\nvoice: {"engine":"stub","name":"silent"}\n\n## take · video\nfile: ${file}\nduration: 4\nstills: @click+0.1 :: after click | @done-0.2 :: before done\nfreezeAt: @done+0.2\n\nA beat.\n`;
+  const source = parse(story);
+  const scene = toPitch(source).scenes[0]!;
+  assert.deepEqual(scene.stills?.map((still) => [still.at, still.clip]),
+    [["@click+0.1", 1.6], ["@done-0.2", 2.3]]);
+  assert.equal(scene.freezeAt, 2.7);
+  const awaiting = parse(story, { recording: true }).scenes[0]!;
+  assert.deepEqual(awaiting.recordUnavailable, { kind: "video", file });
+  assert.equal(awaiting.fields.stills, "@click+0.1 :: after click | @done-0.2 :: before done");
+  assert.equal(awaiting.fields.freezeAt, "@done+0.2");
 });

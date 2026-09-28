@@ -11,9 +11,10 @@
 // Запуск: frames.js <сценарий> [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]
 import { fitFilter, type Fit } from "./fit.js";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, resolve, basename } from "node:path";
+import { dirname, resolve, basename, join } from "node:path";
+import { tmpdir } from "node:os";
 import { chromium } from "playwright";
 import { renderScene, DEFAULTS, type RenderScene } from "./render.js";
 import { generateFrom } from "./generate.js";
@@ -23,6 +24,8 @@ import { subtitleMax } from "./film.js";
 import { layerSafe } from "./part-label.js";
 import { anchorSeconds, estimateBeats } from "./spotlight.js";
 import { flatShare } from "./lint.js";
+import { specOf } from "./source.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -35,30 +38,36 @@ if (!source || source.startsWith("--")) {
   console.error("frames.js <story.md> [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]");
   process.exit(2);
 }
+const only = arg("scene");
+const except = arg("except");
+if (only && except) {
+  console.error(msg("frames.conflict"));
+  process.exit(2);
+}
 
 // Ошибка сценария — словами, как у остальных команд, а не дампом стека.
 let g: ReturnType<typeof generateFrom>;
-try { g = generateFrom(resolve(source)); } catch (e) {
+try { g = generateFrom(resolve(source), { ...(only ? { onlyScene: only } : {}), ...(except ? { exceptScene: except } : {}) }); } catch (e) {
   const err = e as { sourceError?: boolean; code?: string; message?: string };
   if (!err.sourceError && err.code !== "ENOENT") throw e;
-  console.error(`source ${source}: ${err.code === "ENOENT" ? "file not found" : err.message}`);
+  console.error(msg("frames.source", { path: source, why: err.code === "ENOENT" ? msg("record.noFile") : err.message ?? "" }));
   process.exit(2);
 }
 const SRC = dirname(g.pitchFile);
 const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as {
-  scenes: Array<RenderScene & { id: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
-    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto" }>;
+  scenes: Array<RenderScene & { id: string; provider: string; kind: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
+    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true }>;
   frame?: { width?: number; height?: number }; theme?: Record<string, string>; tail?: number;
   safe?: { top: number; bottom: number; left: number; right: number };
   emoji?: { dir: string }; dir?: string;
   captions?: { style?: "bar" | "subtitle" | "karaoke"; everywhere?: boolean; size?: number; look?: "outline" | "plate"; position?: "bottom" | "top" | "middle" | "auto" };
+  providers?: Record<string, string>;
 };
 const voice = g.src.voice as { cps?: number } | null;
 const cps = Number(voice?.cps) > 0 ? Number(voice!.cps) : 15;
 const W = Number(pitch.frame?.width ?? DEFAULTS.width), H = Number(pitch.frame?.height ?? DEFAULTS.height);
-const only = arg("scene");
-if (only && !pitch.scenes.some((s) => s.id === only)) {
-  console.error(`no scene «${only}»; scenes: ${pitch.scenes.map((s) => s.id).join(", ")}`);
+if ((only || except) && !g.src.scenes.some((s) => s.id === (only || except))) {
+  console.error(msg("frames.noScene", { id: only || except || "", scenes: g.src.scenes.map((s) => s.id).join(", ") }));
   process.exit(2);
 }
 const atArg = (arg("at") ?? "0.8").trim();
@@ -69,14 +78,14 @@ const atBeat = /^b\d+(?:\.end)?(?:\s*[+-]\s*[\d.]+)?$/i.test(atArg);
 const atShare = /^([\d.]+)%$/.exec(atArg), atSecs = /^([\d.]+)s$/i.exec(atArg);
 const atValue = atBeat ? 0 : atShare ? Number(atShare[1]) / 100 : atSecs ? Number(atSecs[1]) : Number(atArg);
 if (!Number.isFinite(atValue) || atValue < 0 || (!atSecs && atValue > 1)) {
-  console.error(`--at ${atArg}: expected a share of the scene (0.8 or 80%), seconds (2.4s) or a moment of the speech (b2, b2+0.5, b2.end)`);
+  console.error(msg("frames.badAt", { at: atArg }));
   process.exit(2);
 }
 const out = resolve(arg("out") ?? (only ? `${only}.png` : "frames.png"));
 // Лист и кадр пишутся в PNG: иначе путь без расширения доходил до снимка страницы и
 // падал там стеком браузера про неизвестный тип файла.
 if (!/\.png$/iu.test(out)) {
-  console.error(`--out: the sheet is a PNG file; name it with .png, e.g. --out ${basename(out).replace(/\.[^.]*$/u, "")}.png`);
+  console.error(msg("frames.badOut", { example: `${basename(out).replace(/\.[^.]*$/u, "")}.png` }));
   process.exit(2);
 }
 const dir = only ? dirname(out) : resolve(dirname(out), `${basename(out).replace(/\.png$/, "")}-frames`);
@@ -101,6 +110,11 @@ for (const s of pitch.scenes) {
   const { starts, ends } = estimateBeats(s.beats, Number(s.speechAt ?? 0), cps);
   const spoken = ends.at(-1) ?? (s.beats.length ? Number(s.speechAt ?? 0) : 0);
   const page = resolve(SRC, String(s.page));
+  if (!existsSync(page)) {
+    const field = s.nativePortrait ? "pageVertical" : specOf(s, pitch.providers).fileField ?? "page";
+    console.error(msg("frames.source", { path: args[0]!, why: msg("source.fileMissing", { field, file: s.page }) }));
+    process.exit(2);
+  }
   // Видеосцена играет кусок клипа (from/to): и длина, и кадр — из куска, а секунды сцены и
   // freezeAt считаются от его начала, как в сборке.
   const whole = s.video ? clipLength(page) : 0;
@@ -112,28 +126,40 @@ for (const s of pitch.scenes) {
     : atSecs ? atValue : atValue * duration;
   const file = only ? out : resolve(dir, `${s.id}.png`);
   let source: number | undefined;
+  const theme = (s.theme ?? pitch.theme) as Record<string, string>;
+  const stage = { ...assetsForCheck(s, SRC, pitch), duration, __src: SRC, beats: s.beats.length, starts,
+    theme, ...(pitch.safe ? { safe: layerSafe(pitch as Parameters<typeof layerSafe>[0], { width: W, height: H }) } : {}),
+    ...(pitch.captions?.style ? { captionStyle: pitch.captions.style } : {}),
+    ...(pitch.captions?.everywhere ? { captionEverywhere: true } : {}),
+    ...(pitch.captions?.size ? { subScale: pitch.captions.size } : {}),
+    ...(pitch.captions?.look ? { captionLook: pitch.captions.look } : {}),
+    // `auto` uses the finished frame during a build; a preview shows its default position.
+    ...((s.captionsAt ?? pitch.captions?.position) && (s.captionsAt ?? pitch.captions?.position) !== "auto" ? { captionPos: s.captionsAt ?? pitch.captions!.position } : {}),
+    subMax: subtitleMax({ width: W, height: H }, pitch.safe, theme, pitch.captions?.size ?? 1),
+    beatTexts: s.beats.map((b) => b.text), spoken };
   if (s.video) {
     const t = cut + (s.freezeAt ?? Math.min(at, Math.max(0, clip - 0.05)));
     source = Number(t.toFixed(2));
-    execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-frames:v", "1",
-      "-vf", fitFilter(s.fit as Fit | undefined, W, H, ffmpegColour(((s.theme ?? pitch.theme) as Record<string, string>)["--sc-letterbox"]!)), file]);
+    const fit = fitFilter(s.fit as Fit | undefined, W, H, ffmpegColour(theme["--sc-letterbox"]!));
+    if (s.beats.length || s.overlay) {
+      const temp = mkdtempSync(join(tmpdir(), "sc-frame-layer-"));
+      try {
+        const overlayFile = resolve(temp, "overlay.png");
+        const { shots } = await renderScene({ ...s, ...stage, __overlayOnly: true } as RenderScene, { width: W, height: H, at });
+        writeFileSync(overlayFile, shots[0]!.buf);
+        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-i", overlayFile,
+          "-filter_complex", `[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto[v]`, "-map", "[v]", "-frames:v", "1", file]);
+      } finally { rmSync(temp, { recursive: true, force: true }); }
+    } else {
+      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-frames:v", "1", "-vf", fit, file]);
+    }
   } else {
     // Подпись и субтитры — как в сборке: кадр показывает, не ложится ли речь на содержимое.
-    const theme = (s.theme ?? pitch.theme) as Record<string, string>;
-    const { shots: got } = await renderScene({ ...s, ...assetsForCheck(s, SRC, pitch), duration, __src: SRC, beats: s.beats.length, starts,
-      theme, ...(pitch.safe ? { safe: layerSafe(pitch as Parameters<typeof layerSafe>[0], { width: W, height: H }) } : {}),
-      ...(pitch.captions?.style ? { captionStyle: pitch.captions.style } : {}),
-      ...(pitch.captions?.everywhere ? { captionEverywhere: true } : {}),
-      ...(pitch.captions?.size ? { subScale: pitch.captions.size } : {}),
-      ...(pitch.captions?.look ? { captionLook: pitch.captions.look } : {}),
-      // `auto` решает сборка по готовому кадру; лист кадров показывает место по умолчанию.
-      ...((s.captionsAt ?? pitch.captions?.position) && (s.captionsAt ?? pitch.captions?.position) !== "auto" ? { captionPos: s.captionsAt ?? pitch.captions!.position } : {}),
-      subMax: subtitleMax({ width: W, height: H }, pitch.safe, theme, pitch.captions?.size ?? 1),
-      beatTexts: s.beats.map((b) => b.text), spoken } as RenderScene, { width: W, height: H, at });
+    const { shots: got } = await renderScene({ ...s, ...stage } as RenderScene, { width: W, height: H, at });
     writeFileSync(file, got[0]!.buf);
     const share = flatOf(file);
-    if (share >= 0.3) empty.push({ scene: s.id, share: Number(share.toFixed(2)),
-      message: `a flat empty band ${Math.round(share * 100)}% of the frame high at ${at.toFixed(1)}s: the frame has no subject there; fill it with the product or its evidence, or let the content take the height (align, film craft 58)` });
+    if (share >= 0.3 && !specOf(s, pitch.providers).trailer) empty.push({ scene: s.id, share: Number(share.toFixed(2)),
+      message: msg("frames.empty", { percent: Math.round(share * 100), at: at.toFixed(1) }) });
   }
   shots.push({ scene: s.id, at: Number(at.toFixed(2)), file, estimated: s.beats.length > 0, ...(source !== undefined ? { source } : {}) });
 }
@@ -152,7 +178,7 @@ if (!only) {
   const html = `<!doctype html><html><head><style>:root{${vars}}</style></head><body style="margin:0;background:var(--bg);font:600 18px var(--sans);color:var(--ink)">
 <div style="display:grid;grid-template-columns:repeat(${cols},${cellW - 16}px);gap:12px;padding:var(--space-s)">${shots.map((x) =>
     `<figure style="margin:0"><img src="file://${x.file}" style="width:100%;display:block;border-radius:var(--radius-sm)">`
-    + `<figcaption style="padding:var(--space-xs) 0">${x.scene} · ${x.at}s${x.source !== undefined ? ` (clip ${x.source}s)` : ""}${x.estimated ? " (estimated beats)" : ""}</figcaption></figure>`).join("")}</div></body></html>`;
+    + `<figcaption style="padding:var(--space-xs) 0">${x.scene} · ${x.at}s${x.source !== undefined ? ` (${msg("frames.sheetClip", { at: x.source })})` : ""}${x.estimated ? ` (${msg("frames.sheetEstimated")})` : ""}</figcaption></figure>`).join("")}</div></body></html>`;
   const tmp = resolve(dir, "sheet.html");
   writeFileSync(tmp, html);
   const browser = await chromium.launch();
@@ -164,7 +190,7 @@ if (!only) {
   } finally { await browser.close(); }
   sheet = out;
 }
-if (!existsSync(out)) throw new Error("no frame written");
+if (!existsSync(out)) throw new Error(msg("frames.noFrame"));
 console.log(JSON.stringify({ ...(sheet ? { sheet } : {}), frames: shots.map(({ scene, at, file, source }) => ({ scene, at, file, ...(source !== undefined ? { source } : {}) })),
   ...(empty.length ? { empty } : {}) }, null, 1));
-for (const e of empty) console.error(`frames: ${e.scene}: ${e.message}`);
+for (const e of empty) console.error(msg("frames.emptyLine", { id: e.scene, message: e.message }));

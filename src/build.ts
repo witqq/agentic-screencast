@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraFilter, fitScale, windowCentre, windowFilter } from "./camera.js";
+import { cameraFilter, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
@@ -31,6 +31,8 @@ import { layerSafe } from "./part-label.js";
 import type { Captions, Pip, Progress, SceneMusic, SfxCue } from "./source.js";
 import { assembleVideo, timeline, transitionFrames } from "./assemble.js";
 import { mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
+import { ensureEncodedPeak, EncodedPeakError } from "./encoded-audio.js";
+import { auditFilm } from "./film-audit.js";
 import { MORPH, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
@@ -79,11 +81,11 @@ process.on("exit", () => {
  */
 function voicedBy(wav: string): string {
   const side = `${wav}.json`;
-  if (!existsSync(side)) return "неизвестно";
+  if (!existsSync(side)) return msg("build.unknownVoice");
   try {
-    return String((JSON.parse(readFileSync(side, "utf8")) as { engine?: string }).engine ?? "неизвестно");
+    return String((JSON.parse(readFileSync(side, "utf8")) as { engine?: string }).engine ?? msg("build.unknownVoice"));
   } catch {
-    return "неизвестно";
+    return msg("build.unknownVoice");
   }
 }
 
@@ -114,6 +116,7 @@ interface BuiltBeat {
 interface BuiltScene {
   id: string;
   page: string;
+  nativePortrait?: true;
   caption: string;
   beats: BuiltBeat[];
   tail?: number;
@@ -256,7 +259,7 @@ function sceneJobs(): number {
   const raw = process.env.AGENTIC_SCREENCAST_JOBS;
   if (raw !== undefined && raw !== "") {
     const named = Number(raw);
-    if (!Number.isInteger(named) || named < 1) throw new Error(`AGENTIC_SCREENCAST_JOBS: expected a whole number from 1, got «${raw}»`);
+    if (!Number.isInteger(named) || named < 1) throw new Error(msg("build.jobs", { raw }));
     return Math.min(named, 16);
   }
   return Math.max(1, Math.min(4, Math.floor(cpus().length / 3)));
@@ -270,6 +273,7 @@ async function main() {
   const SRC = dirname(PITCH_FILE);
   const pitch = JSON.parse(readFileSync(PITCH_FILE, "utf8")) as {
     scenes: BuiltScene[]; tail?: number;
+    authoredParts?: string[];
     frame?: Partial<RenderOpts>; encode?: Partial<typeof ENCODE>; theme?: Record<string, string>;
     pronounce?: unknown; lang?: string; dir?: string;
     captions?: Captions; pip?: Pip; progress?: Progress; emoji?: { dir: string };
@@ -307,15 +311,15 @@ async function main() {
     ? (JSON.parse(voiceJson) as VoiceData)
     : { engine: arg("engine", "speechkit"), name: arg("voice", "kuznetsov") };
   const semis = (voice as { pitch?: unknown }).pitch;
+  useLang(pitch.lang);
   if (semis !== undefined && (typeof semis !== "number" || !Number.isFinite(semis) || semis < -12 || semis > 12 || semis === 0)) {
-    console.error("voice.pitch: expected semitones from -12 to 12 (a lower voice is negative), not 0");
+    console.error(msg("build.voicePitch"));
     process.exit(2);
   }
   // Кадр и кодирование приходят из ролика; умолчания — прежние числа.
   // Они входят в ключ сегмента: сменился размер или качество — кадры
   // обязаны пересобраться, а не прийти из кэша прежними.
   // Язык ролика — язык отказов этой сборки.
-  useLang(pitch.lang);
   const opts: RenderOpts = { ...DEFAULTS, ...pitch.frame,
     encode: { ...ENCODE, ...pitch.encode }, ...(pitch.motionBlur ? { motionBlur: pitch.motionBlur } : {}) };
   // Длина куска субтитров — одна на ролик: по ней режутся и субтитры кадра, и файл SRT.
@@ -423,8 +427,8 @@ async function main() {
     try { filter = speedFilter(s.speed, dur(src), opts.fps); }
     catch (e) {
       // Частая причина — секунды исходника вместо секунд куска: у сцены с from они считаются от него.
-      const hint = s.trim ? `; speed seconds count from the start of the piece (from: ${s.trim.from}s of the source), not from the start of the source` : "";
-      throw new Error(`scene ${s.id}: ${(e as Error).message}${hint}`);
+      const hint = s.trim ? msg("build.speedHint", { from: s.trim.from }) : "";
+      throw new Error(msg("build.sceneError", { id: s.id, why: `${(e as Error).message}${hint}` }));
     }
     if (!filter) return src;
     const key = md5(JSON.stringify({ speed: s.speed, page: md5file(src) }));
@@ -446,7 +450,7 @@ async function main() {
     if (!s.video || !s.trim) return src;
     if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
     const whole = dur(src);
-    if (s.trim.from >= whole) throw new Error(`scene ${s.id}: from ${s.trim.from}s is past the end of the clip (${whole.toFixed(2)}s)`);
+    if (s.trim.from >= whole) throw new Error(msg("build.trimPast", { id: s.id, from: s.trim.from, whole: whole.toFixed(2) }));
     const to = Math.min(s.trim.to ?? whole, whole);
     const out = `${CACHE}/trim-${md5(JSON.stringify({ from: s.trim.from, to, page: md5file(src) }))}.mp4`;
     if (!existsSync(out)) {
@@ -530,7 +534,7 @@ async function main() {
       const ends = s.beats.map((b, k) => starts[k]! + (b.__spoken ?? 0));
       const duration = Math.max(spoken, s.duration ?? 0);
       try { s.overlay = parseOverlay(String(s.overlayRaw), (a) => anchorSeconds(a, starts.length ? starts : [0], duration, ends)); }
-      catch (e) { console.error(`scene ${s.id}: ${(e as Error).message}`); process.exit(2); }
+      catch (e) { console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message })); process.exit(2); }
     }
     // Фокусы внимания переводятся в камеру, карточки и замедление по
     // ИЗМЕРЕННЫМ тактам: смена голоса или темпа сдвигает их вместе с речью.
@@ -540,7 +544,7 @@ async function main() {
       try {
         ({ compiled, overlay: s.overlay } = spotlightOverlay(s.spotlight, s.overlay, { starts, ends,
           duration: Math.max(spoken, s.duration ?? 0), video: Boolean(s.video) }));
-      } catch (e) { console.error(`scene ${s.id}: ${(e as Error).message}`); process.exit(2); }
+      } catch (e) { console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message })); process.exit(2); }
       if (compiled.speed.length) s.speed = compiled.speed;
       s.__spotlights = compiled.resolved;
     }
@@ -548,12 +552,21 @@ async function main() {
     if (s.autoZoom && s.video) {
       const take = trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim);
       const clicks = take?.clicks ?? [];
+      // In a portrait crop the visible source width is much narrower than in the landscape
+      // take. Keep the automatic subject box inside that width so a small element can grow;
+      // an explicitly named size remains the author's choice.
+      const portraitShare = pitch.reframe ? (opts.width / opts.height) / (pitch.reframe.width / pitch.reframe.height) : 1;
+      const auto = pitch.reframe && s.autoZoom.size === undefined
+        ? { ...s.autoZoom, size: Math.min(0.36, portraitShare / 2) } : s.autoZoom;
       // Дубль, записавший действия с элементами, наезжает по действиям; прежний — по кликам.
-      const cues = take?.actions?.length ? actionZoomCues(take.actions, clicks, s.autoZoom) : autoZoomCues(clicks, s.autoZoom);
+      const cues = take?.actions?.length ? actionZoomCues(take.actions, clicks, auto) : autoZoomCues(clicks, auto);
       try {
-        s.overlay = parseOverlay(JSON.stringify({ ...s.overlay,
-          camera: [...(s.overlay?.camera ?? []), ...cues].sort((a, b) => a.at - b.at) }));
-      } catch (e) { console.error(`scene ${s.id}: autoZoom collides with its overlay — ${(e as Error).message}`); process.exit(2); }
+        const ordered = [...(s.overlay?.camera ?? []).map((cue) => ({ cue, automatic: false })),
+          ...cues.map((cue) => ({ cue, automatic: true }))].sort((a, b) => a.cue.at - b.cue.at);
+        const checked = parseOverlay(JSON.stringify({ ...s.overlay, camera: ordered.map(({ cue }) => cue) }));
+        checked.camera?.forEach((cue, index) => { if (ordered[index]!.automatic) markAutomaticCamera(cue); });
+        s.overlay = checked;
+      } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
     }
     // Клип берётся уже переигранным: и длина сцены, и кадры считаются
@@ -611,23 +624,61 @@ async function main() {
       assets = stageAssets({ overlay: s.overlay, texts: [s.caption, ...s.beats.map((b) => b.text)],
         pageFile: s.video ? undefined : resolve(SRC, String(s.page)), srcDir: SRC, cache: CACHE, emojiDirs });
     } catch (e) {
-      console.error(`scene ${s.id}: ${(e as Error).message}`);
+      console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message }));
       process.exit(1);
     }
-    // Место субтитров `auto` решается по кадру самой сцены: клип смотрится как его впишет
-    // сцена, нарисованная сцена — одним кадром без подписи посередине своей длительности.
+    // Плоская кнопка может иметь меньше краёв, чем пустой декоративный фон. У auto есть
+    // более сильное свидетельство: прямоугольники целей, уже названных сценой и камерой.
+    // Их меряет тот же рендер, который рисует пробный кадр; ручное место не меняем.
     let captionPos = s.captionsAt ?? pitch.captions?.position;
     if (captionPos === "auto") {
       const zone = stageSafe ?? { top: Math.round(opts.height * 0.03), bottom: Math.round(opts.height * 0.03) };
       const theme = (s.theme ?? pitch.theme) as Record<string, string>;
+      const selectors = [...new Set([s.mustRead, s.target].filter((x): x is string => typeof x === "string" && x !== "body" && x.trim() !== ""))];
+      const targets = [...selectors.map((target) => ({ t: s.duration! / 2, anchor: { target } })),
+        ...((s.focus as Array<{ sel: string; at: string }> | undefined) ?? []).map((f) => ({
+          t: anchorSeconds(f.at, starts.length ? starts : [0], s.duration!, s.beats.map((b, i) => starts[i]! + (b.__spoken ?? 0))),
+          anchor: { target: f.sel } })),
+        ...(s.overlay?.camera ?? []).filter((c) => c.target).map((c) => ({
+          t: Math.min(s.duration! - 1 / opts.fps, c.at + (c.move ?? 0.9) + c.hold / 2),
+          // The slide shorthand el2 is resolved by the camera's target helper, not querySelector.
+          anchor: /^el\d+$/.test(c.target!) ? { cue: c.target! } : { target: c.target! } }))];
+      const crop = pitch.reframe && s.provider === "page" && !s.nativePortrait ? pitch.reframe : undefined;
+      const k = crop ? opts.height / crop.height : 1;
+      const cameraCues = s.overlay?.camera ?? [];
+      const takePath = s.video ? trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim)?.path ?? [] : [];
+      const share = pitch.reframe ? (opts.width / opts.height) / (pitch.reframe.width / pitch.reframe.height) : 1;
+      const subjects = cameraCues.flatMap((c) => {
+        if (!c.area) return [];
+        if (!pitch.reframe) return [{ left: c.area[0] * opts.width, top: c.area[1] * opts.height,
+          width: c.area[2] * opts.width, height: c.area[3] * opts.height }];
+        if (!s.video) return []; // Page targets are measured in the actual cropped render below.
+        const t = Math.min(s.duration! - 1 / opts.fps, c.at + (c.move ?? 0.9) + c.hold / 2);
+        const pose = windowPose(cameraCues, t, takePath, share);
+        const height = opts.height * pose.z;
+        const top = Math.max(0, Math.min(height - opts.height, pose.y * height - opts.height / 2));
+        // Portrait captions span the viewport width. Protect the focused element's vertical
+        // band even as the horizontal window follows it or the recorded cursor.
+        return [{ left: 0, top: c.area[1] * height - top, width: opts.width,
+          height: c.area[3] * height }];
+      });
       captionPos = await autoBand({ frame: { width: opts.width, height: opts.height }, zone,
         share: bandShare({ width: opts.width, height: opts.height }, Boolean(pitch.safe), pitch.captions?.size ?? 1),
+        subjects,
         ...(s.video
           ? { clip: { file: resolve(SRC, String(s.page)), from: s.trim?.from ?? 0, to: (s.trim?.from ?? 0) + s.duration!,
             vf: fitFilter(s.fit, opts.width, opts.height, ffmpegColour(theme["--sc-letterbox"]!)) } }
-          : { render: async () => (await renderScene({ ...s, stills: undefined, emoji: assets.emoji, __stickers: assets.stickers,
+          : { render: async () => {
+            const got = await renderScene({ ...s, stills: undefined, emoji: assets.emoji, __stickers: assets.stickers,
             ...(stageSafe ? { safe: stageSafe } : {}), __src: SRC, beats: s.beats.length, starts, theme } as RenderScene,
-          { ...opts, at: s.duration! / 2 })).shots[0]!.buf }) });
+              { ...opts, ...(crop ? { width: crop.width, height: crop.height, scale: k * (opts.scale ?? 1),
+                crop: { width: opts.width / k } } : {}), at: s.duration! / 2, probes: targets });
+            const shot = got.shots[0]!;
+            // A focus may be measured at another moment than this screenshot; its crop window
+            // then has another x. Protect its vertical band across the whole portrait lane.
+            return { image: shot.buf, subjects: got.rects.map((r) => crop
+              ? { left: 0, top: r.top * k, width: opts.width, height: r.height * k } : r) };
+          } }) });
       autoPlaces.push({ scene: s.id, position: captionPos });
     }
     // Всё, что слой знает о сцене сверх её данных: эмодзи, стикеры, стиль
@@ -649,7 +700,7 @@ async function main() {
     // сцены раньше, а кадры этой сцены от него не зависят.
     // Кадрируется ли сцена из горизонтального кадра — часть ключа: тот же материал в том же
     // кадре выглядит иначе, если его не перекладывают, а вырезают окном.
-    const reframe = pitch.reframe && (s.provider === "page" || s.video) ? pitch.reframe : null;
+    const reframe = pitch.reframe && ((s.provider === "page" && !s.nativePortrait) || s.video) ? pitch.reframe : null;
     // Контрольные кадры снимаются из готового ролика и сегмента не меняют: в ключ они не входят.
     const key = keyOf({ ...s, __at: undefined, stills: undefined, __speech: s.beats.map((b) => b.__speech), __starts: starts,
       // Тема, которой рисуется слой: у слайда она вписана и в страницу, а у видеосцены страница —
@@ -728,7 +779,7 @@ async function main() {
       .filter((c) => c.scale !== undefined && c.area)
       .map((c) => ({ at: c.at, scale: c.scale!, rect: { left: c.area![0] * opts.width, top: c.area![1] * opts.height, width: c.area![2] * opts.width, height: c.area![3] * opts.height } }));
     const byFractions = (l: NonNullable<typeof s.overlay>["loupe"] extends (infer U)[] | undefined ? U : never): { left: number; top: number; width: number; height: number } => {
-      if (l.target) throw new Error(`scene ${s.id}: a loupe over a clip names an area or a point, not a CSS target`);
+      if (l.target) throw new Error(msg("build.loupeTarget", { id: s.id }));
       const b = l.area ?? [l.point![0], l.point![1], 0, 0];
       return { left: b[0] * opts.width, top: b[1] * opts.height, width: b[2] * opts.width, height: b[3] * opts.height };
     };
@@ -824,7 +875,7 @@ async function main() {
         process.stderr.write(msg("build.sceneRender", { at, of, id: s.id, frames }) + "\n");
         const src = clip;
         if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
-        if (s.freezeAt >= dur(src)) throw new Error(`freezeAt is past the end of ${s.id}`);
+        if (s.freezeAt >= dur(src)) throw new Error(msg("build.freezePast", { id: s.id }));
         const still = `${CACHE}/${key}.freeze.png`;
         const html = `${CACHE}/${key}.freeze.html`;
         // В кадрировании кадр снимается сразу в высоту нового кадра: страница рисуется с той же
@@ -839,8 +890,8 @@ async function main() {
           if (!cue.area) continue;
           const contrast = areaContrast(still, cue.area, { width: opts.width, height: opts.height });
           if (Number.isFinite(contrast) && contrast < EMPTY_AREA_CONTRAST) {
-            throw new Error(`scene ${s.id}: camera area [${cue.area.join(", ")}] is nearly empty `
-              + `(contrast ${contrast.toFixed(1)} < ${EMPTY_AREA_CONTRAST}); point it at the subject`);
+            throw new Error(msg("build.cameraEmpty", { id: s.id, area: cue.area.join(", "),
+              contrast: contrast.toFixed(1), minimum: EMPTY_AREA_CONTRAST }));
           }
         }
         const image = readFileSync(still).toString("base64");
@@ -925,6 +976,8 @@ async function main() {
         // его копии), поэтому размывается только движение камеры, а удержание остаётся резким.
         const sub = opts.motionBlur ? opts.motionBlur.samples : 1;
         const camera = cut ? null : cameraFilter(overlay?.camera ?? [], opts.fps * sub, cursorPath);
+        const windowCues = overlay?.camera ?? [];
+        const windowShare = cut ? (opts.width / opts.height) / (cut.width / cut.height) : 1;
         // Верх полосы субтитров в кадре сцены: его знает экранная половина слоя.
         let floor = opts.height;
         const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
@@ -955,7 +1008,18 @@ async function main() {
               + `s=${opts.width}x${opts.height}:fps=${opts.fps * sub}`
               + (sub > 1 ? `,tmix=frames=${shutter},select='eq(mod(n,${sub}),${sub - 1})',setpts=N/(${opts.fps}*TB),fps=${opts.fps}` : "")
             : "";
-          const window = cut ? `scale=-2:${opts.height}:flags=lanczos,crop=${opts.width}:${opts.height}:'${windowFilter(overlay?.camera ?? [])}':0` : "";
+          const dynamicWindow = cut && windowNeedsZoom(windowCues, windowShare);
+          const windowZoom = dynamicWindow ? windowZoomFilter(windowCues, cursorPath, windowShare) : "1";
+          // crop's iw/ih are configured from its first input frame even when scale later
+          // changes dimensions. Use the same explicit dimensions as scale on every frame.
+          const scaledWidth = cut ? `trunc(${cut.width}*${opts.height / cut.height}*(${windowZoom})/2)*2` : "iw";
+          const scaledHeight = cut ? `trunc(${cut.height}*${opts.height / cut.height}*(${windowZoom})/2)*2` : "ih";
+          const windowScale = dynamicWindow
+            ? `scale=w='${scaledWidth}':h='${scaledHeight}':eval=frame:flags=lanczos`
+            : `scale=-2:${opts.height}:flags=lanczos`;
+          const window = cut ? `${windowScale},crop=${opts.width}:${opts.height}`
+            + `:'${windowFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledWidth : "iw")}'`
+            + `:'${windowYFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledHeight : "ih")}'` : "";
           const inputs = needsOverlay && (camera || cut) ? [...frames(sceneDir), ...frames(screenDir)]
             : needsOverlay ? frames(screenDir) : [];
           const videoFilter = cut
@@ -977,8 +1041,13 @@ async function main() {
             const plain = byFractions(loupe);
             if (!cut) return { loupe, rect: plain, floor };
             const b = loupe.area ?? [loupe.point![0], loupe.point![1], 0, 0];
-            const x = Math.max(0, Math.min(wide - opts.width, windowCentre(overlay?.camera ?? [], loupe.at) * wide - opts.width / 2));
-            return { loupe, rect: { left: b[0] * wide - x, top: b[1] * opts.height, width: b[2] * wide, height: b[3] * opts.height }, floor };
+            const pose = windowPose(windowCues, loupe.at, cursorPath, windowShare);
+            const scaledWide = Math.round(wide * pose.z / 2) * 2;
+            const scaledHeight = Math.round(opts.height * pose.z / 2) * 2;
+            const x = Math.max(0, Math.min(scaledWide - opts.width, pose.x * scaledWide - opts.width / 2));
+            const y = Math.max(0, Math.min(scaledHeight - opts.height, pose.y * scaledHeight - opts.height / 2));
+            return { loupe, rect: { left: b[0] * scaledWide - x, top: b[1] * scaledHeight - y,
+              width: b[2] * scaledWide, height: b[3] * scaledHeight }, floor };
           });
           const graph = withLoupes(videoFilter, items, opts, sceneTheme);
           notes = geometry(items, opts, cut ? [] : areaPushes(overlay));
@@ -1063,17 +1132,16 @@ async function main() {
   // большом экране этого не видно.
   for (const e of log) {
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
-      if (l.px < l.min) process.stderr.write(`scene ${String(e.id)}: text of ${l.target} is ${l.px} px in the frame at ${l.at}s, under the ${l.min} px a phone reads; `
-        + `push in harder (scale), pan along a wide subject (pan), or magnify it with a loupe\n`);
+      if (l.px < l.min) process.stderr.write(msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }) + "\n");
     }
     const small = e.small as { at: number; min: number; lines: Array<{ text: string; px: number }> } | undefined;
     if (small) {
-      process.stderr.write(`scene ${String(e.id)}: text under the ${small.min} px a phone reads — ${small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ")}; `
-        + `shorten it or give it a scene of its own (a page with larger type)\n`);
+      process.stderr.write(msg("build.small", { id: String(e.id), min: small.min,
+        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }) + "\n");
     }
     for (const c of (e.cut as Array<{ at: number; target: string; text: string[] }> | undefined) ?? []) {
-      process.stderr.write(`scene ${String(e.id)}: the frame cuts text of ${c.target} at ${c.at}s — «${c.text.slice(0, 3).join("», «")}»; `
-        + `lower the scale, pan along it (pan), or focus a smaller part\n`);
+      process.stderr.write(msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
+        text: `«${c.text.slice(0, 3).join("», «")}»` }) + "\n");
     }
   }
   const tScenes = Date.now();
@@ -1081,8 +1149,9 @@ async function main() {
   // Куда пришлись фокусы внимания — в отчёт сцены: по ним видно, что фокус
   // сдвинулся вместе с речью, без просмотра кадров.
   for (const entry of log) {
-    if (entry.overflow) process.stderr.write(`scene ${entry.id}: the slide does not fit its area by ${entry.overflow} px of the grid even shrunk to 72%; split it into two scenes or shorten the items\n`);
+    if (entry.overflow) process.stderr.write(msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }) + "\n");
     const sc = pitch.scenes.find((x) => x.id === entry.id);
+    if (sc?.nativePortrait) entry.nativePortrait = true;
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;
     if (sc?.__autoZoom !== undefined) entry.camera = sc.overlay?.camera?.map((c) => ({ at: Number(c.at.toFixed(3)), area: c.area }));
   }
@@ -1127,7 +1196,7 @@ async function main() {
   for (const cue of only ? [] : pitch.sfx ?? []) {
     const m = /^m(\d+(?:\.\d+)?)$/.exec(cue.at);
     if (m && !pitch.music?.bpm) {
-      console.error(`sfx at ${cue.at}: a music beat needs a tempo; no rhythm was heard in the music, so name music.bpm in the header`);
+      console.error(msg("build.sfxTempo", { at: cue.at }));
       process.exit(2);
     }
     const at = m ? musicBeat(Number(m[1]), pitch.music!.bpm!, pitch.music!.offset ?? 0) : Number.parseFloat(cue.at);
@@ -1177,12 +1246,13 @@ async function main() {
         const s = taken[i]!, prev = taken[i - 1]!, t = s.transition;
         if (t?.kind !== MORPH) continue;
         if (!prev.__render || !s.__render) {
-          console.error(`scene ${s.id}: a morph joins two drawn scenes (slides or pages), not a clip`);
+          console.error(msg("build.morphVideo", { id: s.id }));
           process.exit(2);
         }
         const k = transitionFrames(t, opts.fps);
         const shot = async (scene: RenderScene, at: number, hide: boolean, name: string): Promise<{ file: string; rect: MorphInput["ra"] }> => {
-          const r = await renderScene(scene, { ...opts, at, ...(hide ? { hide: t.element! } : {}), probes: [{ t: at, anchor: { target: t.element } }] });
+          const r = await renderScene(scene, { ...opts, at, morphTarget: t.element!, ...(hide ? { hide: t.element! } : {}),
+            probes: [{ t: at, anchor: { target: t.element } }] });
           const file = `${CACHE}/morph-${s.__key}-${name}.png`;
           writeFileSync(file, r.shots[0]!.buf);
           return { file, rect: r.rects[0]! };
@@ -1193,7 +1263,7 @@ async function main() {
           const bBg = await shot(s.__render, tB, true, "bbg"), bFull = await shot(s.__render, tB, false, "bf");
           morphs.set(s.id, { aBg: aBg.file, bBg: bBg.file, aFull: aFull.file, bFull: bFull.file, ra: aFull.rect, rb: bFull.rect });
         } catch (e) {
-          console.error(`scene ${s.id}: morph element ${t.element}: ${(e as Error).message.split("\n")[0]}`);
+          console.error(msg("build.morphElement", { id: s.id, element: t.element!, why: (e as Error).message.split("\n")[0]! }));
           process.exit(2);
         }
       }
@@ -1254,11 +1324,25 @@ async function main() {
     execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", out, "-map", "0:v", "-map_metadata", "0", "-c", "copy", "-an", "-movflags", "+faststart", silent]);
     renameSync(silent, out);
   }
+  let encodedAudio: ReturnType<typeof ensureEncodedPeak> | undefined;
+  if (pitch.audio !== false) {
+    try { encodedAudio = ensureEncodedPeak(out, opts.encode!.audio); }
+    catch (error) {
+      if (error instanceof EncodedPeakError)
+        throw new Error(msg("build.encodedPeakExceeded", { measured: error.measured ?? "unknown", limit: error.limit }));
+      throw error;
+    }
+  }
   const srt = pitch.captions?.srt ? writeSrt(out, filmScenes, subMax) : undefined;
   // Главы есть у всякого ролика с частями, а не только с полосой хода: они же — оглавление
   // для плеера страницы (`agentic-screencast web` подключает этот файл дорожкой).
   if (!chapters.length) chapters = chaptersOf(filmScenes);
   const chaptersFile = writeChapters(out, chapters);
+  const expectedPartNames = pitch.authoredParts === undefined ? undefined
+    : only ? (taken[0]?.chapter ? [taken[0].chapter] : []) : pitch.authoredParts;
+  const audit = auditFilm({ file: out, expectedFrames: Math.round(tl.total * opts.fps), fps: opts.fps,
+    audio: pitch.audio !== false, ...(chaptersFile ? { chaptersFile } : {}),
+    ...(expectedPartNames ? { expectedPartNames } : {}), reportedChapters: chapters });
 
   // Контрольные кадры: моменты, названные сценой, снимаются из готового ролика в каталог рядом
   // с ним — агент смотрит их сразу по окончании сборки. Каталог каждый раз собирается заново,
@@ -1286,7 +1370,7 @@ async function main() {
       }
     }
   });
-  if (stills.length) process.stderr.write(`${stills.length} stills: ${stillsDir}\n`);
+  if (stills.length) process.stderr.write(msg("build.stills", { count: stills.length, path: stillsDir }) + "\n");
 
   // Отметки живых дублей во времени ролика: в файле отметок они — секунды клипа, а замедление
   // и остановки сдвигают их в сцене. Автор сверяет по ним фокусы и контрольные кадры.
@@ -1298,7 +1382,17 @@ async function main() {
     });
   });
 
-  const warnings = mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l));
+  const warnings = [
+    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)),
+    ...audit.issues.map((issue) => msg("build.auditIssue", { code: issue.code,
+      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") })),
+  ];
+  for (const warning of warnings) process.stderr.write(warning + "\n");
+  const finalAudioReport = audioReport ? { ...audioReport,
+    ...(audioReport.loudness && encodedAudio
+      ? { loudness: { ...audioReport.loudness, measured: encodedAudio.integrated } } : {}),
+    ...(encodedAudio ? { encoded: encodedAudio } : {}) }
+    : encodedAudio ? { encoded: encodedAudio } : undefined;
   // Человеческая строка — в поток ошибок, отчёт — в стандартный вывод:
   // разбирающему нужен чистый JSON, а человеку одна строка вместо того,
   // чтобы искать длительность и путь в двух экранах вывода.
@@ -1316,7 +1410,7 @@ async function main() {
     beats: filmScenes.flatMap((fs, i) => fs.beats.map((b, k) => ({ scene: taken[i]!.id,
       start: Number((fs.at! + (fs.starts[k] ?? 0)).toFixed(3)), spoken: Number(b.spoken.toFixed(3)) }))),
     ...(transitionsDone.length ? { transitions: transitionsDone } : {}),
-    ...(audioReport ? { audio: audioReport } : {}),
+    ...(finalAudioReport ? { audio: finalAudioReport } : {}),
     ...(hits ? { hits: { flash: flashes.map((h) => Number(h.at.toFixed(3))), shake: shakes.map((h) => Number(h.at.toFixed(3))) } } : {}),
     ...(srt ? { srt } : {}), ...(chapters.length ? { chapters, chaptersFile } : {}),
     ...(stills.length ? { stills } : {}), ...(takeMarks.length ? { marks: takeMarks } : {}),
@@ -1326,7 +1420,7 @@ async function main() {
     ...(pitch.reframe ? { reframe: { from: pitch.reframe } } : {}), ...(pitch.lookNote ? { look: pitch.lookNote } : {}),
     // Темп, от которого считались доли: названный автором или найденный в файле.
     ...(tempo ? { tempo } : {}),
-    duration: dur(out), warnings,
+    duration: dur(out), audit, warnings,
     // Где ушло время сборки, секунды: озвучка и расписание сцен (по порядку), кадры и сегменты
     // сцен (одновременно, `jobs` штук), склейка, звук и проход ролика.
     timing: { jobs: Math.min(sceneJobs(), Math.max(1, jobs.length)), plan: Number(((tVoice - t0) / 1000).toFixed(1)), scenes: Number(((tScenes - tVoice) / 1000).toFixed(1)),
@@ -1348,6 +1442,6 @@ try {
   const tool = err.stderr ? String(err.stderr).trim().split("\n").filter(Boolean).slice(-2).join("; ") : "";
   const said = (err.message ?? "").startsWith("Command failed") ? `a tool the build runs failed${tool ? `: ${tool}` : ""}`
     : `${err.message ?? String(e)}${tool ? ` (${tool})` : ""}`;
-  console.error(`build failed: ${said}`);
+  console.error(msg("build.failed", { said }));
   process.exit(1);
 }

@@ -1,8 +1,9 @@
 # Burned-in subtitles: what reads best and what looks current (research, 2026-09-25)
 
-Scope: burned-in (open) subtitles for explanatory product videos (16:9) and social shorts (9:16). Today we draw a
-bold sans line on a rounded semi-opaque plate (dark plate at about 90% with white text in dark themes, white plate with dark
-text in light themes), with an optional karaoke mode that highlights the current word.
+Scope: burned-in (open) subtitles for explanatory product videos (16:9) and social shorts (9:16). The
+tool keeps an outline as the default for existing scenarios; `captions.look: plate` explicitly puts a
+bold sans line on a rounded semi-opaque backing (dark with white text in dark themes, light with dark
+text in light themes). Karaoke can highlight the current word in either look.
 
 Evidence labels used below:
 - **[G]** means a guideline or standard from a broadcaster, streamer, regulator or W3C.
@@ -16,9 +17,10 @@ verbatim copy of v1.2.3 (June 2024) and a second summary. Both sources are cited
 
 ## Bottom line
 
-1. **Our plate approach is the evidence-backed default, so keep it.** Guidelines and research both favour a background box
-   (a solid or translucent plate) over bare text. An outline is the second-best option and a drop shadow alone is the
-   weakest. The main change needed is size, especially in vertical video, and not the treatment.
+1. **Choose the plate explicitly on busy material.** Guidelines and research favour a background box
+   (a solid or translucent plate) over bare text. The published default outline remains available for
+   existing scenarios; a drop shadow alone is the weakest treatment. Inspect the final frame when
+   choosing between outline and plate.
 2. **The 90% plate is on the strong side, which is fine.** Contrast falls below WCAG 4.5:1 only when the plate drops under
    about 60% opacity over white footage. Deaf and hard-of-hearing (DHH) users mostly keep a default opacity of 0.8, and
    those who change it make it more opaque. Values between 75% and 90% are safe.
@@ -26,10 +28,10 @@ verbatim copy of v1.2.3 (June 2024) and a second summary. Both sources are cited
    shadow, one to three words or one short line at a time, and an accent colour on the keyword or the current word. Its
    attention benefit comes from vendor claims. Research on synchronised highlighting reports "useful but distracting"
    results. Ship it as a style option, not as the default for explanatory videos.
-4. **Our vertical subtitles are too small.** Our text is 3 units of `min(W,H)/56`, which is about 58 px at 1080 px width.
-   That is 5.4% of frame height in 16:9 and only 3.0% in 9:16. BBC authoring guidance asks for a line height of 8% of
-   height in 16:9, which is 86 px at 1080p. In 9:16 it asks for 4.5% of height, which is also 86 px on a 1920 px
-   frame. Social creator captions are larger still.
+4. **Check the subtitle at the viewing size.** The tool draws about 64 px type in a 1080p landscape
+   frame and 67 px in a 1080×1920 frame. BBC authoring guidance asks for a line height of 8% of
+   height in 16:9, which is 86 px at 1080p; in 9:16 it asks for 4.5% of height, also 86 px on a
+   1920 px frame. Social creator captions can be larger still.
 
 ---
 
@@ -188,7 +190,8 @@ should only be used over footage we control and know to be dark.
   1080p, both work out to about 86 px of line height, or a font size of about 64–72 px.
   https://broadcastwriter.com/2024/12/12/bbc-subtitle-style-guide-2024/
   Ian Hamilton gives at least 46 px for HD games **[P]**. The ASS convention is about 75 px at 1080p **[P]**. Creator
-  captions take 10–15% of height **[M]**. **Our 58 px (5.4% of 1080 and 3.0% of 1920) is below BBC in both formats.**
+  captions take 10–15% of height **[M]**. The tool's current subtitle font is about 64 px in a
+  1080p landscape frame and 67 px in a vertical one; compare its line height with the BBC measure.
 - **Line length and count [G].**
   - Netflix: 42 characters per line, two lines.
   - BBC broadcast: 37 characters per line, and fewer when colour is used.
@@ -215,7 +218,7 @@ should only be used over footage we control and know to be dark.
 All values are for a 1080 px short side. Scale linearly by `min(W,H)/1080`. "Stroke" means an outside or paint-order
 stroke, not a centred one, so glyph counters stay open.
 
-**A. "Broadcast plate" (default for explanatory 16:9; closest to what we have today).** It rests on BBC/DCMP guidance and
+**A. "Broadcast plate" (recommended for busy explanatory 16:9; available with `captions.look: plate`).** It rests on BBC/DCMP guidance and
 the DHH defaults.
 - Font: Inter/Roboto/system sans, weight 600–700, mixed case.
 - Size: 64 px in 16:9 (line height 86 px, 8% of height, per BBC). In 9:16 use 64–68 px, not 58 px.
@@ -227,14 +230,14 @@ the DHH defaults.
 - Karaoke: current word in the accent colour, which must reach at least 4.5:1 on the plate (for example #FFD400 on black,
   12.5:1; on the white plate use a dark accent such as #0B57D0). No scale change.
 
-**B. "Clean outline" (modern, no box; for 16:9 over footage we control).** It rests on Apple Outline Text, the ASS
+**B. "Clean outline" (published default, no box; for 16:9 over footage we control).** It rests on Apple Outline Text, the ASS
 convention and Hamilton's stroke minimum.
 - Font weight 700, 68 px, #FFFFFF.
 - Stroke 6 px #000000 (about 9% of font size).
 - Shadow 0 3px 8px rgba(0,0,0,0.6).
 - Same limits as preset A.
-- Add a fallback: when the frame region behind the text is light (mean luminance above about 0.6), switch automatically to
-  preset A. This is the frame-contrast check we already test.
+- A future automatic switch on bright or busy footage would need its own implementation; choose
+  `captions.look: plate` explicitly for those scenes in the current tool.
 
 **C. "Social pop" (9:16 shorts, creator style).** Its basis is creator practice **[M]**, softened by research.
 - Font: Montserrat or Inter ExtraBold (800), 84–96 px (8–9% of width), ALL CAPS allowed. Cue length 1–3 words or at most

@@ -18,6 +18,7 @@ import { resolve } from "node:path";
 import { createRequire } from "node:module";
 import { chromium } from "playwright";
 import { resolveTheme, type ThemeVars } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -251,32 +252,33 @@ export function parseTransition(raw: string): Transition {
   let value: Record<string, unknown>;
   if (text.startsWith("{")) {
     try { value = JSON.parse(text) as Record<string, unknown>; }
-    catch { throw new Error("transition: expected a kind name or a JSON object"); }
+    catch { throw new Error(msg("transition.form")); }
+    if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(msg("transition.form"));
   } else {
     const [kind, dur, color] = text.split(/\s+/);
     value = { kind, ...(dur !== undefined ? { duration: Number(dur) } : {}), ...(color !== undefined ? { color } : {}) };
   }
   for (const k of Object.keys(value)) if (!["kind", "duration", "sound", "snap", "element", "color"].includes(k))
-    throw new Error(`transition: unknown property «${k}»`);
+    throw new Error(msg("source.unknownProperty", { field: "transition", key: k }));
   const kind = String(value.kind ?? "");
   if (!KINDS[kind] && kind !== MORPH && kind !== CUT)
-    throw new Error(`transition: unknown kind «${kind}»; available: ${[...KIND_NAMES, MORPH, CUT].join(", ")}`);
-  if (value.color !== undefined && kind !== "dip") throw new Error("transition.color: only a dip has a colour");
+    throw new Error(msg("transition.unknownKind", { kind, available: [...KIND_NAMES, MORPH, CUT].join(", ") }));
+  if (value.color !== undefined && kind !== "dip") throw new Error(msg("transition.dipColor"));
   const color = value.color === undefined ? undefined : dipColour(String(value.color));
   if (kind === CUT) {
-    if (value.duration !== undefined) throw new Error("transition: a cut has no length; it joins the scenes edge to edge");
+    if (value.duration !== undefined) throw new Error(msg("transition.cutDuration"));
     return { kind, duration: 0, ...(typeof value.sound === "string" && value.sound.trim() ? { sound: value.sound.trim() } : {}),
       ...(value.snap === "music" ? { snap: "music" as const } : {}) };
   }
   if (kind === MORPH && (typeof value.element !== "string" || !value.element.trim()))
-    throw new Error('transition.element: a morph names the element shared by both scenes, e.g. {"kind":"morph","element":"#total"}');
-  if (kind !== MORPH && value.element !== undefined) throw new Error("transition.element: only a morph moves an element");
+    throw new Error(msg("transition.morphElement"));
+  if (kind !== MORPH && value.element !== undefined) throw new Error(msg("transition.onlyMorphElement"));
   const duration = value.duration === undefined ? 0.8 : Number(value.duration);
   if (!Number.isFinite(duration) || duration < 0.2 || duration > 2)
-    throw new Error("transition.duration: expected 0.2–2 seconds");
+    throw new Error(msg("transition.duration"));
   if (value.sound !== undefined && (typeof value.sound !== "string" || !value.sound.trim()))
-    throw new Error("transition.sound: expected an audio file");
-  if (value.snap !== undefined && value.snap !== "music") throw new Error('transition.snap: expected "music"');
+    throw new Error(msg("transition.sound"));
+  if (value.snap !== undefined && value.snap !== "music") throw new Error(msg("transition.snap"));
   return { kind, duration, ...(value.sound ? { sound: String(value.sound).trim() } : {}),
     ...(value.snap ? { snap: "music" as const } : {}), ...(kind === MORPH ? { element: String(value.element).trim() } : {}),
     ...(color ? { color } : {}) };
@@ -290,7 +292,7 @@ function dipColour(raw: string): string {
   const short = /^#([0-9a-f])([0-9a-f])([0-9a-f])$/.exec(v);
   if (short) return `#${short[1]}${short[1]}${short[2]}${short[2]}${short[3]}${short[3]}`;
   if (/^#[0-9a-f]{6}$/.test(v)) return v;
-  throw new Error(`transition.color: expected black, white or #rrggbb, got «${raw}»`);
+  throw new Error(msg("transition.color", { color: raw }));
 }
 
 /** Кадры клипа [from, to) как PNG: ровно по номерам кадров, без округления времени. */
@@ -441,9 +443,9 @@ export interface MorphInput { aBg: string; bBg: string; aFull: string; bFull: st
 /**
  * Кадры перехода общим элементом. Фон — наплыв кадра первой сцены без предмета в кадр
  * второй без предмета; предмет — один прямоугольник, который едет и меняет размер от
- * своего места в первой сцене к месту во второй (smoothstep), а его картинка по пути
- * перетекает из вида в первой сцене в вид во второй. Старого и нового места в середине
- * перехода предмет не занимает: там фон без него.
+ * своего места в первой сцене к месту во второй (smoothstep). Содержимое предмета
+ * меняется на полпути: смешение двух разных раскладок текста даёт нечитаемые двойные
+ * надписи. Старого и нового места в середине перехода предмет не занимает: там фон без него.
  */
 export async function renderMorph(opts: MorphInput & { width: number; height: number; n: number; out: string }):
 Promise<{ frames: string[]; renderer: Renderer }> {
@@ -475,8 +477,12 @@ Promise<{ frames: string[]; renderer: Renderer }> {
           vec4 bg = mix(texture(abg, uv), texture(bbg, uv), e);
           vec4 r = mix(ra, rb, e);
           vec2 l = (uv - r.xy) / r.zw;
-          if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0)
-            color = mix(texture(af, ra.xy + l * ra.zw), texture(bf, rb.xy + l * rb.zw), e);
+          if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0) {
+            if (progress < 0.5)
+              color = texture(af, ra.xy + l * ra.zw);
+            else
+              color = texture(bf, rb.xy + l * rb.zw);
+          }
           else color = bg;
         }`);
       if (!vs || !fs) return false;

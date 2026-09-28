@@ -13,11 +13,12 @@ import { createRequire } from "node:module";
 
 import { chromium } from "playwright";
 import { measure } from "./site-measure.mjs";
-import { checkSiteStatic } from "./check-site-static.mjs";
+import { checkSiteStatic, loadLandingMediaManifest, publishedMediaPath } from "./check-site-static.mjs";
 
 const root = resolve(".");
 const site = resolve(root, "site");
 const { release, videoBytes } = await checkSiteStatic(root);
+const landingMedia = await loadLandingMediaManifest(root);
 
 // Словарь продукта — из самого продукта, а не вторым списком здесь.
 const { THEME_NAMES } = await import("../dist/theme.js");
@@ -48,7 +49,7 @@ const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
 const FFPROBE = require("@ffprobe-installer/ffprobe").path;
 const fingerprintDir = resolve(root, "website/landing/media/fingerprints");
-const fingerprints = JSON.parse(await readFile(resolve(fingerprintDir, "fingerprints.json"), "utf8"));
+const fingerprints = landingMedia ? null : JSON.parse(await readFile(resolve(fingerprintDir, "fingerprints.json"), "utf8"));
 const scratch = await mkdtemp(resolve(tmpdir(), "site-check-"));
 const probe = (file) => {
   const r = spawnSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", file], { encoding: "utf8" });
@@ -67,6 +68,21 @@ async function checkClips(page, lang) {
   const clips = await page.evaluate(() => [...document.querySelectorAll("main video")].filter((v) => v.checkVisibility())
     .map((v) => ({ src: v.querySelector("source")?.getAttribute("src") ?? "", caption: v.closest("figure")?.querySelector("figcaption")?.textContent ?? "" })));
   if (clips.length === 0) failures.push(`${lang}: the page shows no clips`);
+  if (landingMedia) {
+    const expected = landingMedia.assets.filter((asset) => asset.kind === "video" && asset.lang === lang);
+    const paths = new Set(expected.map(publishedMediaPath));
+    const shown = new Set();
+    for (const { src, caption } of clips) {
+      if (!paths.has(src) || shown.has(src)) { failures.push(`${lang}: undeclared or duplicate clip ${src}`); continue; }
+      shown.add(src);
+      const { width, height, duration } = probe(resolve(site, src));
+      if (!(duration > 0)) failures.push(`${lang}: clip ${src} has no known duration`);
+      const stated = /(\d{3,4})×(\d{3,4})/u.exec(caption);
+      if (stated && (Number(stated[1]) !== width || Number(stated[2]) !== height)) failures.push(`${lang}: the caption of ${src} says ${stated[0]}, the file is ${width}×${height}`);
+    }
+    for (const path of paths) if (!shown.has(path)) failures.push(`${lang}: declared clip ${path} is not visible`);
+    return clips.length;
+  }
   for (const { src, caption } of clips) {
     const name = /^assets\/([a-z]+)\./u.exec(src)?.[1];
     const fp = name && fingerprints[name];

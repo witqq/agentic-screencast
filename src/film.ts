@@ -10,7 +10,7 @@
 // фильма, а начала реплик берутся из измеренных длин тактов.
 import { chapterFontPx } from "./part-label.js";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createRequire } from "node:module";
 import { chromium } from "playwright";
@@ -395,8 +395,11 @@ export function chaptersVtt(chapters: Array<{ name: string; start: number; end: 
 
 /** Файл глав рядом с роликом (`film.chapters.vtt`) — если у ролика есть части. */
 export function writeChapters(out: string, chapters: Array<{ name: string; start: number; end: number }>): string | undefined {
-  if (!chapters.length) return undefined;
   const file = resolve(out.replace(/\.[^./]+$/, "") + ".chapters.vtt");
+  if (!chapters.length) {
+    rmSync(file, { force: true });
+    return undefined;
+  }
   writeFileSync(file, chaptersVtt(chapters));
   return file;
 }

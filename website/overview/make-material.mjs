@@ -122,16 +122,26 @@ async function images() {
 
 // Images made by `frames` from this very scenario: they need every page, take and asset in place.
 function frames() {
-  // The scene that shows the sheet needs its image before the sheet can be drawn again.
+  // c12-frames shows the top of this sheet. The crop contains earlier scenes, so the final
+  // sheet can use the newly cropped top without a cycle.
   const top = (s) => execFileSync(FFMPEG, ["-v", "error", "-y", "-i", join(GEN, `frames${s}.png`), "-vf", "crop=1600:900:0:0", join(GEN, `frames-top${s}.png`)]);
-  for (const [, s] of LANGS) if (existsSync(join(GEN, `frames${s}.png`)) && !existsSync(join(GEN, `frames-top${s}.png`))) top(s);
+  // c02-langs embeds both language images. Finish both before either full sheet regenerates.
   for (const [L, s] of LANGS) {
     const lang = L === "en" ? ["--lang", "en"] : [];
     tool(L, ["frames", "story.md", ...lang, "--scene", "c00-cold", "--at", "60%", "--out", `assets/gen/split-frame${s}.png`]);
     tool(L, ["frames", "story.md", ...lang, "--scene", "c03-click", "--at", "55%", "--out", `assets/gen/lang${s}.png`]);
-    tool(L, ["frames", "story.md", ...lang, "--out", `assets/gen/frames${s}.png`]);
-    // The first rows of the sheet, tall enough to scroll inside a frame.
+  }
+  // The first sheet leaves out only c12-frames, whose own image does not exist yet. Its
+  // earlier rows provide the real top crop. The second sheet includes every scene and embeds
+  // that crop in c12-frames; its late position cannot change the cropped rows.
+  for (const [L, s] of LANGS) {
+    const lang = L === "en" ? ["--lang", "en"] : [];
+    tool(L, ["frames", "story.md", ...lang, "--except", "c12-frames", "--out", `assets/gen/frames${s}.png`]);
     top(s);
+  }
+  for (const [L, s] of LANGS) {
+    const lang = L === "en" ? ["--lang", "en"] : [];
+    tool(L, ["frames", "story.md", ...lang, "--out", `assets/gen/frames${s}.png`]);
   }
 }
 
@@ -500,7 +510,7 @@ function checklistPage() {
     }).join("");
     write("checklist", s, shell(L, "checklist", `<div class="wrap">${head("checklist.md", t("Чеклист этого фильма", "This film's checklist"))}
 <div class="panel list">${rows}</div>
-<div class="count mono rv" data-at="b2.end-1.5"><span class="prompt">$</span> grep -c "\\- \\[ \\]" checklist.md → <b>${open}</b> <span class="mut">${t(`открыто сейчас: пункты, которые проверяются на кадрах собранного ролика`, `open now: the boxes checked on the frames of the built film`)}</span></div></div>`,
+<div class="count mono rv" data-at="b2.end-1.5"><span class="prompt">$</span> grep -c "\\- \\[ \\]" checklist.md → <b>${open}</b> <span class="mut">${t("открытых пунктов до передачи", "open items before handoff")}</span></div></div>`,
     `.list{flex:1;overflow:hidden;padding:18px 26px}.item{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start;margin:8px 0;font-size:23px;line-height:1.35;color:var(--body)}
 .box{width:34px;height:34px;border:3px solid var(--acc);border-radius:8px;display:grid;place-items:center;margin-top:2px}
 .box i{width:16px;height:9px;border-left:4px solid var(--acc);border-bottom:4px solid var(--acc);transform:rotate(-45deg) scale(var(--k,0));margin-top:-4px}
@@ -508,8 +518,91 @@ function checklistPage() {
   }
 }
 
+// Portrait pages use the same real command output and checklist as their landscape originals.
+// This pass can run from the checked-in pages before the demo takes have been recorded.
+function portraitPages(onlyName, onlyLang) {
+  const page = (name, s) => readFileSync(join(PAGES, `${name}${s}.html`), "utf8");
+  const writePortrait = (name, s, html) => writeFileSync(join(PAGES, `${name}.vertical${s}.html`), html);
+  const portraitCss = `.wrap{left:80px;right:80px;top:112px;bottom:360px;gap:32px}
+.head small{font-size:34px}.head h1{font-size:58px}`;
+  for (const [L, s] of LANGS) {
+    if (onlyLang && onlyLang !== L) continue;
+    const terminalPage = page("term-new", s);
+    if (!onlyName || onlyName === "term-new") writePortrait("term-new", s, terminalPage.replace("</style>", `${portraitCss}
+.term .bar{font-size:36px;padding:22px}.term pre,.term.short pre{font-size:49px;line-height:1.3;padding:28px;overflow-wrap:anywhere;white-space:pre-wrap}
+</style>`));
+
+    if (!onlyName || onlyName === "checklist") {
+      const checks = readFileSync(join(HERE, "checklist.md"), "utf8");
+      const portraitChecks = [
+        { source: "Every dimension of the brief", ru: "У каждого решения в брифе есть источник", en: "Each brief decision has a source" },
+        { source: "The capability table", ru: "Возможности сверены со сценами", en: "Capabilities are matched to scenes" },
+        { source: "`agentic-screencast lint story.md`", ru: "Результат lint разобран", en: "Lint findings are accounted for" },
+      ];
+      for (const item of portraitChecks) {
+        if (!checks.split("\n").some((line) => line.startsWith(`- [x] ${item.source}`)))
+          throw new Error(`checklist.md: closed item missing: ${item.source}`);
+      }
+      const rows = portraitChecks.map((item, i) => `<div class="item rv" data-at="b${i === 0 ? 1 : 2}+${i * 0.4 + 0.2}"><span class="box"><i></i></span><span class="txt">${esc(item[L])}</span></div>`).join("");
+      const checklist = page("checklist", s).replace(/<div class="panel list">[\s\S]*?<\/div>\n<div class="count/, `<div class="panel list">${rows}</div>\n<div class="count`);
+      if (!checklist.includes(rows)) throw new Error(`checklist${s}.html: list panel missing`);
+      writePortrait("checklist", s, checklist.replace("</style>", `${portraitCss}
+.wrap{bottom:480px}
+.list{flex:none;padding:32px}.item{grid-template-columns:54px 1fr;gap:20px;margin:24px 0;font-size:50px;line-height:1.22}
+.box{width:42px;height:42px}.count{font-size:38px}.count b{font-size:44px}
+</style>`));
+    }
+
+    if (onlyName && onlyName !== "anchors") continue;
+    // The two measured durations come from the same generated timing diagram, then reflow
+    // into stacked, phone-sized tracks. The second track remains longer when the voice slows.
+    const widths = [...page("anchors", s).matchAll(/<rect x="[^"]+" y="(?:140|400)" width="([^"]+)" height="56" rx="12" class="b[12]"\/>/g)]
+      .map((m) => Number(m[1]));
+    const sourceTicks = [...page("anchors", s).matchAll(/<line x1="([^"]+)" x2="[^"]+" y1="(?:128|388)" y2="(?:210|470)" class="tick"\/>/g)]
+      .map((m) => Number(m[1]));
+    const sourceOutline = [...page("anchors", s).matchAll(/<rect x="250" y="(?:140|400)" width="([^"]+)" height="56" rx="12" class="sc"\/>/g)]
+      .map((m) => Number(m[1]));
+    if (widths.length !== 4 || widths.some((w) => !Number.isFinite(w) || w <= 0))
+      throw new Error(`anchors${s}.html: measured timing bars are missing`);
+    if (sourceTicks.length !== 10 || sourceTicks.some((x) => !Number.isFinite(x)) || sourceOutline.length !== 2)
+      throw new Error(`anchors${s}.html: positioned timing marks are missing`);
+    const scale = 820 / (widths[2] + widths[3]);
+    const track = (at, y, label, a, b, sourceMarks, outline) => {
+      const first = Math.round(a * scale), second = Math.round(b * scale);
+      const [start, share, beat2, afterBeat2, end] = sourceMarks.map((x) => Math.round((x - 250) * scale));
+      const camera = L === "ru" ? "наезд @ b2" : "push-in @ b2";
+      return `<g class="rv" data-at="${at}"><text x="0" y="${y}" class="label">${esc(label)}</text>
+<rect x="0" y="${y + 35}" width="${first}" height="100" rx="16" class="first"/>
+<rect x="${first}" y="${y + 35}" width="${second}" height="100" rx="16" class="second"/>
+<text x="24" y="${y + 104}" class="beat">b1</text><text x="${first + 24}" y="${y + 104}" class="beat">b2</text>
+<rect x="0" y="${y + 35}" width="${Math.round(outline * scale)}" height="100" rx="16" class="outline"/>
+${[start, share, beat2, afterBeat2, end].map((x) => `<line x1="${x}" x2="${x}" y1="${y + 25}" y2="${y + 151}" class="tick"/>`).join("")}
+<text x="${share}" y="${y + 220}" class="mark" text-anchor="middle">40%</text>
+<text x="${afterBeat2 + 22}" y="${y + 293}" class="mark" text-anchor="start">b2+0.4</text>
+<text x="${end}" y="${y + 220}" class="mark" text-anchor="end">b2.end</text>
+<path d="M ${beat2} ${y + 152} V ${y + 316}" class="leader"/>
+<rect x="${beat2 - 190}" y="${y + 316}" width="380" height="64" rx="16" class="chip"/>
+<text x="${beat2}" y="${y + 361}" class="callout" text-anchor="middle">${camera}</text></g>`;
+    };
+    const title = L === "ru" ? "Моменты называются по речи" : "Moments follow the speech";
+    const labelFast = L === "ru" ? "15 знаков/с" : "15 chars/s";
+    const labelSlow = L === "ru" ? "10 знаков/с" : "10 chars/s";
+    writePortrait("anchors", s, shell(L, "anchors", `<div class="wrap portrait">
+${head(L === "ru" ? "Якоря" : "Anchors", title)}
+<svg viewBox="0 0 900 1080" aria-label="${esc(title)}">${track("b1", 100, labelFast, widths[0], widths[1], sourceTicks.slice(0, 5), sourceOutline[0])}${track("b2", 550, labelSlow, widths[2], widths[3], sourceTicks.slice(5), sourceOutline[1])}</svg>
+</div>`, `${portraitCss}
+.portrait svg{width:100%;height:auto;max-height:1250px;flex:1;overflow:visible}
+.label{font:600 56px var(--sans);fill:var(--ink)}.beat{font:700 54px var(--mono);fill:var(--bg)}
+.mark{font:48px var(--mono);fill:var(--body)}.first{fill:var(--acc2)}.second{fill:var(--acc)}
+.outline{fill:none;stroke:var(--line);stroke-width:5;stroke-dasharray:12 12}
+.tick,.leader{stroke:var(--acc2);stroke-width:5}.leader{fill:none;stroke-dasharray:8 8}
+.chip{fill:var(--card);stroke:var(--acc2);stroke-width:4}.callout{fill:var(--ink);font:600 48px var(--sans)}`));
+  }
+}
+
 if (args.includes("--demo")) { variants(); demo(); }
 if (args.length === 0) { variants(); outputs(); await images(); }
-if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); }
+if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); portraitPages(); }
+if (args.includes("--portrait-pages")) portraitPages(args[args.indexOf("--portrait-pages") + 1], args[args.indexOf("--portrait-pages") + 2]);
 if (args.includes("--frames")) frames();
 console.log("material ready");

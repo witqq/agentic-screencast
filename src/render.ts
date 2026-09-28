@@ -91,6 +91,8 @@ export interface RenderOpts {
   small?: { t: number; min: number };
   /** Селектор, который на кадрах не рисуется: так переход общим элементом получает фон без предмета. */
   hide?: string;
+  /** Видимый экземпляр общего элемента перехода, если селектор встречается в скрытых видах страницы. */
+  morphTarget?: string;
 }
 
 /** Кадр: номер, картинка и её контрольная сумма. */
@@ -169,7 +171,28 @@ export async function renderScene(
         (window as unknown as { __refit?: () => void }).__refit?.();
       }, { fams: families, probe: FONT_PROBE });
     }
-    if (o.hide) await page.addStyleTag({ content: `${o.hide}{visibility:hidden!important}` });
+    if (o.morphTarget) {
+      // У одностраничного интерфейса тот же id может стоять в скрытом виде раньше нужного.
+      // Отмечаем один видимый предмет в момент снимка ДО кадра без него;
+      // CSS-селектор скрыл бы обе копии, а начальный кадр может показывать другой вид страницы.
+      await page.evaluate((t) => window.__clock.seek(t), o.at ?? o.probes?.[0]?.t ?? 0);
+      await page.evaluate((selector) => {
+        const shown = [...document.querySelectorAll(selector)].filter((node) => {
+          const r = node.getBoundingClientRect();
+          if (r.width < 1 || r.height < 1) return false;
+          for (let p: Element | null = node; p; p = p.parentElement) {
+            const css = getComputedStyle(p);
+            if (css.display === "none" || css.visibility === "hidden" || Number(css.opacity) === 0) return false;
+          }
+          return true;
+        });
+        if (shown.length !== 1) throw new Error(`morph target ${selector}: expected one visible element, found ${shown.length}`);
+        shown[0]!.setAttribute("data-sc-morph-target", "");
+      }, o.morphTarget);
+    }
+    if (o.hide) await page.addStyleTag({ content: o.morphTarget
+      ? "[data-sc-morph-target]{visibility:hidden!important}"
+      : `${o.hide}{visibility:hidden!important}` });
 
     const shots: Shot[] = [];
     const list = o.at !== undefined ? [Math.round(o.at * o.fps)] : [...Array(frames).keys()];
@@ -206,7 +229,10 @@ export async function renderScene(
     const rects: Array<{ left: number; top: number; width: number; height: number }> = [];
     for (const probe of o.probes ?? []) {
       await page.evaluate((tt) => window.__clock.seek(tt), probe.t);
-      rects.push(await page.evaluate((a) => window.__stage.rectOf(a), probe.anchor));
+      const target = probe.anchor && typeof probe.anchor === "object" ? (probe.anchor as { target?: unknown }).target : undefined;
+      const anchor = o.morphTarget && target === o.morphTarget
+        ? { target: "[data-sc-morph-target]" } : probe.anchor;
+      rects.push(await page.evaluate((a) => window.__stage.rectOf(a), anchor));
     }
     // Кегль текста цели в точках снимка: плотность снимка (у кадрирования — отношение высот
     // кадров) переводит точки страницы в точки готового кадра.

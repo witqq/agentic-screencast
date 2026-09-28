@@ -9,7 +9,7 @@ import { execFileSync, spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
 import { parseSource } from "../../source.js";
-import { lint } from "../../lint.js";
+import { clicheSigns, lint } from "../../lint.js";
 import { useLang } from "../../msg.js";
 import { THEMES, themeFingerprint, wholeThemeFingerprint } from "../../theme.js";
 
@@ -105,6 +105,24 @@ The first beat is spoken while the camera holds.
   assert.deepEqual(held, []);
 });
 
+test("overloaded-line uses the effective portrait subtitle width, including --format", () => {
+  const beat = "A readable sentence with enough words to need several subtitle lines in a narrow portrait frame.";
+  const file = story(`${HEAD}\n## p · page\npage: p.html\n\n${beat}\n`);
+  assert.ok(!lint(file).some((f) => f.rule === "overloaded-line"), "the same beat fits the landscape limit");
+  const previous = process.env.AGENTIC_SCREENCAST_FILM_FORMAT;
+  process.env.AGENTIC_SCREENCAST_FILM_FORMAT = "vertical";
+  try {
+    const finding = lint(file).find((f) => f.rule === "overloaded-line");
+    assert.ok(finding, "the portrait cut uses its narrower subtitle band");
+    assert.match(finding.message, /more than two subtitle lines/);
+    const russian = story(`# Ролик\nlang: ru\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n## p · page\npage: p.html\n\n${"Очень длинная реплика о том, как человек работает с интерфейсом и почему ему нужен читаемый вертикальный кадр."}\n`);
+    assert.match(lint(russian).find((f) => f.rule === "overloaded-line")!.message, /такт 1 содержит .* знаков — больше двух строк субтитров/);
+  } finally {
+    if (previous === undefined) delete process.env.AGENTIC_SCREENCAST_FILM_FORMAT;
+    else process.env.AGENTIC_SCREENCAST_FILM_FORMAT = previous;
+  }
+});
+
 test("letterbox bars join the safe zone of a wide film and are refused in a tall one", () => {
   // 1920×1080 при 2.39: полоса (1080 − 1920 / 2.39) / 2 = 138 точек сверху и снизу.
   const wide = parseSource(story(`${HEAD}look: trailer\n${HERO}`));
@@ -143,7 +161,8 @@ test("a command that reads a scenario takes its path first as well as by --sourc
     const r = spawnSync("node", [ENTRY, ...args], { encoding: "utf8", cwd: tmpdir() });
     assert.equal(r.status, 0, `${args.join(" ")}: ${r.stderr}`);
   }
-  const miss = spawnSync("node", [ENTRY, "lint"], { encoding: "utf8", cwd: mkdtempSync(join(tmpdir(), "sc-none-")) });
+  const miss = spawnSync("node", [ENTRY, "lint"], { encoding: "utf8", cwd: mkdtempSync(join(tmpdir(), "sc-none-")),
+    env: { ...process.env, AGENTIC_SCREENCAST_LANG: "en" } });
   assert.equal(miss.status, 2);
   assert.match(miss.stderr, /story\.md: file not found/);
 });
@@ -239,7 +258,7 @@ duration: 4
   const ru = (text: string): string[] => {
     const was = process.env.AGENTIC_SCREENCAST_FILM_LANG;
     process.env.AGENTIC_SCREENCAST_FILM_LANG = "ru";
-    try { return lint(story(text)).map((f) => `${f.scene}:${f.rule}:${f.message.split(" ")[2]}`); }
+    try { return lint(story(text)).map((f) => `${f.scene}:${f.rule}:${/поле ([A-Za-z]+)/u.exec(f.message)?.[1] ?? ""}`); }
     finally { if (was === undefined) delete process.env.AGENTIC_SCREENCAST_FILM_LANG; else process.env.AGENTIC_SCREENCAST_FILM_LANG = was; }
   };
   assert.deepEqual(ru(BI), [], "a full translation is clean; background and duration need none");
@@ -279,6 +298,29 @@ test("a page that animates itself does not count as a still scene; a static one 
     "<h1 data-kinetic=\"fly\" data-at=\"b1\">Title</h1>"]) {
     assert.ok(!lint(withPage(html)).some((f) => f.rule === "still-scene"), `animated: ${html.slice(0, 40)}`);
   }
+});
+
+test("still-scene follows local scripts linked by a page without treating a remote script as local movement", () => {
+  const file = story(`${HEAD}\n## p · page\npage: p.html\nduration: 8\n`);
+  const dir = dirname(file);
+  writeFileSync(join(dir, "motion.js"), "window.renderAt = (t) => { document.body.style.opacity = String(t / 8); };\n");
+  writeFileSync(join(dir, "p.html"), '<html><body><script defer src="./motion.js"></script></body></html>');
+  assert.ok(!lint(file).some((f) => f.rule === "still-scene"), "the local script moves the page");
+  writeFileSync(join(dir, "p.html"), '<html><body><script src="https://example.org/motion.js"></script></body></html>');
+  assert.ok(lint(file).some((f) => f.rule === "still-scene"), "an unavailable remote script is not evidence of motion");
+});
+
+test("a Russian lint run reports findings and visual cliches in Russian", () => {
+  const file = story(`# Ролик\nlang: ru\nformat: vertical\nlook: {"grain":0.1}\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n`
+    + `## p · page\npage: p.html\nduration: 8\n\n`
+    + `Эта длинная реплика рассказывает о работе с интерфейсом достаточно подробно, чтобы не поместиться в две строки субтитров и задержать кадр.\n`);
+  const findings = lint(file);
+  assert.ok(findings.some((f) => f.rule === "still-scene"));
+  assert.ok(findings.some((f) => f.rule === "overloaded-line"));
+  for (const f of findings) assert.match(f.message, /[а-яё]/iu, `${f.rule}: ${f.message}`);
+  const signs = clicheSigns(file);
+  assert.ok(signs.some((s) => s.rule === "grain"));
+  for (const sign of signs) assert.match(sign.message, /[а-яё]/iu, `${sign.rule}: ${sign.message}`);
 });
 
 test("lint names a live take recorded in another theme than the scene that shows it, or without one", () => {

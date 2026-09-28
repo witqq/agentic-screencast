@@ -37,3 +37,42 @@ test("the take's cursor takes the element's shape, travels on a curve, and shows
   assert.ok(off > 0.01, `the cursor bows away from the straight line (${off.toFixed(3)} of the frame)`);
   await assert.rejects(recordTake({ output: join(dir, "x.webm"), click: "boom" as never }, async () => {}), /click: expected ripple \| spot \| echo/);
 });
+
+test("a long cursor trip and visible typing leave time to follow each action", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-cursor-pace-"));
+  let typedMs = 0;
+  const out = await recordTake({ output: join(dir, "paced.webm"), viewport: { width: 1200, height: 700 }, trimStart: false,
+    prepare: async (p) => { await p.setContent(`<body style="margin:0;font:20px sans-serif">
+      <button id="far" style="position:absolute;left:1010px;top:550px;width:140px;height:48px">Far target</button>
+      <input id="q" style="position:absolute;left:110px;top:100px;width:300px;height:44px">
+      <script>window.typedAt=[];q.addEventListener('input',()=>window.typedAt.push(performance.now()))</script></body>`); } },
+  async (take) => {
+    await take.hover(take.page.locator("#far"));
+    await take.type(take.page.locator("#q"), "A readable thirty character phrase");
+    typedMs = await take.page.evaluate(() => {
+      const times = (window as unknown as { typedAt: number[] }).typedAt;
+      return times.at(-1)! - times[1]!; // the first input event clears the field
+    });
+  });
+  const marks = JSON.parse(readFileSync(`${out}.marks.json`, "utf8")) as TakeMarks;
+  const hover = marks.actions!.find((a) => a.kind === "hover")!;
+  const travel = marks.path!.filter((p) => p.t >= hover.t - 1e-6 && p.t <= hover.end + 1e-6);
+  assert.ok(travel.length >= 35, `a long trip needs intermediate cursor positions, got ${travel.length}`);
+  assert.ok(travel.at(-1)!.t - travel[0]!.t >= 0.9, "the long move is visible for at least 0.9 seconds");
+  assert.ok(typedMs >= 1800, `letters must appear at a readable pace, got ${Math.round(typedMs)} ms`);
+});
+
+test("a drag records the cursor movement that the camera must follow", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-drag-cursor-"));
+  const out = await recordTake({ output: join(dir, "drag.webm"), viewport: { width: 800, height: 450 }, trimStart: false,
+    prepare: async (p) => { await p.setContent(`<body style="margin:0">
+      <div id="from" draggable="true" style="position:absolute;left:70px;top:140px;width:70px;height:45px;background:#b44"></div>
+      <div id="to" style="position:absolute;left:620px;top:230px;width:90px;height:60px;background:#46a"></div>
+      </body>`); } },
+  async (take) => { await take.drag(take.page.locator("#from"), take.page.locator("#to")); });
+  const marks = JSON.parse(readFileSync(`${out}.marks.json`, "utf8")) as TakeMarks;
+  const drag = marks.actions!.find((a) => a.kind === "drag")!;
+  const path = marks.path!.filter((p) => p.t >= drag.t - 1e-6 && p.t <= drag.end + 1e-6);
+  assert.ok(path.length >= 3, "the take records intermediate real pointer positions");
+  assert.ok(path.at(-1)!.x > 0.75, `camera path must reach the drop target, got x=${path.at(-1)!.x}`);
+});

@@ -8,6 +8,8 @@
 // `autoZoom`: камера сама наезжает туда, где был клик.
 import { existsSync, readFileSync } from "node:fs";
 import type { OverlayCamera } from "./overlay.js";
+import { pushScale } from "./camera.js";
+import { msg } from "./msg.js";
 
 export interface TakeMarks {
   trimmed: number;
@@ -17,6 +19,8 @@ export interface TakeMarks {
   path?: Array<{ t: number; x: number; y: number }>;
   /** действия с их элементами: вид, начало, конец, прямоугольник в долях кадра */
   actions?: Array<{ kind: string; t: number; end: number; rect?: [number, number, number, number] }>;
+  /** движение камеры, уже впечённое в дубль (секунды исходного клипа) */
+  cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором */
   rects?: Record<string, [number, number, number, number]>;
 }
@@ -40,10 +44,29 @@ export function trimMarks(m: TakeMarks | undefined, trim: Trim | undefined): Tak
   const end = trim.to ?? Infinity;
   const inside = (t: number): boolean => t >= trim.from - 1e-6 && t <= end + 1e-6;
   const at = (t: number): number => Math.round((t - trim.from) * 1000) / 1000;
+  // Keep the position at a cut boundary. Dropping the samples just outside the cut made
+  // cursor following begin at a later position, so the portrait window jumped on entry.
+  const path = m.path ? [...m.path].sort((a, b) => a.t - b.t) : undefined;
+  const boundary = (time: number): NonNullable<TakeMarks["path"]>[number] | undefined => {
+    if (!path || !Number.isFinite(time)) return undefined;
+    for (let i = 1; i < path.length; i++) {
+      const a = path[i - 1]!, b = path[i]!;
+      if (a.t < time && time < b.t) {
+        const p = (time - a.t) / (b.t - a.t);
+        return { t: time, x: a.x + (b.x - a.x) * p, y: a.y + (b.y - a.y) * p };
+      }
+    }
+    return undefined;
+  };
+  const keptPath = path ? [boundary(trim.from), ...path.filter((p) => inside(p.t)), boundary(end)]
+    .filter((p): p is NonNullable<TakeMarks["path"]>[number] => Boolean(p))
+    .map((p) => ({ ...p, t: at(p.t) })) : undefined;
   return { ...m, marks: Object.fromEntries(Object.entries(m.marks).filter(([, t]) => inside(t)).map(([k, t]) => [k, at(t)])),
     clicks: m.clicks.filter((c) => inside(c.t)).map((c) => ({ ...c, t: at(c.t) })),
-    ...(m.path ? { path: m.path.filter((p) => inside(p.t)).map((p) => ({ ...p, t: at(p.t) })) } : {}),
-    ...(m.actions ? { actions: m.actions.filter((a) => inside(a.t)).map((a) => ({ ...a, t: at(a.t), end: at(Math.min(a.end, end)) })) } : {}) };
+    ...(keptPath ? { path: keptPath } : {}),
+    ...(m.actions ? { actions: m.actions.filter((a) => inside(a.t)).map((a) => ({ ...a, t: at(a.t), end: at(Math.min(a.end, end)) })) } : {}),
+    ...(m.cameraMoves ? { cameraMoves: m.cameraMoves.filter((move) => move.to > trim.from && move.from < end)
+      .map((move) => ({ from: at(Math.max(move.from, trim.from)), to: at(Math.min(move.to, end)) })) } : {}) };
 }
 
 /**
@@ -52,6 +75,11 @@ export function trimMarks(m: TakeMarks | undefined, trim: Trim | undefined): Tak
  * `"@saved-0.3"` внутри JSON. Текст карточки со словом «@saved» внутри не
  * трогается: подмена в прозе превращала бы подпись в набор цифр.
  */
+export const MARK_REFERENCE = "@([A-Za-z][\\w-]*)(\\s*[+-]\\s*[\\d.]+)?";
+const WHOLE_MARK = new RegExp(`^\\s*${MARK_REFERENCE}\\s*$`);
+
+export const isMarkReference = (value: string): boolean => WHOLE_MARK.test(value);
+
 export function resolveMarks(value: string, marks: TakeMarks | undefined, where: string): string {
   if (!value.includes("@")) return value;
   const find = (token: string, shift?: string): number => {
@@ -66,15 +94,14 @@ export function resolveMarks(value: string, marks: TakeMarks | undefined, where:
     }
     const t = marks?.marks[name];
     if (t === undefined) {
-      const known = marks ? Object.keys(marks.marks).join(", ") || "none" : "no .marks.json beside the clip";
-      throw new Error(`${where}: unknown mark @${name}; known: ${known}`);
+      const known = marks ? Object.keys(marks.marks).join(", ") || msg("source.none") : msg("marks.noFile");
+      throw new Error(msg("marks.unknown", { where, name, known }));
     }
     return Math.round((t + (shift ? Number(shift.replace(/\s+/g, "")) : 0)) * 1000) / 1000;
   };
-  const ref = "@([A-Za-z][\\w-]*)(\\s*[+-]\\s*[\\d.]+)?";
-  const whole = new RegExp(`^\\s*${ref}\\s*$`).exec(value);
+  const whole = WHOLE_MARK.exec(value);
   if (whole) return String(find(whole[1]!, whole[2]));
-  return value.replace(new RegExp(`"${ref}"`, "g"), (_, name: string, shift?: string) => String(find(name, shift)));
+  return value.replace(new RegExp(`"${MARK_REFERENCE}"`, "g"), (_, name: string, shift?: string) => String(find(name, shift)));
 }
 
 /** Как наезжать на клики: увеличение, удержание и размер области. */
@@ -100,11 +127,13 @@ export function autoZoomCues(clicks: TakeMarks["clicks"], opts: AutoZoom = {}): 
       if (at < prevEnd + back + 0.35) {
         prev.keep = true;
         prev.hold = Math.max(0.8, at - prev.at - (prev.move ?? move));
-        cues.push({ at: prev.at + (prev.move ?? move) + prev.hold, hold, move, return: back, scale, area });
+        cues.push({ at: prev.at + (prev.move ?? move) + prev.hold, hold, move, return: back, scale, area,
+          ring: false, ...(opts.follow ? { follow: opts.follow } : {}) });
         continue;
       }
     }
-    cues.push({ at, hold, move, return: back, scale, area });
+    cues.push({ at, hold, move, return: back, scale, area,
+      ring: false, ...(opts.follow ? { follow: opts.follow } : {}) });
   }
   return cues;
 }
@@ -121,10 +150,12 @@ export function actionZoomCues(actions: NonNullable<TakeMarks["actions"]>, click
   const margin = 0.04, gap = 1.2, reach = 0.55;
   type Box = [number, number, number, number];
   const boxOf = (a: NonNullable<TakeMarks["actions"]>[number]): Box | null => {
-    if (a.rect) return a.rect;
+    // A viewport-sized locator is navigation context, not an element to outline. Its
+    // click point is a more specific subject; absent that, there is no focus cue.
+    if (a.rect && a.rect[2] <= 0.7 && a.rect[3] <= 0.7) return a.rect;
     // Клик в точку без элемента: маленькая область вокруг записанного клика.
     const c = [...clicks].sort((p, q) => Math.abs(p.t - a.t) - Math.abs(q.t - a.t))[0];
-    return c ? [c.x - 0.01, c.y - 0.01, 0.02, 0.02] : null;
+    return c && Math.abs(c.t - a.t) <= 1.2 ? [c.x - 0.01, c.y - 0.01, 0.02, 0.02] : null;
   };
   const union = (a: Box, b: Box): Box => {
     const x0 = Math.min(a[0], b[0]), y0 = Math.min(a[1], b[1]);
@@ -150,7 +181,8 @@ export function actionZoomCues(actions: NonNullable<TakeMarks["actions"]>, click
     const at = Math.max(0, g.t - lead);
     const span = Math.max(hold, g.end - g.t + hold);
     const cue: OverlayCamera = { at, hold: span, move, return: back, area: area.map(r) as Box,
-      ...(opts.scale !== undefined ? { scale: opts.scale } : {}), ...(opts.follow ? { follow: opts.follow } : {}) };
+      ring: false, scale: opts.scale ?? pushScale({}, area[2], area[3]),
+      ...(opts.follow ? { follow: opts.follow } : {}) };
     const prev = cues[cues.length - 1];
     if (prev) {
       const prevEnd = prev.at + (prev.move ?? move) + prev.hold;

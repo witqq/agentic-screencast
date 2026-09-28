@@ -54,7 +54,7 @@ import { msg, useLang } from "./msg.js";
 import { parseTransition, type Transition } from "./transition.js";
 import { anchorSeconds, estimateBeats, parseSpotlight, type Spotlight } from "./spotlight.js";
 import { parseStills, type Still } from "./stills.js";
-import { marksOf, resolveMarks, trimMarks, type AutoZoom, type Trim } from "./marks.js";
+import { isMarkReference, marksOf, resolveMarks, trimMarks, type AutoZoom, type Trim } from "./marks.js";
 import type { Music } from "./mix.js";
 import { parseDevice, type Device } from "./device.js";
 import { parseLook, type Look } from "./look.js";
@@ -100,6 +100,14 @@ export interface RawScene {
   /** вся речь сцены одной строкой — для подсказки в кадре и отчётов */
   caption: string;
   __line?: number;
+  /** The recording UI may omit a scene whose take is still being made. */
+  recordUnavailable?: Pick<UnavailableMaterial, "kind" | "file">;
+}
+
+export interface UnavailableMaterial {
+  id: string;
+  kind: "video" | "marks" | "image" | "data" | "file" | "page";
+  file: string;
 }
 
 /** Кадр ролика: размер, темп и множитель плотности. */
@@ -130,7 +138,7 @@ export interface Captions {
   srt?: boolean;
   /** кегль субтитров относительно обычного, 0,8–1,6: кадр и SRT режут реплику под него, слайды оставляют ему место */
   size?: number;
-  /** outline — белый текст с чёрной обводкой без плашки (умолчание); plate — текст на плашке */
+  /** outline — белый текст с тёмной обводкой без плашки (умолчание); plate — текст на плотной плашке */
   look?: "outline" | "plate";
   /** где стоят субтитры и подпись: внизу (умолчание), вверху или посередине; сцена может сменить полем `captions` */
   position?: CaptionPosition;
@@ -306,6 +314,8 @@ export interface PitchScene {
   kind: string;
   /** страница либо готовый файл: что именно, знает поставщик */
   page: string;
+  /** A page authored for the portrait viewport, selected instead of cropping a landscape page. */
+  nativePortrait?: true;
   /** материал — видеофайл, а не страница */
   video?: boolean;
   target?: string;
@@ -370,6 +380,8 @@ export interface SceneMusic {
 
 export interface Pitch {
   scenes: PitchScene[];
+  /** Явные части из авторского сценария, независимо от порождённого списка глав. */
+  authoredParts?: string[];
   tail?: number;
   /** посторонние поставщики: их объявил ролик, и проверкам они тоже нужны */
   providers?: Record<string, string>;
@@ -421,8 +433,25 @@ export function specOf(scene: { provider: string; kind: string },
   return spec;
 }
 
+/** Select a ready material file once for build, frames, lint, and recorder pictures. */
+export function materialFileOf(src: Source, scene: RawScene, spec: KindSpec): { file: string; nativePortrait?: true } {
+  if (!spec.fileField) throw new Error(`scene ${scene.id} does not name a ready material file`);
+  const portrait = scene.provider === "page" && src.format === "vertical" && scene.fields.pageVertical !== undefined;
+  const field = portrait ? "pageVertical" : spec.fileField;
+  const file = scene.fields[field]?.trim() ?? "";
+  if (!file) throw new SourceError(msg("source.fileMissing", { field, file }));
+  return { file, ...(portrait ? { nativePortrait: true } : {}) };
+}
+
 export class SourceError extends Error {
   readonly sourceError = true;
+}
+
+/** A referenced file has not been made yet; other source errors remain fatal in the recorder. */
+export class MissingMaterialError extends SourceError {
+  constructor(message: string, readonly kind: UnavailableMaterial["kind"], readonly file: string) {
+    super(message);
+  }
 }
 
 const err = (line: number, why: string): never => {
@@ -619,10 +648,11 @@ export function localize(folded: Array<{ n: number; line: string }>, want?: stri
     if (k) note(k[2]!); else if (b) note(b[1]!);
   }
   const target = want && want !== base ? want : undefined;
+  useLang(target ?? base);
   if (target && !langs.includes(target)) {
-    errors.push({ n: 1, why: `lang ${target}: the scenario has no ${target} text; write title.${target}:, fields like overlay.${target}: and a [${target}] block of narration in each scene` });
+    errors.push({ n: 1, why: msg("source.missingLanguage", { lang: target }) });
   }
-  if (!base && langs.length) errors.push({ n: 1, why: "a scenario with translations names its own language in the header: lang: en" });
+  if (!base && langs.length) errors.push({ n: 1, why: msg("source.translationHeader") });
 
   const out: Array<{ n: number; line: string }> = [];
   parts.forEach((p, idx) => {
@@ -654,10 +684,11 @@ export function localize(folded: Array<{ n: number; line: string }>, want?: stri
     const paragraphs = (ls: Array<{ line: string }>): number =>
       ls.map((x) => x.line.trim()).join("\n").split(/\n\s*\n/u).filter((x) => x.trim()).length;
     if (target && p.head && baseProse.some((x) => x.line.trim()) && !translated) {
-      errors.push({ n: p.head.n, why: `scene ${p.head.line.slice(3).split("·")[0]!.trim()}: no [${target}] narration; each spoken scene is translated beat for beat` });
+      errors.push({ n: p.head.n, why: msg("source.missingNarration", { id: p.head.line.slice(3).split("·")[0]!.trim(), lang: target }) });
     }
     if (translated && paragraphs(translated) !== paragraphs(baseProse)) {
-      errors.push({ n: translated[0]?.n ?? p.head!.n, why: `scene ${p.head!.line.slice(3).split("·")[0]!.trim()}: [${target}] has ${paragraphs(translated)} beats, the original ${paragraphs(baseProse)}; anchors like b2 name beats by number, so a translation keeps the same beats` });
+      errors.push({ n: translated[0]?.n ?? p.head!.n, why: msg("source.translationBeats", {
+        id: p.head!.line.slice(3).split("·")[0]!.trim(), lang: target!, translated: paragraphs(translated), original: paragraphs(baseProse) }) });
     }
     inProse = false; block = null;
     for (const l of p.body) {
@@ -694,7 +725,8 @@ export function localize(folded: Array<{ n: number; line: string }>, want?: stri
   return { lines: out, langs, ...(target ? { variant: target } : {}), dropped, untranslated, errors };
 }
 
-export function parseSource(file: string, opts: { lang?: string; format?: string } = {}): Source {
+export function parseSource(file: string, opts: { lang?: string; format?: string; recording?: boolean;
+  onlyScene?: string; exceptScene?: string } = {}): Source {
   // Язык сбрасывается к тому, что задало окружение, и только затем ролик
   // может его назвать. Без сброса язык прошлого разбора оставался бы
   // назначенным: в одном процессе роликов бывает несколько — так, сервер
@@ -713,6 +745,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
   const closeScene = () => {
     const s = scene;
     if (!s) return;
+    const conflicts: string[] = [];
     const beats = beatsOf(prose);
     const caption = beats.map((b) => b.text).join(" ").replace(/\s+/g, " ").trim();
     s.beats = beats;
@@ -723,11 +756,47 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
     if (s.fields.duration !== undefined) {
       const duration = Number(s.fields.duration);
       if (!Number.isFinite(duration) || duration <= 0 || duration > 600)
-        err(s.__line ?? 0, `duration in ${s.id} must be >0 and <=600 seconds`);
+        err(s.__line ?? 0, msg("source.duration", { id: s.id }));
+    }
+    // The recorder and a frame preview of other scenes can be useful before a take exists.
+    // Defer only its material lookup: authoring errors in this scene must still be checked.
+    const deferMaterial = opts.recording || Boolean(opts.onlyScene && s.id !== opts.onlyScene)
+      || Boolean(opts.exceptScene && s.id === opts.exceptScene);
+    let missingMaterial = false;
+    if (deferMaterial && spec(s).video && s.fields.file) {
+      const take = resolve(out.dir, s.fields.file);
+      const f = s.fields;
+      const markIn = (value?: string): boolean => /^\s*@[A-Za-z]/u.test(value ?? "") || /"@[A-Za-z]/u.test(value ?? "");
+      const usesMarks = [f.from, f.to, f.freezeAt, f.speed, f.spotlight].some(markIn)
+        || /"(?:at|area)"\s*:\s*"@[A-Za-z]/u.test(f.overlay ?? "")
+        || (f.stills ?? "").split("|").some((part) => /^\s*@[A-Za-z]/u.test(part))
+        || Boolean(f.autoZoom);
+      const missing = !existsSync(take) ? { kind: "video" as const, file: f.file }
+        : usesMarks && !existsSync(`${take}.marks.json`) ? { kind: "marks" as const, file: `${f.file}.marks.json` }
+          : null;
+      if (missing) {
+        missingMaterial = true;
+        if (opts.recording) s.recordUnavailable = missing;
+      }
+    }
+    if (missingMaterial && (s.fields.from !== undefined || s.fields.to !== undefined)) {
+      // A mark's second is unknown until recording, but plain seconds and mark syntax are
+      // independent of the take. Keep their validation visible to record and frames.
+      const second = (field: "from" | "to"): number | undefined => {
+        const value = s.fields[field]?.trim();
+        if (value === undefined || isMarkReference(value)) return undefined;
+        const n = Number(value);
+        if (!Number.isFinite(n)) err(s.__line ?? 0, msg("source.sceneField", { id: s.id, field }) + ": " + msg("source.badAnchor", { anchor: value }));
+        return n;
+      };
+      const from = second("from"), to = second("to");
+      if (from !== undefined && from < 0) err(s.__line ?? 0, msg("source.trimFrom", { id: s.id }));
+      if (to !== undefined && to <= (from ?? 0))
+        err(s.__line ?? 0, msg("source.trimTo", { id: s.id, from: from ?? 0 }));
     }
     // Отметки живого дубля: `@имя` в полях видеосцены становится секундами
     // из файла отметок рядом с роликом, до всех остальных проверок.
-    if (spec(s).video && s.fields.file) {
+    if (!missingMaterial && spec(s).video && s.fields.file) {
       const full = marksOf(resolve(out.dir, s.fields.file));
       // Кусок дубля: `from`/`to` — секунды или отметки исходного клипа. Дальше все секунды клипа
       // в сцене — отметки, `speed`, `freezeAt`, `stills` — считаются от начала куска.
@@ -735,10 +804,10 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       if (s.fields.from !== undefined || s.fields.to !== undefined) {
         try {
           const sec = (k: "from" | "to"): number | undefined => s.fields[k] === undefined ? undefined
-            : Number(resolveMarks(s.fields[k]!.trim(), full, `scene ${s.id} ${k}`));
+            : Number(resolveMarks(s.fields[k]!.trim(), full, msg("source.sceneField", { id: s.id, field: k })));
           const from = sec("from") ?? 0, to = sec("to");
-          if (!Number.isFinite(from) || from < 0) throw new Error(`scene ${s.id}: from must be a second of the clip or a take's @mark`);
-          if (to !== undefined && !(Number.isFinite(to) && to > from)) throw new Error(`scene ${s.id}: to must come after from (${from}s)`);
+          if (!Number.isFinite(from) || from < 0) throw new Error(msg("source.trimFrom", { id: s.id }));
+          if (to !== undefined && !(Number.isFinite(to) && to > from)) throw new Error(msg("source.trimTo", { id: s.id, from }));
           s.fields.from = String(from);
           if (to !== undefined) s.fields.to = String(to);
           trim = { from, ...(to !== undefined ? { to } : {}) };
@@ -753,8 +822,8 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         s.fields[k] = s.fields[k]!.replace(/"area"\s*:\s*"@([A-Za-z][\w-]*)"/g, (_, name: string) => {
           const rect = full?.rects?.[name];
           if (!rect) {
-            err(s.__line ?? 0, `scene ${s.id} ${k}: area @${name} needs the element recorded with take.mark("${name}", locator)`
-              + (full?.rects ? `; recorded: ${Object.keys(full.rects).join(", ") || "none"}` : ""));
+            err(s.__line ?? 0, msg("source.markArea", { id: s.id, field: k, name })
+              + (full?.rects ? msg("source.markRecorded", { names: Object.keys(full.rects).join(", ") || msg("source.none") }) : ""));
             return '"area":[0,0,1,1]';
           }
           const frame = frameOf(out.format, out.frame) ?? { width: 1920, height: 1080 };
@@ -769,45 +838,55 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       // вида «@handle» — проза, а не ссылка.
       if (s.fields.overlay?.includes('"@')) {
         s.fields.overlay = s.fields.overlay.replace(/"at"\s*:\s*"(@[^"]+)"/g, (whole, ref: string) => {
-          try { return `"at":${resolveMarks(ref, marks, `scene ${s.id} overlay`)}`; }
+          try { return `"at":${resolveMarks(ref, marks, msg("source.sceneField", { id: s.id, field: "overlay" }))}`; }
           catch (e) { err(s.__line ?? 0, String((e as Error).message)); return whole; }
         });
       }
       for (const k of ["freezeAt", "speed", "spotlight"]) {
         if (s.fields[k]?.includes("@")) {
-          try { s.fields[k] = resolveMarks(s.fields[k], marks, `scene ${s.id} ${k}`); }
+          try { s.fields[k] = resolveMarks(s.fields[k], marks, msg("source.sceneField", { id: s.id, field: k })); }
           catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
         }
       }
-      // У контрольных кадров отметка — отдельный момент: он становится секундой клипа с пометкой,
-      // чтобы сборка сдвинула её вместе с замедлением и остановками клипа.
+      // Keep the author's mark name beside its resolved clip second: timing follows retiming,
+      // while the report and still filename keep the identity the author can recognize.
       if (s.fields.stills?.split("|").some((i) => i.split("::")[0]!.includes("@"))) {
         try {
           s.fields.stills = s.fields.stills.split("|").map((item) => {
             const [moment, ...rest] = item.split("::");
             const m = moment!.trim();
-            return m.startsWith("@") ? [`clip:${resolveMarks(m, marks, `scene ${s.id} stills`)}`, ...rest].join(" ::") : item;
+            return m.startsWith("@") ? [`clip:${resolveMarks(m, marks, msg("source.stillsWhere", { id: s.id }))}${m}`, ...rest].join(" ::") : item;
           }).join("|");
         } catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
       }
-      if (s.fields.autoZoom) {
-        if (!marks) err(s.__line ?? 0, `scene ${s.id}: autoZoom needs the clicks recorded by agentic-screencast/capture (${s.fields.file}.marks.json)`);
-        try { parseAutoZoom(s.fields.autoZoom); } catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${(e as Error).message}`); }
-        if (s.fields.speed) err(s.__line ?? 0, `scene ${s.id}: autoZoom follows the clip's own time and cannot share a scene with speed`);
-      }
+    }
+    if (s.fields.autoZoom) {
+      if (!missingMaterial && !marksOf(resolve(out.dir, s.fields.file ?? "")))
+        err(s.__line ?? 0, msg("source.autoZoomMarks", { id: s.id, file: s.fields.file }));
+      try { parseAutoZoom(s.fields.autoZoom); } catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: (e as Error).message })); }
+      if (s.fields.speed) conflicts.push("autoZoom + speed");
     }
     if (s.fields.stills !== undefined) {
       // У видеосцены отметки уже заменены секундами выше (или об ошибке уже сказано там).
-      if (!spec(s).video && s.fields.stills.split("|").some((i) => i.split("::")[0]!.includes("@"))) err(s.__line ?? 0, `scene ${s.id} stills: a take's @mark works only on a video scene with its .marks.json`);
-      try { parseStills(s.fields.stills, `scene ${s.id} stills`); } catch (e) { err(s.__line ?? 0, (e as Error).message); }
+      if (!spec(s).video && s.fields.stills.split("|").some((i) => i.split("::")[0]!.includes("@"))) err(s.__line ?? 0, msg("source.stillMarkOnly", { id: s.id }));
+      try {
+        // A mark's time needs the take; the rest of the stills grammar does not.
+        const value = missingMaterial ? s.fields.stills.split("|").map((item) => {
+          const [moment, ...rest] = item.split("::");
+          const mark = moment!.trim();
+          return isMarkReference(mark) ? [`clip:0${mark}`, ...rest].join("::") : item;
+        }).join("|") : s.fields.stills;
+        parseStills(value, msg("source.stillsWhere", { id: s.id }));
+      } catch (e) { err(s.__line ?? 0, (e as Error).message); }
     }
     if (s.fields.freezeAt !== undefined) {
       const freezeAt = Number(s.fields.freezeAt);
-      if (!Number.isFinite(freezeAt) || freezeAt < 0)
-        err(s.__line ?? 0, `freezeAt in ${s.id} must be a non-negative second`);
+      if (!(missingMaterial && isMarkReference(s.fields.freezeAt.trim()))
+        && (!Number.isFinite(freezeAt) || freezeAt < 0))
+        err(s.__line ?? 0, msg("source.freezeAt", { id: s.id }));
     }
     if (!beats.length && spec(s).silentOk && !spec(s).video && !s.fields.duration)
-      err(s.__line ?? 0, `silent scene ${s.id} needs duration`);
+      err(s.__line ?? 0, msg("source.silentDuration", { id: s.id }));
     // Отсутствие обязательного поля — ошибка разбора, а не пустой слайд:
     // раньше `toDeck` спотыкался на этом дампом чтения несуществующей
     // строки, то есть о причине читателю не сообщал никто.
@@ -817,7 +896,12 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       err(s.__line ?? 0, msg("source.required", { id: s.id, kind: s.kind, names }));
     }
     if (s.fields.overlay) {
-      try { parseOverlay(s.fields.overlay, overlayMoment(s.beats, s.fields, out.voice)); }
+      try {
+        const overlay = missingMaterial ? s.fields.overlay
+          .replace(/("area"\s*:\s*)"@[A-Za-z][\w-]*"/gu, '$1[0.1,0.1,0.2,0.2]')
+          .replace(/("at"\s*:\s*)"@[A-Za-z][\w-]*(?:\s*[+-]\s*[\d.]+)?"/gu, '$1 0') : s.fields.overlay;
+        parseOverlay(overlay, overlayMoment(s.beats, s.fields, out.voice));
+      }
       catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
     }
     // Переигрывание проверяется здесь же, на разборе: негодная запись
@@ -826,55 +910,81 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
     if (s.fields.transition) {
       try {
         const t = parseTransition(s.fields.transition);
-        if (t.sound && !existsSync(resolve(out.dir, t.sound))) throw new Error(`transition.sound: file not found: ${t.sound}`);
-      } catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+        if (t.sound && !existsSync(resolve(out.dir, t.sound))) throw new Error(msg("source.transitionSound", { file: t.sound }));
+      } catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.captions !== undefined && !(CAPTION_POSITIONS as readonly string[]).includes(s.fields.captions.trim()))
-      err(s.__line ?? 0, `scene ${s.id}: captions: expected ${CAPTION_POSITIONS.join(" | ")} — where this scene's subtitles stand`);
+      err(s.__line ?? 0, msg("source.captionsPosition", { id: s.id, positions: CAPTION_POSITIONS.join(" | ") }));
     if (s.fields.speechAt !== undefined) {
       const v = Number(s.fields.speechAt.replace(/s$/i, ""));
-      if (!Number.isFinite(v) || v < 0 || v > 10) err(s.__line ?? 0, `scene ${s.id}: speechAt: expected 0–10 seconds from the scene's start`);
+      if (!Number.isFinite(v) || v < 0 || v > 10) err(s.__line ?? 0, msg("source.speechAt", { id: s.id }));
     }
     for (const k of ["flash", "shake"] as const) {
       if (!s.fields[k]) continue;
       try { parseHits(s.fields[k], k); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.fit) {
       try { parseFit(s.fields.fit); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.music) {
       try { parseSceneMusic(s.fields.music, out.dir); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.fade) {
       try { parseFade(s.fields.fade); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.sfx) {
-      try { parseSfx(s.fields.sfx, out.dir, `scene ${s.id} sfx`, SCENE_ANCHOR); }
+      try { parseSfx(s.fields.sfx, out.dir, msg("source.sceneField", { id: s.id, field: "sfx" }), SCENE_ANCHOR); }
       catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
     }
     if (s.fields.spotlight) {
       try {
-        const list = parseSpotlight(s.fields.spotlight);
+        const spotlight = missingMaterial ? s.fields.spotlight
+          .replace(/("area"\s*:\s*)"@[A-Za-z][\w-]*"/gu, '$1[0.1,0.1,0.2,0.2]') : s.fields.spotlight;
+        const list = parseSpotlight(spotlight);
         if (s.fields.speed && list.some((f) => f.slow !== undefined))
-          throw new Error("a spotlight that slows the clip and a speed field cannot share a scene; keep one of them");
-      } catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+          conflicts.push("spotlight.slow + speed");
+      } catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.theme) {
       try { sceneTheme(s.fields.theme, out.theme); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: theme: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneThemeReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.device) {
       try { parseDevice(s.fields.device); }
-      catch (e) { err(s.__line ?? 0, `scene ${s.id}: ${String((e as Error).message)}`); }
+      catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.speed) {
-      try { parseSpeed(s.fields.speed); }
+      try {
+        const speed = missingMaterial ? s.fields.speed
+          .replace(/("(?:at|from)"\s*:\s*)"@[A-Za-z][\w-]*(?:\s*[+-]\s*[\d.]+)?"/gu, '$1 0')
+          .replace(/("to"\s*:\s*)"@[A-Za-z][\w-]*(?:\s*[+-]\s*[\d.]+)?"/gu, '$1 1000000000') : s.fields.speed;
+        // Unknown mark times cannot establish the order between steps yet. Check each step's
+        // independent shape and ranges, and retain ordering checks within numeric runs.
+        // The full schedule is checked when the take exists.
+        if (missingMaterial && speed !== s.fields.speed) {
+          const steps = JSON.parse(speed) as unknown;
+          if (!Array.isArray(steps) || !steps.length) parseSpeed(speed);
+          else {
+            const original = JSON.parse(s.fields.speed) as unknown[];
+            let numeric: unknown[] = [];
+            const checkNumeric = (): void => { if (numeric.length) parseSpeed(JSON.stringify(numeric)); numeric = []; };
+            steps.forEach((step, index) => {
+              if (JSON.stringify(original[index]).includes("@")) {
+                checkNumeric();
+                parseSpeed(JSON.stringify([step]));
+              } else numeric.push(step);
+            });
+            checkNumeric();
+          }
+        } else parseSpeed(speed);
+      }
       catch (e) { err(s.__line ?? 0, String((e as Error).message)); }
     }
+    if (conflicts.length) err(s.__line ?? 0, msg("source.incompatible", { id: s.id, fields: conflicts.join("; ") }));
     // Якоря проверяются здесь, а не при чтении поля: номер такта имеет
     // смысл только когда речь сцены разобрана целиком.
     const anchors: string[] = [
@@ -930,16 +1040,16 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
     if (m && (!scene || prose.length === 0)) {
       const [, key, value] = m;
       if (!scene) {                       // шапка ролика
-        if (key === "voice") out.voice = JSON.parse(value!) as import("./voice/types.js").VoiceData;
+        if (key === "voice") out.voice = objectOf(value!, "voice") as import("./voice/types.js").VoiceData;
         else if (key === "tail") out.tail = Number(value);
         // Посторонние поставщики объявляются ДО первой сцены: их имена
         // нужны уже на разборе заголовка, а шапка ролика идёт раньше.
-        else if (key === "providers") out.providers = JSON.parse(value!) as Record<string, string>;
+        else if (key === "providers") out.providers = objectOf(value!, "providers") as Record<string, string>;
         // Кадр, кодирование и оформление — данные ролика. Прежде это были
         // числа в ядре, и вертикальный ролик или светлую тему нельзя было
         // сделать, не правя инструмент.
-        else if (key === "frame") out.frame = JSON.parse(value!) as Frame;
-        else if (key === "encode") out.encode = JSON.parse(value!) as Encode;
+        else if (key === "frame") out.frame = objectOf(value!, "frame") as Frame;
+        else if (key === "encode") out.encode = objectOf(value!, "encode") as Encode;
         // Тема пишется именем (`theme: synthwave`), набором переменных
         // или тем и другим (`{"preset":"noir","--acc":"#fff"}`). Разрешается
         // она СРАЗУ: дальше по течению тема — всегда плоский набор, и ни
@@ -948,7 +1058,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         else if (key === "theme") {
           const raw = value!.trim();
           const written: ThemeInput = raw.startsWith("{")
-            ? (JSON.parse(raw) as ThemeInput) : raw;
+            ? (objectOf(raw, "theme") as ThemeInput) : raw;
           try { out.theme = resolveTheme(written); }
           catch (e) { err(n, String((e as Error).message)); }
         }
@@ -973,21 +1083,21 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
           catch (e) { err(n, String((e as Error).message)); }
         } else if (key === "loudness") {
           const v = Number(value);
-          if (!Number.isFinite(v) || v < -30 || v > -8) err(n, "loudness: expected a LUFS target from -30 to -8");
+          if (!Number.isFinite(v) || v < -30 || v > -8) err(n, msg("source.loudness"));
           out.loudness = v;
         } else if (key === "audio") {
-          if (value!.trim() !== "false" && value!.trim() !== "true") err(n, "audio: expected false (a film without a sound track) or true");
+          if (value!.trim() !== "false" && value!.trim() !== "true") err(n, msg("source.audio"));
           out.audio = value!.trim() !== "false";
         } else if (key === "motionBlur") {
           const raw = value!.trim();
           if (raw === "true") out.motionBlur = { samples: 6, shutter: 0.5 };
           else {
             try {
-              const v = JSON.parse(raw) as { samples?: unknown; shutter?: unknown };
+              const v = objectOf(raw, "motionBlur") as { samples?: unknown; shutter?: unknown };
               const samples = v.samples === undefined ? 6 : Number(v.samples);
               const shutter = v.shutter === undefined ? 0.5 : Number(v.shutter);
-              if (!Number.isInteger(samples) || samples < 2 || samples > 16) throw new Error("motionBlur.samples: expected 2–16");
-              if (!(shutter > 0 && shutter <= 1)) throw new Error("motionBlur.shutter: expected a share of the frame from 0 to 1");
+              if (!Number.isInteger(samples) || samples < 2 || samples > 16) throw new Error(msg("source.motionBlurSamples"));
+              if (!(shutter > 0 && shutter <= 1)) throw new Error(msg("source.motionBlurShutter"));
               out.motionBlur = { samples, shutter };
             } catch (e) { err(n, String((e as Error).message)); }
           }
@@ -999,8 +1109,8 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
           try { out.look = parseLook(value!); lookLine = n; } catch (e) { err(n, String((e as Error).message)); }
         } else if (key === "emoji") {
           try {
-            const v = JSON.parse(value!) as { dir?: unknown };
-            if (typeof v.dir !== "string" || !v.dir.trim()) throw new Error("emoji: expected {\"dir\":\"<folder>\"}");
+            const v = objectOf(value!, "emoji") as { dir?: unknown };
+            if (typeof v.dir !== "string" || !v.dir.trim()) throw new Error(msg("source.emojiDir"));
             out.emoji = { dir: v.dir.trim() };
           } catch (e) { err(n, String((e as Error).message)); }
         }
@@ -1036,8 +1146,8 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
   // рисуются заново под новый кадр — у них вёрстка и есть содержание.
   const want = opts.format ?? (process.env.AGENTIC_SCREENCAST_FILM_FORMAT || undefined);
   if (want && want !== (out.format ?? "landscape")) {
-    try { parseFormat(want); } catch (e) { err(1, `--format: ${(e as Error).message}`); }
-    if (out.format && out.format !== "landscape") err(1, `--format ${want}: the scenario is already ${out.format}; only a landscape scenario is reframed`);
+    try { parseFormat(want); } catch (e) { err(1, msg("source.badFormat", { why: (e as Error).message })); }
+    if (out.format && out.format !== "landscape") err(1, msg("source.formatReframe", { format: want, current: out.format }));
     if (want !== "landscape") {
       const src = { width: Number(out.frame?.width ?? 1920), height: Number(out.frame?.height ?? 1080) };
       out.reframe = src;
@@ -1048,7 +1158,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       if (out.look?.bars) {
         const { bars: _b, ...look } = out.look;
         out.look = look;
-        out.lookNote = `letterbox bars are not drawn in a ${want} build of a landscape scenario`;
+        out.lookNote = msg("source.letterboxReframe", { format: want });
       }
     }
   }
@@ -1069,7 +1179,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
   // в вертикали от 2.39 остаётся лента в четверть высоты.
   if (out.look?.bars) {
     const w = Number(out.frame?.width ?? 1920), h = Number(out.frame?.height ?? 1080);
-    if (w <= h * 1.2) err(lookLine, `look.bars: letterbox bars need a landscape frame, this film is ${w}×${h}; use a look without bars, e.g. look: cinematic`);
+    if (w <= h * 1.2) err(lookLine, msg("source.lookBars", { width: w, height: h }));
     const bar = Math.max(0, Math.round((h - w / out.look.bars) / 2));
     if (bar > 0) {
       const z = out.safe ?? { top: 0, bottom: 0, left: 0, right: 0 };
@@ -1097,7 +1207,7 @@ export const SLIDES_DIR = "slides";
  */
 export function sceneTheme(raw: string, film: Theme | undefined): Theme {
   const text = raw.trim();
-  const written = (text.startsWith("{") ? JSON.parse(text) : text) as ThemeInput;
+  const written = (text.startsWith("{") ? objectOf(text, "theme") : text) as ThemeInput;
   if (typeof written === "string" || written.preset !== undefined) return resolveTheme(written);
   return resolveTheme(written, film ?? resolveTheme(undefined));
 }
@@ -1134,7 +1244,8 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     const spec = specOf(s, src.providers ?? {});
     // Материал: готовый файл, названный полем, либо страница, которую
     // поставщик порождает рядом с источником.
-    const page = spec.fileField ? f[spec.fileField]! : `${slidesDir}/${s.id}.html`;
+    const material = spec.fileField ? materialFileOf(src, s, spec) : undefined;
+    const page = material ? material.file : `${slidesDir}/${s.id}.html`;
     const effects: Record<string, unknown> = { ...spec.effects };
     // Наезд и пятно — ручки самой сцены поверх умолчаний поставщика.
     const zoom = effects.zoom as Record<string, unknown> | undefined;
@@ -1167,6 +1278,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       provider: s.provider,
       kind: s.kind,
       page,
+      ...(material?.nativePortrait ? { nativePortrait: true } : {}),
       caption: s.caption,
       effects,
       ...(f.overlay ? { overlay: parseOverlay(f.overlay, overlayMoment(s.beats, f, src.voice)) } : {}),
@@ -1190,6 +1302,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     };
   });
   const pitch: Pitch = { scenes };
+  if (explicitParts) pitch.authoredParts = src.scenes.flatMap((s) => s.fields.part ? [s.fields.part] : []);
   if (src.tail !== undefined) pitch.tail = src.tail;
   if (src.providers) pitch.providers = src.providers;
   if (src.frame) pitch.frame = src.frame;
@@ -1226,18 +1339,18 @@ export function toScript(src: Source): string {
   }
   const words = src.scenes.reduce((n, s) => n + s.caption.split(/\s+/).length, 0);
   const beats = src.scenes.reduce((n, s) => n + s.beats.length, 0);
-  out.push("---", "", `Сцен: ${src.scenes.length}. Тактов: ${beats}. Слов в репликах: ${words}.`);
+  out.push("---", "", msg("script.summary", { scenes: src.scenes.length, beats, words }));
   return out.join("\n");
 }
 
 const objectOf = (json: string, what: string): Record<string, unknown> => {
   let v: unknown;
-  try { v = JSON.parse(json); } catch { throw new Error(`${what}: expected a JSON object`); }
-  if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error(`${what}: expected a JSON object`);
+  try { v = JSON.parse(json); } catch { throw new Error(msg("source.jsonObject", { field: what })); }
+  if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error(msg("source.jsonObject", { field: what }));
   return v as Record<string, unknown>;
 };
 const onlyKeys = (v: Record<string, unknown>, allowed: string[], what: string): void => {
-  for (const k of Object.keys(v)) if (!allowed.includes(k)) throw new Error(`${what}: unknown property «${k}»`);
+  for (const k of Object.keys(v)) if (!allowed.includes(k)) throw new Error(msg("source.unknownProperty", { field: what, key: k }));
 };
 
 /**
@@ -1248,14 +1361,14 @@ export function parseFade(raw: string): { in?: number; out?: number } {
   const text = raw.trim();
   const secs = (v: unknown, what: string): number => {
     const n = Number(v);
-    if (!Number.isFinite(n) || n < 0 || n > 3) throw new Error(`fade${what}: expected 0–3 seconds`);
+    if (!Number.isFinite(n) || n < 0 || n > 3) throw new Error(msg("source.fadeRange", { part: what }));
     return n;
   };
   if (text === "none") return { in: 0, out: 0 };
   if (!text.startsWith("{")) { const n = secs(text, ""); return { in: n, out: n }; }
   let v: Record<string, unknown>;
-  try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error('fade: expected none, seconds or {"in":…,"out":…}'); }
-  for (const k of Object.keys(v)) if (k !== "in" && k !== "out") throw new Error(`fade: unknown property «${k}»`);
+  try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error(msg("source.fadeForm")); }
+  for (const k of Object.keys(v)) if (k !== "in" && k !== "out") throw new Error(msg("source.unknownProperty", { field: "fade", key: k }));
   return { ...(v.in !== undefined ? { in: secs(v.in, ".in") } : {}), ...(v.out !== undefined ? { out: secs(v.out, ".out") } : {}) };
 }
 
@@ -1264,15 +1377,15 @@ export function parseCaptions(json: string): Captions {
   const v = objectOf(json, "captions");
   onlyKeys(v, ["style", "everywhere", "srt", "size", "look", "position"], "captions");
   if (v.position !== undefined && !(CAPTION_POSITIONS as readonly unknown[]).includes(v.position))
-    throw new Error(`captions.position: expected ${CAPTION_POSITIONS.join(" | ")}`);
+    throw new Error(msg("source.options", { field: "captions.position", options: CAPTION_POSITIONS.join(" | ") }));
   if (v.look !== undefined && !["outline", "plate"].includes(String(v.look)))
-    throw new Error("captions.look: expected outline (white text with a dark outline, the default) or plate");
+    throw new Error(msg("source.captionsLook"));
   if (v.size !== undefined && !(typeof v.size === "number" && v.size >= 0.8 && v.size <= 1.6))
-    throw new Error("captions.size: expected a number from 0.8 to 1.6 (1 is the usual subtitle size)");
+    throw new Error(msg("source.captionsSize"));
   if (v.style !== undefined && !["bar", "subtitle", "karaoke"].includes(String(v.style)))
-    throw new Error("captions.style: expected bar | subtitle | karaoke");
+    throw new Error(msg("source.captionsStyle"));
   for (const k of ["everywhere", "srt"]) if (v[k] !== undefined && typeof v[k] !== "boolean")
-    throw new Error(`captions.${k}: expected true or false`);
+    throw new Error(msg("source.booleanField", { field: `captions.${k}` }));
   return v as Captions;
 }
 
@@ -1280,13 +1393,13 @@ export function parseCaptions(json: string): Captions {
 export function parsePip(json: string): Pip {
   const v = objectOf(json, "pip");
   onlyKeys(v, ["file", "corner", "size", "from", "to"], "pip");
-  if (typeof v.file !== "string" || !v.file.trim()) throw new Error("pip.file: expected a video file");
+  if (typeof v.file !== "string" || !v.file.trim()) throw new Error(msg("source.pipFile"));
   if (v.corner !== undefined && !["bottom-right", "bottom-left", "top-right", "top-left"].includes(String(v.corner)))
-    throw new Error("pip.corner: expected bottom-right | bottom-left | top-right | top-left");
+    throw new Error(msg("source.pipCorner"));
   if (v.size !== undefined && (typeof v.size !== "number" || v.size < 0.08 || v.size > 0.45))
-    throw new Error("pip.size: expected 0.08–0.45 of the frame width");
+    throw new Error(msg("source.pipSize"));
   for (const k of ["from", "to"]) if (v[k] !== undefined && (typeof v[k] !== "number" || (v[k] as number) < 0))
-    throw new Error(`pip.${k}: expected seconds of the film`);
+    throw new Error(msg("source.pipTime", { field: k }));
   return v as unknown as Pip;
 }
 
@@ -1295,11 +1408,11 @@ export function parseProgress(json: string): Progress {
   const v = objectOf(json, "progress");
   onlyKeys(v, ["position", "parts", "label"], "progress");
   if (v.label !== undefined && !["edge", "zone"].includes(String(v.label)))
-    throw new Error("progress.label: expected edge (beside the bar at the frame's edge) | zone (at the safe zone's edge)");
+    throw new Error(msg("source.progressLabel"));
   if (v.position !== undefined && !["top", "bottom"].includes(String(v.position)))
-    throw new Error("progress.position: expected top | bottom");
+    throw new Error(msg("source.progressPosition"));
   if (v.parts !== undefined && typeof v.parts !== "boolean")
-    throw new Error("progress.parts: expected true or false");
+    throw new Error(msg("source.booleanField", { field: "progress.parts" }));
   return v as Progress;
 }
 
@@ -1307,11 +1420,11 @@ export function parseProgress(json: string): Progress {
 export function parseMusic(json: string, dir: string): Music {
   const v = objectOf(json, "music");
   onlyKeys(v, ["file", "level", "duck", "fadeIn", "fadeOut", "from", "bpm", "offset"], "music");
-  if (typeof v.file !== "string" || !v.file.trim()) throw new Error("music.file: expected an audio file");
-  if (!existsSync(resolve(dir, v.file))) throw new Error(`music.file: file not found: ${v.file}`);
+  if (typeof v.file !== "string" || !v.file.trim()) throw new Error(msg("source.musicFile"));
+  if (!existsSync(resolve(dir, v.file))) throw new Error(msg("source.fileMissing", { field: "music.file", file: v.file }));
   const range = (k: string, lo: number, hi: number): void => {
     if (v[k] !== undefined && (typeof v[k] !== "number" || (v[k] as number) < lo || (v[k] as number) > hi))
-      throw new Error(`music.${k}: expected ${lo}…${hi}`);
+      throw new Error(msg("source.range", { field: `music.${k}`, low: lo, high: hi }));
   };
   range("level", -50, -6); range("duck", 6, 40); range("fadeIn", 0, 10); range("fadeOut", 0, 10);
   range("from", 0, 3600); range("bpm", 40, 240); range("offset", 0, 60);
@@ -1332,41 +1445,41 @@ export function parseSceneMusic(raw: string, dir: string): SceneMusic {
   const v: Record<string, unknown> = words ? { stop: true, ...(words[1] ? { at: words[1] } : {}) } : objectOf(text, "music");
   onlyKeys(v, ["file", "at", "from", "level", "duck", "fadeIn", "fadeOut", "stop"], "music");
   const at = String(v.at ?? "0").trim();
-  if (!SCENE_ANCHOR.test(at)) throw new Error(`music.at: unexpected moment «${at}»; a beat (b2, b2.end+0.3), a share (40%) or seconds (1.5s)`);
+  if (!SCENE_ANCHOR.test(at)) throw new Error(msg("source.musicMoment", { at }));
   const range = (k: string, lo: number, hi: number): void => {
     if (v[k] !== undefined && (typeof v[k] !== "number" || (v[k] as number) < lo || (v[k] as number) > hi))
-      throw new Error(`music.${k}: expected ${lo}…${hi}`);
+      throw new Error(msg("source.range", { field: `music.${k}`, low: lo, high: hi }));
   };
   range("level", -50, -6); range("duck", 6, 40); range("fadeIn", 0, 10); range("fadeOut", 0, 10); range("from", 0, 3600);
-  if (v.stop !== undefined && v.stop !== true) throw new Error("music.stop: expected true");
+  if (v.stop !== undefined && v.stop !== true) throw new Error(msg("source.options", { field: "music.stop", options: "true" }));
   if (v.stop) {
-    for (const k of ["file", "from", "level", "duck", "fadeIn"]) if (v[k] !== undefined) throw new Error(`music.${k}: a stop plays nothing`);
+    for (const k of ["file", "from", "level", "duck", "fadeIn"]) if (v[k] !== undefined) throw new Error(msg("source.musicStop", { field: k }));
     return { at, stop: true, ...(v.fadeOut !== undefined ? { fadeOut: v.fadeOut as number } : {}) };
   }
-  if (typeof v.file !== "string" || !v.file.trim()) throw new Error("music.file: expected an audio file, or stop");
-  if (!existsSync(resolve(dir, v.file))) throw new Error(`music.file: file not found: ${v.file}`);
+  if (typeof v.file !== "string" || !v.file.trim()) throw new Error(msg("source.musicFileOrStop"));
+  if (!existsSync(resolve(dir, v.file))) throw new Error(msg("source.fileMissing", { field: "music.file", file: v.file }));
   return { ...(v as unknown as SceneMusic), file: v.file.trim(), at };
 }
 
 /** Список акцентов: момент (по правилу места), файл, усиление; файлы обязаны существовать. */
 export function parseSfx(json: string, dir: string, what: string, anchor: RegExp): SfxCue[] {
   let v: unknown;
-  try { v = JSON.parse(json); } catch { throw new Error(`${what}: expected a JSON list`); }
-  if (!Array.isArray(v)) throw new Error(`${what}: expected a JSON list`);
+  try { v = JSON.parse(json); } catch { throw new Error(msg("source.jsonList", { field: what })); }
+  if (!Array.isArray(v)) throw new Error(msg("source.jsonList", { field: what }));
   return v.map((raw, i) => {
-    if (!raw || typeof raw !== "object") throw new Error(`${what}[${i}]: expected an object`);
+    if (!raw || typeof raw !== "object") throw new Error(msg("source.expectedObject", { field: `${what}[${i}]` }));
     const r = raw as Record<string, unknown>;
     onlyKeys(r, ["at", "file", "gain", "from", "length", "fadeOut", "duck", "duckAll"], `${what}[${i}]`);
     const at = String(r.at ?? "").trim();
-    if (!at || !anchor.test(at)) throw new Error(`${what}[${i}].at: unexpected moment «${at}»`);
-    if (typeof r.file !== "string" || !r.file.trim()) throw new Error(`${what}[${i}].file: expected an audio file`);
-    if (!existsSync(resolve(dir, r.file))) throw new Error(`${what}[${i}].file: file not found: ${r.file}`);
+    if (!at || !anchor.test(at)) throw new Error(msg("source.unexpectedMoment", { field: `${what}[${i}].at`, at }));
+    if (typeof r.file !== "string" || !r.file.trim()) throw new Error(msg("source.audioFile", { field: `${what}[${i}].file` }));
+    if (!existsSync(resolve(dir, r.file))) throw new Error(msg("source.fileMissing", { field: `${what}[${i}].file`, file: r.file }));
     if (r.gain !== undefined && (typeof r.gain !== "number" || r.gain < -30 || r.gain > 12))
-      throw new Error(`${what}[${i}].gain: expected -30…12 dB`);
+      throw new Error(msg("source.sfxGain", { field: `${what}[${i}].gain` }));
     for (const [k, lo, hi] of [["from", 0, 3600], ["length", 0.02, 600], ["fadeOut", 0, 30], ["duck", 0, 40]] as const)
       if (r[k] !== undefined && (typeof r[k] !== "number" || (r[k] as number) < lo || (r[k] as number) > hi))
-        throw new Error(`${what}[${i}].${k}: expected ${lo}…${hi}`);
-    if (r.duckAll !== undefined && typeof r.duckAll !== "boolean") throw new Error(`${what}[${i}].duckAll: expected true or false`);
+        throw new Error(msg("source.range", { field: `${what}[${i}].${k}`, low: lo, high: hi }));
+    if (r.duckAll !== undefined && typeof r.duckAll !== "boolean") throw new Error(msg("source.booleanField", { field: `${what}[${i}].duckAll` }));
     const extra = Object.fromEntries(["gain", "from", "length", "fadeOut", "duck", "duckAll"].filter((k) => r[k] !== undefined).map((k) => [k, r[k]]));
     return { at, file: r.file.trim(), ...extra } as SfxCue;
   });
@@ -1378,9 +1491,9 @@ export function parseAutoZoom(raw: string): AutoZoom {
   if (text === "true") return {};
   const v = objectOf(text, "autoZoom");
   onlyKeys(v, ["scale", "hold", "size", "follow"], "autoZoom");
-  if (v.follow !== undefined && v.follow !== "cursor") throw new Error('autoZoom.follow: expected "cursor"');
-  if (v.scale !== undefined && (typeof v.scale !== "number" || v.scale <= 1 || v.scale > 3)) throw new Error("autoZoom.scale: expected >1 and <=3");
-  if (v.hold !== undefined && (typeof v.hold !== "number" || v.hold < 0.8 || v.hold > 6)) throw new Error("autoZoom.hold: expected 0.8–6 seconds");
-  if (v.size !== undefined && (typeof v.size !== "number" || v.size < 0.1 || v.size > 0.8)) throw new Error("autoZoom.size: expected 0.1–0.8 of the frame");
+  if (v.follow !== undefined && v.follow !== "cursor") throw new Error(msg("source.autoZoomFollow"));
+  if (v.scale !== undefined && (typeof v.scale !== "number" || v.scale <= 1 || v.scale > 3)) throw new Error(msg("source.autoZoomScale"));
+  if (v.hold !== undefined && (typeof v.hold !== "number" || v.hold < 0.8 || v.hold > 6)) throw new Error(msg("source.autoZoomHold"));
+  if (v.size !== undefined && (typeof v.size !== "number" || v.size < 0.1 || v.size > 0.8)) throw new Error(msg("source.autoZoomSize"));
   return v as AutoZoom;
 }

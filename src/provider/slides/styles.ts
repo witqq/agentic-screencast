@@ -78,6 +78,8 @@ flex:1;min-height:320px;display:flex;flex-direction:column}
    «стрелка плюс узел» внутри неё. Пока правило висело на внутреннем узле,
    ширины оставались по тексту и цепочка выглядела рваной. */
 .chain>.el{flex:1 1 300px;display:flex;min-width:0}
+/* Четыре коротких узла помещаются в одну строку внутри обычного поля сетки (1136 точек). */
+.chain[data-n="4"]>.el{flex-basis:calc((100% - 42px) / 4)}
 .pairwrap{flex:1;display:flex;align-items:center;gap:14px;min-width:0}
 .node{background:var(--node);border:var(--hairline) solid var(--node-line);border-radius:var(--radius-md);padding:var(--space-m) var(--space-l);
 color:var(--ink);font-size:28px;font-weight:600;flex:1;text-align:center;min-width:0;
@@ -168,6 +170,8 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
   color-mix(in srgb,var(--bg) 30%,transparent) 100%)}
 
 .steps{list-style:none;position:relative;display:flex;flex-direction:column;gap:14px;perspective:1100px}
+.steps[data-layout="two"]{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 24px}
+.steps[data-layout="two"] .steps-rail{display:none}
 .steps li{list-style:none}
 .steps-rail{position:absolute;left:31px;top:36px;bottom:36px;width:var(--rail-size);border-radius:var(--rail-size);background:var(--line);overflow:hidden}
 .steps-fill{position:absolute;left:0;top:0;width:100%;height:0;background:var(--acc)}
@@ -391,6 +395,7 @@ body[data-align="fill"] .k-in{justify-content:space-evenly}
   .col{min-height:0}
   .chain{flex-direction:column}
   .chain>.el{flex:0 0 auto}
+  .chain[data-n="4"]>.el{flex:0 0 auto}
   .pairwrap{flex-direction:column;align-items:stretch;gap:6px}
   .pairwrap .arrow{align-self:center;transform:rotate(90deg) scaleX(var(--p,1))}
   .node{min-height:96px}
@@ -401,6 +406,8 @@ body[data-align="fill"] .k-in{justify-content:space-evenly}
   /* Содержимое выше зоны уходит вниз, а не за её верх: «safe» не даёт
      центрированию вытолкнуть заголовок под надпись площадки. */
   .k-in{justify-content:safe center}
+  .steps[data-layout="two"]{display:flex;flex-direction:column}
+  .steps[data-layout="two"] .steps-rail{display:block}
   .feats,.feats[data-n]{grid-template-columns:1fr 1fr;gap:16px}
   .feats[data-n="1"]{grid-template-columns:1fr}
   .feat{padding:var(--space-l)}
@@ -1114,6 +1121,11 @@ function fitContent() {
     return cs.position !== 'absolute' && cs.position !== 'fixed' && cs.display !== 'none';
   });
   if (!flow.length) return;
+  // Анимация входа меняет экранный прямоугольник, но не место в раскладке: полноразмерный
+  // снимок начинается с scale(1.16), и измерение принимало этот временный наезд за overflow.
+  // На время мерки выключаем трансформации столбца и его прямых детей; кадр их не теряет.
+  const nodes = [box, ...flow], transforms = nodes.map((c) => c.style.transform);
+  nodes.forEach((c) => { c.style.transform = 'none'; });
   const cs = getComputedStyle(box);
   // Переполнение — то, что колонка на деле вылезла за край поля сверху или снизу. Сравнивать
   // высоту содержимого с полем нельзя: у гибкого блока (плоскость графика) высота и есть поле.
@@ -1142,6 +1154,7 @@ function fitContent() {
   const left = over();
   if (left.px > 0.5) document.body.dataset.overflow = String(Math.round(left.px / left.k));
   else delete document.body.dataset.overflow;
+  nodes.forEach((c, i) => { c.style.transform = transforms[i]; });
 }
 fitContent();
 // Шрифты темы приходят со слоем композиции уже после загрузки страницы: рендер, дождавшись их,

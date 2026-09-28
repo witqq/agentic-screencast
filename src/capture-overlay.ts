@@ -20,8 +20,9 @@ export function installCaptureOverlay(arg: { theme?: Record<string, string>; fon
   // through each parent so one cursor is painted in the page viewport.
   const isTop = window.top === window;
   type TraceEvent = { kind: "down" | "click"; x: number; y: number; at: number };
+  type MoveEvent = { x: number; y: number; at: number };
   type CaptureState = {
-    position: { x: number; y: number } | null; trace: TraceEvent[];
+    position: { x: number; y: number } | null; trace: TraceEvent[]; moves: MoveEvent[];
     focus?: (el: Element, opts: { scale: number; ms: number; dim: boolean }) => void;
     unfocus?: (ms: number) => void;
     key?: (label: string) => void;
@@ -31,7 +32,7 @@ export function installCaptureOverlay(arg: { theme?: Record<string, string>; fon
   const key = "__agenticScreencastCapture_v1";
   const w = window as unknown as Window & Record<string, CaptureState>;
   if (w[key]) return;
-  const state: CaptureState = { position: null, trace: [] };
+  const state: CaptureState = { position: null, trace: [], moves: [] };
   w[key] = state;
 
   let cursor: HTMLElement | null = null;
@@ -146,7 +147,14 @@ export function installCaptureOverlay(arg: { theme?: Record<string, string>; fon
       window.parent.postMessage(message, "*");
       return;
     }
-    if (kind === "move") { move(x, y); return; }
+    if (kind === "move") {
+      move(x, y);
+      // The filmed cursor follows real DOM events, including Playwright dragTo. Keep that same
+      // path for follow-camera rather than only the points scripted by moveToPoint.
+      state.moves.push({ x, y, at: performance.now() });
+      if (state.moves.length > 30000) state.moves.shift();
+      return;
+    }
     if (kind === "click") {
       state.trace.push({ kind, x, y, at: performance.now() });
       if (state.trace.length > 1000) state.trace.shift();

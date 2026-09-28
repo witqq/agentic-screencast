@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-// Опорные кадры клипов лендинга — из самих закоммиченных клипов.
+// Проверка клипов лендинга по опорным кадрам.
 //
-// `site:check` узнаёт язык клипа по трём опорным кадрам: в моментах, где русский и английский
+// Для нового манифеста кадры получены отдельно из исходных сцен и не переписываются из клипа.
+// Старый лендинг узнаёт язык клипа по трём опорным кадрам: в моментах, где русский и английский
 // клипы различаются сильнее всего, кадр страницы обязан быть ближе к кадру своего языка. Прежде
 // эти кадры писал локальный скрипт вне репозитория, и пересчитать или сверить их на другой машине
 // было нечем. Этот скрипт пересчитывает их из `website/landing/media/<клип>.<язык>.mp4`:
@@ -16,6 +17,7 @@ import { copyFileSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFile
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import { loadLandingMediaManifest, publishedMediaPath } from "./check-site-static.mjs";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -24,6 +26,7 @@ const MEDIA = resolve(import.meta.dirname, "..", "website", "landing", "media");
 const FP = join(MEDIA, "fingerprints");
 const LANGS = ["en", "ru"];
 const write = process.argv.includes("--write");
+const landingMedia = await loadLandingMediaManifest(resolve("."));
 
 const run = (args) => {
   const r = spawnSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-y", ...args], { encoding: "utf8" });
@@ -32,6 +35,38 @@ const run = (args) => {
 const ssim = (a, b) => Number(/All:([0-9.]+)/u.exec(spawnSync(FFMPEG, ["-i", a, "-i", b, "-lavfi", "[0:v][1:v]ssim", "-f", "null", "-"], { encoding: "utf8" }).stderr)?.[1]);
 const probe = (file) => JSON.parse(spawnSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height:format=duration", "-of", "json", file], { encoding: "utf8" }).stdout);
 
+if (landingMedia) {
+  if (write) throw new Error("source-render reference frames cannot be regenerated from delivery clips");
+  const temp = mkdtempSync(join(tmpdir(), "landing-source-fp-"));
+  let checked = 0;
+  let posters = 0;
+  try {
+    for (const asset of landingMedia.assets.filter((item) => item.kind === "video")) {
+      const file = resolve("site", publishedMediaPath(asset));
+      const length = Number(probe(file).format.duration);
+      for (const [index, frame] of asset.referenceFrames.entries()) {
+        if (!(frame.t < length - 0.1)) throw new Error(`${asset.source}: source reference ${index} lies beyond the clip`);
+        const sampled = join(temp, `${checked}.png`);
+        const size = asset.format === "vertical" ? "180:320" : "320:180";
+        run(["-ss", String(frame.t), "-i", file, "-frames:v", "1", "-vf", `scale=${size},format=gray`, sampled]);
+        const similarity = ssim(sampled, resolve(frame.path));
+        if (!(similarity >= 0.95)) throw new Error(`${asset.source} at ${frame.t}s does not match independent source frame ${frame.path} (SSIM ${similarity})`);
+        checked++;
+      }
+      const poster = landingMedia.assets.find((item) => item.kind === "poster" && item.slot === asset.slot &&
+        item.lang === asset.lang && item.format === asset.format);
+      const size = asset.format === "vertical" ? "180:320" : "320:180";
+      const sampled = join(temp, `poster-video-${posters}.png`);
+      const still = join(temp, `poster-image-${posters}.png`);
+      run(["-ss", String(Math.min(1.5, length * 0.4)), "-i", file, "-frames:v", "1", "-vf", `scale=${size},format=gray`, sampled]);
+      run(["-i", resolve("site", publishedMediaPath(poster)), "-frames:v", "1", "-vf", `scale=${size},format=gray`, still]);
+      const similarity = ssim(sampled, still);
+      if (!(similarity >= 0.95)) throw new Error(`${poster.source}: poster does not match its delivered clip (SSIM ${similarity})`);
+      posters++;
+    }
+    console.log(JSON.stringify({ checked, posters, clips: landingMedia.assets.filter((asset) => asset.kind === "video").length, match: true }));
+  } finally { rmSync(temp, { recursive: true, force: true }); }
+} else {
 const tmp = mkdtempSync(join(tmpdir(), "landing-fp-"));
 const clips = readdirSync(MEDIA).filter((f) => f.endsWith(".en.mp4")).map((f) => f.slice(0, -".en.mp4".length)).sort();
 const fingerprints = {};
@@ -107,4 +142,5 @@ try {
   }
 } finally {
   rmSync(tmp, { recursive: true, force: true });
+}
 }

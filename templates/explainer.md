@@ -1,7 +1,7 @@
 # Explainer: <the idea>
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
-captions: {"style":"subtitle"}
+captions: {"style":"subtitle","look":"plate"}
 
 ## problem · slides.hero
 kicker: The question

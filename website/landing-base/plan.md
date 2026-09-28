@@ -1,45 +1,46 @@
-# The plan for the landing
+# Content map for the Agentic Screencast landing
 
-This plan answers what the next landing should say and show, what the current one needs until then,
-and how the overview film feeds it. The rework itself starts on the owner's signal (see "Waiting
-for agentic-report"); nothing here changes `website/landing/`.
+This map answers what the English and Russian landing pages say, what evidence each section uses,
+and which small silent excerpts of the overview source become moving examples. The pages live in
+`website/landing/`; `clips.md` fixes the selected source scenes and media slots.
 
 ## The landing's argument
 
-The current landing sells the tool: "your agent makes the product film". The next one keeps that
-promise and adds the second half of the argument, which the landing does not make today: the agent
-does not film by taste. It follows a knowledge base — 65 directing rules, each paid for by a failed
-film, genre practice with 79 sources, a phone guide with 64 — and a checklist that will not let it
-hand over a film with an open box. So the page has two proofs: what comes out (films), and why it
-comes out right (knowledge and checks).
+The first promise is "your agent makes the product film". Four short clips prove distinct visible
+outcomes: an opening on a real app, recorded actions, directed attention and a phone-sized take.
+The second argument explains how the agent decides what to film and checks the result: 65 directing
+rules, genre practice from 79 sources, a phone guide from 64 and a checklist that keeps an
+unevidenced step open. Other sections use text tied to the scenario, product commands or those
+guides; they do not require more clips.
 
-## Proposed structure
+## Section map
 
 Every row of `features.md` belongs to one of the thirteen groups; the table says in which section
-each group lives. The overview film's chapter that shows the section is named in the last column,
-and its cut clip (`clips.md`) is the section's example.
+each group lives. The final column distinguishes the four selected video slots from sections whose
+proof is text, source or a documented check. A section need not repeat an entire overview chapter.
 
-| # | Section | What it proves | Groups of `features.md` | Overview chapter |
+| # | Section | What it proves | Groups of `features.md` | Landing proof |
 |---|---|---|---|---|
-| 1 | Hero: one text file becomes the film | the promise in one frame | 1 | Opening |
-| 2 | A real product, clicked for real | live capture with a living cursor | 3 | Live product |
-| 3 | The camera knows where to look | spotlight, pan, loupe, marks, time inside the shot | 4 | Attention |
-| 4 | Slides that never stand still | twenty kinds, kinetic text, live backgrounds | 2 | Slides |
-| 5 | Words on screen | subtitles that move off the subject, titles, callouts, stickers | 5 | Text |
-| 6 | Cuts, sound and a voice | transitions, ducking, music by parts, SpeechKit, your own voice | 6, 7, 8 | Cuts and sound |
-| 7 | A trailer, too | trailer cards, a title card, hard cuts and dips, hits | 2 (card, titlecard), 4 (flash, shake), 6 (cut, dip) | Trailer |
-| 8 | A look, not a pile of colours | eleven themes with one accent each, a subtitle face per theme, the visual-design guide, brand theme, a part in another theme, film look | 9 | Look |
-| 9 | Made for a phone | vertical in one line, safe zones, legibility checks | 10 | Phone |
-| 10 | Checked before you watch | lint, frames, stills, the build report | 11 | Checks |
-| 11 | The agent knows the craft | the brief, the skill's path, the knowledge base, the checklist | 13 and `knowledge.md` | The agent's path |
-| 12 | Ready to ship | web package, GIF, chapters, subtitles, languages | 12, 1 (translations) | Delivery |
-| 13 | Your agent's first film | the request to the agent, a skeleton, a free draft | 13 (skeletons) | Outro |
-| 14 | Boundaries | what the tool does not promise, where credentials belong | — | — |
+| 1 | First screen: one scenario becomes the film | the promise on a real app | 1 | Silent `c00-cold` excerpt, slot `showcase` |
+| 2 | A real product, clicked for real | live capture with a living cursor | 3 | Silent `c03-auto` excerpt, slot `live` |
+| 3 | The camera knows where to look | spotlight, pan, loupe, marks, time inside the shot | 4 | Silent `c04-chain` excerpt, slot `focus` |
+| 4 | Slides that never stand still | twenty kinds, kinetic text, live backgrounds | 2 | Four distinct feature examples in text |
+| 5 | Words stay readable | subtitles that move off the subject, titles, callouts, stickers | 5 | Caption placement contract in text |
+| 6 | Cuts, sound and a voice | transitions, ducking, music by parts and chosen voices | 6, 7, 8 | Three-step account of the sound path |
+| 7 | A trailer, too | trailer cards, a title card, hard cuts and dips, hits | 2 (card, titlecard), 4 (flash, shake), 6 (cut, dip) | Link to the overview scenario |
+| 8 | A look that belongs to the film | themes, type, brand colours and the visual-design guide | 9 | Named themes and source guide |
+| 9 | Made for a phone | vertical reflow, safe zones, legibility checks | 10 | Silent `c11-phone` excerpt, slot `reel` |
+| 10 | Checked before you watch | lint, frames, stills, the build report | 11 | Three concrete checks in text |
+| 11 | The agent knows the craft | the brief, the skill's path, the knowledge base, the checklist | 13 and `knowledge.md` | Links to the four primary guides/checklist |
+| 12 | Ready to ship | web package, GIF, chapters, subtitles, languages | 12, 1 (translations) | Output contract in text |
+| 13 | Your agent's first film | the request, a skeleton, a free draft | 13 (skeletons) | Install and first-draft commands |
+| 14 | Boundaries | what the tool does not promise, where credentials belong | — | Two disclosures |
 
-## Card texts
+## Copy source for the sections
 
-One card per section, English then Russian. They state what the viewer gets, then the fields that
-do it, so each claim can be checked against the code by `site:check`.
+The paired English and Russian copy below is the content source for the corresponding sections.
+The page may express it as prose, steps or one focused card group according to the evidence; it
+need not turn every topic into the same card. Product claims stay checkable against the CLI.
 
 **1. One text file becomes the film.**
 en: Give your agent the product and the point. It writes one scenario — scenes, fields and the
@@ -144,24 +145,16 @@ product. It starts from a genre skeleton and a free silent draft.
 ru: Попросите агента поставить скилл из `skills/agentic-screencast` и снять ролик о вашем продукте.
 Он начнёт с жанровой заготовки и бесплатного немого черновика.
 
-## Until the rework: edits to the current landing
+## Media and page design boundary
 
-From `audit.md`, the smallest set that keeps the current page honest:
+`clips.md` selects exactly four source scenes in each language. The `showcase`, `live`, `focus` and
+`reel` MP4/JPG pairs are silent, source-matched excerpts and posters addressed by the manifest's
+SHA-256 hashes and fixed media-release URLs. No selected excerpt includes the scene that photographs
+the landing itself; the portrait selection also avoids all five wide-page scenes listed in the
+overview brief. The page's written claims about voice and music describe what the product can do,
+while the landing examples themselves play without sound.
 
-1. Recut every clip from the overview film (`clips.md`); all 16 show the subtitles and fonts of
-   before 2026-09-25 21:15, and `live`, `effects` and `reel` show the old cursor, marks and vertical.
-2. "Cuts and sound": say that every film with sound is normalised, not only one with music.
-3. "Vertical in one line": add the zone, the subtitle position and the phone checks.
-4. "Attention on the real UI": add the living cursor and autoZoom by actions.
-5. Rewrite the reference frames with `node scripts/landing-fingerprints.mjs --write` after the recut.
-
-## Waiting for agentic-report
-
-The report tool that builds this landing (`agentic-report`) is gaining new landing knowledge and
-functions. The rework waits for them, and for the owner's signal. When it starts:
-
-- read the new agentic-report landing guidance first, and record here what it changes in the
-  structure above;
-- keep the card texts and the chapter map as the content, and take layout, blocks and design from
-  agentic-report;
-- the Moira workflow section stays out until the workflow is reworked (`IDEAS.md`).
+The page uses the existing agentic-report Markdown vocabulary: a real example immediately after
+the promise, sections in the order of the argument, one four-card comparison of slide roles,
+steps for sound and checks, source links for the knowledge base and one first-film action. The
+public Moira workflow remains outside the page while that workflow is deferred.

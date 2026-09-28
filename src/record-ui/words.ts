@@ -12,6 +12,9 @@ export interface PageWords {
   title: string;
   store: string;
   noScenes: string;
+  noReadyScenes: string;
+  skippedTitle: string;
+  skippedReason: (kind: string) => string;
   scenes: string;
   scene: string;
   sec: string;
@@ -49,6 +52,13 @@ const en = (lang: string): PageWords => {
     title: "Voice recording",
     store: "store",
     noScenes: "No scenes — check the script.",
+    noReadyScenes: "No scenes are ready for recording yet.",
+    skippedTitle: "Scenes waiting for material",
+    skippedReason: (kind) => ({
+      video: "record the video take", marks: "record the take and its marks",
+      image: "create the image", data: "create the data file", file: "create the code file",
+      page: "create the page",
+    } as Record<string, string>)[kind] ?? "create the material",
     scenes: "scenes",
     scene: "scene",
     sec: "s",
@@ -92,6 +102,13 @@ const ru = (lang: string): PageWords => {
     title: "Запись озвучки",
     store: "хранилище",
     noScenes: "Сцен нет — проверьте сценарий.",
+    noReadyScenes: "Пока нет сцен, готовых к записи.",
+    skippedTitle: "Сцены ждут материала",
+    skippedReason: (kind) => ({
+      video: "запишите видеодубль", marks: "запишите дубль с отметками",
+      image: "создайте изображение", data: "создайте файл данных", file: "создайте файл кода",
+      page: "создайте страницу",
+    } as Record<string, string>)[kind] ?? "подготовьте материал",
     scenes: "сцены",
     scene: "сцена",
     sec: "с",

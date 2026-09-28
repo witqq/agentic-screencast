@@ -11,6 +11,7 @@
 // зона — для подписей и текста, «строгая» — для призыва и главного предмета.
 // У кадра другого размера зона масштабируется в той же пропорции.
 import type { Frame } from "./source.js";
+import { msg } from "./msg.js";
 
 export interface Safe { top: number; bottom: number; left: number; right: number }
 
@@ -43,7 +44,7 @@ export const FORMAT_NAMES = Object.keys(FORMATS);
 
 export function parseFormat(raw: string): string {
   const name = raw.trim();
-  if (!FORMATS[name]) throw new Error(`format: unknown «${name}»; available: ${FORMAT_NAMES.join(", ")}`);
+  if (!FORMATS[name]) throw new Error(msg("format.unknown", { name, available: FORMAT_NAMES.join(", ") }));
   return name;
 }
 
@@ -60,7 +61,7 @@ export type Zone = typeof ZONES[number];
 
 export function parseZone(raw: string): Zone {
   const name = raw.trim();
-  if (!(ZONES as readonly string[]).includes(name)) throw new Error(`zone: unknown «${name}»; available: ${ZONES.join(", ")}`);
+  if (!(ZONES as readonly string[]).includes(name)) throw new Error(msg("zone.unknown", { name, available: ZONES.join(", ") }));
   return name as Zone;
 }
 

@@ -1,29 +1,34 @@
-# Landing clips cut from the overview film
+# Video selection for the bilingual landing
 
-This manifest answers which clip of the overview film (`website/overview/`) illustrates which landing section of
-`plan.md` and which feature groups of `features.md`. Each clip is one chapter of the final film, cut at its chapter
-boundary from `out/final.<lang>.<format>.chapters.vtt`, re-encoded (H.264, CRF 22) with a poster frame at 1.5 s.
-The clips are not in the repository: they live in `agent_temp_files_local/overview-clips/` until the landing rework
-embeds them (`<chapter>.<lang>.<format>.mp4` and `.jpg`), and are cut again with `python3 out/landing-clips.py
-ru.landscape ru.vertical en.landscape en.vertical` from `website/overview/` after a new final build.
+This map names the moving examples used by `website/landing/report.md` and its Russian localization.
+Each slot has one Russian and one English excerpt from `website/overview/story.md`, with a matching
+poster. Delivered page clips have no audio stream. There is no full overview-film or paid-voice
+dependency.
 
-| Clip | Chapter (ru) | Landing section (`plan.md`) | Feature groups | ru 16:9 | en 16:9 | ru 9:16 | en 9:16 |
-|---|---|---|---|---|---|---|---|
-| `opening` | Начало | 1 Hero | 1 | 58 s | 53 s | 58 s | 53 s |
-| `path` | Путь | 11 The agent knows the craft | 13 | 93 s | 84 s | 93 s | 84 s |
-| `scenario` | Сценарий | 1 Hero, 12 Ready to ship | 1 | 129 s | 118 s | 129 s | 118 s |
-| `live` | Живая съёмка | 2 A real product | 3 | 109 s | 98 s | 110 s | 98 s |
-| `attention` | Внимание | 3 The camera knows where to look | 4 | 96 s | 88 s | 96 s | 88 s |
-| `slides` | Слайды | 4 Slides that never stand still | 2 | 67 s | 63 s | 67 s | 62 s |
-| `text` | Текст | 5 Words on screen | 5 | 62 s | 55 s | 62 s | 54 s |
-| `cuts-sound` | Склейки и звук | 6 Cuts, sound and a voice | 6, 7 | 107 s | 96 s | 107 s | 96 s |
-| `voice` | Голос | 6 Cuts, sound and a voice | 8 | 88 s | 78 s | 88 s | 78 s |
-| `trailer` | Трейлер | 7 A trailer, too | 2, 4, 6 | 37 s | 33 s | 36 s | 34 s |
-| `look` | Облик | 8 A look, not a pile of colours | 9 | 100 s | 90 s | 100 s | 91 s |
-| `phone` | Телефон | 9 Made for a phone | 10 | 63 s | 54 s | 62 s | 54 s |
-| `checks` | Проверки | 10 Checked before you watch | 11 | 80 s | 72 s | 80 s | 72 s |
-| `knowledge` | Знания | 11 The agent knows the craft | 13, knowledge.md | 89 s | 73 s | 89 s | 74 s |
-| `delivery` | Выпуск | 12 Ready to ship, 13 Your agent's first film | 12, 13 | 86 s | 76 s | 86 s | 76 s |
+| Visible slot | Page section | Authored source scene | Aspect ratio | Distinct proof |
+|---|---|---|---|---|
+| `showcase.{ru,en}` | First screen | `c00-cold` | 16:9 | The built film opens on a real recorded app. |
+| `live.{ru,en}` | A real product | `c03-auto` | 16:9 | Recorded typing, clicks and automatic camera moves. |
+| `focus.{ru,en}` | The camera knows where to look | `c04-chain` | 16:9 | A metric, chart peak and task row receive successive attention. |
+| `reel.{ru,en}` | Made for a phone | `c11-phone` | 9:16 | A phone-sized take retains its reflowed interface. |
 
-Scenes not suited for the vertical clips (landscape pages cut at the sides) are listed in `website/overview/brief.md`,
-section "The vertical cut"; prefer the landscape clip for those sections.
+The four source scenes produce **eight short clips in all**, one of each slot per language. Captions
+can carry their explanation while the delivered files remain silent. Other landing sections use
+source-linked text, a code example, the film checklist or named product checks; they do not request a
+video merely because the overview film has a chapter about them. Source scene identity, language,
+aspect ratio and the poster belong to each slot's provenance in `website/landing/media-manifest.json`.
+Compact reference frames come from each selected source draft before the audio track is removed, so
+replacing a delivered clip and recomputing its own hash cannot make a wrong-language or wrong-chapter
+excerpt pass. The poster is compared with its delivered clip.
+
+Run `node website/overview/build-landing-media.mjs` after the overview captures and material are
+available to regenerate the selected media, manifest and reference frames. Heavy files are stored in
+the ignored `agent_temp_files_local/landing-media-cache/`; the site builder verifies their hashes and
+uses the manifest's fixed media-release URLs when the cache is empty. `npm run site:static` checks
+the compiled page and source identity without a browser.
+
+No selected slot contains `c14-landing`, the scene that photographs the landing and would create a
+stale-media cycle. Portrait clips also exclude the five unsuitable landscape-page scenes from the
+overview brief: `c00-file`, `c01-brief`, `c12-stills`, `c13-credits` and `c14-bookend`. The only selected
+portrait scene, `c11-phone`, contains none of them. The remaining authored scenes stay in the overview
+source but are not landing-media outputs.

@@ -6,7 +6,7 @@ voice.en: {"engine":"stub","name":"silent","cps":16}
 pronounce: "pronounce.ru.json"
 pronounce.en: "pronounce.en.json"
 theme: neutral
-captions: {"style":"karaoke","everywhere":true,"srt":true}
+captions: {"style":"karaoke","look":"plate","everywhere":true,"srt":true}
 progress: {"position":"bottom","parts":true}
 music: {"file":"audio/film-bed.mp3","level":-24,"fadeIn":1,"fadeOut":3}
 motionBlur: true
@@ -149,6 +149,8 @@ After the story the agent shows you what will be on screen and films only once y
 spotlight: [{"target":".term pre","at":"b1+0.3","pan":true,"ring":false,"dim":0}]
 page: pages/term-new.ru.html
 page.en: pages/term-new.html
+pageVertical: pages/term-new.vertical.ru.html
+pageVertical.en: pages/term-new.vertical.html
 stills: b1.end :: команда и её вывод целиком
 
 Как только ясен жанр, одна команда кладёт рядом заготовку сценария под этот жанр, её страницы и чеклист.
@@ -157,9 +159,11 @@ stills: b1.end :: команда и её вывод целиком
 As soon as the genre is settled, one command puts a skeleton scenario for that genre next to the brief, with its pages and a checklist.
 
 ## c01-checklist · page
-spotlight: [{"target":".list","at":"b1+0.3","pan":true,"ring":false,"dim":0},{"target":".list","at":"b2+0.3","pan":true,"ring":false,"dim":0}]
+spotlight: [{"target":".list","at":"b1+0.3","scale":1,"ring":false,"dim":0},{"target":".list","at":"b2+0.3","scale":1,"ring":false,"dim":0}]
 page: pages/checklist.ru.html
 page.en: pages/checklist.html
+pageVertical: pages/checklist.vertical.ru.html
+pageVertical.en: pages/checklist.vertical.html
 stills: b1+1 :: строки чеклиста читаются | b2.end-0.5 :: пункты закрыты свидетельствами, внизу счётчик открытых пунктов
 
 Чеклист короткий: по пункту на шаг, а под ними — меню приёмов и правила режиссуры для сверки.
@@ -311,6 +315,8 @@ Shared reading rules for Latin words and abbreviations sit in the film's header.
 spotlight: [{"target":"svg","at":"b1+0.3","pan":true,"ring":false,"dim":0},{"target":"svg","at":"b2+0.3","pan":true,"ring":false,"dim":0}]
 page: pages/anchors.ru.html
 page.en: pages/anchors.html
+pageVertical: pages/anchors.vertical.ru.html
+pageVertical.en: pages/anchors.vertical.html
 stills: b1.end :: такты и якоря подписаны | b2.end-0.5 :: такты растянуты, метка уехала вместе со вторым тактом
 
 Моменты в сценарии называются по речи: начало второго такта, полсекунды после него, конец его речи или доля сцены.
@@ -440,7 +446,7 @@ file.en: captures/board.webm
 from: @added+1.5
 to: @keys
 spotlight: {"area":"@done","at":"b1+4","until":"b1+6","scale":1.4,"ring":true}
-stills: b1+1 :: карточка-пояснение рядом с кнопкой | b1+5 :: перенесённая карточка в «Готово» подсвечена целиком
+stills: b1+1 :: карточка-пояснение рядом с кнопкой | @done :: перенос завершён, карточка целиком в «Готово» | b1+5 :: перенесённая карточка в «Готово» подсвечена целиком
 
 Карточка с пояснением встаёт рядом с кнопкой, пока идёт действие, и уходит, когда оно закончилось.
 
@@ -648,7 +654,7 @@ file.en: captures/board.webm
 from: @added+2.5
 to: @done+1
 speed: [{"from":2,"to":3.4,"rate":0.35,"ramp":0.4,"interpolate":true}]
-stills: 45% :: замедленный клик, кадры плавные, без рывков
+stills: 45% :: замедленный клик, кадры плавные, без рывков | @done :: клик завершён, новая карточка видна
 
 Время можно растянуть внутри кадра: запись плавно входит в замедление, а недостающие кадры дорисовываются.
 
@@ -662,7 +668,7 @@ from: @done-1
 to: @keys
 spotlight: {"area":"@done","at":"b1+0.6","slow":"stop","scale":1.5,"card":{"title":"Время остановлено","body":"Отметка @done записана во время дубля"}}
 spotlight.en: {"area":"@done","at":"b1+0.6","slow":"stop","scale":1.5,"card":{"title":"Time stopped","body":"The @done mark was set during the take"}}
-stills: b1+2 :: карточка в «Готово» крупно, пояснение рядом, не поверх
+stills: @done :: карточка перешла в «Готово» | b1+2 :: карточка в «Готово» крупно, пояснение рядом, не поверх
 
 А можно остановить: на отметке «готово» время стоит, пока камера держит карточку и её можно прочитать.
 
@@ -830,10 +836,10 @@ body.en: Subtitles, titles, lower thirds, callouts and stickers.
 transition: {"kind":"push","duration":0.7,"sound":"audio/sfx/whoosh.ogg","snap":"music"}
 stills: b1+2 :: караоке: звучащее слово подсвечено
 
-Ролики часто смотрят без звука, поэтому речь идёт субтитрами: белые буквы с обводкой читаются на любом кадре, а караоке подсвечивает звучащее слово.
+Ролики часто смотрят без звука, поэтому речь идёт субтитрами: плотная плашка выделяет белые буквы на сложном кадре, а караоке подсвечивает звучащее слово.
 
 [en]
-Films are often watched without sound, so the narration runs as subtitles: white letters with an outline read on any frame, and karaoke lights the word being spoken.
+Films are often watched muted. A dense plate keeps subtitles clear over busy frames, and karaoke lights the spoken word.
 
 ## c06-top · video
 file: captures/board.ru.webm
@@ -1212,11 +1218,11 @@ page: pages/term-voices.ru.html
 page.en: pages/term-voices.html
 stills: b1.end :: список голосов SpeechKit виден, filipp и john среди них
 
-Список голосов движок отдаёт сам; этот ролик озвучен SpeechKit: по-русски голосом filipp, по-английски голосом john.
-~ Список голосов движок отдаёт сам; этот ролик озвучен спичкитом: по-русски голосом Филипп, по-английски голосом Джон.
+Список голосов движок отдаёт сам: у SpeechKit есть filipp для русского и john для английского.
+~ Список голосов движок отдаёт сам: у спичкита есть Филипп для русского и Джон для английского.
 
 [en]
-The engine lists its voices itself; this film is voiced by SpeechKit, with filipp in Russian and john in English.
+The engine lists its voices itself; SpeechKit offers filipp for Russian and john for English.
 
 ## c08-pace · slides.code
 kicker: Темп
@@ -1662,20 +1668,20 @@ The agent does not hand over a film by eye: checks run before the build, during 
 spotlight: [{"target":".term pre","at":"b1+0.3","pan":true,"scale":1,"ring":false,"dim":0},{"target":".term pre","at":"b2+0.3","pan":true,"scale":1,"ring":false,"dim":0},{"target":".term pre","at":"b3+0.3","pan":true,"scale":1,"ring":false,"dim":0}]
 page: pages/term-lint.ru.html
 page.en: pages/term-lint.html
-stills: b2.end :: находки lint с именами правил | b3.end-0.3 :: пустой ответ для этого фильма
+stills: b2.end :: находки lint с именами правил | b3.end-0.3 :: горизонтальный запуск без находок
 
 До сборки lint проверяет сценарий по двадцати правилам режиссуры и отдельно считает признаки шаблонного ролика.
 
 Карточка поверх субтитров, стоящая страница, наезд, который обрежет предмет, дубль в чужой теме.
 
-Для этого фильма ответ пустой.
+В показанном горизонтальном запуске находок нет.
 
 [en]
 Before the build, lint checks the scenario against twenty directing rules and counts the signs of a template film on the side.
 
 A card over the subtitles, a page that stands still, a push-in that would crop its subject, a take in another theme.
 
-For this film the answer is empty.
+The landscape run shown here has no findings.
 
 ## c12-frames · slides.photo
 image: assets/gen/frames-top.ru.png
