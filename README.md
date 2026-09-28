@@ -166,11 +166,10 @@ Changing text, voice data, a recorded take, rendering settings, page bytes, Chro
 
 ```sh
 npm ci
-npm test
-npm run pack:check
+npm run ci:verify
 ```
 
-`npm test` builds the CLI and recording UI, checks both TypeScript targets and lint, then runs unit and product-level Chromium/ffmpeg tests. `pack:check` builds the exact npm candidate, rejects generated or sensitive state, installs it into an isolated consumer, and exercises the public CLI.
+`ci:verify` builds the CLI and recording UI, checks types, lint and browser-free unit tests, then verifies the npm candidate and static landing without installing Chromium. The scheduled nightly workflow runs the Chromium and video E2E tests, the product suite and the full browser site check. For a focused local run, install Chromium with `npx playwright install chromium` and use `npm run e2e`. `pack:check` installs the exact candidate into an isolated consumer and exercises its public CLI.
 
 See [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and the [release runbook](docs/RELEASING.md) before submitting changes or publishing a version.
 

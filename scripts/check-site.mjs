@@ -1,13 +1,11 @@
 #!/usr/bin/env node
-// Проверка собранного лендинга: паспорт выпуска, бюджет роликов, признаки
-// дефектов прежнего сайта, раскладка на четырёх ширинах, обе локализации и
-// сверка заявлений страницы с кодом.
+// Браузерная проверка собранного лендинга: признаки дефектов прежнего сайта,
+// раскладка на четырёх ширинах, обе локализации и заявления страницы.
 //
 // Запускается после `npm run site:build` (скрипт `site:check`) под Node из
 // `.nvmrc`; модули продукта берутся из `dist/`, который собирает `npm ci`.
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
-import { createHash } from "node:crypto";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { spawnSync } from "node:child_process";
@@ -15,40 +13,11 @@ import { createRequire } from "node:module";
 
 import { chromium } from "playwright";
 import { measure } from "./site-measure.mjs";
+import { checkSiteStatic } from "./check-site-static.mjs";
 
 const root = resolve(".");
 const site = resolve(root, "site");
-const release = JSON.parse(await readFile(resolve(site, "release.json"), "utf8"));
-const manifest = JSON.parse(await readFile(resolve(root, "package.json"), "utf8"));
-const compiler = JSON.parse(await readFile(resolve(root, "node_modules/agentic-report/package.json"), "utf8"));
-const paths = (release.files ?? []).map((f) => f.path);
-if (
-  release.contractVersion !== 1 ||
-  release.package?.name !== manifest.name ||
-  release.package?.version !== manifest.version ||
-  release.builtWith?.name !== "agentic-report" ||
-  release.builtWith?.version !== compiler.version ||
-  !/^[0-9a-f]{40}$/u.test(release.sourceRevision) ||
-  !["index.html", "robots.txt", "sitemap.xml"].every((path) => paths.includes(path))
-) {
-  throw new Error("site release identity is incomplete");
-}
-for (const expected of release.files) {
-  const bytes = await readFile(resolve(site, expected.path));
-  const sha256 = createHash("sha256").update(bytes).digest("hex");
-  if (bytes.byteLength !== expected.bytes || sha256 !== expected.sha256) {
-    throw new Error(`site release identity does not match ${expected.path}`);
-  }
-}
-
-// Ролики грузятся только при показе (`preload="none"`), поэтому на первую загрузку страницы
-// они не влияют, и бюджета веса нет. Предел ниже — страховка от случайно огромного файла
-// (не тот исходник, несжатый поток); причина записана в документе идеи лендинга.
-const VIDEO_CAP = 40 * 1024 * 1024;
-const videos = release.files.filter((f) => /\.(mp4|webm|m4v)$/u.test(f.path));
-const videoBytes = videos.reduce((n, f) => n + f.bytes, 0);
-if (videos.length === 0) throw new Error("the landing has no videos");
-for (const f of videos) if (f.bytes > VIDEO_CAP) throw new Error(`landing video ${f.path} weighs ${f.bytes} bytes, over the ${VIDEO_CAP} cap`);
+const { release, videoBytes } = await checkSiteStatic(root);
 
 // Словарь продукта — из самого продукта, а не вторым списком здесь.
 const { THEME_NAMES } = await import("../dist/theme.js");
@@ -121,23 +90,6 @@ async function checkClips(page, lang) {
   return clips.length;
 }
 let clipsChecked = 0;
-
-// Индексация поисковиками: адрес страницы, карта сайта и ссылка на неё в robots.txt.
-const origin = "https://agentic-screencast.witqq.dev";
-const html = await readFile(resolve(site, "index.html"), "utf8");
-if (
-  !html.includes(`<link rel="canonical" href="${origin}/"/>`) ||
-  !html.includes(`<meta property="og:url" content="${origin}/"/>`)
-) {
-  throw new Error("landing has no canonical public address");
-}
-if (Buffer.byteLength(html) > 2_097_152) throw new Error("landing HTML exceeds what search crawlers read");
-if (!(await readFile(resolve(site, "robots.txt"), "utf8")).includes(`Sitemap: ${origin}/sitemap.xml\n`)) {
-  throw new Error("robots.txt does not name the sitemap");
-}
-if (!(await readFile(resolve(site, "sitemap.xml"), "utf8")).includes(`<loc>${origin}/</loc>`)) {
-  throw new Error("sitemap.xml does not list the landing");
-}
 
 const captureRoot = resolve(root, "agent_temp_files_local/site-check");
 await rm(captureRoot, { recursive: true, force: true });

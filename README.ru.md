@@ -480,7 +480,8 @@ npx agentic-screencast verify                    # четыре проверки
 npx agentic-screencast script --source story.md  # читаемый сценарий в поток вывода
 npx agentic-screencast schema                    # описание полей сцены, JSON Schema
 npx agentic-screencast scenes --source story.md  # сцены источника как JSON
-npm test                                     # набор проверок продукта
+npm test                                     # быстрые проверки без браузера
+npm run e2e                                  # полные браузерные и видео проверки; в CI запускаются ночью
 ```
 
 `schema` печатает машинно читаемое описание сцены, `scenes` — сцены

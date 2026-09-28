@@ -10,9 +10,10 @@ Use Node.js 20 or newer and install the pinned dependency graph:
 
 ```sh
 npm ci
-npx playwright install chromium
 npm test
 ```
+
+`npm test` runs the fast, browser-free checks. Chromium is needed only for a focused local E2E run or the scheduled nightly workflow: `npx playwright install chromium`, then `npm run e2e`.
 
 Keep a scenario file as the only authored source for its generated slides and build data. Do not edit generated `slides/`, `.generated-*.json`, `dist/`, `site/`, cache, recording, or video files as source.
 
@@ -26,15 +27,13 @@ Keep a scenario file as the only authored source for its generated slides and bu
 - The rules of `docs/film-craft.md` are referred to by number across the skill, the knowledge base, the help and the checklist. Adding or moving a rule renumbers them: the test `craft-refs` then lists the numbers it froze; update every reference to a moved rule, then its list.
 - Use imperative commit subjects with a `feat:`, `fix:`, `docs:`, `test:`, `build:`, or `chore:` prefix.
 
-Run the complete local gate before opening a pull request:
+Run the fast release gate before opening a pull request:
 
 ```sh
-npm test
-npm run pack:check
-npm run site:check
+npm run ci:verify
 ```
 
-`site:check` recognises each landing clip's language by reference frames in `website/landing/media/fingerprints/`, computed from the clips themselves; it first confirms them with `npm run landing:fingerprints`. After replacing a clip, rewrite them with `node scripts/landing-fingerprints.mjs --write` and commit the frames with the clip.
+The nightly workflow runs the browser and video E2E tests, the product suite, and `site:check`. That site check recognises each landing clip's language by reference frames in `website/landing/media/fingerprints/`, computed from the clips themselves. The fast gate still checks those frames and the static site release. After replacing a clip, rewrite its references with `node scripts/landing-fingerprints.mjs --write` and commit the frames with the clip.
 
 Describe the commands and observed results in the pull request. A maintainer performs release, npm publication, and deployment by following [docs/RELEASING.md](docs/RELEASING.md).
 

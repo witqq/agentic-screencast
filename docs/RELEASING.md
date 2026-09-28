@@ -14,20 +14,18 @@ Use Node.js 24.20.0 or a compatible newer supported release on a clean feature b
 
 ```sh
 npm ci
-npm test
-npm run pack:check
-npm run site:check
+npm run ci:verify
 npm run history:check
 git status --short
 ```
 
-`pack:check` writes the accepted tarball and `candidate-evidence.json` under `agent_temp_files_local/package-candidate/`. It rejects generated state, stale build files, local paths and secret-bearing file classes, installs the exact tarball into an isolated consumer, and runs the public CLI with the free `stub` voice.
+`ci:verify` runs the browser-free unit gate, checks the package candidate and verifies the static landing and clip reference frames. The scheduled nightly workflow owns browser and video E2E tests, the product suite and the full browser site check. `pack:check` writes the accepted tarball and `candidate-evidence.json` under `agent_temp_files_local/package-candidate/`. It rejects generated state, stale build files, local paths and secret-bearing file classes, installs the exact tarball into an isolated consumer, and runs the public CLI with the free `stub` voice.
 
 Do not rebuild a candidate after it passes unless repository bytes change. Commit, review, merge and tag the exact accepted tree. Commit and push remain maintainer actions.
 
 ## Create the GitHub Release
 
-Create and push an annotated `vMAJOR.MINOR.PATCH` tag matching `package.json.version`. The `release.yml` workflow checks full history, runs the product and package gates, and creates one GitHub Release with one asset named `agentic-screencast-MAJOR.MINOR.PATCH.tgz`.
+Create and push an annotated `vMAJOR.MINOR.PATCH` tag matching `package.json.version`. The `release.yml` workflow checks full history, runs the fast product and package gates without Chromium, and creates one GitHub Release with one asset named `agentic-screencast-MAJOR.MINOR.PATCH.tgz`.
 
 ```sh
 git tag -a v1.0.0 -m "agentic-screencast 1.0.0"

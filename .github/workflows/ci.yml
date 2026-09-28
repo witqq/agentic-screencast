@@ -16,9 +16,9 @@ concurrency:
 
 jobs:
   verify:
-    name: Complete product gate (npm run ci:verify)
+    name: Fast product gate (npm run ci:verify)
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,13 +34,10 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium
-        run: npx playwright install chromium
-
       - name: Refuse personal paths and forbidden capture paths
         run: npm run history:check
 
-      - name: Run the complete gate
+      - name: Run the fast gate
         run: |
           set -euo pipefail
           mkdir -p test-results
@@ -58,9 +55,9 @@ jobs:
           retention-days: 7
 
   node20:
-    name: Node 20 compatibility (npm run suite)
+    name: Node 20 compatibility (npm run unit)
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,8 +73,5 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Chromium
-        run: npx playwright install chromium
-
       - name: Check supported runtime
-        run: npm run suite
+        run: npm run unit

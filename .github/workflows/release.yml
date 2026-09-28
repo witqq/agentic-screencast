@@ -22,7 +22,7 @@ jobs:
   release:
     name: Verify and create immutable release
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     permissions:
       contents: write
     env:
@@ -45,10 +45,8 @@ jobs:
           node-version: 24.20.0
           cache: npm
 
-      - name: Install dependencies and Chromium
-        run: |
-          npm ci
-          npx playwright install chromium
+      - name: Install dependencies
+        run: npm ci
 
       - name: Verify tag and package version
         run: |
@@ -61,7 +59,7 @@ jobs:
           test "${RELEASE_TAG}" = "v${version}"
           git cat-file -e "${RELEASE_TAG}^{tag}"
 
-      - name: Run the complete gate
+      - name: Run the fast release gate
         run: npm run ci:verify
 
       - name: Refuse to replace an existing release
