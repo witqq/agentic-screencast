@@ -8,6 +8,7 @@
 // `autoZoom`: камера сама наезжает туда, где был клик.
 import { existsSync, readFileSync } from "node:fs";
 import type { OverlayCamera } from "./overlay.js";
+import { msg } from "./msg.js";
 
 export interface TakeMarks {
   trimmed: number;
@@ -17,6 +18,8 @@ export interface TakeMarks {
   path?: Array<{ t: number; x: number; y: number }>;
   /** действия с их элементами: вид, начало, конец, прямоугольник в долях кадра */
   actions?: Array<{ kind: string; t: number; end: number; rect?: [number, number, number, number] }>;
+  /** движение камеры, уже впечённое в дубль (секунды исходного клипа) */
+  cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором */
   rects?: Record<string, [number, number, number, number]>;
 }
@@ -43,7 +46,9 @@ export function trimMarks(m: TakeMarks | undefined, trim: Trim | undefined): Tak
   return { ...m, marks: Object.fromEntries(Object.entries(m.marks).filter(([, t]) => inside(t)).map(([k, t]) => [k, at(t)])),
     clicks: m.clicks.filter((c) => inside(c.t)).map((c) => ({ ...c, t: at(c.t) })),
     ...(m.path ? { path: m.path.filter((p) => inside(p.t)).map((p) => ({ ...p, t: at(p.t) })) } : {}),
-    ...(m.actions ? { actions: m.actions.filter((a) => inside(a.t)).map((a) => ({ ...a, t: at(a.t), end: at(Math.min(a.end, end)) })) } : {}) };
+    ...(m.actions ? { actions: m.actions.filter((a) => inside(a.t)).map((a) => ({ ...a, t: at(a.t), end: at(Math.min(a.end, end)) })) } : {}),
+    ...(m.cameraMoves ? { cameraMoves: m.cameraMoves.filter((move) => move.to > trim.from && move.from < end)
+      .map((move) => ({ from: at(Math.max(move.from, trim.from)), to: at(Math.min(move.to, end)) })) } : {}) };
 }
 
 /**
@@ -52,6 +57,11 @@ export function trimMarks(m: TakeMarks | undefined, trim: Trim | undefined): Tak
  * `"@saved-0.3"` внутри JSON. Текст карточки со словом «@saved» внутри не
  * трогается: подмена в прозе превращала бы подпись в набор цифр.
  */
+export const MARK_REFERENCE = "@([A-Za-z][\\w-]*)(\\s*[+-]\\s*[\\d.]+)?";
+const WHOLE_MARK = new RegExp(`^\\s*${MARK_REFERENCE}\\s*$`);
+
+export const isMarkReference = (value: string): boolean => WHOLE_MARK.test(value);
+
 export function resolveMarks(value: string, marks: TakeMarks | undefined, where: string): string {
   if (!value.includes("@")) return value;
   const find = (token: string, shift?: string): number => {
@@ -66,15 +76,14 @@ export function resolveMarks(value: string, marks: TakeMarks | undefined, where:
     }
     const t = marks?.marks[name];
     if (t === undefined) {
-      const known = marks ? Object.keys(marks.marks).join(", ") || "none" : "no .marks.json beside the clip";
-      throw new Error(`${where}: unknown mark @${name}; known: ${known}`);
+      const known = marks ? Object.keys(marks.marks).join(", ") || msg("source.none") : msg("marks.noFile");
+      throw new Error(msg("marks.unknown", { where, name, known }));
     }
     return Math.round((t + (shift ? Number(shift.replace(/\s+/g, "")) : 0)) * 1000) / 1000;
   };
-  const ref = "@([A-Za-z][\\w-]*)(\\s*[+-]\\s*[\\d.]+)?";
-  const whole = new RegExp(`^\\s*${ref}\\s*$`).exec(value);
+  const whole = WHOLE_MARK.exec(value);
   if (whole) return String(find(whole[1]!, whole[2]));
-  return value.replace(new RegExp(`"${ref}"`, "g"), (_, name: string, shift?: string) => String(find(name, shift)));
+  return value.replace(new RegExp(`"${MARK_REFERENCE}"`, "g"), (_, name: string, shift?: string) => String(find(name, shift)));
 }
 
 /** Как наезжать на клики: увеличение, удержание и размер области. */

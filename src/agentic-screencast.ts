@@ -38,7 +38,7 @@ import { engineFor } from "./voice/index.js";
 import { builtinPaths } from "./voice/builtin.js";
 import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { msg } from "./msg.js";
+import { msg, useLang } from "./msg.js";
 import { KINDS as TRANSITIONS } from "./transition.js";
 import { KINETIC } from "./overlay.js";
 import { brandTheme, dominantColors, parseHex } from "./brand.js";
@@ -62,6 +62,8 @@ const rest = process.argv.slice(3);
   if (i >= 0) {
     if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error("--lang: name a language, e.g. --lang ru"); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_LANG = rest[i + 1];
+    process.env.AGENTIC_SCREENCAST_LANG = rest[i + 1];
+    useLang(rest[i + 1]);
     rest.splice(i, 2);
   }
   // Формат сборки: `build --format vertical` у горизонтального сценария кадрирует
@@ -89,7 +91,7 @@ Usage:
   agentic-screencast verify [--scene scene.json]
   agentic-screencast lint [--source story.md]
   agentic-screencast new <genre> [--lang ru] [--format vertical|square] [--out story.md]
-  agentic-screencast frames [--source story.md] [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]
+  agentic-screencast frames [--source story.md] [--at 0.8|80%|2.4s|b2+0.5] [--scene id | --except id] [--out sheet.png]
   agentic-screencast sheet <clip> [--count 12 | --every 2] [--from s --to s] [--out sheet.png]
   agentic-screencast theme --from logo.png [--base neutral] | --colors "#a,#b"
   agentic-screencast web <film.mp4> [--out web] [--formats av1,vp9,h264] [--width 1280] [--quality high|balanced|small] [--mute] [--thumbs 2] [--gif 2-8]
@@ -257,7 +259,9 @@ name. The marks file keeps what the edit needs without measuring: the
 clicks, the cursor's path ("path"), every action with its kind, start, end
 and element rectangle ("actions": click, type, press, drag, range, hover)
 and the marks' rectangles ("rects"), all in frame fractions and seconds
-from the recording's zero. autoZoom: true on the video scene pushes the
+from the recording's zero. "cameraMoves" records the start and end of
+focus/unfocus motion already painted into the take, so lint does not mistake
+that motion for navigation. autoZoom: true on the video scene pushes the
 camera in at the actions, like Screen Studio: actions close in time and
 place (a click on a field, the typing, the choice in the list it opened)
 are one push-in on their common area with a margin, typing holds it until
@@ -517,8 +521,11 @@ and a card's reveal they are the phrase styles. The frame dims and blurs under a
 title so it reads over a busy interface. position: center | top | bottom.
 lower: a name plate at the bottom left or right (side). callouts: a label
 with an arrow whose end lies inside the subject (side: auto | left | right |
-top | bottom picks where the label stands); the subject is a CSS
-target on a page, an area [x,y,w,h] or a point [x,y] in frame fractions.
+top | bottom picks where the label stands). Each callout must name exactly
+one subject field: target is a CSS selector on a page; area is
+[left,top,width,height] in frame fractions from 0 to 1; point is [x,y]
+in frame fractions. A video callout uses area or point, since it has no
+page element to select.
 stickers: one of emoji, image (svg, png, jpg, webp; gif, webm or
 animated png play frame by frame on scene time) or text (a badge);
 motion: pop | float | spin. Every hold has a reading-time minimum, and the
@@ -890,8 +897,10 @@ agentic-screencast web film.mp4 --out web [--width 1280] [--quality balanced] [-
 
 The build writes H.264 at high quality — the format for review, which every
 player opens. A page does better with AV1: in this product's measurements it
-is about 40% lighter than H.264 at the same frame similarity, and VP9 sits
-between them. Not every browser plays AV1 (older Safari), so web writes all
+is about 40% lighter than H.264 at the same frame similarity. VP9's size
+depends on the material and the chosen quality; it can be larger than H.264.
+The web report gives each output's measured bytes. Not every browser plays
+AV1 (older Safari), so web writes all
 three and a <video> snippet whose <source> lines go in order of preference;
 the browser takes the first it can play and H.264 stays last as the fallback.
 
@@ -962,8 +971,9 @@ Helpers that save a full build:
       reel) with its pages, ready to build on the free stub voice; with
       --format vertical or square the header also gets zone: platform (the
       brief decides where the film is watched) and the phone pace, cps 13
-  agentic-screencast frames --source story.md [--at 0.8|80%|2.4s|b2+0.5] [--scene id]
-      one frame per scene on a labelled sheet, or one still; beats are
+  agentic-screencast frames --source story.md [--at 0.8|80%|2.4s|b2+0.5] [--scene id | --except id]
+      one frame per scene on a labelled sheet, or one still with --scene;
+      --except omits one scene from the sheet. The two flags cannot be combined. Beats are
       estimated from the text, nothing is synthesised; the film-wide layers
       (progress bar, part label, presenter) are not drawn. A drawn scene
       whose frame has a flat empty band a third of its height or more is
@@ -986,7 +996,7 @@ Helpers that save a full build:
       start, for what happens between named moments — a page change in the
       middle of a shot. The build writes them to
       <film>.stills/ (a whole-film build; --only leaves them) and lists them in
-      its report ("stills": scene, moment, second, note, file); look at
+      its report ("stills": scene, moment, time, note, file); look at
       them right after the build instead of guessing seconds. Naming stills
       does not re-render a scene. The report also gives every take's marks
       in film time after speed ("marks": scene, mark, clip, film) and the
@@ -1083,8 +1093,15 @@ its own cache key, so rewriting one sentence re-renders one beat. A line
 starting with ~ gives the spoken variant of that beat, while the screen keeps
 the written one. Reading rules (pronounce) and lang belong to the film.
 
-The stub's cps is the pace a draft assumes; a real voice has its own —
-SpeechKit's kuznetsov at speed 1 reads about 10 characters a second, not 15. Scenes timed on a wrong pace come out longer or shorter in the final,
+The stub's cps is the pace a draft assumes; a real voice has its own.
+Measured SpeechKit pace at speed 1, in spoken characters per second:
+
+  kuznetsov  about 10
+  filipp     about 12
+  john       about 16
+
+These are starting estimates for the measured voices and material, not
+promised durations for every text. Scenes timed on a wrong pace come out longer or shorter in the final,
 and their timing has to be redone. Measure the pace first: voice one scene
 with the final voice without drawing it —
   build --only <scene> --keys-only --voice-json '<the final voice>'
@@ -1149,14 +1166,14 @@ function readSource(path: string): Source {
 }
 
 /** Готовые данные в обход сценария: внятная ошибка вместо стека. */
-function requireFile(path: string, what: string): string {
+function requireFile(path: string, what: "Slides" | "Scenes" | "Scene"): string {
   if (existsSync(path)) return path;
   // Подсказка называет источник только там, где подкоманда его принимает:
   // у `verify` входом служит сцена, и совет «--source» увёл бы читателя.
   const hint = ["build", "check", "script", "slides"].includes(cmd)
-    ? `Вход инструмента — файл сценария: agentic-screencast ${cmd} --source story.md`
-    : `Укажите существующий файл: agentic-screencast ${cmd} --scene scene.example.json`;
-  console.error(`${what} не найден: ${path}\n${hint}`);
+    ? msg("cli.hintSource", { cmd: String(cmd) })
+    : msg("cli.hintScene", { cmd: String(cmd) });
+  console.error(`${msg("cli.fileMissing", { what: msg(`cli.file${what}`), path })}\n${hint}`);
   process.exit(2);
 }
 
@@ -1264,7 +1281,7 @@ switch (cmd) {
     }
     const deck = arg("deck");
     if (deck) {
-      requireFile(deck, "файл слайдов");
+      requireFile(deck, "Slides");
       const r = spawnSync("node", [resolve(HERE, "slides.js"), deck,
         resolve(dirname(deck), SLIDES_DIR)], { stdio: "inherit" });
       if (r.status) process.exit(r.status);
@@ -1272,7 +1289,7 @@ switch (cmd) {
     // Голос задаётся либо парой флагов, либо объектом целиком: у провайдера
     // могут быть свои параметры (темп у SpeechKit), и они не должны теряться.
     const voiceJson = arg("voice-json");
-    run("build.js", ["--pitch", requireFile(arg("pitch", ""), "файл сцен"),
+    run("build.js", ["--pitch", requireFile(arg("pitch", ""), "Scenes"),
       "--out", arg("out", `${HOME}/pitch.mp4`),
       ...(voiceJson ? ["--voice-json", voiceJson]
         : ["--voice", arg("voice", "kuznetsov"), "--engine", arg("engine", "speechkit")]),
@@ -1284,7 +1301,7 @@ switch (cmd) {
     // единственным, что нельзя пересобрать из сценария одной командой.
     const source = arg("deck") ? undefined : sourceArg();
     if (source) { const { slidesDir } = generate(source); console.log(slidesDir); break; }
-    const deck = requireFile(arg("deck") ?? "", "файл слайдов");
+    const deck = requireFile(arg("deck") ?? "", "Slides");
     run("slides.js", [deck, arg("out", resolve(dirname(deck), SLIDES_DIR))]);
     break;
   }
@@ -1293,14 +1310,14 @@ switch (cmd) {
     // и к этому дефекту слеп по устройству.
     const source = arg("pitch") ? undefined : sourceArg();
     const pitchFile = source ? generate(source).pitchFile
-      : requireFile(arg("pitch") ?? "", "файл сцен");
+      : requireFile(arg("pitch") ?? "", "Scenes");
     run("order-check.js", [pitchFile]);
     break;
   }
   case "check": {
     const source = arg("pitch") ? undefined : sourceArg();
     const pitchFile = source ? generate(source).pitchFile
-      : requireFile(arg("pitch") ?? "", "файл сцен");
+      : requireFile(arg("pitch") ?? "", "Scenes");
     run("slide-check.js", [pitchFile, arg("at", "0.95")]);
     break;
   }
@@ -1309,7 +1326,7 @@ switch (cmd) {
     // потом флаги. Иначе флаг занимает позицию списка моментов и роняет разбор.
     // Образец сцены и каталог примера лежат в КОРНЕ продукта, а не рядом
     // с собранным кодом: они входят в поставку как данные, а не как модули.
-    const scene = requireFile(arg("scene", resolve(HERE, "..", "scene.example.json")), "файл сцены");
+    const scene = requireFile(arg("scene", resolve(HERE, "..", "scene.example.json")), "Scene");
     // Подложка сцены-образца порождаема, и в свежем клоне её ещё нет:
     // проверка ядра рендера падала сразу после клонирования, а в рабочем
     // дереве проходила на слайдах, оставшихся от прошлых запусков.

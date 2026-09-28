@@ -13,6 +13,7 @@
 // фокусов подряд становятся проездом камеры от цели к цели без возврата к
 // общему плану.
 import { CAMERA_STYLES, cardHold, parseOverlay, type OverlayCamera, type OverlayCard, type SceneOverlay } from "./overlay.js";
+import { msg } from "./msg.js";
 import type { SpeedStep } from "./speed.js";
 
 /** Один фокус так, как его пишут в сценарии. */
@@ -57,39 +58,39 @@ export function parseSpotlight(raw: string): Spotlight[] {
   let list: unknown[];
   if (text.startsWith("[")) {
     let v: unknown;
-    try { v = JSON.parse(text); } catch { throw new Error("spotlight: expected «target @ anchor | …» or JSON"); }
+    try { v = JSON.parse(text); } catch { throw new Error(msg("spotlight.form")); }
     list = Array.isArray(v) ? v : [v];
   } else {
     // Цепочка через `|` может смешивать краткую запись и объект: краткая — для простых фокусов,
     // объект — для того, которому нужны параметры. `|` внутри строк объекта не делит цепочку.
     list = chainParts(text).map((part) => {
       if (part.startsWith("{")) {
-        try { return JSON.parse(part) as unknown; } catch { throw new Error(`spotlight: expected a JSON object, got «${part}»`); }
+        try { return JSON.parse(part) as unknown; } catch { throw new Error(msg("spotlight.jsonObject", { part })); }
       }
       const m = /^(.+?)\s+@\s+(\S+)(?:\s*\.\.\s*(\S+))?$/.exec(part);
-      if (!m) throw new Error(`spotlight: expected «target @ anchor» or {…}, got «${part}»`);
+      if (!m) throw new Error(msg("spotlight.shortForm", { part }));
       return { target: m[1]!.trim(), at: m[2], ...(m[3] ? { until: m[3] } : {}) };
     });
   }
-  if (!list.length) throw new Error("spotlight: name at least one focus");
+  if (!list.length) throw new Error(msg("spotlight.empty"));
   return list.map((v, i) => {
     const where = `spotlight[${i}]`;
-    if (!v || typeof v !== "object") throw new Error(`${where}: expected an object`);
+    if (!v || typeof v !== "object") throw new Error(msg("overlay.object", { where }));
     const r = v as Record<string, unknown>;
-    for (const k of Object.keys(r)) if (!SPOTLIGHT_KEYS.includes(k)) throw new Error(`${where}: unknown property «${k}»`);
-    if ((typeof r.target === "string") === Array.isArray(r.area)) throw new Error(`${where}: name exactly one target or area`);
-    if (typeof r.at !== "string" && typeof r.at !== "number") throw new Error(`${where}.at: expected an anchor`);
+    for (const k of Object.keys(r)) if (!SPOTLIGHT_KEYS.includes(k)) throw new Error(msg("source.unknownProperty", { field: where, key: k }));
+    if ((typeof r.target === "string") === Array.isArray(r.area)) throw new Error(msg("overlay.oneTargetArea", { where }));
+    if (typeof r.at !== "string" && typeof r.at !== "number") throw new Error(msg("spotlight.anchor", { where: `${where}.at` }));
     if (r.slow !== undefined && r.slow !== "stop" && (typeof r.slow !== "number" || r.slow < 0.1 || r.slow > 0.9))
-      throw new Error(`${where}.slow: expected 0.1–0.9 or "stop"`);
-    if (r.ring !== undefined && typeof r.ring !== "boolean") throw new Error(`${where}.ring: expected true or false`);
-    if (r.pan !== undefined && typeof r.pan !== "boolean") throw new Error(`${where}.pan: expected true or false`);
-    if (r.keep !== undefined && typeof r.keep !== "boolean") throw new Error(`${where}.keep: expected true or false`);
-    if (r.keep === true && r.until !== undefined) throw new Error(`${where}: keep stays pushed in and until returns to the overview; name one of them`);
-    if (r.style !== undefined && !CAMERA_STYLES[String(r.style)]) throw new Error(`${where}.style: expected ${Object.keys(CAMERA_STYLES).join(" | ")}`);
-    if (r.dim !== undefined && (typeof r.dim !== "number" || r.dim < 0 || r.dim > 1)) throw new Error(`${where}.dim: expected 0–1 of the theme's dimming`);
+      throw new Error(msg("spotlight.slow", { where: `${where}.slow` }));
+    if (r.ring !== undefined && typeof r.ring !== "boolean") throw new Error(msg("overlay.trueFalse", { where: `${where}.ring` }));
+    if (r.pan !== undefined && typeof r.pan !== "boolean") throw new Error(msg("overlay.trueFalse", { where: `${where}.pan` }));
+    if (r.keep !== undefined && typeof r.keep !== "boolean") throw new Error(msg("overlay.trueFalse", { where: `${where}.keep` }));
+    if (r.keep === true && r.until !== undefined) throw new Error(msg("spotlight.keepUntil", { where }));
+    if (r.style !== undefined && !CAMERA_STYLES[String(r.style)]) throw new Error(msg("overlay.options", { where: `${where}.style`, options: Object.keys(CAMERA_STYLES).join(" | ") }));
+    if (r.dim !== undefined && (typeof r.dim !== "number" || r.dim < 0 || r.dim > 1)) throw new Error(msg("overlay.dim", { where: `${where}.dim` }));
     if (r.card !== undefined) {
       const c = r.card as Record<string, unknown>;
-      if (!c || typeof c.title !== "string" || !c.title.trim()) throw new Error(`${where}.card: expected {"title":…}`);
+      if (!c || typeof c.title !== "string" || !c.title.trim()) throw new Error(msg("spotlight.card", { where: `${where}.card` }));
     }
     return { ...(r as unknown as Spotlight), at: String(r.at), ...(r.until !== undefined ? { until: String(r.until) } : {}) };
   });
@@ -169,7 +170,7 @@ export function compileSpotlights(list: Spotlight[], o: {
   const resolved: Array<{ at: number; hold: number }> = [];
   let extra = 0;
   list.forEach((f, i) => {
-    if (o.video && !f.area) throw new Error(`spotlight[${i}]: a video scene is focused by area, not by a CSS target`);
+    if (o.video && !f.area) throw new Error(msg("spotlight.videoArea", { index: i }));
     const style = f.style ? CAMERA_STYLES[f.style] : undefined;
     const move = f.move ?? style?.move ?? 0.8;
     const back = style?.return ?? 0.8;
@@ -185,8 +186,7 @@ export function compileSpotlights(list: Spotlight[], o: {
     // Названный конец раньше, чем камера доедет, — противоречие сценария, а не повод
     // молча держать 0,8 с: автор ждал другого, и кадр его обманул бы.
     if (f.until !== undefined && hold < 0) {
-      throw new Error(`spotlight[${i}]: until ${(at + move + hold).toFixed(2)}s comes before the camera arrives at ${(at + move).toFixed(2)}s; `
-        + `name a later until, or leave it out to hold to the end of the beat`);
+      throw new Error(msg("lint.spotUntilEarly", { index: i, until: (at + move + hold).toFixed(2), arrival: (at + move).toFixed(2) }));
     }
     const card = f.card ? { at: at + move * 0.6, title: f.card.title.trim(), ...(f.card.body ? { body: f.card.body.trim() } : {}),
       position: "near-focus" as const, reveal: "type" as const, motion: "glide" as const } : undefined;
@@ -197,14 +197,12 @@ export function compileSpotlights(list: Spotlight[], o: {
     // чем ехать дальше. Не успевает — называются оба фокуса, их моменты и нужный зазор.
     if (!keep && nextAt !== undefined && at + move + hold + back + 0.35 > nextAt + 1e-6) {
       const backAt = at + move + hold + back;
-      throw new Error(`spotlight[${i}] at ${at.toFixed(2)}s holds until ${(at + move + hold).toFixed(2)}s and is back at ${backAt.toFixed(2)}s, `
-        + `but spotlight[${i + 1}] starts at ${nextAt.toFixed(2)}s; the camera needs 0.35s between moves — start the next focus at ${(backAt + 0.35).toFixed(2)}s or later, `
-        + `or leave out until so the camera goes straight on to the next focus`);
+      throw new Error(msg("lint.spotGap", { index: i, at: at.toFixed(2), hold: (at + move + hold).toFixed(2), back: backAt.toFixed(2),
+        next: i + 1, nextAt: nextAt.toFixed(2), start: (backAt + 0.35).toFixed(2) }));
     }
     if (keep && nextAt !== undefined && at + move + hold > nextAt + 1e-6) {
-      throw new Error(`spotlight[${i}]: it needs until ${(at + move + hold).toFixed(2)}s`
-        + `${card ? " for its card to be read" : ""}, but the next focus starts at ${nextAt.toFixed(2)}s; `
-        + `move the next anchor later, lengthen this beat, or shorten the card`);
+      throw new Error(msg("lint.spotCardOverlap", { index: i, until: (at + move + hold).toFixed(2),
+        card: card ? msg("lint.spotCardReason") : "", nextAt: nextAt.toFixed(2) }));
     }
     camera.push({ at, hold, move, return: back, ...(f.scale !== undefined ? { scale: f.scale } : {}),
       ...(f.target ? { target: f.target } : { area: f.area! }), ...(keep ? { keep: true } : {}),
@@ -236,5 +234,5 @@ export function spotlightOverlay(list: Spotlight[], overlay: SceneOverlay | unde
     return { compiled, overlay: parseOverlay(JSON.stringify({ ...overlay,
       camera: [...(overlay?.camera ?? []), ...compiled.camera].sort((a, b) => a.at - b.at),
       cards: [...(overlay?.cards ?? []), ...compiled.cards].sort((a, b) => a.at - b.at) })) };
-  } catch (e) { throw new Error(`spotlight collides with its overlay — ${(e as Error).message}`); }
+  } catch (e) { throw new Error(msg("spotlight.overlayCollision", { why: (e as Error).message })); }
 }

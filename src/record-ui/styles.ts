@@ -11,6 +11,12 @@ export const styles = `
   .sub { color: var(--mut); margin: 0 0 24px; font-size: 14px; }
   code { font-family: var(--mono); font-size: 13px; color: var(--body); }
 
+  .skipped { margin: 0 0 24px; padding: var(--space-m); border: var(--hairline) solid var(--line);
+             border-radius: var(--radius-sm); background: var(--card); }
+  .skipped h2 { margin: 0 0 8px; font: 600 16px var(--display); }
+  .skipped ul { margin: 0; padding-left: var(--space-m); color: var(--body); font-size: 14px; }
+  .skipped li + li { margin-top: 4px; }
+
   nav { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 20px; }
   .chip { font: inherit; font-size: 13px; padding: var(--space-xs) var(--space-s); border-radius: var(--radius-pill);
           border: var(--hairline) solid var(--line); background: var(--card); color: var(--mut); cursor: pointer; }

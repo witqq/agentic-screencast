@@ -49,6 +49,8 @@ export interface TakeMarks {
   path?: Array<{ t: number; x: number; y: number }>;
   /** действия дубля: вид, начало и конец, прямоугольник элемента в долях кадра */
   actions?: Array<{ kind: TakeActionKind; t: number; end: number; rect?: TakeRect }>;
+  /** интервалы наезда и возврата камеры, уже впечённые в кадры дубля */
+  cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором: `take.mark(name, locator)` */
   rects?: Record<string, TakeRect>;
 }
@@ -236,6 +238,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   // элементов у отметок. Время — часы съёмки от нуля записи, как у отметок.
   const path: Array<{ t: number; x: number; y: number }> = [];
   const actions: NonNullable<TakeMarks["actions"]> = [];
+  const cameraMoves: NonNullable<TakeMarks["cameraMoves"]> = [];
   const rects: Record<string, TakeRect> = {};
   const pending: Array<Promise<void>> = [];
   const now = (): number => (Date.now() - zero) / 1000;
@@ -360,17 +363,21 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     if (!(scale >= 1.2 && scale <= 3)) throw new Error("focus scale must be 1.2–3");
     const ms = Math.round((options.move ?? 0.9) * 1000);
     await target.scrollIntoViewIfNeeded();
+    const from = now();
     await target.evaluate((el, o) => {
       const st = (window as unknown as Record<string, { focus?: (e: Element, x: unknown) => void }>).__agenticScreencastCapture_v1;
       st?.focus?.(el, o);
     }, { scale, ms, dim: options.dim ?? true });
     await page.waitForTimeout(ms + 120);
+    cameraMoves.push({ from, to: now() });
   };
   const unfocus = async (options: { move?: number } = {}): Promise<void> => {
     active();
     const ms = Math.round((options.move ?? 0.9) * 1000);
+    const from = now();
     await overlayCall("unfocus", ms);
     await page.waitForTimeout(ms + 120);
+    cameraMoves.push({ from, to: now() });
   };
   const withCard = async (card: CaptureCard, action: () => Promise<void>,
     anchor?: { x: number; y: number; width: number; height: number }): Promise<void> => {
@@ -520,6 +527,8 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
         path: path.map((p) => ({ t: round(Math.max(0, p.t - trimmed)), x: round(p.x), y: round(p.y) })),
         actions: actions.map((a) => ({ ...a, t: round(Math.max(0, a.t - trimmed)), end: round(Math.max(0, a.end - trimmed)),
           ...(a.rect ? { rect: a.rect.map(round) as TakeRect } : {}) })),
+        cameraMoves: cameraMoves.map((move) => ({ from: round(Math.max(0, move.from - trimmed)),
+          to: round(Math.max(0, move.to - trimmed)) })),
         ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}) };
       writeFileSync(`${output}.marks.json`, JSON.stringify(file, null, 1));
       if (pageErrors.length) throw new Error(`page error during the take: ${pageErrors[0]}`);

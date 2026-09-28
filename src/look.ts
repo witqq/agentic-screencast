@@ -10,6 +10,7 @@
 // зерном генератора, виньетка без пересчёта по кадрам. Повторная сборка
 // даёт тот же файл, а соседние кадры неподвижного слайда при этом
 // различаются — ровно так, как у плёнки.
+import { msg } from "./msg.js";
 
 export type Grade = "none" | "teal-orange" | "warm" | "cool" | "mono" | "bleach";
 
@@ -39,18 +40,19 @@ export function parseLook(raw: string): Look {
   const text = raw.trim();
   if (!text.startsWith("{")) {
     const found = LOOKS[text];
-    if (!found) throw new Error(`look: unknown «${text}»; available: ${Object.keys(LOOKS).join(", ")}, or JSON`);
+    if (!found) throw new Error(msg("look.unknown", { name: text, available: Object.keys(LOOKS).join(", ") }));
     return { ...found };
   }
   let v: Record<string, unknown>;
-  try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error("look: expected a name or a JSON object"); }
-  for (const k of Object.keys(v)) if (!["preset", "grade", "grain", "vignette", "bars"].includes(k)) throw new Error(`look: unknown property «${k}»`);
+  try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error(msg("look.form")); }
+  if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error(msg("look.form"));
+  for (const k of Object.keys(v)) if (!["preset", "grade", "grain", "vignette", "bars"].includes(k)) throw new Error(msg("source.unknownProperty", { field: "look", key: k }));
   const base = v.preset === undefined ? {} : parseLook(String(v.preset));
-  if (v.grade !== undefined && !GRADES.includes(v.grade as Grade)) throw new Error(`look.grade: expected ${GRADES.join(" | ")}`);
+  if (v.grade !== undefined && !GRADES.includes(v.grade as Grade)) throw new Error(msg("look.grade", { grades: GRADES.join(" | ") }));
   for (const k of ["grain", "vignette"]) {
-    if (v[k] !== undefined && (typeof v[k] !== "number" || (v[k] as number) < 0 || (v[k] as number) > 1)) throw new Error(`look.${k}: expected 0…1`);
+    if (v[k] !== undefined && (typeof v[k] !== "number" || (v[k] as number) < 0 || (v[k] as number) > 1)) throw new Error(msg("look.share", { field: `look.${k}` }));
   }
-  if (v.bars !== undefined && (typeof v.bars !== "number" || v.bars < 1.5 || v.bars > 3)) throw new Error("look.bars: expected an aspect ratio 1.5…3, e.g. 2.39");
+  if (v.bars !== undefined && (typeof v.bars !== "number" || v.bars < 1.5 || v.bars > 3)) throw new Error(msg("look.bars"));
   const own: Record<string, unknown> = { ...v };
   delete own.preset;
   return { ...base, ...(own as Look) };

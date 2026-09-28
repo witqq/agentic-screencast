@@ -122,16 +122,26 @@ async function images() {
 
 // Images made by `frames` from this very scenario: they need every page, take and asset in place.
 function frames() {
-  // The scene that shows the sheet needs its image before the sheet can be drawn again.
+  // c12-frames shows the top of this sheet. The crop contains earlier scenes, so the final
+  // sheet can use the newly cropped top without a cycle.
   const top = (s) => execFileSync(FFMPEG, ["-v", "error", "-y", "-i", join(GEN, `frames${s}.png`), "-vf", "crop=1600:900:0:0", join(GEN, `frames-top${s}.png`)]);
-  for (const [, s] of LANGS) if (existsSync(join(GEN, `frames${s}.png`)) && !existsSync(join(GEN, `frames-top${s}.png`))) top(s);
+  // c02-langs embeds both language images. Finish both before either full sheet regenerates.
   for (const [L, s] of LANGS) {
     const lang = L === "en" ? ["--lang", "en"] : [];
     tool(L, ["frames", "story.md", ...lang, "--scene", "c00-cold", "--at", "60%", "--out", `assets/gen/split-frame${s}.png`]);
     tool(L, ["frames", "story.md", ...lang, "--scene", "c03-click", "--at", "55%", "--out", `assets/gen/lang${s}.png`]);
-    tool(L, ["frames", "story.md", ...lang, "--out", `assets/gen/frames${s}.png`]);
-    // The first rows of the sheet, tall enough to scroll inside a frame.
+  }
+  // The first sheet leaves out only c12-frames, whose own image does not exist yet. Its
+  // earlier rows provide the real top crop. The second sheet includes every scene and embeds
+  // that crop in c12-frames; its late position cannot change the cropped rows.
+  for (const [L, s] of LANGS) {
+    const lang = L === "en" ? ["--lang", "en"] : [];
+    tool(L, ["frames", "story.md", ...lang, "--except", "c12-frames", "--out", `assets/gen/frames${s}.png`]);
     top(s);
+  }
+  for (const [L, s] of LANGS) {
+    const lang = L === "en" ? ["--lang", "en"] : [];
+    tool(L, ["frames", "story.md", ...lang, "--out", `assets/gen/frames${s}.png`]);
   }
 }
 

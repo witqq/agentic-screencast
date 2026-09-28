@@ -64,6 +64,11 @@ Put the finished WebM in the `file:` of a video scene and build the MP4 with the
 The [runnable example](../example/live-capture.mjs) works without an external site.
 Short help: `agentic-screencast help capture`.
 
+Capture writes `<take>.marks.json` beside the WebM: named moments, rectangles
+of marked elements and `cameraMoves`, the intervals of focus and unfocus motion
+already painted into the take. A scenario addresses a moment or element as `@name`;
+`lint` accounts for camera motion when looking for an unexplained screen change.
+
 ## Environment variables
 
 | Variable | What it sets | Default |
@@ -153,11 +158,25 @@ as a single JSON.
 **While you are tuning a scene, build it alone:**
 
 ```bash
-npx agentic-screencast build --source story.md --only e1 --out try.mp4
+npx agentic-screencast build --source story.md --only s03 --out try.mp4
 ```
 
 A full film of a couple of dozen scenes takes minutes to build, one scene takes seconds,
 and the segment is exactly the same one that will go into the finished file.
+
+Preview a frame without synthesising speech with `frames`:
+
+```bash
+npx agentic-screencast frames --source story.md --scene s03 --out s03.png
+npx agentic-screencast frames --source story.md --except s03 --out sheet.png
+```
+
+`--scene` generates only the selected scene; `--except` makes a sheet of the
+others, even if the omitted scene's material does not exist yet. The flags
+cannot be combined. Beat timing is estimated here. A video preview includes
+its subtitles and overlay when the scene has speech or an `overlay`. The sheet
+reports a large flat empty band on a drawn scene; an intentionally sparse
+trailer card is exempt.
 
 ## How the input is organised
 
@@ -191,6 +210,12 @@ The first beat: it is recorded and voiced separately.
 
 The second beat of the same scene.
 ~ The second beat of the same scene, written the way it should be pronounced.
+
+## s04 · slides.chapter
+title: Next step
+body: Show the result
+
+Now move to the result.
 ```
 
 **A scene's kind belongs to the material PROVIDER, not to the tool.**
@@ -263,6 +288,12 @@ the button in the source recording: record real actions with Playwright capture.
 For a scene with `freezeAt` the build measures the brightness spread in every `area` region
 on the frozen frame and fails if a region is almost empty: the failure names
 the scene and the measured contrast.
+
+The scene field `stills: @saved :: check the result` requests a control frame
+at a named take mark. A beat (`b2+0.3`), scene share (`80%`) or step
+(`every 1s`) also works. A full build writes frames to `<film>.stills/`
+and reports each `scene`, `moment`, `time` in finished-film seconds, `note`
+and `file`; `--only` does not extract them.
 
 Field values are written as a short marked-up list. There are two separators,
 and they mean their own thing in each field — here are all of them:
@@ -513,6 +544,11 @@ give identical frames), liveness (frames change), absence of real
 time in the frame, and seekability (a frame from the middle of a scene matches
 the end-to-end run).
 
+`lint` warns about a top title over an interface, subtitles alongside a top
+progress bar, typing too fast to read, a take piece crossing a mark not named
+in `stills`, and an abrupt screen change outside marks and `cameraMoves`.
+It places speech anchors by estimate; check the finished film after recording.
+
 ## The voice-engine contract
 
 Producing sound is placed outside the tool's boundary. An engine is an **ordinary
@@ -630,6 +666,11 @@ and re-recording one beat does not touch its neighbours. You can choose the inpu
 the list of microphones is next to the permission button; the browser shows device names
 only after permission is granted, which is why it is asked for in advance.
 
+The page opens even when a video take, its marks file or another scene's
+material has not been created. Ready scenes can be recorded; a separate list
+names the skipped scenes, missing files and required action. A normal build
+still requires all material.
+
 While recording is in progress you cannot switch to another scene — the scene labels
 and navigation buttons are locked: the line being recorded is bound to the scene
 selected when the button was pressed, and switching in the middle of reading would mean sound
@@ -679,6 +720,12 @@ and no rules can be found by it, so the voice data may name them directly:
 
 Changing the engine, voice or tempo invalidates both the sound and the frame cache —
 by design: the scene duration is derived from the length of the line.
+
+The draft `stub` voice's `cps` is only an estimate. For a closer draft,
+voice one scene with the final voice using `build --only <scene> --keys-only
+--voice-json '<voice>'`, divide its spoken-character count by its beats'
+`spoken` seconds in the report, and use the result as `cps`. The sound is
+cached for the final build.
 
 ### SpeechKit access key
 

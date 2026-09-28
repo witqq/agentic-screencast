@@ -9,6 +9,7 @@
 // Раскладка не знает единиц: ей дают коробку, в которую рамку вписать, и
 // соотношение сторон содержимого, а отвечает она прямоугольниками в тех же
 // единицах. Сборка считает в пикселях кадра, слайд — в пикселях своей сетки.
+import { msg } from "./msg.js";
 
 export type DeviceKind = "browser" | "phone" | "frame";
 
@@ -40,15 +41,16 @@ export function parseDevice(raw: string): Device {
   const text = raw.trim();
   if (text.startsWith("{")) {
     let v: unknown;
-    try { v = JSON.parse(text); } catch { throw new Error("device: expected «browser [url]», «phone» or JSON"); }
+    try { v = JSON.parse(text); } catch { throw new Error(msg("device.form")); }
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error(msg("device.form"));
     const r = v as Record<string, unknown>;
-    for (const k of Object.keys(r)) if (!["kind", "url"].includes(k)) throw new Error(`device: unknown property «${k}»`);
-    if (!KINDS.includes(r.kind as DeviceKind)) throw new Error(`device.kind: expected ${KINDS.join(" | ")}`);
-    if (r.url !== undefined && typeof r.url !== "string") throw new Error("device.url: expected text");
+    for (const k of Object.keys(r)) if (!["kind", "url"].includes(k)) throw new Error(msg("source.unknownProperty", { field: "device", key: k }));
+    if (!KINDS.includes(r.kind as DeviceKind)) throw new Error(msg("device.kind", { kinds: KINDS.join(" | ") }));
+    if (r.url !== undefined && typeof r.url !== "string") throw new Error(msg("device.url"));
     return { kind: r.kind as DeviceKind, ...(r.url ? { url: String(r.url) } : {}) };
   }
   const [kind, ...rest] = text.split(/\s+/);
-  if (!KINDS.includes(kind as DeviceKind)) throw new Error(`device: expected ${KINDS.join(" | ")}, got «${kind}»`);
+  if (!KINDS.includes(kind as DeviceKind)) throw new Error(msg("device.unknown", { kinds: KINDS.join(" | "), kind }));
   const url = rest.join(" ").trim();
   return { kind: kind as DeviceKind, ...(url ? { url } : {}) };
 }

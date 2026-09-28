@@ -34,8 +34,9 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 6. Draft
 
-- [ ] Built on `stub` at the measured `cps`; the report has no `overflow`, `cut` or unexplained
-      warning; the stills match their notes; the owner has seen the draft and their remarks are fixed.
+- [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles and the
+      rhythm of sparse trailer cards; the report has no `overflow`, `cut` or unexplained warning;
+      the stills match their notes; the owner has seen the draft and their remarks are fixed.
 
 ## 7. Final
 

@@ -30,6 +30,8 @@ interface SceneCard {
   estimate: number;
 }
 
+interface SkippedScene { id: string; kind: string; file: string }
+
 /**
  * Длительность словами языка ролика. Прежде здесь стояла замена точки
  * на запятую и русское «с»: язык интерфейса был свойством инструмента,
@@ -40,6 +42,7 @@ const secsIn = (lang: string, w: PageWords) => (n: number): string =>
 
 function App(): JSX.Element {
   const [scenes, setScenes] = useState<SceneCard[]>([]);
+  const [skipped, setSkipped] = useState<SkippedScene[]>([]);
   const [store, setStore] = useState("");
   const [at, setAt] = useState(0);
   // Пишется ВСЕГДА конкретный такт, и его слепок хранится здесь же:
@@ -60,8 +63,9 @@ function App(): JSX.Element {
 
   const load = useCallback(async () => {
     const r = await fetch("/api/scenes");
-    const data = (await r.json()) as { scenes: SceneCard[]; store: string; lang?: string };
+    const data = (await r.json()) as { scenes: SceneCard[]; skipped?: SkippedScene[]; store: string; lang?: string };
     setScenes(data.scenes);
+    setSkipped(data.skipped ?? []);
     setStore(data.store);
     // Язык приходит от РОЛИКА: страница подписана на том же языке,
     // на котором написан сценарий, который человек будет читать вслух.
@@ -214,7 +218,14 @@ function App(): JSX.Element {
         </p>
       </header>
 
-      {scenes.length === 0 ? <p className="sub">{w.noScenes}</p> : null}
+      {skipped.length ? <section className="skipped" aria-label={w.skippedTitle}>
+        <h2>{w.skippedTitle}</h2>
+        <ul>{skipped.map((item) => <li key={item.id}>
+          <b>{item.id}</b>: {w.skippedReason(item.kind)} — <code>{item.file}</code>
+        </li>)}</ul>
+      </section> : null}
+
+      {scenes.length === 0 ? <p className="sub">{skipped.length ? w.noReadyScenes : w.noScenes}</p> : null}
 
       {scene ? (
         <main>

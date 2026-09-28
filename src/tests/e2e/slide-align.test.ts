@@ -38,5 +38,5 @@ test("align places a vertical slide's content at the top, in the middle, at the 
     assert.ok(bottom.rule - bottom.bottom < 80, `bottom: content right above the rule (${(bottom.rule - bottom.bottom).toFixed(0)} px)`);
     assert.ok(fill.gaps[0]! > top.gaps[0]! + 100, `fill: the parts spread over the height (gap ${fill.gaps[0]!.toFixed(0)} vs ${top.gaps[0]!.toFixed(0)})`);
   } finally { await browser.close(); }
-  assert.throws(() => slideOf({ id: "x", kind: "quote", provider: "slides", beats: [], fields: { title: "T", parts: "a :: b", align: "middle" } } as never), /align: expected top \| center \| bottom \| fill/);
+  assert.throws(() => slideOf({ id: "x", kind: "quote", provider: "slides", beats: [], fields: { title: "T", parts: "a :: b", align: "middle" } } as never), /align: (?:expected|выберите) top \| center \| bottom \| fill/);
 });

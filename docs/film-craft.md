@@ -542,11 +542,13 @@ change in the middle of a shot.
 
 ## 58. One subject per frame, large, in every format
 
-Every frame holds one main subject large enough to read at the viewer's size. An empty band a third of
-the frame high is a defect in a scene of any kind — a slide, a page, a take. A frame that is only a
-centred title is a title without the product: put the product, its result or the evidence beside the
-words. Check the composition in every format the film ships in; a vertical build re-centres a slide by
-itself, but it cannot add a subject that is not there. The catalogue of composition clichés — identical
+Every explanatory frame holds one main subject large enough to read at the viewer's size. An empty
+band a third of the frame high is a defect in an ordinary slide, page or take. Trailer cards (`slides.card`,
+`slides.titlecard`) deliberately hold one to three words in a sparse frame; judge their rhythm in the
+trailer instead of treating that space as a filler. A frame that is only a centred title is otherwise
+a title without the product: put the product, its result or the evidence beside the words. Check the
+composition in every format the film ships in; a vertical build re-centres a slide by itself, but it
+cannot add a subject that is not there. The catalogue of composition clichés — identical
 cards, a grid symmetric everywhere, an infographic as the main image — is in
 [the visual-design guide](visual-design.md).
 

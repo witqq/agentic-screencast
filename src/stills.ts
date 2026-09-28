@@ -8,6 +8,8 @@
 // кадры рядом с роликом и перечисляет их в отчёте: смотреть можно сразу, без угадывания секунд.
 import { anchorSeconds } from "./spotlight.js";
 import { filmTimeOf, type SpeedStep } from "./speed.js";
+import { msg } from "./msg.js";
+import { MARK_REFERENCE } from "./marks.js";
 
 export interface Still {
   /** момент, как он записан в сценарии */
@@ -20,11 +22,13 @@ export interface Still {
   every?: number;
 }
 
-const MOMENT = /^(b\d+(\.end)?(\s*[+-]\s*[\d.]+)?|[\d.]+\s*%|[\d.]+s?|clip:[\d.]+)$/i;
+const MOMENT = /^(b\d+(\.end)?(\s*[+-]\s*[\d.]+)?|[\d.]+\s*%|[\d.]+s?)$/i;
+const CLIP_MOMENT = new RegExp(`^clip:([+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+))(${MARK_REFERENCE})?$`, "i");
 
 /**
  * Разбор поля `stills`: моменты через `|`, у каждого после `::` — что проверить. Отметка
- * дубля к этому времени уже заменена секундами клипа в виде `clip:<секунды>`.
+ * дубля к этому времени уже разрешена в секунды клипа, но сохраняет имя:
+ * `clip:<секунды>@<имя>` или `clip:<секунды>@<имя>+<смещение>`.
  */
 export function parseStills(value: string, where: string): Still[] {
   const out = value.split("|").map((raw) => raw.trim()).filter(Boolean).map((raw): Still => {
@@ -33,14 +37,15 @@ export function parseStills(value: string, where: string): Still[] {
     const every = /^every\s+([\d.]+)\s*s?$/i.exec(at);
     if (every) {
       const step = Number(every[1]);
-      if (!(step >= 0.25 && step <= 10)) throw new Error(`${where}: «${at}» — the step is 0.25–10 seconds`);
+      if (!(step >= 0.25 && step <= 10)) throw new Error(msg("stills.step", { where, at }));
       return { at: `every ${step}s`, every: step, ...(note ? { note } : {}) };
     }
-    if (!MOMENT.test(at)) throw new Error(`${where}: «${at}» is not a moment; use b2, b2+0.5, b2.end, 80%, 1.5, @mark or every 1s`);
-    const clip = /^clip:([\d.]+)$/i.exec(at);
-    return { at: clip ? `@${clip[1]}` : at, ...(note ? { note } : {}), ...(clip ? { clip: Number(clip[1]) } : {}) };
+    const clip = CLIP_MOMENT.exec(at);
+    if (!MOMENT.test(at) && !clip) throw new Error(msg("stills.moment", { where, at }));
+    return { at: clip ? clip[2] ?? `@${clip[1]}` : at,
+      ...(note ? { note } : {}), ...(clip ? { clip: Number(clip[1]) } : {}) };
   });
-  if (!out.length) throw new Error(`${where}: name at least one moment`);
+  if (!out.length) throw new Error(msg("stills.empty", { where }));
   return out;
 }
 

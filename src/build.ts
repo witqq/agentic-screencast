@@ -79,11 +79,11 @@ process.on("exit", () => {
  */
 function voicedBy(wav: string): string {
   const side = `${wav}.json`;
-  if (!existsSync(side)) return "неизвестно";
+  if (!existsSync(side)) return msg("build.unknownVoice");
   try {
-    return String((JSON.parse(readFileSync(side, "utf8")) as { engine?: string }).engine ?? "неизвестно");
+    return String((JSON.parse(readFileSync(side, "utf8")) as { engine?: string }).engine ?? msg("build.unknownVoice"));
   } catch {
-    return "неизвестно";
+    return msg("build.unknownVoice");
   }
 }
 
@@ -256,7 +256,7 @@ function sceneJobs(): number {
   const raw = process.env.AGENTIC_SCREENCAST_JOBS;
   if (raw !== undefined && raw !== "") {
     const named = Number(raw);
-    if (!Number.isInteger(named) || named < 1) throw new Error(`AGENTIC_SCREENCAST_JOBS: expected a whole number from 1, got «${raw}»`);
+    if (!Number.isInteger(named) || named < 1) throw new Error(msg("build.jobs", { raw }));
     return Math.min(named, 16);
   }
   return Math.max(1, Math.min(4, Math.floor(cpus().length / 3)));
@@ -307,15 +307,15 @@ async function main() {
     ? (JSON.parse(voiceJson) as VoiceData)
     : { engine: arg("engine", "speechkit"), name: arg("voice", "kuznetsov") };
   const semis = (voice as { pitch?: unknown }).pitch;
+  useLang(pitch.lang);
   if (semis !== undefined && (typeof semis !== "number" || !Number.isFinite(semis) || semis < -12 || semis > 12 || semis === 0)) {
-    console.error("voice.pitch: expected semitones from -12 to 12 (a lower voice is negative), not 0");
+    console.error(msg("build.voicePitch"));
     process.exit(2);
   }
   // Кадр и кодирование приходят из ролика; умолчания — прежние числа.
   // Они входят в ключ сегмента: сменился размер или качество — кадры
   // обязаны пересобраться, а не прийти из кэша прежними.
   // Язык ролика — язык отказов этой сборки.
-  useLang(pitch.lang);
   const opts: RenderOpts = { ...DEFAULTS, ...pitch.frame,
     encode: { ...ENCODE, ...pitch.encode }, ...(pitch.motionBlur ? { motionBlur: pitch.motionBlur } : {}) };
   // Длина куска субтитров — одна на ролик: по ней режутся и субтитры кадра, и файл SRT.
@@ -423,8 +423,8 @@ async function main() {
     try { filter = speedFilter(s.speed, dur(src), opts.fps); }
     catch (e) {
       // Частая причина — секунды исходника вместо секунд куска: у сцены с from они считаются от него.
-      const hint = s.trim ? `; speed seconds count from the start of the piece (from: ${s.trim.from}s of the source), not from the start of the source` : "";
-      throw new Error(`scene ${s.id}: ${(e as Error).message}${hint}`);
+      const hint = s.trim ? msg("build.speedHint", { from: s.trim.from }) : "";
+      throw new Error(msg("build.sceneError", { id: s.id, why: `${(e as Error).message}${hint}` }));
     }
     if (!filter) return src;
     const key = md5(JSON.stringify({ speed: s.speed, page: md5file(src) }));
@@ -446,7 +446,7 @@ async function main() {
     if (!s.video || !s.trim) return src;
     if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
     const whole = dur(src);
-    if (s.trim.from >= whole) throw new Error(`scene ${s.id}: from ${s.trim.from}s is past the end of the clip (${whole.toFixed(2)}s)`);
+    if (s.trim.from >= whole) throw new Error(msg("build.trimPast", { id: s.id, from: s.trim.from, whole: whole.toFixed(2) }));
     const to = Math.min(s.trim.to ?? whole, whole);
     const out = `${CACHE}/trim-${md5(JSON.stringify({ from: s.trim.from, to, page: md5file(src) }))}.mp4`;
     if (!existsSync(out)) {
@@ -530,7 +530,7 @@ async function main() {
       const ends = s.beats.map((b, k) => starts[k]! + (b.__spoken ?? 0));
       const duration = Math.max(spoken, s.duration ?? 0);
       try { s.overlay = parseOverlay(String(s.overlayRaw), (a) => anchorSeconds(a, starts.length ? starts : [0], duration, ends)); }
-      catch (e) { console.error(`scene ${s.id}: ${(e as Error).message}`); process.exit(2); }
+      catch (e) { console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message })); process.exit(2); }
     }
     // Фокусы внимания переводятся в камеру, карточки и замедление по
     // ИЗМЕРЕННЫМ тактам: смена голоса или темпа сдвигает их вместе с речью.
@@ -540,7 +540,7 @@ async function main() {
       try {
         ({ compiled, overlay: s.overlay } = spotlightOverlay(s.spotlight, s.overlay, { starts, ends,
           duration: Math.max(spoken, s.duration ?? 0), video: Boolean(s.video) }));
-      } catch (e) { console.error(`scene ${s.id}: ${(e as Error).message}`); process.exit(2); }
+      } catch (e) { console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message })); process.exit(2); }
       if (compiled.speed.length) s.speed = compiled.speed;
       s.__spotlights = compiled.resolved;
     }
@@ -553,7 +553,7 @@ async function main() {
       try {
         s.overlay = parseOverlay(JSON.stringify({ ...s.overlay,
           camera: [...(s.overlay?.camera ?? []), ...cues].sort((a, b) => a.at - b.at) }));
-      } catch (e) { console.error(`scene ${s.id}: autoZoom collides with its overlay — ${(e as Error).message}`); process.exit(2); }
+      } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
     }
     // Клип берётся уже переигранным: и длина сцены, и кадры считаются
@@ -611,7 +611,7 @@ async function main() {
       assets = stageAssets({ overlay: s.overlay, texts: [s.caption, ...s.beats.map((b) => b.text)],
         pageFile: s.video ? undefined : resolve(SRC, String(s.page)), srcDir: SRC, cache: CACHE, emojiDirs });
     } catch (e) {
-      console.error(`scene ${s.id}: ${(e as Error).message}`);
+      console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message }));
       process.exit(1);
     }
     // Место субтитров `auto` решается по кадру самой сцены: клип смотрится как его впишет
@@ -728,7 +728,7 @@ async function main() {
       .filter((c) => c.scale !== undefined && c.area)
       .map((c) => ({ at: c.at, scale: c.scale!, rect: { left: c.area![0] * opts.width, top: c.area![1] * opts.height, width: c.area![2] * opts.width, height: c.area![3] * opts.height } }));
     const byFractions = (l: NonNullable<typeof s.overlay>["loupe"] extends (infer U)[] | undefined ? U : never): { left: number; top: number; width: number; height: number } => {
-      if (l.target) throw new Error(`scene ${s.id}: a loupe over a clip names an area or a point, not a CSS target`);
+      if (l.target) throw new Error(msg("build.loupeTarget", { id: s.id }));
       const b = l.area ?? [l.point![0], l.point![1], 0, 0];
       return { left: b[0] * opts.width, top: b[1] * opts.height, width: b[2] * opts.width, height: b[3] * opts.height };
     };
@@ -824,7 +824,7 @@ async function main() {
         process.stderr.write(msg("build.sceneRender", { at, of, id: s.id, frames }) + "\n");
         const src = clip;
         if (!existsSync(src)) throw new Error(msg("build.noPage", { path: src }));
-        if (s.freezeAt >= dur(src)) throw new Error(`freezeAt is past the end of ${s.id}`);
+        if (s.freezeAt >= dur(src)) throw new Error(msg("build.freezePast", { id: s.id }));
         const still = `${CACHE}/${key}.freeze.png`;
         const html = `${CACHE}/${key}.freeze.html`;
         // В кадрировании кадр снимается сразу в высоту нового кадра: страница рисуется с той же
@@ -839,8 +839,8 @@ async function main() {
           if (!cue.area) continue;
           const contrast = areaContrast(still, cue.area, { width: opts.width, height: opts.height });
           if (Number.isFinite(contrast) && contrast < EMPTY_AREA_CONTRAST) {
-            throw new Error(`scene ${s.id}: camera area [${cue.area.join(", ")}] is nearly empty `
-              + `(contrast ${contrast.toFixed(1)} < ${EMPTY_AREA_CONTRAST}); point it at the subject`);
+            throw new Error(msg("build.cameraEmpty", { id: s.id, area: cue.area.join(", "),
+              contrast: contrast.toFixed(1), minimum: EMPTY_AREA_CONTRAST }));
           }
         }
         const image = readFileSync(still).toString("base64");
@@ -1063,17 +1063,16 @@ async function main() {
   // большом экране этого не видно.
   for (const e of log) {
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
-      if (l.px < l.min) process.stderr.write(`scene ${String(e.id)}: text of ${l.target} is ${l.px} px in the frame at ${l.at}s, under the ${l.min} px a phone reads; `
-        + `push in harder (scale), pan along a wide subject (pan), or magnify it with a loupe\n`);
+      if (l.px < l.min) process.stderr.write(msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }) + "\n");
     }
     const small = e.small as { at: number; min: number; lines: Array<{ text: string; px: number }> } | undefined;
     if (small) {
-      process.stderr.write(`scene ${String(e.id)}: text under the ${small.min} px a phone reads — ${small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ")}; `
-        + `shorten it or give it a scene of its own (a page with larger type)\n`);
+      process.stderr.write(msg("build.small", { id: String(e.id), min: small.min,
+        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }) + "\n");
     }
     for (const c of (e.cut as Array<{ at: number; target: string; text: string[] }> | undefined) ?? []) {
-      process.stderr.write(`scene ${String(e.id)}: the frame cuts text of ${c.target} at ${c.at}s — «${c.text.slice(0, 3).join("», «")}»; `
-        + `lower the scale, pan along it (pan), or focus a smaller part\n`);
+      process.stderr.write(msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
+        text: `«${c.text.slice(0, 3).join("», «")}»` }) + "\n");
     }
   }
   const tScenes = Date.now();
@@ -1081,7 +1080,7 @@ async function main() {
   // Куда пришлись фокусы внимания — в отчёт сцены: по ним видно, что фокус
   // сдвинулся вместе с речью, без просмотра кадров.
   for (const entry of log) {
-    if (entry.overflow) process.stderr.write(`scene ${entry.id}: the slide does not fit its area by ${entry.overflow} px of the grid even shrunk to 72%; split it into two scenes or shorten the items\n`);
+    if (entry.overflow) process.stderr.write(msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }) + "\n");
     const sc = pitch.scenes.find((x) => x.id === entry.id);
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;
     if (sc?.__autoZoom !== undefined) entry.camera = sc.overlay?.camera?.map((c) => ({ at: Number(c.at.toFixed(3)), area: c.area }));
@@ -1127,7 +1126,7 @@ async function main() {
   for (const cue of only ? [] : pitch.sfx ?? []) {
     const m = /^m(\d+(?:\.\d+)?)$/.exec(cue.at);
     if (m && !pitch.music?.bpm) {
-      console.error(`sfx at ${cue.at}: a music beat needs a tempo; no rhythm was heard in the music, so name music.bpm in the header`);
+      console.error(msg("build.sfxTempo", { at: cue.at }));
       process.exit(2);
     }
     const at = m ? musicBeat(Number(m[1]), pitch.music!.bpm!, pitch.music!.offset ?? 0) : Number.parseFloat(cue.at);
@@ -1177,7 +1176,7 @@ async function main() {
         const s = taken[i]!, prev = taken[i - 1]!, t = s.transition;
         if (t?.kind !== MORPH) continue;
         if (!prev.__render || !s.__render) {
-          console.error(`scene ${s.id}: a morph joins two drawn scenes (slides or pages), not a clip`);
+          console.error(msg("build.morphVideo", { id: s.id }));
           process.exit(2);
         }
         const k = transitionFrames(t, opts.fps);
@@ -1193,7 +1192,7 @@ async function main() {
           const bBg = await shot(s.__render, tB, true, "bbg"), bFull = await shot(s.__render, tB, false, "bf");
           morphs.set(s.id, { aBg: aBg.file, bBg: bBg.file, aFull: aFull.file, bFull: bFull.file, ra: aFull.rect, rb: bFull.rect });
         } catch (e) {
-          console.error(`scene ${s.id}: morph element ${t.element}: ${(e as Error).message.split("\n")[0]}`);
+          console.error(msg("build.morphElement", { id: s.id, element: t.element!, why: (e as Error).message.split("\n")[0]! }));
           process.exit(2);
         }
       }
@@ -1286,7 +1285,7 @@ async function main() {
       }
     }
   });
-  if (stills.length) process.stderr.write(`${stills.length} stills: ${stillsDir}\n`);
+  if (stills.length) process.stderr.write(msg("build.stills", { count: stills.length, path: stillsDir }) + "\n");
 
   // Отметки живых дублей во времени ролика: в файле отметок они — секунды клипа, а замедление
   // и остановки сдвигают их в сцене. Автор сверяет по ним фокусы и контрольные кадры.
@@ -1348,6 +1347,6 @@ try {
   const tool = err.stderr ? String(err.stderr).trim().split("\n").filter(Boolean).slice(-2).join("; ") : "";
   const said = (err.message ?? "").startsWith("Command failed") ? `a tool the build runs failed${tool ? `: ${tool}` : ""}`
     : `${err.message ?? String(e)}${tool ? ` (${tool})` : ""}`;
-  console.error(`build failed: ${said}`);
+  console.error(msg("build.failed", { said }));
   process.exit(1);
 }

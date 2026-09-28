@@ -11,6 +11,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { recordTake, type TakeMarks } from "../../capture.js";
 import { autoZoomCues, resolveMarks } from "../../marks.js";
+import { lint } from "../../lint.js";
 
 const require = createRequire(import.meta.url);
 const ffmpeg = require("ffmpeg-static") as string;
@@ -92,6 +93,12 @@ test("a live take pushes in, dims, marks, shows keys and the cursor, and trims i
   const first = frame(file, 0);
   assert.ok(count(first, (r, g, b) => r < 200 || g < 200 || b < 200) > 500, "the first frame has content");
   assert.ok(marks.trimmed > 0.5, `blank start trimmed: ${marks.trimmed}s`);
+  assert.equal(marks.cameraMoves?.length, 2, "the take records its push-in and return intervals");
+  assert.ok(marks.cameraMoves![0]!.from <= marks.marks.overview! + 0.4
+    && marks.cameraMoves![0]!.to >= marks.marks.focused!, "the push-in interval covers its visible movement");
+  writeFileSync(join(dir, "story.md"), `# Take\ntheme: midnight\nvoice: {"engine":"stub","name":"silent"}\n\n## v · video\nfile: take.webm\nduration: 5\n`);
+  assert.deepEqual(lint(join(dir, "story.md")).filter((f) => f.rule === "scene-jump"), [],
+    "the take's actual camera move and dimmed surround are not navigation");
   // Наезд: цель крупнее, чем на общем плане.
   // Отметка ставится вплотную перед наездом: кадр общего плана берём чуть раньше
   // неё — точность отметок около десятой доли секунды.

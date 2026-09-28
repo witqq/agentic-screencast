@@ -275,8 +275,8 @@ line against the command that printed it (`make-material.mjs`).
 - the two signs `lint` still counts are decisions: `transition-kinds` (the transitions chapter shows
   all twelve kinds, by the brief; between chapters only `push`) and `emoji-icons` (`c05-kinds`, the
   scene that shows the emoji feature itself);
-- `c09-button`, a trailer card, keeps the empty band `frames` names under its two words: the card
-  kind lays a short phrase that way, and the trailer's cards are one to three words by genre.
+- `c09-button` keeps a sparse trailer-card frame under its two words; the trailer's cards are one
+  to three words by genre, so judge their rhythm visually.
 
 ## The vertical cut
 

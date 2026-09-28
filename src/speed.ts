@@ -6,6 +6,7 @@
  * changes what the product actually did, or re-encodes the clip by hand
  * outside the scenario, and the scenario stops describing the film.
  */
+import { msg } from "./msg.js";
 export interface SpeedSpan {
   /** Second of the SOURCE clip where the retimed stretch begins. */
   from: number;
@@ -90,64 +91,64 @@ function object(value: unknown): value is Record<string, unknown> {
 export function parseSpeed(json: string): SpeedStep[] {
   let value: unknown;
   try { value = JSON.parse(json); }
-  catch { throw new Error("speed: expected a JSON array of steps"); }
+  catch { throw new Error(msg("speed.form")); }
   if (!Array.isArray(value) || !value.length) {
-    throw new Error("speed: expected a non-empty JSON array of steps");
+    throw new Error(msg("speed.nonEmpty"));
   }
   let previousEnd = 0;
   const steps = value.map((raw: unknown, i: number): SpeedStep => {
-    if (!object(raw)) throw new Error(`speed[${i}]: expected an object`);
+    if (!object(raw)) throw new Error(msg("overlay.object", { where: `speed[${i}]` }));
     const hold = raw.hold !== undefined;
     const allowed = hold ? ["at", "hold"] : ["from", "to", "rate", "ramp", "interpolate"];
     for (const key of Object.keys(raw)) {
       if (!allowed.includes(key)) {
-        throw new Error(`speed[${i}]: unknown property «${key}» for a ${hold ? "hold" : "span"}`);
+        throw new Error(msg("speed.unknownProperty", { index: i, key, kind: msg(hold ? "speed.holdKind" : "speed.spanKind") }));
       }
     }
     if (hold) {
       const { at, hold: length } = raw as { at: unknown; hold: unknown };
       for (const [name, v] of [["at", at], ["hold", length]] as const) {
         if (typeof v !== "number" || !Number.isFinite(v) || v < 0) {
-          throw new Error(`speed[${i}].${name}: expected a non-negative number of seconds`);
+          throw new Error(msg("speed.nonNegative", { field: `speed[${i}].${name}` }));
         }
       }
       // Пределы — из читаемости: короче полусекунды остановка не читается как остановка,
       // длиннее двенадцати секунд замерший кадр перестаёт быть приёмом и становится паузой.
       if ((length as number) < 0.5 || (length as number) > 12) {
-        throw new Error(`speed[${i}].hold: expected 0.5–12 seconds`);
+        throw new Error(msg("speed.holdRange", { index: i }));
       }
       return { at: at as number, hold: length as number };
     }
     const { from, to, rate } = raw as { from: unknown; to: unknown; rate: unknown };
     for (const [name, v] of [["from", from], ["to", to], ["rate", rate]] as const) {
       if (typeof v !== "number" || !Number.isFinite(v)) {
-        throw new Error(`speed[${i}].${name}: expected a number`);
+        throw new Error(msg("speed.number", { field: `speed[${i}].${name}` }));
       }
     }
     const span: SpeedSpan = { from: from as number, to: to as number, rate: rate as number };
     const { ramp, interpolate } = raw as { ramp?: unknown; interpolate?: unknown };
     if (ramp !== undefined) {
-      if (typeof ramp !== "number" || !Number.isFinite(ramp) || ramp <= 0) throw new Error(`speed[${i}].ramp: expected seconds of the source`);
-      if (ramp > (span.to - span.from) / 2 + 1e-9) throw new Error(`speed[${i}].ramp: at most half the span (${((span.to - span.from) / 2).toFixed(2)} s)`);
+      if (typeof ramp !== "number" || !Number.isFinite(ramp) || ramp <= 0) throw new Error(msg("speed.rampSeconds", { index: i }));
+      if (ramp > (span.to - span.from) / 2 + 1e-9) throw new Error(msg("speed.rampHalf", { index: i, half: ((span.to - span.from) / 2).toFixed(2) }));
       span.ramp = ramp;
     }
     if (interpolate !== undefined) {
       const mode = interpolate === true ? "motion" : interpolate;
-      if (mode !== "motion" && mode !== "blend") throw new Error(`speed[${i}].interpolate: expected true, "motion" or "blend"`);
+      if (mode !== "motion" && mode !== "blend") throw new Error(msg("speed.interpolate", { index: i }));
       span.interpolate = mode;
     }
-    if (span.from < 0) throw new Error(`speed[${i}].from: expected a non-negative second`);
-    if (span.to <= span.from) throw new Error(`speed[${i}]: to must be later than from`);
+    if (span.from < 0) throw new Error(msg("speed.from", { index: i }));
+    if (span.to <= span.from) throw new Error(msg("speed.toAfterFrom", { index: i }));
     // Пределы взяты из читаемости, а не из возможностей кодека: медленнее пятой доли скорости
     // движение перестаёт читаться как движение, быстрее четырёхкратного — как показ, а не как
     // перемотка.
-    if (span.rate < 0.2 || span.rate > 4) throw new Error(`speed[${i}].rate: expected 0.2–4`);
-    if (span.rate === 1) throw new Error(`speed[${i}].rate: 1 changes nothing`);
+    if (span.rate < 0.2 || span.rate > 4) throw new Error(msg("speed.rateRange", { index: i }));
+    if (span.rate === 1) throw new Error(msg("speed.rateOne", { index: i }));
     return span;
   });
   for (const [i, step] of steps.entries()) {
     if (stepStart(step) < previousEnd) {
-      throw new Error(`speed[${i}]: steps must not overlap and must go in order`);
+      throw new Error(msg("speed.order", { index: i }));
     }
     previousEnd = stepEnd(step);
   }
@@ -165,7 +166,7 @@ export function speedFilter(steps: SpeedStep[], duration: number, fps: number): 
   if (!steps.length) return null;
   const last = steps[steps.length - 1]!;
   if (stepEnd(last) > duration + 0.001) {
-    throw new Error(`speed: step ends at ${stepEnd(last)}s, past the ${duration.toFixed(2)}s clip`);
+    throw new Error(msg("speed.pastClip", { end: stepEnd(last), duration: duration.toFixed(2) }));
   }
   const parts: string[] = [];
   let cursor = 0;

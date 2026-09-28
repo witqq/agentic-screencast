@@ -4,6 +4,7 @@
 // интерфейс не теряет ни края. `cover` — клип заполняет кадр целиком, лишнее срезается; точка
 // `x y` (доли клипа, 0.5 0.5 — середина) говорит, какую его часть держать в кадре. Так ставят
 // чужие клипы — квадратные, 4:3, вертикальные — в фильм без полей.
+import { msg } from "./msg.js";
 
 /** Вписывание клипа: режим и точка, которую `cover` держит в кадре. */
 export interface Fit { mode: "contain" | "cover"; x: number; y: number }
@@ -13,18 +14,19 @@ export function parseFit(raw: string): Fit {
   const text = raw.trim();
   let v: Record<string, unknown>;
   if (text.startsWith("{")) {
-    try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error('fit: expected contain, cover [x y] or {"mode","x","y"}'); }
-    for (const k of Object.keys(v)) if (!["mode", "x", "y"].includes(k)) throw new Error(`fit: unknown property «${k}»`);
+    try { v = JSON.parse(text) as Record<string, unknown>; } catch { throw new Error(msg("fit.form")); }
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error(msg("fit.form"));
+    for (const k of Object.keys(v)) if (!["mode", "x", "y"].includes(k)) throw new Error(msg("source.unknownProperty", { field: "fit", key: k }));
   } else {
     const [mode, x, y] = text.split(/\s+/);
     v = { mode, ...(x !== undefined ? { x: Number(x) } : {}), ...(y !== undefined ? { y: Number(y) } : {}) };
   }
-  if (v.mode !== "contain" && v.mode !== "cover") throw new Error(`fit: expected contain or cover, got «${String(v.mode)}»`);
-  if (v.mode === "contain" && (v.x !== undefined || v.y !== undefined)) throw new Error("fit: only cover keeps a point in frame");
+  if (v.mode !== "contain" && v.mode !== "cover") throw new Error(msg("fit.mode", { mode: String(v.mode) }));
+  if (v.mode === "contain" && (v.x !== undefined || v.y !== undefined)) throw new Error(msg("fit.coverPoint"));
   const share = (k: "x" | "y"): number => {
     if (v[k] === undefined) return 0.5;
     const n = Number(v[k]);
-    if (!Number.isFinite(n) || n < 0 || n > 1) throw new Error(`fit.${k}: expected a share of the clip, 0…1`);
+    if (!Number.isFinite(n) || n < 0 || n > 1) throw new Error(msg("fit.share", { field: `fit.${k}` }));
     return n;
   };
   return { mode: v.mode, x: share("x"), y: share("y") };

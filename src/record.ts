@@ -157,9 +157,9 @@ export interface Server {
 }
 
 export async function serve(opts: ServerOpts): Promise<Server> {
-  const src = parseSource(opts.source);
+  const source = parseSource(opts.source, { recording: true });
+  const { src, slidesDir, pitchFile, skipped } = generate(source, { recording: true });
   useLang(src.lang);
-  const { slidesDir, pitchFile } = generate(src);
   const store = storeDir(opts.voice);
   mkdirSync(store, { recursive: true });
 
@@ -214,7 +214,7 @@ export async function serve(opts: ServerOpts): Promise<Server> {
       if (path === "/api/scenes") {
         // Язык — от РОЛИКА: страница подписана тем же языком, на котором
         // написан сценарий, который человек будет читать вслух.
-        return json(res, 200, { scenes: cardsOf(src, opts.voice), store, lang: src.lang ?? "en" });
+        return json(res, 200, { scenes: cardsOf(src, opts.voice), skipped, store, lang: src.lang ?? "en" });
       }
 
       const pic = path.match(/^\/api\/picture\/([\w.-]+)$/);
@@ -331,7 +331,7 @@ if (invokedDirectly) {
   };
   const voiceJson = arg("voice-json");
   const source = arg("source", "story.md")!;
-  const src = parseSource(source);
+  const src = parseSource(source, { recording: true });
   // Данные голоса берутся из сценария, если их не назвали флагом: каталог
   // записей обязан совпасть с тем, из которого потом читает сборка.
   const voice: VoiceData = voiceJson
@@ -351,7 +351,7 @@ if (invokedDirectly) {
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, () => { void server.close().then(() => process.exit(0)); });
   }
-  console.log(`интерфейс записи: ${url}`);
-  console.log(`хранилище записей: ${storeDir(voice)}`);
-  console.log("остановить: Ctrl+C");
+  console.log(msg("record.started", { url }));
+  console.log(msg("record.store", { path: storeDir(voice) }));
+  console.log(msg("record.stop"));
 }

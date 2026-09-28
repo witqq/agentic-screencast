@@ -9,8 +9,8 @@
 //
 // Запуск: lint.js <сценарий>. Код выхода 1 — есть замечания.
 import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-import { parseSource, SourceError, specOf, toPitch, type PitchScene } from "./source.js";
+import { dirname, resolve } from "node:path";
+import { foldLines, parseSource, SourceError, specOf, toPitch, type PitchScene } from "./source.js";
 import { providerFor } from "./provider/index.js";
 import { SHOWN_COMMON } from "./visible.js";
 import { cameraEnd, cardHold } from "./overlay.js";
@@ -18,9 +18,11 @@ import { THEMES, themeFingerprint, wholeThemeFingerprint, type ThemeVars } from 
 import { fitScale } from "./camera.js";
 import { loupeLayout } from "./loupe.js";
 import { FORMATS } from "./format.js";
+import { subtitleMax } from "./film.js";
 import { estimateBeats, spotlightOverlay } from "./spotlight.js";
 import { stepEnd } from "./speed.js";
 import { marksOf } from "./marks.js";
+import { msg } from "./msg.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 
@@ -101,10 +103,39 @@ function clipLength(clip: string): number {
 
 export interface Finding { scene: string; index: number; rule: string; message: string }
 
-/** Две строки субтитров по 84 знака: больше на экране не держат (правило 5). */
-const LINE = 84;
 /** Сцена длиннее — это уже не кадр, а несколько кадров под одной подписью. */
 const LONG = 25;
+
+const PAGE_MOTION = /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=|\bdata-(?:type|kinetic)\s*=/u;
+
+/** Анимация в странице или в её локальных скриптах; внешняя сеть не подтверждает движение. */
+function pageMoves(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const html = readFileSync(file, "utf8");
+  if (PAGE_MOTION.test(html)) return true;
+  for (const match of html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/giu)) {
+    const ref = match[1] ?? match[2] ?? match[3] ?? "";
+    if (!ref || ref.startsWith("/") || /^[a-z][a-z\d+.-]*:/iu.test(ref)) continue;
+    const local = resolve(dirname(file), ref.split(/[?#]/u, 1)[0]!);
+    if (existsSync(local) && PAGE_MOTION.test(readFileSync(local, "utf8"))) return true;
+  }
+  return false;
+}
+
+/** Ошибки компиляции фокуса приходят из общего движка; для lint сохраняем их числа и язык запуска. */
+function spotlightFinding(why: string): string {
+  let m = /^spotlight\[(\d+)\]: until ([\d.]+)s comes before the camera arrives at ([\d.]+)s/u.exec(why);
+  if (m) return msg("lint.spotUntilEarly", { index: m[1]!, until: m[2]!, arrival: m[3]! });
+  m = /^spotlight\[(\d+)\] at ([\d.]+)s holds until ([\d.]+)s and is back at ([\d.]+)s, but spotlight\[(\d+)\] starts at ([\d.]+)s;.*start the next focus at ([\d.]+)s/u.exec(why);
+  if (m) return msg("lint.spotGap", { index: m[1]!, at: m[2]!, hold: m[3]!, back: m[4]!, next: m[5]!, nextAt: m[6]!, start: m[7]! });
+  m = /^spotlight\[(\d+)\]: it needs until ([\d.]+)s( for its card to be read)?, but the next focus starts at ([\d.]+)s/u.exec(why);
+  if (m) return msg("lint.spotCardOverlap", { index: m[1]!, until: m[2]!, card: m[3] ? msg("lint.spotCardReason") : "", nextAt: m[4]! });
+  m = /^spotlight collides with its overlay — overlay\.camera: the move at ([\d.]+)s starts during the hold of the kept move before it, which ends at ([\d.]+)s/u.exec(why);
+  if (m) return msg("lint.spotCameraChained", { at: m[1]!, end: m[2]! });
+  m = /^spotlight collides with its overlay — overlay\.camera: the move at ([\d.]+)s starts before the one before it is back at ([\d.]+)s;.*start it at ([\d.]+)s/u.exec(why);
+  if (m) return msg("lint.spotCameraBack", { at: m[1]!, end: m[2]!, start: m[3]! });
+  return why;
+}
 
 export function lint(file: string): Finding[] {
   const src = parseSource(file);
@@ -120,7 +151,7 @@ export function lint(file: string): Finding[] {
   // Вариант на другом языке: видимое поле без перевода — текст оригинала в чужом ролике.
   for (const u of src.untranslated ?? []) {
     if (u.scene < 0 && u.key === "title") {
-      out.push({ scene: "(film)", index: 0, rule: "untranslated", message: `the film title has no ${src.variant} translation; write title.${src.variant}: in the header` });
+      out.push({ scene: "(film)", index: 0, rule: "untranslated", message: msg("lint.untranslatedFilm", { lang: src.variant ?? "" }) });
     } else if (u.scene >= 0) {
       const sc = src.scenes[u.scene]!;
       const shown = [...SHOWN_COMMON, ...(specOf(sc, src.providers ?? {}).shown ?? [])];
@@ -128,7 +159,8 @@ export function lint(file: string): Finding[] {
       // Накладка и фокус видны переводу только текстом: пометки, лупа и всплески без
       // единой надписи одинаковы на любом языке.
       if ((u.key === "overlay" || u.key === "spotlight") && !/"(text|title|subtitle|body)"\s*:/u.test(sc.fields[u.key] ?? "")) continue;
-      out.push({ scene: sc.id, index: u.scene + 1, rule: "untranslated", message: `line ${u.n}: ${u.key} is shown on screen and has no ${src.variant} translation; write ${u.key}.${src.variant}:` });
+      out.push({ scene: sc.id, index: u.scene + 1, rule: "untranslated", message: msg("lint.untranslatedScene",
+        { line: u.n, field: u.key, lang: src.variant ?? "" }) });
     }
   }
   pitch.scenes.forEach((s: PitchScene, i: number) => {
@@ -138,10 +170,12 @@ export function lint(file: string): Finding[] {
     const spoken = (s.beats.length ? s.speechAt ?? 0 : 0) + s.beats.reduce((t, b) => t + Math.max(0.6, (b.speech ?? b.text).length / cps), 0);
     const duration = Math.max(s.duration ?? 0, spoken + (s.tail ?? pitch.tail ?? 0.4));
 
-    // Правило 5: не больше двух строк текста на экране.
+    // Правило 5: ширина двух строк берётся из той же зоны и темы, что у рендера.
+    const frame = { width: Number(src.frame?.width ?? FORMATS.landscape.width), height: Number(src.frame?.height ?? FORMATS.landscape.height) };
+    const line = subtitleMax(frame, src.safe, s.theme ?? pitch.theme ?? {}, src.captions?.size ?? 1);
     s.beats.forEach((b, k) => {
-      if (b.text.length > LINE * 2) {
-        add("overloaded-line", `beat ${k + 1} is ${b.text.length} characters — more than two subtitle lines (${LINE * 2}); split it into two beats`);
+      if (b.text.length > line * 2) {
+        add("overloaded-line", msg("lint.overloadedLine", { beat: k + 1, chars: b.text.length, limit: line * 2 }));
       }
     });
 
@@ -158,14 +192,14 @@ export function lint(file: string): Finding[] {
       const from = card.at, to = card.at + (card.hold ?? cardHold(card));
       const covered = spotlit || camera.some(([a, b]) => a <= from + 0.2 && b >= to - 0.2);
       if (captionShown && !covered) {
-        add("two-text-layers", `card «${card.title}» at ${from.toFixed(1)}s shares the frame with the caption; hold it on a camera push-in, or move the words into the narration`);
+        add("two-text-layers", msg("lint.cardCaption", { title: card.title, at: from.toFixed(1) }));
       }
     }
     const titles = s.overlay?.titles ?? [];
     for (const t of titles) {
       for (const card of s.overlay?.cards ?? []) {
         if (t.at < card.at + (card.hold ?? cardHold(card)) && card.at < t.at + (t.hold ?? 3)) {
-          add("two-text-layers", `title «${t.text}» and card «${card.title}» are on screen together; give each its own moment`);
+          add("two-text-layers", msg("lint.titleCard", { title: t.text, card: card.title }));
         }
       }
     }
@@ -175,7 +209,7 @@ export function lint(file: string): Finding[] {
     // этого не спасает: две надписи читаются одной кашей.
     if (!spec.moving || s.video) {
       for (const t of titles) {
-        if (t.position === "top") add("title-over-interface", `title «${t.text}» sits at the top of an interface, over its own header; put it at the centre, where the frame dims under it`);
+        if (t.position === "top") add("title-over-interface", msg("lint.titleOverInterface", { title: t.text }));
       }
     }
 
@@ -192,9 +226,9 @@ export function lint(file: string): Finding[] {
           // Подсказка по тому, какая ошибка вероятнее: секунды исходника вместо секунд куска (конец за
           // `from` и после вычитания ложится в кусок) — или просто перелёт за конец куска.
           const asSource = s.trim && end > s.trim.from && end - s.trim.from <= piece + 0.001;
-          add("speed-range", `speed ends at ${end}s, but the clip the scene shows is ${piece.toFixed(2)}s long`
-            + (asSource ? `; speed seconds count from the start of the piece (from: ${s.trim!.from}s of the source), so write ${(end - s.trim!.from).toFixed(2)}s, not ${end}s`
-              : `; end the speed at ${piece.toFixed(2)}s at the latest, or lengthen the piece (to)`));
+          add("speed-range", asSource
+            ? msg("lint.speedRangeSource", { end, piece: piece.toFixed(2), from: s.trim!.from, local: (end - s.trim!.from).toFixed(2) })
+            : msg("lint.speedRange", { end, piece: piece.toFixed(2) }));
         }
       }
     }
@@ -203,7 +237,7 @@ export function lint(file: string): Finding[] {
     // накладывается на текст реплики поверх всего ролика, и сдвинуть её сцена не может.
     const capAt = s.captionsAt ?? src.captions?.position ?? "bottom";
     if (capAt === "top" && src.progress?.position === "top") {
-      add("captions-top-progress", "subtitles stand at the top and so does the progress bar with the part label; put one of them at the bottom (progress.position or captions)");
+      add("captions-top-progress", msg("lint.captionsTopProgress"));
     }
 
     // Дубль, снятый меньше кадра, растягивается и мылится: телефонная вёрстка при малой
@@ -218,8 +252,8 @@ export function lint(file: string): Finding[] {
         const need = s.fit?.mode === "cover" ? Math.max(kx, ky) : Math.min(kx, ky);
         if (need > 1.25) {
           const take = existsSync(`${clip}.marks.json`);
-          add("take-small", `the clip is ${size.width}×${size.height} and is enlarged ${need.toFixed(2)}× to fill the ${frame.width}×${frame.height} frame, so it goes soft; `
-            + (take ? "record it at the frame's size — recordTake({ viewport, scale }) records a phone layout in device pixels" : "take a larger file of the same clip if the source has one"));
+          add("take-small", msg(take ? "lint.takeSmallRecorded" : "lint.takeSmallExternal",
+            { clip: `${size.width}×${size.height}`, scale: need.toFixed(2), frame: `${frame.width}×${frame.height}` }));
         }
       }
     }
@@ -232,14 +266,21 @@ export function lint(file: string): Finding[] {
       // Блок сцены в тексте сценария — от её заголовка до следующего заголовка сцены.
       const head = raw.findIndex((l) => new RegExp(`^##\\s+${s.id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*·`).test(l));
       const tail = head < 0 ? -1 : raw.findIndex((l, k) => k > head && /^##\s/.test(l));
-      const block = head < 0 ? "" : raw.slice(head, tail < 0 ? undefined : tail).join("\n");
+      const block = head < 0 ? [] : raw.slice(head, tail < 0 ? undefined : tail);
+      // Отметка в подписи или заметке не превращает следующий план во внутренний момент.
+      // Только момент контрольного кадра описывает состояние, которое сцена намеренно проходит.
+      const checked = foldLines(block).map(({ line }) => line).filter((l) => /^stills:\s*/u.test(l))
+        .flatMap((l) => l.slice(l.indexOf(":") + 1).split("|"))
+        .map((part) => part.split("::", 1)[0]!.trim());
       const end = s.trim.to ?? Infinity;
       const crossed = Object.entries(all)
-        .filter(([name, t]) => t > s.trim!.from + 0.05 && t < end - 0.05 && !new RegExp(`@${name}(?![\\w-])`).test(block))
+        .filter(([name, t]) => t > s.trim!.from + 0.05 && t < end - 0.05
+          && !checked.some((moment) => new RegExp(`^@${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(?:\\s*[+-]\\s*[\\d.]+)?$`).test(moment)))
         .sort((a, b) => a[1] - b[1]);
       if (crossed.length) {
         const [name, t] = crossed[0]!;
-        add("piece-crosses-mark", `the piece ${s.trim.from}–${Number.isFinite(end) ? end : "end"}s of the take runs past @${name} (${t}s), which this scene does not name — the next shot starts there; end the piece at to: @${name}`);
+        add("piece-crosses-mark", msg("lint.pieceCrossesMark",
+          { from: s.trim.from, end: Number.isFinite(end) ? end : "end", mark: name, at: t }));
       }
     }
 
@@ -254,11 +295,13 @@ export function lint(file: string): Finding[] {
         const frames = grayFrames(clip, from, to, FPS, W, H);
         if (frames.length) {
           const empty = frames.filter((f) => flatShare(f, W, H) >= 0.3).length / frames.length;
-          if (empty > 0.3) add("empty-area", `in ${Math.round(empty * 100)}% of the scene's frames a third of the picture or more is one flat colour — an empty filler or a page that slid away; fill the frame with the real screen, move the subtitles instead of padding the content (film craft 53)`);
-          const marks = Object.values(marksOf(clip)?.marks ?? {}).map((t) => t - from);
-          if (marksOf(clip)) {
-            const jump = jumpsOf(frames, FPS).find((t) => t > 0.3 && !marks.some((m) => Math.abs(m - t) <= 0.6));
-            if (jump !== undefined) add("scene-jump", `the screen changes abruptly ${jump.toFixed(1)}s into the piece, where the take has no mark — a navigation inside the shot; end the piece at a mark placed before it (film craft 54)`);
+          if (empty > 0.3) add("empty-area", msg("lint.emptyArea", { percent: Math.round(empty * 100) }));
+          const take = marksOf(clip);
+          const marks = Object.values(take?.marks ?? {}).map((t) => t - from);
+          if (take) {
+            const jump = jumpsOf(frames, FPS).find((t) => t > 0.3 && !marks.some((m) => Math.abs(m - t) <= 0.6)
+              && !(take.cameraMoves ?? []).some((move) => t + from >= move.from && t + from <= move.to));
+            if (jump !== undefined) add("scene-jump", msg("lint.sceneJump", { at: jump.toFixed(1) }));
           }
         }
       }
@@ -266,7 +309,7 @@ export function lint(file: string): Finding[] {
 
     // Переход встаёт на стык со сценой перед ним; у первой сцены стыка нет.
     if (i === 0 && s.transition) {
-      add("first-transition", "the first scene has no scene before it, so its transition is never played; move it to the second scene or remove it");
+      add("first-transition", msg("lint.firstTransition"));
     }
 
     // Живой дубль несёт в пикселях свой слой — курсор, клик, клавиши, карточку — в той теме,
@@ -281,9 +324,11 @@ export function lint(file: string): Finding[] {
       const same = recorded && (recorded.of === "baked" ? recorded.id === want.id
         : recorded.id === wholeThemeFingerprint(vars) || (recorded.name !== undefined && recorded.name === want.name));
       if (!recorded) {
-        add("take-theme", `the take ${s.page} was recorded before takes stored their theme, so its cursor, clicks and cards may not match the scene's ${want.name ?? "theme"}; to be sure, record it again with theme: ${want.name ? `"${want.name}"` : "the scene's theme"}`);
+        add("take-theme", msg("lint.takeThemeOld", { file: String(s.page), wanted: want.name ?? msg("lint.themeUnnamed"),
+          hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
       } else if (!same) {
-        add("take-theme", `the take ${s.page} was recorded in ${recorded.name ?? "another theme"}, the scene wears ${want.name ?? "another theme"}; record it again with theme: ${want.name ? `"${want.name}"` : "the scene's theme"}`);
+        add("take-theme", msg("lint.takeThemeMismatch", { file: String(s.page), recorded: recorded.name ?? msg("lint.themeOther"),
+          wanted: want.name ?? msg("lint.themeOther"), hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
       }
     }
 
@@ -291,7 +336,6 @@ export function lint(file: string): Finding[] {
     // увеличением, при котором область не помещается в кадр, режет цель; лупа, чей предмет
     // не входит в линзу предельного размера, рисуется с меньшим увеличением. Цель-селектор
     // меряет только рендер — о ней говорит отчёт сборки (`pushes`, `loupes` сцены).
-    const frame = { width: Number(src.frame?.width ?? FORMATS.landscape.width), height: Number(src.frame?.height ?? FORMATS.landscape.height) };
     const pushed = [...(s.overlay?.camera ?? []).filter((c) => !c.pan).map((c) => ({ at: `${c.at}s`, scale: c.scale, area: c.area })),
       ...(s.spotlight ?? []).filter((f) => !f.pan).map((f) => ({ at: f.at, scale: f.scale, area: f.area }))];
     // У клипа в рамке устройства области переводятся в экран рамки только при сборке; о нём
@@ -299,12 +343,13 @@ export function lint(file: string): Finding[] {
     for (const c of s.device ? [] : pushed) {
       if (c.scale === undefined || !c.area) continue;
       const fit = fitScale(c.area[2], c.area[3]);
-      if (c.scale > fit + 0.005) add("push-crop", `the push-in at ${c.at} scales ×${c.scale}, but its area stays whole in the frame only up to ×${fit.toFixed(2)}; drop scale to fit it or name a smaller area`);
+      if (c.scale > fit + 0.005) add("push-crop", msg("lint.pushCrop", { at: c.at, scale: c.scale ?? "", fit: fit.toFixed(2) }));
     }
     for (const l of s.overlay?.loupe ?? []) {
       if (!l.area) continue;
       const g = loupeLayout(l, { left: l.area[0] * frame.width, top: l.area[1] * frame.height, width: l.area[2] * frame.width, height: l.area[3] * frame.height }, frame);
-      if (g.k < g.asked - 0.005) add("loupe-scale", `the loupe at ${l.at}s magnifies ×${g.k.toFixed(2)} instead of ×${g.asked}: its area does not fit a lens of the largest size at that scale; name a smaller area`);
+      if (g.k < g.asked - 0.005) add("loupe-scale", msg("lint.loupeScale",
+        { at: l.at, actual: g.k.toFixed(2), asked: g.asked }));
     }
 
     // Правило 9: в кадре ничто не стоит.
@@ -318,13 +363,12 @@ export function lint(file: string): Finding[] {
     // движение идёт по времени сцены так же, как слой композиции. Один `data-at` ничего не двигает:
     // слой лишь переводит якорь в секунды.
     const pageFile = !s.video ? resolve(src.dir, String(s.page)) : "";
-    const animated = pageFile && existsSync(pageFile)
-      && /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=|\bdata-(?:type|kinetic)\s*=/u.test(readFileSync(pageFile, "utf8"));
+    const animated = pageFile && pageMoves(pageFile);
     if (!spec.moving && duration > 5 && !moves && zoom <= 1 && !animated) {
-      add("still-scene", `the page stands still for ${duration.toFixed(1)}s; add a camera move, a spotlight or a focus that follows the narration`);
+      add("still-scene", msg("lint.stillPage", { duration: duration.toFixed(1) }));
     }
     if (s.video && s.freezeAt !== undefined && !s.overlay?.camera?.length && !spotlit) {
-      add("still-scene", "a frozen frame without a camera move or highlight reads as a pause; push in on what the narration names");
+      add("still-scene", msg("lint.stillVideo"));
     }
 
     // Фокусы — заранее, по оценке тактов: столкновение движений камеры иначе видит только
@@ -341,10 +385,11 @@ export function lint(file: string): Finding[] {
             const f = s.spotlight![k]!;
             if (f.slow !== undefined || r.hold <= 2) return;
             const from = r.at + (f.move ?? 0.8), cut = s.trim?.from ?? 0, still = frozenFor(clip, cut + from, cut + from + r.hold);
-            if (still > 2) add("still-hold", `spotlight[${k}] holds from ${from.toFixed(1)}s for ${r.hold.toFixed(1)}s while the clip stands still for ${still.toFixed(1)}s; pass that stretch faster with speed: [{"from":${from.toFixed(1)},"to":${(from + r.hold).toFixed(1)},"rate":2}], or end the focus sooner with until`);
+            if (still > 2) add("still-hold", msg("lint.stillHold", { index: k, from: from.toFixed(1),
+              hold: r.hold.toFixed(1), still: still.toFixed(1), to: (from + r.hold).toFixed(1) }));
           });
         }
-      } catch (e) { add("spotlight-collision", (e as Error).message); }
+      } catch (e) { add("spotlight-collision", spotlightFinding((e as Error).message)); }
     }
 
     // Набираемые поля вида должны успеть до конца сцены. Страница набор ускоряет, но быстрее
@@ -357,7 +402,9 @@ export function lint(file: string): Finding[] {
       const need = room > 0 ? len / room : Infinity;
       if (need > t.cps * 1.5) {
         const fits = t.from + 0.6 + len / (t.cps * 1.5);
-        add("typing-too-fast", `the ${t.field} (${len} characters) is typed from ${t.from}s and must finish before the scene ends at ${duration.toFixed(1)}s — ${need === Infinity ? "no time is left" : `${need.toFixed(0)} characters per second, faster than can be read`}; make the scene at least ${fits.toFixed(1)}s or shorten the ${t.field}`);
+        add("typing-too-fast", msg("lint.typingTooFast", { field: t.field, chars: len, from: t.from,
+          end: duration.toFixed(1), pace: need === Infinity ? msg("lint.typingNoTime") : msg("lint.typingRate", { rate: need.toFixed(0) }),
+          fits: fits.toFixed(1) }));
       }
     }
 
@@ -366,13 +413,13 @@ export function lint(file: string): Finding[] {
     if (spec.numbers) {
       const note = f.note?.trim() ?? "";
       if (!/\b(?:19|20)\d\d\b/u.test(note)) {
-        add("number-source", `the ${s.kind} slide shows numbers with no source and date under them; write note: <where the numbers come from>, <date or month and year> (film craft 12, 56)`);
+        add("number-source", msg("lint.numberSource", { kind: s.kind }));
       }
     }
 
     // Слишком длинная сцена.
     if (duration > LONG) {
-      add("long-scene", `about ${duration.toFixed(0)}s in one scene; split it into shots of one idea each (over ${LONG}s the viewer loses the thread)`);
+      add("long-scene", msg("lint.longScene", { duration: duration.toFixed(0), limit: LONG }));
     }
   });
   return out;
@@ -406,32 +453,33 @@ export function clicheSigns(file: string): Sign[] {
     || (src.look?.bars !== undefined && src.look?.grade === "teal-orange") || scenes.some(({ vars }) => genre(vars));
   if (!trailer) {
     sign("hit-outside-trailer", scenes.filter(({ f }) => f.flash || f.shake).map(({ s }) => s.id),
-      "flash or shake in a film that is not a trailer: an impact without its genre reads as noise (film craft 63)");
-    if ((src.look?.grain ?? 0) > 0) sign("grain", ["(film)"], "film grain on a film that is not a trailer: grain belongs over filmed footage in a trailer, and it multiplies the file size (film craft 63)");
+      msg("lint.clicheHit"));
+    if ((src.look?.grain ?? 0) > 0) sign("grain", ["(film)"], msg("lint.clicheGrain"));
   }
   const sparkles = scenes.filter(({ s }) => (s.overlay?.bursts?.length ?? 0) + (s.overlay?.glints?.length ?? 0) > 0);
   const sparkleCount = scenes.reduce((n, { s }) => n + (s.overlay?.bursts?.length ?? 0) + (s.overlay?.glints?.length ?? 0), 0);
-  if (sparkleCount > 2) sign("many-sparkles", sparkles.map(({ s }) => s.id), `${sparkleCount} bursts and glints: more than two a film and they stop meaning success`);
+  if (sparkleCount > 2) sign("many-sparkles", sparkles.map(({ s }) => s.id), msg("lint.clicheSparkles", { count: sparkleCount }));
   const kinds = new Map<string, string[]>();
   for (const { s } of scenes) {
     const k = (s.transition as { kind?: string } | undefined)?.kind;
     if (k) kinds.set(k, [...(kinds.get(k) ?? []), s.id]);
   }
-  if (kinds.size > 2) sign("transition-kinds", [...kinds.values()].flat(), `${kinds.size} kinds of transition (${[...kinds.keys()].join(", ")}): one or two a film, chosen for what the cut means (film craft 52)`);
+  if (kinds.size > 2) sign("transition-kinds", [...kinds.values()].flat(), msg("lint.clicheTransitions",
+    { count: kinds.size, kinds: [...kinds.keys()].join(", ") }));
   sign("decorative-background", scenes.filter(({ f, vars, spec }) => spec.fields.includes("background") && !genre(vars) && !trailer
     && DECORATIVE.has(f.background?.trim() || vars?.["--bg-motion"] || "")).map(({ s }) => s.id),
-    "an aurora, mesh, bokeh or particles background as depth: the AI-startup look; a quiet grid or none, unless the motion is the subject");
+    msg("lint.clicheBackground"));
   sign("placeholder-address", scenes.filter(({ f }) => /^\s*browser\b/u.test(f.device ?? "") && PLACEHOLDER_URL.test((f.device ?? "").replace(/^\s*browser\s*/u, "").trim()))
-    .map(({ s }) => s.id), "a browser frame with no real address or a placeholder one: a frame is for the real address, a mockup is labelled as an illustration (film craft 60)");
+    .map(({ s }) => s.id), msg("lint.clicheAddress"));
   sign("kicker-caps", scenes.filter(({ f, vars, spec }) => spec.fields.includes("kicker") && !genre(vars) && !spec.trailer
     && (vars?.["--kicker-case"] === "uppercase" || ((f.kicker ?? "").replace(/[^\p{L}]/gu, "").length >= 4 && f.kicker === f.kicker!.toUpperCase())))
-    .map(({ s }) => s.id), "a kicker in capitals over the slide: capitals belong to a trailer card or the film's title; write kickers in sentence case");
+    .map(({ s }) => s.id), msg("lint.clicheKicker"));
   sign("emoji-icons", scenes.filter(({ f, spec }) => spec.icons !== undefined && EMOJI.test(f[spec.icons] ?? "")).map(({ s }) => s.id),
-    "emoji as feature icons: interchangeable icons are a template; one claim with its evidence, or a fact that sets each card apart");
+    msg("lint.clicheEmoji"));
   const enterable = scenes.filter(({ spec }) => spec.fields.includes("enter"));
   const entered = enterable.filter(({ f }) => f.enter);
   if (entered.length >= 3 && new Set(entered.map(({ f }) => f.enter!.trim())).size === 1 && entered.length === enterable.length) {
-    sign("same-entrance", entered.map(({ s }) => s.id), `every slide enters the same way (${entered[0]!.f.enter}): the one entrance that matters is lost among the others`);
+    sign("same-entrance", entered.map(({ s }) => s.id), msg("lint.clicheEntrance", { enter: entered[0]!.f.enter ?? "" }));
   }
   return out;
 }
@@ -443,12 +491,13 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   try { findings = lint(file); } catch (e) {
     const err = e as { sourceError?: boolean; code?: string; message?: string };
     if (!err.sourceError && err.code !== "ENOENT") throw e;
-    console.error(`source ${file}: ${err.code === "ENOENT" ? "file not found" : err.message}`);
+    console.error(err.code === "ENOENT" ? msg("source.notFound", { path: file })
+      : msg("source.error", { path: file, why: String(err.message) }));
     process.exit(2);
   }
   const signs = clicheSigns(file);
   const cliches = { count: signs.length, signs,
-    ...(signs.length >= 4 ? { verdict: "four or more signs of a template: the film is average, not distinctive; turn each into a decision or drop it (docs/visual-design.md)" } : {}) };
+    ...(signs.length >= 4 ? { verdict: msg("lint.clicheVerdict") } : {}) };
   // Признаки клише не валят проверку: каждый бывает решением, их число — предупреждение.
   console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches }, null, 1));
   process.exit(findings.length ? 1 : 0);

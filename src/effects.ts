@@ -4,6 +4,7 @@
 // по-своему: так вспышка одинакова на слайде и на снятом клипе, а тряска двигает весь кадр,
 // включая чужое видео, которое сцена не рисует. Время — секунды ролика, в которые сборка
 // переводит якоря сцены (`b2`, `1.5s`, `40%`), как у звуков-акцентов.
+import { msg } from "./msg.js";
 
 /** Удар: момент (якорь сцены), длина и сила. */
 export interface Hit { at: string; length?: number; strength?: number }
@@ -22,20 +23,20 @@ export function parseHits(raw: string, what: "flash" | "shake"): Hit[] {
   let list: unknown[];
   if (text.startsWith("[") || text.startsWith("{")) {
     let v: unknown;
-    try { v = JSON.parse(text); } catch { throw new Error(`${what}: expected anchors «b2 | 1.5s» or a JSON list`); }
+    try { v = JSON.parse(text); } catch { throw new Error(msg("effects.form", { what })); }
     list = Array.isArray(v) ? v : [v];
   } else list = text.split("|").map((x) => ({ at: x.trim() }));
   const lim = what === "flash" ? { length: [0.05, 2], strength: [0.1, 1] } : { length: [0.1, 3], strength: [0.1, 3] };
   return list.map((raw, i) => {
-    if (!raw || typeof raw !== "object") throw new Error(`${what}[${i}]: expected an object`);
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) throw new Error(msg("overlay.object", { where: `${what}[${i}]` }));
     const r = raw as Record<string, unknown>;
-    for (const k of Object.keys(r)) if (!["at", "length", "strength"].includes(k)) throw new Error(`${what}[${i}]: unknown property «${k}»`);
+    for (const k of Object.keys(r)) if (!["at", "length", "strength"].includes(k)) throw new Error(msg("source.unknownProperty", { field: `${what}[${i}]`, key: k }));
     const at = String(r.at ?? "").trim();
-    if (!ANCHOR.test(at)) throw new Error(`${what}[${i}].at: unexpected moment «${at}»; a beat (b2, b2.end+0.3), a share (40%) or seconds (1.5s)`);
+    if (!ANCHOR.test(at)) throw new Error(msg("effects.moment", { where: `${what}[${i}].at`, at }));
     for (const k of ["length", "strength"] as const) {
       const [lo, hi] = lim[k];
       if (r[k] !== undefined && (typeof r[k] !== "number" || (r[k] as number) < lo! || (r[k] as number) > hi!))
-        throw new Error(`${what}[${i}].${k}: expected ${lo}…${hi}`);
+        throw new Error(msg("effects.range", { where: `${what}[${i}].${k}`, lo: lo!, hi: hi! }));
     }
     return { at, ...(r.length !== undefined ? { length: r.length as number } : {}), ...(r.strength !== undefined ? { strength: r.strength as number } : {}) };
   });
