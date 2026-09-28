@@ -2,7 +2,8 @@
 // рисуется цветом СВОЕЙ темы. Ожидаемый цвет берётся из токена, а не из самого элемента:
 // на место элемента (сам он скрыт) кладётся образец с `background: var(--token)` той же
 // величины, и точка образца сравнивается с точкой элемента — прозрачный токен ложится на ту
-// же подложку, что и элемент. У текста берётся точка буквы, дальше всего отстоящая от фона.
+// же подложку, что и элемент. У текста сравнивается закрашенная часть буквы:
+// сглаженные кромки в Linux могут отличаться от цвета токена по каналам.
 // Элемент, забывший тему, рисуется цветом ночной темы в светлой и проваливает сравнение.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -57,6 +58,7 @@ async function probe(p: Page, pr: Probe): Promise<{ got: RGB; want: RGB }> {
   assert.ok(rect && rect.w > 2 && rect.h > 2, `${pr.name}: ${pr.sel} is on the frame`);
   const shot = decode(await p.screenshot(), W);
   let got: RGB = [0, 0, 0];
+  const textPixels: RGB[] = [];
   if (pr.mode === "fill") {
     const [fx, fy] = pr.at ?? [0.92, 0.9];
     got = shot.px(rect.x + rect.w * fx, rect.y + rect.h * fy);
@@ -78,7 +80,8 @@ async function probe(p: Page, pr: Probe): Promise<{ got: RGB; want: RGB }> {
     let change = 0;
     for (let y = rect.y + 1; y < rect.y + rect.h - 1; y += 1) for (let x = rect.x + 1; x < rect.x + rect.w - 1; x += 1) {
       const c = shot.px(x, y), delta = far(c, backdrop.px(x, y));
-      if (delta > change) { change = delta; got = c; }
+      if (delta > change) change = delta;
+      if (delta > 8) textPixels.push(c);
     }
     assert.ok(change > 8, `${pr.name}: text is visible on the frame`);
   }
@@ -97,6 +100,12 @@ async function probe(p: Page, pr: Probe): Promise<{ got: RGB; want: RGB }> {
   const sw = decode(await p.screenshot(), W);
   const [fx, fy] = pr.mode === "fill" ? pr.at ?? [0.92, 0.9] : [0.5, 0.5];
   const want = sw.px(rect.x + rect.w * fx, rect.y + rect.h * fy);
+  if (pr.mode === "text") {
+    // На кромке буквы сглаживание LCD может оставить синий канал цвета чернил,
+    // а красный и зелёный взять частично из фона. Из изменившихся пикселей
+    // ищем наиболее плотный участок чернил, сравнивая его с образцом токена.
+    got = textPixels.reduce((best, c) => far(c, want) < far(best, want) ? c : best);
+  }
   await p.evaluate((sel) => {
     document.getElementById("__swatch")?.remove();
     const el = document.querySelector(sel) as HTMLElement;
