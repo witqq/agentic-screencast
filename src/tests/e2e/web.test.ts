@@ -168,3 +168,38 @@ test("the web manifest names every file a page needs, relative to itself and in 
   for (const p of [m.poster.jpg, m.poster.webp, m.thumbnails.sprite, m.thumbnails.vtt]) assert.ok(existsSync(join(out, p)), p);
   assert.equal(m.chapters, undefined, "a film without chapters names none");
 });
+
+// Строка кодеков — из заголовков самого файла: у маленького ролика уровень AV1 — 0, а не 4.0,
+// угаданный по высоте кадра (замечание agentic-report). Независимое свидетельство — ffprobe.
+test("the codecs in a type are read from the file: AV1 and H.264 levels match what ffprobe reads", () => {
+  const film = clip();
+  const r = encodeForWeb(film, { out: join(film, "..", "web"), formats: ["av1", "h264"], width: 480, thumbs: 0 });
+  const probe = (file: string, stream: string): string[] => execFileSync(ffprobe, ["-v", "quiet", "-select_streams", stream,
+    "-show_entries", "stream=profile,level", "-of", "csv=p=0", file], { encoding: "utf8" }).trim().split(",");
+  for (const o of r.outputs) {
+    const [, level] = probe(o.file, "v:0");
+    const [aac] = probe(o.file, "a:0");
+    assert.equal(aac, "LC");
+    const want = o.format === "av1" ? `av01.0.${level!.padStart(2, "0")}M.08` : `avc1.6400${Number(level).toString(16).padStart(2, "0")}`;
+    assert.equal(o.type, `video/mp4; codecs="${want}, mp4a.40.2"`, `${o.format} type names the file's own profile and level`);
+  }
+  const av1 = r.outputs.find((o) => o.format === "av1");
+  if (av1) assert.match(av1.type, /av01\.0\.0[0-4]M\.08/u, "a 480-wide AV1 needs a low level, not 4.0 (08)");
+});
+
+// `audio` значит «есть звук»: ролик на беззвучном голосе без музыки несёт дорожку цифровой тишины
+// (−91 dBFS), и web выпускает его без дорожки, с audio: false и сниппетом muted loop.
+test("a film whose sound track is digital silence leaves without a track and with audio: false", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-web-silent-"));
+  const film = join(dir, "film.mp4");
+  execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=30:duration=2",
+    "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-c:v", "libx264", "-c:a", "aac", "-shortest", film]);
+  assert.ok(streams(film).includes("audio"), "the source carries a silent track, as a stub build does");
+  const r = encodeForWeb(film, { out: join(dir, "web"), formats: ["h264", "vp9"], thumbs: 0 });
+  for (const o of r.outputs) {
+    assert.ok(!streams(o.file).includes("audio"), `${o.format} has no sound track`);
+    assert.doesNotMatch(o.type, /mp4a|opus/u, `${o.format} type names no audio codec`);
+  }
+  assert.equal((JSON.parse(readFileSync(r.manifest, "utf8")) as { audio: boolean }).audio, false);
+  assert.match(readFileSync(r.html, "utf8"), /muted loop/u);
+});

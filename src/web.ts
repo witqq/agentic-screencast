@@ -111,6 +111,21 @@ function probe(file: string): Probe {
     ...(v.level !== undefined ? { level: Number(v.level) } : {}) };
 }
 
+/**
+ * Порог тишины: громче −80 dBFS в пике — уже звук (самый тихий фон комнаты в записи лежит около
+ * −60), а цифровая тишина сборки даёт −91 dBFS, нижний край 16-битного отсчёта.
+ */
+export const SILENCE_DB = -80;
+
+/** Звуковая дорожка — цифровая тишина: её пик не выше порога. Дорожки нет — тоже тишина. */
+export function silent(file: string): boolean {
+  const r = spawnSync(FFMPEG, ["-nostdin", "-hide_banner", "-i", file, "-vn", "-af", "volumedetect", "-f", "null", "-"],
+    { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
+  const m = /max_volume:\s*(-?[\d.]+|-inf) dB/u.exec(r.stderr ?? "");
+  if (!m) return true;
+  return m[1] === "-inf" || Number(m[1]) <= SILENCE_DB;
+}
+
 /** Кодировщики, которые есть у этой сборки ffmpeg. */
 function encoders(): Set<string> {
   const out = execFileSync(FFMPEG, ["-hide_banner", "-encoders"], { encoding: "utf8" });
@@ -148,10 +163,69 @@ function ssim(output: string, source: string, w: number, h: number): number {
   return Number(m[1]);
 }
 
-/** Строка кодеков H.264 для `type`: профиль High, уровень из самого файла. */
-const avc1 = (level: number | undefined): string => `avc1.6400${(level ?? 40).toString(16).padStart(2, "0")}`;
-/** AV1 Main, 8 бит; уровень по высоте кадра: до 1080 — 4.0, выше — 5.0. */
-const av01 = (height: number): string => (height <= 1080 ? "av01.0.08M.08" : "av01.0.12M.08");
+/** Содержимое бокса `moov` MP4: описания дорожек, из которых читаются строки кодеков. */
+function moovOf(file: string): Buffer {
+  const fd = openSync(file, "r");
+  const size = statSync(file).size;
+  const head = Buffer.alloc(16);
+  let at = 0;
+  try {
+    while (at + 8 <= size) {
+      readSync(fd, head, 0, 16, at);
+      let len = head.readUInt32BE(0);
+      const kind = head.toString("latin1", 4, 8);
+      if (len === 1) len = Number(head.readBigUInt64BE(8));
+      else if (len === 0) len = size - at;
+      if (len < 8) break;
+      if (kind === "moov") { const box = Buffer.alloc(len); readSync(fd, box, 0, len, at); return box; }
+      at += len;
+    }
+  } finally { closeSync(fd); }
+  throw new Error(msg("web.noMoov", { file }));
+}
+
+/** Длина дескриптора MPEG-4: до четырёх байт по семь бит, старший бит — «дальше ещё». */
+function descriptorLength(b: Buffer, at: number): { len: number; next: number } {
+  let len = 0, i = at;
+  for (let k = 0; k < 4; k++) { const v = b[i++]!; len = (len << 7) | (v & 0x7f); if (!(v & 0x80)) break; }
+  return { len, next: i };
+}
+
+/**
+ * Строки кодеков для `type` — из байтов самого файла, а не по догадке о настройках: H.264 из `avcC`
+ * (профиль, совместимость, уровень), AV1 из `av1C` (профиль, уровень, tier, глубина цвета), звук
+ * из `esds` (тип объекта и профиль AAC). Уровень, угаданный по высоте кадра, у малого ролика
+ * завышал требования, и браузер мог отказаться его играть.
+ */
+export function mp4Codecs(file: string): string[] {
+  const moov = moovOf(file);
+  const out: string[] = [];
+  const avcC = moov.indexOf("avcC", 0, "latin1");
+  if (avcC >= 0) out.push(`avc1.${[1, 2, 3].map((k) => moov[avcC + 4 + k]!.toString(16).padStart(2, "0")).join("")}`);
+  const av1C = moov.indexOf("av1C", 0, "latin1");
+  if (av1C >= 0) {
+    const b1 = moov[av1C + 5]!, b2 = moov[av1C + 6]!;
+    const profile = b1 >> 5, level = b1 & 0x1f, tier = b2 & 0x80 ? "H" : "M";
+    const depth = b2 & 0x40 ? (profile === 2 && b2 & 0x20 ? 12 : 10) : 8;
+    out.push(`av01.${profile}.${String(level).padStart(2, "0")}${tier}.${String(depth).padStart(2, "0")}`);
+  }
+  const esds = moov.indexOf("esds", 0, "latin1");
+  if (esds >= 0) {
+    // esds: версия и флаги (4 байта), затем ES_Descriptor (0x03) → DecoderConfig (0x04) → DecoderSpecificInfo (0x05).
+    let i = esds + 8;
+    let object = 0, aot = 0;
+    while (i < esds + 64 && i < moov.length) {
+      const tag = moov[i]!;
+      const { len, next } = descriptorLength(moov, i + 1);
+      if (tag === 0x03) { i = next + 3; continue; }
+      if (tag === 0x04) { object = moov[next]!; i = next + 13; continue; }
+      if (tag === 0x05) { aot = moov[next]! >> 3; break; }
+      i = next + len;
+    }
+    if (object) out.push(`mp4a.${object.toString(16)}${aot ? `.${aot}` : ""}`);
+  }
+  return out;
+}
 
 export function encodeForWeb(input: string, opts: {
   out?: string; formats?: WebFormat[]; width?: number; quality?: WebQuality; mute?: boolean; poster?: number;
@@ -176,7 +250,9 @@ export function encodeForWeb(input: string, opts: {
   const width = Math.min(src.width, opts.width ?? src.width) - (Math.min(src.width, opts.width ?? src.width) % 2);
   const height = Math.round((src.height * width) / src.width / 2) * 2;
   const scale = width === src.width ? [] : ["-vf", `scale=${width}:${height}:flags=lanczos`];
-  const audio = src.audio && !opts.mute;
+  // Звук — это слышимый звук, а не дорожка: ролик на беззвучном голосе без музыки несёт дорожку
+  // тишины, и потребитель манифеста не мог верить флагу `audio`. Такой ролик выходит без дорожки.
+  const audio = src.audio && !opts.mute && !silent(source);
   const have = encoders();
   const report: WebReport = { source, sourceBytes: statSync(source).size, outputs: [], skipped: [], posters: [], html: "", manifest: "" };
 
@@ -191,7 +267,7 @@ export function encodeForWeb(input: string, opts: {
         ? ["-c:v", "libsvtav1", "-crf", crf, "-preset", "6", "-g", String(Math.round(src.fps * 8))]
         : ["-c:v", "libaom-av1", "-crf", crf, "-b:v", "0", "-cpu-used", "5", "-row-mt", "1"];
       args.push("-pix_fmt", "yuv420p", ...(audio ? ["-c:a", "aac", "-b:a", "160k"] : ["-an"]), "-movflags", "+faststart");
-      type = `video/mp4; codecs="${av01(height)}${audio ? ", mp4a.40.2" : ""}"`;
+      type = "";
     } else if (format === "vp9") {
       encoder = "libvpx-vp9";
       file = join(outDir, `${name}.vp9.webm`);
@@ -209,7 +285,7 @@ export function encodeForWeb(input: string, opts: {
     execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", source, ...scale, ...args, file],
       { stdio: ["ignore", "ignore", "pipe"], env: { ...process.env, SVT_LOG: "1" } });
     const got = probe(file);
-    if (format === "h264") type = `video/mp4; codecs="${avc1(got.level)}${audio ? ", mp4a.40.2" : ""}"`;
+    if (file.endsWith(".mp4")) type = `video/mp4; codecs="${mp4Codecs(file).join(", ")}"`;
     const expected = { av1: "av1", vp9: "vp9", h264: "h264" }[format];
     if (got.codec !== expected) throw new Error(msg("web.codec", { file, codec: got.codec, expected }));
     if (got.width !== width || got.height !== height) throw new Error(msg("web.size", { file, size: `${got.width}×${got.height}`, expected: `${width}×${height}` }));

@@ -1007,7 +1007,10 @@ the browser takes the first it can play and H.264 stays last as the fallback.
   --width     scale down, never up; height follows the aspect
   --quality   high (default) | balanced | small — the same step gives the
               three codecs a comparable picture
-  --mute      drop the sound: a muted autoplaying loop needs none
+  --mute      drop the sound: a muted autoplaying loop needs none. A film
+              whose sound track is digital silence (a stub-voiced draft
+              without music: peak at or under -80 dBFS) leaves without a
+              track by itself, with audio: false and a muted loop snippet
   --poster    the second shown before playback (JPEG and WebP)
   --chapters  a WebVTT chapter file; by default film.chapters.vtt, which the
               build writes beside a film that has parts, joins as a track
@@ -1018,6 +1021,10 @@ the browser takes the first it can play and H.264 stays last as the fallback.
               not play: the piece in seconds (--gif 2-8; bare --gif takes the
               first six), 12 frames a second, its own palette, --gif-width
               (default 640); the report gives its size in bytes
+
+Each <source> type names the codecs read from the file's own headers — the
+H.264 and AV1 profile and level, the AAC profile — so a small film does not
+claim a level a browser may refuse.
 
 Every output is checked, not trusted: codec, frame size and duration against
 the film, frame similarity (SSIM) against the film at the same size, and for
