@@ -54,14 +54,6 @@ function centre(cue: OverlayCamera): { x: number; y: number } {
   return { x: area[0] + area[2] / 2, y: area[1] + area[3] / 2 };
 }
 
-export interface CameraFilter {
-  /** выражение увеличения для `zoompan` */
-  z: string;
-  /** выражения смещения окна в координатах увеличенной картинки */
-  x: string;
-  y: string;
-}
-
 /** Отрезок пути камеры: за [t0, t1] увеличение и центр меняются на dz, dx, dy (`linear` — ровно, без разгона). */
 interface Leg { t0: number; t1: number; dz: number; dx: number; dy: number; linear?: boolean }
 
@@ -144,25 +136,28 @@ export function cameraLegs(cues: readonly OverlayCamera[], path: CursorPath = []
 }
 
 /**
- * Выражения наезда для всех кадров сцены.
- *
- * Кадры считаются по номеру ВЫХОДНОГО кадра: `zoompan` не знает времени сцены, а номер кадра и
- * частота дают его точно. Отрезки пути идут один за другим, поэтому сумма их вкладов в любой
- * момент равна состоянию камеры в этот момент.
+ * Наезд камеры над видео фильтром `perspective`: четыре угла окна в точках исходника, с долями
+ * точки. Кадры считаются по номеру выходного кадра `on`, путь — сумма отрезков `cameraLegs`.
+ * `zoompan` ставил окно на целые точки исходника, и при медленном наезде край предмета ходил
+ * туда-обратно на точку-две (замер: 8–23 возврата края за 3,3 с); `perspective` берёт отсчёты
+ * между точками кубической интерполяцией, и движение плавное, как у наезда в браузере.
  */
-export function cameraFilter(cues: readonly OverlayCamera[], fps: number, path: CursorPath = []): CameraFilter | null {
+export function cameraPerspective(cues: readonly OverlayCamera[], fps: number, path: CursorPath = []): string | null {
   const legs = cameraLegs(cues, path);
   if (!legs.length) return null;
   const time = `(on/${fps})`;
   const s = (l: Leg): string => (l.linear ? clip : (v: string): string => smooth(clip(v)))(`(${time}-${l.t0})/${Math.max(1e-3, l.t1 - l.t0)}`);
   const sum = (base: string, pick: (l: Leg) => number): string =>
     legs.filter((l) => pick(l) !== 0).map((l) => `(${pick(l)})*(${s(l)})`).reduce((a, b) => `${a}+${b}`, base);
-  const zoom = sum("1", (l) => l.dz);
+  const z = `min(6,${sum("1", (l) => l.dz)})`;
   const at = (axis: "x" | "y"): string => sum("0.5", (l) => (axis === "x" ? l.dx : l.dy));
   // Окно не выходит за края картинки: иначе у края кадра появляется чёрная полоса.
-  const span = (size: "iw" | "ih", axis: "x" | "y"): string =>
-    `max(0,min(${size}-${size}/zoom,(${at(axis)})*${size}-${size}/zoom/2))`;
-  return { z: `min(6,${zoom})`, x: span("iw", "x"), y: span("ih", "y") };
+  const left = `max(0,min(W-W/(${z}),(${at("x")})*W-W/(${z})/2))`;
+  const top = `max(0,min(H-H/(${z}),(${at("y")})*H-H/(${z})/2))`;
+  const right = `(${left})+W/(${z})`, bottom = `(${top})+H/(${z})`;
+  const q = (v: string): string => `'${v}'`;
+  return `perspective=x0=${q(left)}:y0=${q(top)}:x1=${q(right)}:y1=${q(top)}:x2=${q(left)}:y2=${q(bottom)}`
+    + `:x3=${q(right)}:y3=${q(bottom)}:interpolation=cubic:sense=source:eval=frame`;
 }
 
 /** Дополнительный масштаб портретного окна, ограниченный полным вмещением предмета. */

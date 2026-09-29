@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraFilter, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
+import { cameraPerspective, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
@@ -997,7 +997,7 @@ async function main() {
         // подкадры одного кадра усредняются. Кадр клипа внутри своего периода не меняется (подкадры —
         // его копии), поэтому размывается только движение камеры, а удержание остаётся резким.
         const sub = opts.motionBlur ? opts.motionBlur.samples : 1;
-        const camera = cut ? null : cameraFilter(overlay?.camera ?? [], opts.fps * sub, cursorPath);
+        const camera = cut ? null : cameraPerspective(overlay?.camera ?? [], opts.fps * sub, cursorPath);
         const windowCues = overlay?.camera ?? [];
         const windowShare = cut ? (opts.width / opts.height) / (cut.width / cut.height) : 1;
         // Верх полосы субтитров в кадре сцены: его знает экранная половина слоя.
@@ -1026,8 +1026,7 @@ async function main() {
           const shutter = opts.motionBlur ? Math.max(2, Math.min(sub, Math.round(sub * opts.motionBlur.shutter))) : 1;
           const zoom = camera
             ? (sub > 1 ? `,fps=${opts.fps * sub}` : "")
-              + `,zoompan=z='${camera.z}':x='${camera.x}':y='${camera.y}':d=1:`
-              + `s=${opts.width}x${opts.height}:fps=${opts.fps * sub}`
+              + `,${camera}`
               + (sub > 1 ? `,tmix=frames=${shutter},select='eq(mod(n,${sub}),${sub - 1})',setpts=N/(${opts.fps}*TB),fps=${opts.fps}` : "")
             : "";
           const dynamicWindow = cut && windowNeedsZoom(windowCues, windowShare);
