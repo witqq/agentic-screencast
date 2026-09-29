@@ -167,8 +167,9 @@ video frame count, final video and audio stream durations, stream presence and
 WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
 mismatch with measured values; the same findings appear in `warnings` and on
 the error stream. Every entry of `warnings` — and every `lint` finding — has the
-form `{rule, id, message, hint}`: `id` names the check, `rule` the film-craft
-rule behind it (`FC-58` is rule 58 of `docs/film-craft.md`), `hint` what to change. An empty issues list means these encoded properties match
+form `{rule, id, message, hint}`: `id` names the check, `rule` the knowledge-base
+rule behind it (`FC-58` is rule 58 of `docs/film-craft.md`, `VA-5` step 5 of the licence
+section of `docs/visual-assets.md`), `hint` what to change. An empty issues list means these encoded properties match
 within one video frame and AAC packet padding, not that the film has been
 watched or its captions judged. A film with no parts has no chapter file;
 rebuilding one without parts removes an older file at that output path.

@@ -186,6 +186,29 @@ export function lint(file: string): Finding[] {
         { line: u.n, field: u.key, lang: src.variant ?? "" })) });
     }
   }
+  // Авторство звука: инструмент своего звука не везёт, каждый файл музыки и эффектов откуда-то
+  // скачан, и строка о нём — название, автор, источник, лицензия — лежит в assets/CREDITS.md рядом
+  // со сценарием (visual-assets, «Checking a licence and writing the credit», шаг 5). Файл без
+  // строки — лицензия CC BY без указания автора или файл неизвестного происхождения.
+  {
+    const credits = [resolve(src.dir ?? ".", "assets", "CREDITS.md"), resolve(src.dir ?? ".", "CREDITS.md")].find((f) => existsSync(f));
+    const text = credits ? readFileSync(credits, "utf8") : "";
+    const sounds = new Map<string, string>();
+    const addSound = (file: string | undefined, scene: string): void => { if (file && !sounds.has(file)) sounds.set(file, scene); };
+    addSound((pitch as { music?: { file?: string } }).music?.file, "(film)");
+    for (const s of pitch.scenes) {
+      addSound((s as { music?: { file?: string } }).music?.file, s.id);
+      for (const c of (s as { sfx?: Array<{ file: string }> }).sfx ?? []) addSound(c.file, s.id);
+      addSound((s.transition as { sound?: string } | undefined)?.sound, s.id);
+    }
+    for (const [file, scene] of sounds) {
+      const name = file.split(/[\\/]/u).at(-1)!;
+      if (!text.includes(name)) {
+        out.push({ scene, index: scene === "(film)" ? 0 : pitch.scenes.findIndex((x) => x.id === scene) + 1,
+          ...finding("uncredited", msg("lint.uncredited", { file: name })) });
+      }
+    }
+  }
   pitch.scenes.forEach((s: PitchScene, i: number) => {
     const n = i + 1;
     const add = (id: string, message: string): void => { out.push({ scene: s.id, index: n, ...finding(id, message) }); };

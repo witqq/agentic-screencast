@@ -377,7 +377,7 @@ export async function filmPass(opts: {
   execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", ...inputs,
     "-filter_complex", graph.join(";"), "-map", last, "-map", "0:a?", "-t", opts.total.toFixed(3),
     "-c:v", "libx264", "-preset", opts.encode.preset, "-crf", String(opts.encode.crf),
-    "-pix_fmt", opts.encode.pix, "-c:a", "copy", opts.output]);
+    "-pix_fmt", opts.encode.pix, "-c:a", "copy", "-movflags", "+faststart", opts.output]);
   return { chapters };
 }
 

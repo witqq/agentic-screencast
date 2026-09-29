@@ -45,6 +45,7 @@ import { ffmpegColour, resolveTheme } from "./theme.js";
 import { finding, type Finding } from "./rules.js";
 import { flatShare } from "./lint.js";
 import { specOf } from "./source.js";
+import { topAtoms } from "./web.js";
 
 /** Порог читаемости текста в кадре — доля короткой стороны: 48 точек на кадре 1080 (docs/vertical-video.md). */
 const LEGIBLE_SHARE = 48 / 1080;
@@ -1286,7 +1287,7 @@ async function main() {
       "-safe", "0", "-i", alist, "-c", "copy", audio]);
     mux = execFileSync("/bin/sh", ["-c",
       `${FFMPEG} -nostdin -y -f concat -safe 0 -i ${vlist} -i ${audio} ` +
-      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest ${muxed} 2>&1`], { encoding: "utf8" });
+      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest -movflags +faststart ${muxed} 2>&1`], { encoding: "utf8" });
   } else {
     const video = `${CACHE}/film-video-${process.pid}.mp4`;
     if (useTransitions) {
@@ -1351,7 +1352,7 @@ async function main() {
       loudness: pitch.loudness ?? -14 });
     mux = execFileSync("/bin/sh", ["-c",
       `${FFMPEG} -nostdin -y -i ${video} -i ${mixed} ` +
-      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest ${muxed} 2>&1`], { encoding: "utf8" });
+      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest -movflags +faststart ${muxed} 2>&1`], { encoding: "utf8" });
   }
   const filmScenes: FilmScene[] = taken.map((s, i) => ({ duration: s.duration, at: tl.starts[i]!,
     beats: s.beats.map((b) => ({ text: b.text, spoken: b.__spoken ?? 0 })),
@@ -1499,7 +1500,12 @@ async function main() {
     }
   }
 
+  // Индекс MP4 в начале файла: плеер страницы начинает показ до конца загрузки. Все шаги пишут
+  // его так; проверка стоит за тем, чтобы новый шаг этого не потерял.
+  const atoms = topAtoms(out);
+  const fastStart = atoms.indexOf("moov") >= 0 && atoms.indexOf("moov") < atoms.indexOf("mdat");
   const fileWarnings = [
+    ...(fastStart ? [] : [finding("faststart", msg("build.faststart", { atoms: atoms.join(" ") }))]),
     ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)).map((l) => finding("mux", l)),
     ...audit.issues.map((issue) => finding("audit", msg("build.auditIssue", { code: issue.code,
       details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") }))),

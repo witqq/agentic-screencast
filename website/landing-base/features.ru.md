@@ -183,7 +183,7 @@
 
 | Возможность | Чем включается | Как показать | Лендинг |
 |---|---|---|---|
-| Режиссёрские правила: two-text-layers, overloaded-line, still-scene, long-scene, title-over-interface, first-transition, spotlight-collision, still-hold, page-unmarked, typing-too-fast, take-theme, push-crop, loupe-scale, speed-range, captions-top-progress, take-small, piece-crosses-mark, empty-area, scene-jump, number-source, karaoke-contrast, untranslated | `lint` | JSON lint рядом с исправленной сценой | текст |
+| Режиссёрские правила: two-text-layers, overloaded-line, still-scene, long-scene, title-over-interface, first-transition, spotlight-collision, still-hold, page-unmarked, typing-too-fast, take-theme, push-crop, loupe-scale, speed-range, captions-top-progress, take-small, piece-crosses-mark, empty-area, scene-jump, number-source, karaoke-contrast, uncredited, untranslated | `lint` | JSON lint рядом с исправленной сценой | текст |
 | Признаки шаблонного ролика считаются, а не валят проверку: hit-outside-trailer, grain, many-sparkles, transition-kinds, decorative-background, placeholder-address, kicker-caps, emoji-icons, same-entrance; четыре и больше — ролик средний | `lint` (`cliches`) | шаблонный сценарий с восемью признаками и продуманный с нулём | нет |
 | Нарисованный кадр с пустой третью называется | `frames` (`empty`) | — | нет |
 | Кадр каждой сцены без сборки в любой момент, в том числе по такту | `frames [--at b2+0.5]` | лист с подписями | да |

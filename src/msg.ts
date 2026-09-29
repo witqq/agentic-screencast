@@ -475,6 +475,10 @@ const en: Dict = {
   "hint.silent-action": "Cut the piece to the speech, or add a beat that names the action while it happens.",
   "hint.still-in-fade": "Move the still's moment inside the scene, away from its first and last fraction of a second.",
   "hint.loop-start": "Open on the product from the first frame: drop the fade-in of the first scene or start on a bright frame.",
+  "build.faststart": "the film's MP4 index is not at the start of the file ({atoms}): a page player waits for the whole download",
+  "hint.faststart": "Rebuild; if it repeats, report it: every step of the build writes the index first.",
+  "lint.uncredited": "sound file {file} has no line in assets/CREDITS.md: its title, author, source and licence are unknown, and a CC BY file needs its author credited",
+  "hint.uncredited": "Add a line for the file to assets/CREDITS.md beside the scenario: title, author, source URL, licence, whether credit is required.",
 };
 
 const ru: Dict = {
@@ -936,6 +940,10 @@ const ru: Dict = {
   "hint.silent-action": "Обрежьте кусок по речи или добавьте такт, который называет действие, пока оно идёт.",
   "hint.still-in-fade": "Перенесите момент кадра внутрь сцены, подальше от первой и последней доли секунды.",
   "hint.loop-start": "Откройте ролик продуктом с первого кадра: уберите вход из затемнения у первой сцены или начните со светлого кадра.",
+  "build.faststart": "индекс MP4 ролика не в начале файла ({atoms}): плеер страницы ждёт загрузки целиком",
+  "hint.faststart": "Пересоберите; если повторяется — сообщите: каждый шаг сборки пишет индекс первым.",
+  "lint.uncredited": "у звукового файла {file} нет строки в assets/CREDITS.md: название, автор, источник и лицензия неизвестны, а файл под CC BY требует указать автора",
+  "hint.uncredited": "Добавьте строку о файле в assets/CREDITS.md рядом со сценарием: название, автор, ссылка на источник, лицензия, нужно ли указывать автора.",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };

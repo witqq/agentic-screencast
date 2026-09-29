@@ -1091,8 +1091,10 @@ Helpers that save a full build:
       to edge without a fade, and a feed film's first scene opens and its
       last scene ends without one, unless the scene names fade.
       A finding here and in lint is {rule, id, message, hint}: id names the
-      check, rule the film-craft rule behind it (FC-58 is rule 58 of
-      docs/film-craft.md — read it for why and how), hint what to change.
+      check, rule the knowledge-base rule behind it (FC-58 is rule 58 of
+      docs/film-craft.md, VA-5 step 5 of "Checking a licence and writing
+      the credit" in docs/visual-assets.md — read it for why and how), hint
+      what to change.
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
@@ -1124,7 +1126,8 @@ Helpers that save a full build:
       a take's piece where it has no mark (scene-jump), a number, counter or
       chart slide whose note names no source and date (number-source), a
       theme that dims unspoken karaoke words under 4.5:1 on the plate
-      (karaoke-contrast), and with --lang the visible fields a translation
+      (karaoke-contrast), a music or sound file with no line in
+      assets/CREDITS.md beside the scenario (uncredited), and with --lang the visible fields a translation
       left out (untranslated).
       Beside the findings the JSON counts the signs of a template film in
       "cliches" — they do not fail lint, since each can be a decision:

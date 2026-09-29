@@ -184,7 +184,7 @@ build.
 
 | Feature | Switched on by | How to show | Landing |
 |---|---|---|---|
-| Director rules: two-text-layers, overloaded-line, still-scene, long-scene, title-over-interface, first-transition, spotlight-collision, still-hold, page-unmarked, typing-too-fast, take-theme, push-crop, loupe-scale, speed-range, captions-top-progress, take-small, piece-crosses-mark, empty-area, scene-jump, number-source, karaoke-contrast, untranslated | `lint` | the lint JSON next to the fixed scene | text |
+| Director rules: two-text-layers, overloaded-line, still-scene, long-scene, title-over-interface, first-transition, spotlight-collision, still-hold, page-unmarked, typing-too-fast, take-theme, push-crop, loupe-scale, speed-range, captions-top-progress, take-small, piece-crosses-mark, empty-area, scene-jump, number-source, karaoke-contrast, uncredited, untranslated | `lint` | the lint JSON next to the fixed scene | text |
 | Signs of a template film counted, not failed: hit-outside-trailer, grain, many-sparkles, transition-kinds, decorative-background, placeholder-address, kicker-caps, emoji-icons, same-entrance; four or more — the film is average | `lint` (`cliches`) | a template scenario scoring eight, a considered one zero | no |
 | A drawn frame with an empty third is named | `frames` (`empty`) | — | no |
 | A frame of every scene without a build, at any moment including a beat | `frames [--at b2+0.5]` | the labelled sheet | yes |
