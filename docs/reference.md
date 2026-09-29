@@ -284,6 +284,8 @@ return arrow; for the quantity, `label` and `tags`; for a screen scene, `zoom`,
 `spotFrom` and `focus`. What each slide field does — entrances, frame motion,
 live background, device frame — is described by `agentic-screencast help slides`;
 the film look, brand colours and the theme of part of a film — by `agentic-screencast help themes`.
+How these theme tokens correspond to agentic-report's, so a film and a report page share one look,
+is in [the theme-tokens map](theme-tokens.md).
 
 `items` entries are written like the columns: `Title :: explanation | …`; an emoji
 at the start of an entry becomes its icon. If `at` has not named the moments, the entries
