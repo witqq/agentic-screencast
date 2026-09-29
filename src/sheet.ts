@@ -41,7 +41,7 @@ if (!Number.isFinite(count)) { console.error(msg("sheet.numbers")); process.exit
 // Моменты — середины равных долей куска (или шаг --every от его начала): крайний кадр клипа часто чёрный.
 const times = Array.from({ length: count }, (_, k) => Number((every ? from + k * every : from + ((k + 0.5) / count) * (to - from)).toFixed(2)));
 const out = resolve(arg("out") ?? `${basename(file).replace(/\.[^.]+$/u, "")}.sheet.png`);
-if (!/\.png$/iu.test(out)) { console.error("--out: the sheet is a PNG file"); process.exit(2); }
+if (!/\.png$/iu.test(out)) { console.error(msg("sheet.png")); process.exit(2); }
 const work = resolve(dirname(out), `.${basename(out)}.frames`);
 rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });

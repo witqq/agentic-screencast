@@ -60,7 +60,7 @@ const rest = process.argv.slice(3);
 {
   const i = rest.indexOf("--lang");
   if (i >= 0) {
-    if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error("--lang: name a language, e.g. --lang ru"); process.exit(2); }
+    if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error(msg("cli.langMissing")); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_LANG = rest[i + 1];
     process.env.AGENTIC_SCREENCAST_LANG = rest[i + 1];
     useLang(rest[i + 1]);
@@ -70,7 +70,7 @@ const rest = process.argv.slice(3);
   // pageVertical у страницы либо кадрирует её исходник и видеоклипы.
   const f = rest.indexOf("--format");
   if (f >= 0 && process.argv[2] !== "new") {
-    if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error("--format: name one, e.g. --format vertical"); process.exit(2); }
+    if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error(msg("cli.formatMissing")); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_FORMAT = rest[f + 1];
     rest.splice(f, 2);
   }
@@ -956,7 +956,14 @@ the browser takes the first it can play and H.264 stays last as the fallback.
 Every output is checked, not trusted: codec, frame size and duration against
 the film, frame similarity (SSIM) against the film at the same size, and for
 MP4 the index at the start of the file so playback starts before the download
-ends. The report is JSON on stdout.`;
+ends. The report is JSON on stdout.
+
+Beside the files web writes film.web.json, a manifest for the page that shows
+the film: size, duration, whether it has sound, the posters, the sources in
+order of preference with their type and bytes, the chapter track and its
+language, the thumbnails and the GIF — every path relative to the manifest, so
+the folder moves as a whole. A page builder reads it instead of guessing file
+names.`;
 const VERTICAL_HELP = `Vertical and square films, and the agent's helpers
 
 # My short
@@ -1450,14 +1457,14 @@ switch (cmd) {
       process.exit(2);
     }
     const out = resolve(arg("out", "story.md"));
-    if (existsSync(out)) { console.error(`${out} already exists; name another file with --out`); process.exit(2); }
+    if (existsSync(out)) { console.error(msg("cli.exists", { path: out })); process.exit(2); }
     let text = readFileSync(resolve(dir, `${genre}.md`), "utf8");
     // Язык ролика — сразу в шапке: от него зависят надзаголовки слайдов, переносы и правила
     // чтения. Заготовки в угловых скобках — указания пишущему на любом языке; их заменяют текстом.
     // Общий разбор снял `--lang` в окружение варианта сценария; у `new` он значит язык заготовки.
     const lang = process.env.AGENTIC_SCREENCAST_FILM_LANG;
     if (lang !== undefined) {
-      if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/u.test(lang)) { console.error(`--lang: expected a language tag such as ru or en-GB, got «${lang}»`); process.exit(2); }
+      if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/u.test(lang)) { console.error(msg("cli.langTag", { lang })); process.exit(2); }
       text = text.replace(/^lang: .*$/m, `lang: ${lang}`);
     }
     const format = arg("format");

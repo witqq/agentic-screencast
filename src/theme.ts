@@ -2325,7 +2325,7 @@ function checked(vars: ThemeVars): ThemeVars {
   for (const key of HEX_TOKENS) {
     const v = vars[key];
     if (v !== undefined && !v.split(",").every((c) => /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(c.trim()))) {
-      throw new ThemeError(`${key}: «${v}» — ffmpeg and the shaders read this colour as numbers; write it as #rrggbb or #rrggbbaa`);
+      throw new ThemeError(msg("theme.numericColour", { key, value: String(v) }));
     }
   }
   return vars;
@@ -2390,6 +2390,6 @@ export function wholeThemeFingerprint(vars: ThemeVars): string {
  */
 export function ffmpegColour(css: string): string {
   const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(css.trim());
-  if (!m) throw new ThemeError(`«${css}» is not #rrggbb or #rrggbbaa`);
+  if (!m) throw new ThemeError(msg("theme.hex", { value: css }));
   return m[2] ? `0x${m[1]}@${(Number.parseInt(m[2], 16) / 255).toFixed(3)}` : `0x${m[1]}`;
 }
