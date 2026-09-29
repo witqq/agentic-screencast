@@ -24,6 +24,25 @@ This skill is your map. It holds the path from a request to a finished film, the
 
 The help is short enough to read all of it before the first film; do so. If the shell has no `agentic-screencast` command — a source checkout without `npm link` — run every command below as `node <checkout>/dist/agentic-screencast.js`, or `npx agentic-screencast` where the package is installed in the project.
 
+## The core: rules a film most often breaks
+
+These are the rules the tool cannot check for you and agents broke most often when measured; keep them in view at every step. Each names its rule in [film craft](../../docs/film-craft.md) — read it when you are unsure what it asks. The tool's findings name their rules the same way (`rule: "FC-58"`).
+
+- **FC-2** — the subject comes from the evidence (the product, the diff, the data), never from what a product like this usually does.
+- **FC-41** — the story serves the viewer: open on their problem and why it matters, then the value, the proof, one next step; not one scene per capability.
+- **FC-4** — write the narration as one continuous text first, then cut it into beats and scenes.
+- **FC-40** — the strongest result gets the film's longest, clearest shot.
+- **FC-13** — the climax is shown, not said: the moment the film argues for must visibly happen on screen.
+- **FC-3** — parts follow a meaningful order and come back to the whole; an explainer ends by putting the pieces into one picture.
+- **FC-64** — the first three seconds show the product or its result, not a title.
+- **FC-65** — the film ends on its result with one short next step, not on a card over an empty background.
+- **FC-16** — a caption names what is on screen at that second, in the product's words.
+- **FC-25** — a scene's action happens while the narration speaks about it; no action in silence after the words.
+- **FC-56** — every factual clause is checked against its source before the draft.
+- **FC-58** — one subject per frame, large enough to read at the viewer's size, in every format.
+- **FC-31** — after the build, compare each caption with its frame.
+- **FC-57** — open each still and look at it at the viewer's size; a note is a claim to check, not a result.
+
 ## From a request to a finished film
 
 A request like "make a screencast film about X" or "a film for Y" starts this whole path, in this order. Each step leaves an artifact and ends with a check; do not start the next one before the check passes, and do not hand over anything but the film itself.

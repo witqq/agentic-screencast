@@ -54,3 +54,12 @@ test("lint names a sound file without a line in assets/CREDITS.md, and not one t
   writeFileSync(join(dir, "assets", "CREDITS.md"), `Music: "Bed" — Kevin MacLeod (incompetech.com), CC BY 4.0 — audio/bed.mp3\n`);
   assert.deepEqual(found(), []);
 });
+
+test("the skill's core names 10–15 rules, each a heading of film-craft", () => {
+  const skill = read("skills/agentic-screencast/SKILL.md");
+  const core = skill.slice(skill.indexOf("## The core"), skill.indexOf("\n## ", skill.indexOf("## The core") + 5));
+  const rules = [...core.matchAll(/^- \*\*(FC-\d+)\*\*/gmu)].map((m) => m[1]!);
+  assert.ok(rules.length >= 10 && rules.length <= 15, `${rules.length} core rules`);
+  const craft = new Set([...read("docs/film-craft.md").matchAll(/^## (\d+)\. /gmu)].map((m) => `FC-${m[1]}`));
+  assert.deepEqual(rules.filter((r) => !craft.has(r)), []);
+});
