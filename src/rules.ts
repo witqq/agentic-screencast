@@ -47,6 +47,7 @@ export const RULES: Record<string, `FC-${number}` | `VA-${number}`> = {
   "audit": "FC-14",
   "mux": "FC-14",
   "faststart": "FC-14",
+  "live-camera": "FC-46",
 };
 
 export interface Finding { rule: `FC-${number}` | `VA-${number}`; id: string; message: string; hint: string }

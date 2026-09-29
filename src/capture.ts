@@ -7,7 +7,8 @@ import { chromium, type BrowserContext, type BrowserContextOptions, type Locator
   type Page } from "playwright";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { cardHold, parseOverlay, type OverlayCard } from "./overlay.js";
 import { installCaptureOverlay } from "./capture-overlay.js";
@@ -54,6 +55,32 @@ export interface TakeMarks {
   cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором: `take.mark(name, locator)` */
   rects?: Record<string, TakeRect>;
+  /** скрипт, который записал дубль: по нему сборка переснимает дубль с камерой сценария */
+  script?: { path: string; args: string[]; cwd: string };
+  /** отпечаток плана камеры, которую браузер исполнил при этой записи (пересъёмка сборкой) */
+  cameraPlan?: string;
+}
+
+/**
+ * Камера сценария для пересъёмки дубля: сборка переводит наезды сцены во время дубля, привязывает
+ * каждый к отметке (`anchor` — имя отметки или `@start`, `offset` — секунды после неё) и передаёт
+ * план окружением `AGENTIC_SCREENCAST_TAKE_CAMERA`. Браузер исполняет наезды во время записи —
+ * настоящее увеличение страницы, чёткое и плавное, а не растянутые точки видео.
+ */
+export interface LiveCameraPlan {
+  /** дубль, который переснимается (как его называет скрипт) */
+  source: string;
+  /** куда писать пересъёмку */
+  output: string;
+  hash: string;
+  /** срез пустого начала прежней записи: по нему ставятся наезды до первой отметки */
+  trimmed: number;
+  cues: Array<{ anchor: string; offset: number; area: TakeRect; scale: number; move: number; hold: number; back: number; keep: boolean; dim: boolean }>;
+}
+
+function livePlan(): LiveCameraPlan | undefined {
+  const raw = process.env.AGENTIC_SCREENCAST_TAKE_CAMERA;
+  return raw ? JSON.parse(raw) as LiveCameraPlan : undefined;
 }
 
 /** Прямоугольник элемента в долях кадра: [слева, сверху, ширина, высота]. */
@@ -202,7 +229,13 @@ function cardHtml(card: OverlayCard, viewport: { width: number; height: number }
 export async function capturePage(page: Page, options: CaptureOptions): Promise<CapturePage> {
   const capOptions = options;
   if (page.isClosed()) throw new Error(msg("capture.closed"));
-  const output = outputPath(options.output);
+  // Пересъёмка сборкой: названный дубль пишется в свой файл с камерой сценария, остальные дубли
+  // того же скрипта — во временный, чтобы пересъёмка одного не перезаписала другие.
+  const plan = livePlan();
+  const requested = outputPath(options.output);
+  const baking = plan && resolve(plan.source) === requested ? plan : undefined;
+  const output = !plan ? requested : baking ? resolve(baking.output)
+    : join(tmpdir(), `sc-discard-${process.pid}-${Date.now()}-${basename(requested)}`);
   const size = options.size ?? page.viewportSize();
   if (!size) throw new Error(msg("capture.viewport"));
   mkdirSync(dirname(output), { recursive: true });
@@ -355,6 +388,25 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       st?.[name as string]?.(...(rest as unknown[]));
     }, [fn, args] as const);
   };
+  // Камера сценария: наезд на область в свой момент — после отметки или от начала записи.
+  const timers: Array<ReturnType<typeof setTimeout>> = [];
+  const runCue = (c: LiveCameraPlan["cues"][number]): void => {
+    if (finished) return;
+    const from = now();
+    void overlayCall("focusArea", c.area, { scale: c.scale, ms: Math.round(c.move * 1000), dim: c.dim }).catch(() => {});
+    cameraMoves.push({ from, to: from + c.move });
+    if (c.keep) return;
+    timers.push(setTimeout(() => {
+      if (finished) return;
+      const back = now();
+      void overlayCall("unfocus", Math.round(c.back * 1000)).catch(() => {});
+      cameraMoves.push({ from: back, to: back + c.back });
+    }, Math.round((c.move + c.hold) * 1000)));
+  };
+  const schedule = (c: LiveCameraPlan["cues"][number], at: number): void => {
+    timers.push(setTimeout(() => runCue(c), Math.max(0, Math.round(at * 1000 - (Date.now() - zero)))));
+  };
+  for (const c of baking?.cues ?? []) if (c.anchor === "@start") schedule(c, baking!.trimmed + c.offset);
   const keyLabel = (key: string): string => key.split("+").map((k) => ({ Meta: "⌘", Control: "Ctrl", Shift: "⇧",
     Alt: "⌥", Enter: "Enter ⏎", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
     Backspace: "⌫", Tab: "Tab ⇥", " ": "Space" } as Record<string, string>)[k] ?? (k.length === 1 ? k.toUpperCase() : k)).join("+");
@@ -494,6 +546,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       active();
       if (!/^[A-Za-z][\w-]*$/.test(name)) throw new Error(msg("capture.markName", { name }));
       marks[name] = (Date.now() - zero) / 1000;
+      for (const c of baking?.cues ?? []) if (c.anchor === `@${name}`) schedule(c, marks[name]! + c.offset);
       if (!target) return Promise.resolve();
       const done = rectOf(target).then((r) => {
         if (!r) throw new Error(msg("capture.markBox", { name }));
@@ -505,6 +558,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     async finish() {
       if (finished) return output;
       finished = true;
+      for (const t of timers) clearTimeout(t);
       await Promise.all(pending);
       await page.waitForTimeout(350);
       const recorded = await page.evaluate(() => {
@@ -546,7 +600,11 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
           ...(a.rect ? { rect: a.rect.map(round) as TakeRect } : {}) })),
         cameraMoves: cameraMoves.map((move) => ({ from: round(Math.max(0, move.from - trimmed)),
           to: round(Math.max(0, move.to - trimmed)) })),
-        ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}) };
+        ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}),
+        // Скрипт, который можно запустить снова ради одного дубля. Файл теста под node:test —
+        // не такой скрипт: его повторный запуск прогнал бы весь тест, а не переснял дубль.
+        ...(process.argv[1] && !process.env.NODE_TEST_CONTEXT ? { script: { path: resolve(process.argv[1]), args: process.argv.slice(2), cwd: process.cwd() } } : {}),
+        ...(baking ? { cameraPlan: baking.hash } : {}) };
       writeFileSync(`${output}.marks.json`, JSON.stringify(file, null, 1));
       if (pageErrors.length) throw new Error(msg("capture.pageError", { why: String(pageErrors[0]) }));
       return output;

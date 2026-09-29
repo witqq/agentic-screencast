@@ -25,7 +25,8 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 ## 4. Material
 
 - [ ] Takes recorded with `recordTake` in their scene's theme, each with its `.marks.json` and its
-      frame budget; downloaded files credited.
+      frame budget, by a script that still runs from its folder (the build re-runs it for a sharp
+      push-in); downloaded files credited.
 
 ## 5. Scenario
 

@@ -317,7 +317,17 @@ focused action — it stands while the cursor stays in its middle and glides
 after it when it leaves.
 "follow":"cursor" on a hand-authored overlay.camera move over a take
 starts following after that move, even when the pointer is outside its named
-area. A take recorded
+area. A camera over a take is performed by the browser, not by stretching the
+video: when every move of a video scene's overlay.camera, spotlight or
+autoZoom names an area and none follows the cursor (no speed, freezeAt,
+device, cover fit or vertical reframe on the scene), the build re-runs the
+script that recorded the take (the marks file keeps its path, arguments and
+folder) with the scene's camera, anchored to the take's marks, and uses
+<take>.<scene>.cam.webm. Small text stays sharp at any push-in; an
+unchanged camera never re-records, and a failed re-run falls back to the
+video push-in with a live-camera warning. So keep the take script runnable
+from its folder, and let it record its takes without side effects on each
+run. AGENTIC_SCREENCAST_NO_LIVE_CAMERA=1 turns this off. A take recorded
 before actions were stored pushes in at each click. In a vertical cut of a
 landscape take, the crop also scales a small subject and follows that path;
 inspect the finished phone frame to confirm the interface remains readable.
@@ -508,6 +518,12 @@ tune); held frames stay sharp and byte-identical. A push-in over a clip is
 blurred the same way: the camera is computed on sub-frames of each frame of
 the clip and they are blended, so the camera's motion blurs and a held
 frame stays as sharp as without it.
+
+A push-in over a live take recorded with recordTake is performed by the
+browser on a re-recording of the take (help capture): text stays sharp at
+any scale. Over any other clip the build moves a sub-pixel window across the
+video: smooth, but small text in a strong push-in is softer, so record such
+a clip large.
 
 Hits on any scene — a slide, a page or a clip:
 flash: b2 | 1.5s

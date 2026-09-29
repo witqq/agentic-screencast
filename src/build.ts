@@ -37,6 +37,7 @@ import { MORPH, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
 import { autoBand, bandShare } from "./capband.js";
+import { liveCamera } from "./live-camera.js";
 import { actionZoomCues, autoZoomCues, marksOf, trimMarks, type AutoZoom, type Trim } from "./marks.js";
 import { DEVICE_CSS, deviceLayout, deviceMarkup, type Device, type DeviceLayout } from "./device.js";
 import type { Look } from "./look.js";
@@ -494,6 +495,7 @@ async function main() {
   const weights: number[] = [];
   const slots: Array<Array<Record<string, unknown>>> = [];
   const t0 = Date.now();
+  const liveCameraFailed: Array<{ id: string; why: string }> = [];
   for (const s of pitch.scenes) {
     // Чужие сцены при одиночной сборке не озвучиваются и не рисуются:
     // за ключом сегмента нужны только имена соседей, а они известны
@@ -574,6 +576,19 @@ async function main() {
         s.overlay = checked;
       } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
+    }
+    // Наезд над живым дублем исполняет браузер: сборка переснимает дубль его же скриптом с камерой
+    // сцены, и сцена берёт пересъёмку уже без камеры по видео (live-camera.ts).
+    if (s.video && s.overlay?.camera?.length) {
+      const live = liveCamera(s, SRC, Boolean(pitch.reframe));
+      if (live.baked) {
+        s.page = live.page;
+        if (live.trim) s.trim = live.trim;
+        // Накладка из одной камеры после пересъёмки пуста, а пустая накладка — ошибка разбора.
+        const { camera: _baked, ...rest } = s.overlay;
+        s.overlay = Object.values(rest).some((v) => v !== undefined && !(Array.isArray(v) && !v.length)) ? rest : undefined;
+        if (live.recorded) process.stderr.write(msg("build.liveCamera", { id: s.id, file: live.page }) + "\n");
+      } else if ("failed" in live) liveCameraFailed.push({ id: s.id, why: live.failed });
     }
     // Клип берётся уже переигранным: и длина сцены, и кадры считаются
     // по тому материалу, который попадёт в ролик.
@@ -1157,6 +1172,7 @@ async function main() {
     sceneWarnings.push({ scene, ...finding(id, message) });
     process.stderr.write(message + "\n");
   };
+  for (const f of liveCameraFailed) warn(f.id, "live-camera", msg("build.liveCameraFailed", { id: f.id, why: f.why }));
   // Мелкий текст у цели фокуса называется сразу: на телефоне его не прочтут, а по кадру на
   // большом экране этого не видно.
   for (const e of log) {

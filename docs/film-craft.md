@@ -425,7 +425,9 @@ recording; the analysis named it as the third reason the film was not cinematic.
 
 A push-in crops the take, so record at a resolution high enough that the tightest crop is still sharp.
 Do not pass a take through extra lossy encodes (webm → mp4 → film): every pass makes the picture
-muddier.
+muddier. A push-in over a take recorded with `recordTake` is sharp by construction — the build re-runs
+the take script and the browser zooms the live page — so keep that script runnable from its folder; a
+push-in over any other clip stretches its pixels.
 
 **Counter-example.** A cut assembled from Playwright webm takes, re-encoded before assembly and again by
 the build, looked muddy in every push-in.

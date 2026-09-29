@@ -23,6 +23,10 @@ export interface TakeMarks {
   cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором */
   rects?: Record<string, [number, number, number, number]>;
+  /** скрипт, записавший дубль: по нему сборка переснимает дубль с наездом браузером */
+  script?: { path: string; args: string[]; cwd: string };
+  /** отпечаток плана камеры, исполненного браузером в этой пересъёмке */
+  cameraPlan?: string;
 }
 
 /** Отметки ролика или undefined, если ролик снят не через capture. */
