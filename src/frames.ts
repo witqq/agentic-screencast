@@ -22,10 +22,11 @@ import { assetsForCheck } from "./stage-assets.js";
 import { ffmpegColour } from "./theme.js";
 import { subtitleMax } from "./film.js";
 import { layerSafe } from "./part-label.js";
-import { anchorSeconds, estimateBeats } from "./spotlight.js";
+import { anchorSeconds, estimateBeats, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { flatShare } from "./lint.js";
 import { specOf } from "./source.js";
 import { msg } from "./msg.js";
+import type { SceneOverlay } from "./overlay.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -56,7 +57,7 @@ try { g = generateFrom(resolve(source), { ...(only ? { onlyScene: only } : {}), 
 const SRC = dirname(g.pitchFile);
 const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as {
   scenes: Array<RenderScene & { id: string; provider: string; kind: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
-    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true }>;
+    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true; spotlight?: Spotlight[] }>;
   frame?: { width?: number; height?: number }; theme?: Record<string, string>; tail?: number;
   safe?: { top: number; bottom: number; left: number; right: number };
   emoji?: { dir: string }; dir?: string;
@@ -122,6 +123,16 @@ for (const s of pitch.scenes) {
   const clip = Math.max(0, pieceEnd - cut);
   const duration = Math.max(Number(s.duration ?? 0), spoken + Number(s.tail ?? pitch.tail ?? 0.4),
     s.video && !s.beats.length && s.duration === undefined ? clip : 0);
+  // Фокусы внимания становятся камерой и карточками так же, как в сборке, — по оценённым тактам.
+  // Без этого лист показывал сцену без наезда, который сборка рисует.
+  if (s.spotlight?.length) {
+    try {
+      s.overlay = spotlightOverlay(s.spotlight, s.overlay as SceneOverlay | undefined, { starts, ends, duration, video: Boolean(s.video) }).overlay;
+    } catch (e) {
+      console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message }));
+      process.exit(2);
+    }
+  }
   const at = atBeat ? Math.max(0, Math.min(duration, anchorSeconds(atArg, starts.length ? starts : [0], duration, ends)))
     : atSecs ? atValue : atValue * duration;
   const file = only ? out : resolve(dir, `${s.id}.png`);
