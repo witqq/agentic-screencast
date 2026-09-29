@@ -456,6 +456,15 @@ const en: Dict = {
   "hint.overflow": "Shorten the slide's content or split the slide.",
   "hint.audit": "Rebuild and compare audit.expected with audit.measured; report the tool defect if it repeats.",
   "hint.mux": "Rebuild the film; if the muxer warning repeats, report it as a tool defect.",
+  "build.pushCrop": "scene {id}: the push-in at {at}s scales ×{scale}, but its subject stays whole only up to ×{fit}: the frame cuts it",
+  "build.loupeScale": "scene {id}: the loupe at {at}s magnifies ×{actual} instead of ×{asked}, or its subject is outside the frame",
+  "build.captionLines": "scene {id}: a subtitle took {lines} lines in the frame: «{text}»",
+  "hint.caption-lines": "Split the beat or shorten it: two subtitle lines at most in this format and font.",
+  "build.safeZone": "scene {id}: at {at}s «{text}» goes past the feed's safe zone on the {side}, under the platform's buttons or caption",
+  "hint.safe-zone": "Keep the text inside the safe zone: lay the page out narrower, move the element, or aim the camera so it stays in the zone.",
+  "build.emptyArea": "scene {id}: a flat empty band {percent}% of the frame high at {at}s: the frame has no subject there",
+  "lint.karaokeContrast": "an unspoken karaoke word reaches only {ratio}:1 on the subtitle plate, under the 4.5:1 body text needs",
+  "hint.karaoke-contrast": "Raise the theme's --sc-karaoke-rest, or darken the plate or the subtitle ink, until the unspoken word holds 4.5:1.",
 };
 
 const ru: Dict = {
@@ -898,6 +907,15 @@ const ru: Dict = {
   "hint.overflow": "Сократите содержимое слайда или разбейте слайд.",
   "hint.audit": "Пересоберите и сравните audit.expected с audit.measured; если повторяется — это дефект инструмента.",
   "hint.mux": "Пересоберите ролик; если предупреждение склейки повторяется — это дефект инструмента.",
+  "build.pushCrop": "сцена {id}: наезд на {at} с увеличивает ×{scale}, а предмет цел только до ×{fit}: кадр его режет",
+  "build.loupeScale": "сцена {id}: лупа на {at} с увеличивает ×{actual} вместо ×{asked} или её предмет вне кадра",
+  "build.captionLines": "сцена {id}: субтитр лёг в {lines} строки: «{text}»",
+  "hint.caption-lines": "Разбейте или сократите такт: не больше двух строк субтитра в этом формате и шрифте.",
+  "build.safeZone": "сцена {id}: на {at} с «{text}» заходит за безопасную зону ленты ({side}), под кнопки или подпись площадки",
+  "hint.safe-zone": "Держите текст в безопасной зоне: сверстайте страницу уже, сдвиньте элемент или наведите камеру так, чтобы он остался в зоне.",
+  "build.emptyArea": "сцена {id}: ровная пустая полоса на {percent}% высоты кадра на {at} с: там нет предмета",
+  "lint.karaokeContrast": "непроизнесённое слово караоке даёт на плашке только {ratio}:1 — меньше 4,5:1, нужных основному тексту",
+  "hint.karaoke-contrast": "Поднимите --sc-karaoke-rest темы или сделайте плашку и цвет субтитров контрастнее, пока непроизнесённое слово не удержит 4,5:1.",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };

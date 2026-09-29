@@ -162,3 +162,29 @@ export function brandTheme(colors: RGB[], base = "neutral"): ThemeVars & { prese
     "--sc-accent-soft": rgba(acc, 0.42),
   };
 }
+
+/** Цвет CSS с прозрачностью: #rrggbb, #rrggbbaa или rgb()/rgba(). */
+function parseRgba(css: string): { c: RGB; a: number } | null {
+  const h = /^#([0-9a-f]{6})([0-9a-f]{2})?$/iu.exec(css.trim());
+  if (h) { const n = parseInt(h[1]!, 16); return { c: [(n >> 16) & 255, (n >> 8) & 255, n & 255], a: h[2] ? parseInt(h[2], 16) / 255 : 1 }; }
+  const f = /^rgba?\(([^)]+)\)$/iu.exec(css.trim());
+  if (!f) return null;
+  const [r, g, b, a] = f[1]!.split(/[\s,/]+/u).filter(Boolean).map(Number);
+  return [r, g, b].every((v) => Number.isFinite(v)) ? { c: [r!, g!, b!], a: Number.isFinite(a) ? a! : 1 } : null;
+}
+const blend = (f: RGB, b: RGB, a: number): RGB => [0, 1, 2].map((i) => f[i]! * a + b[i]! * (1 - a)) as RGB;
+
+/**
+ * Контраст непроизнесённого слова караоке к плашке субтитров — худший из двух случаев кадра под
+ * полупрозрачной плашкой (чёрный и белый). Слово приглушено прозрачностью `--sc-karaoke-rest` и
+ * обязано держать 4,5:1, как основной текст. null — цвета темы не разобрать.
+ */
+export function karaokeRestContrast(vars: Record<string, string>): number | null {
+  const ink = parseRgba(vars["--sc-sub-ink"] ?? ""), bg = parseRgba(vars["--sc-sub-bg"] ?? "");
+  const rest = Number(vars["--sc-karaoke-rest"]);
+  if (!ink || !bg || !Number.isFinite(rest)) return null;
+  return Math.min(...([[0, 0, 0], [255, 255, 255]] as RGB[]).map((video) => {
+    const plate = blend(bg.c, video, bg.a);
+    return contrast(blend(ink.c, plate, rest * ink.a), plate);
+  }));
+}

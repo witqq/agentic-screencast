@@ -75,3 +75,18 @@ One beat.
   for (const s of build("format: vertical\n")) assert.equal(s.small, undefined, `${s.id}: ${JSON.stringify(s.small)}`);
   for (const s of build("")) assert.equal(s.small, undefined, `${s.id}: ${JSON.stringify(s.small)}`);
 });
+
+test("a vertical film names small print on the author's own page against the 48 px a phone reads", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-small-page-"));
+  const body = (small: string): string => `<!doctype html><html><body style="margin:0;background:#fff">
+<h1 style="font:80px sans-serif;margin:200px 60px">Big title</h1><p style="font:${small} sans-serif;margin:0 60px">A supporting line.</p></body></html>`;
+  writeFileSync(join(dir, "bad.html"), body("22px"));
+  writeFileSync(join(dir, "good.html"), body("56px"));
+  writeFileSync(join(dir, "story.md"), `# F\nlang: en\nformat: vertical\nframe: {"fps":5}\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n`
+    + `## bad · page\npage: bad.html\n\nThe first page.\n\n## good · page\npage: good.html\n\nThe second page.\n`);
+  const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "f.mp4"], { cwd: dir, encoding: "utf8",
+    env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
+  assert.equal(r.status, 0, r.stderr.slice(-400));
+  const w = (JSON.parse(r.stdout) as { warnings: Array<{ scene: string; id: string; rule: string }> }).warnings.filter((x) => x.id === "small");
+  assert.deepEqual(w.map((x) => `${x.scene}:${x.rule}`), ["bad:FC-58"]);
+});

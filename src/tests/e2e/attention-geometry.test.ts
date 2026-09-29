@@ -159,12 +159,12 @@ test("lint names a push-in whose named scale crops its area, and a loupe that ha
 });
 
 /** Сборка сценария в каталоге; отчёт сборки. */
-function build(dir: string, story: string, args: string[] = []): { report: { scenes: Array<Record<string, unknown>> }; out: string } {
+function build(dir: string, story: string, args: string[] = []): { report: { scenes: Array<Record<string, unknown>>; warnings: Array<{ scene: string; id: string; rule: string }> }; out: string } {
   writeFileSync(join(dir, "story.md"), story);
   const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "out.mp4", ...args], { cwd: dir, encoding: "utf8",
     env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
   assert.equal(r.status, 0, r.stderr.slice(-600));
-  return { report: JSON.parse(r.stdout) as { scenes: Array<Record<string, unknown>> }, out: join(dir, "out.mp4") };
+  return { report: JSON.parse(r.stdout) as { scenes: Array<Record<string, unknown>>; warnings: Array<{ scene: string; id: string; rule: string }> }, out: join(dir, "out.mp4") };
 }
 // Кольцо лупы ищется цветом ночной темы, поэтому она названа явно: умолчание — neutral.
 const HEAD = (w: number, h: number): string => `# G\nlang: en\ntheme: midnight\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":${w},"height":${h},"fps":10,"scale":1}\n`;
@@ -183,6 +183,8 @@ overlay: {"camera":[{"at":2.2,"move":0.4,"hold":0.8,"target":"#big","scale":1.8}
   const loupes = p.loupes as Array<{ asked: number; scale: number }>, pushes = p.pushes as Array<{ scale: number; fits: number }>;
   assert.ok(loupes?.length === 1 && loupes[0]!.asked === 2 && loupes[0]!.scale < 2, `the report names the lowered loupe (${JSON.stringify(p.loupes)})`);
   assert.ok(pushes?.length === 1 && pushes[0]!.scale === 1.8 && pushes[0]!.fits < 1.8, `the report names the cropping push-in (${JSON.stringify(p.pushes)})`);
+  // И предупреждает о них находками с правилом базы, а не только данными сцены.
+  assert.deepEqual(report.warnings.filter((w) => w.scene === "p" && (w.id === "push-crop" || w.id === "loupe-scale")).map((w) => `${w.id}:${w.rule}`).sort(), ["loupe-scale:FC-33", "push-crop:FC-33"]);
   // Сцена из кэша отчитывается так же.
   const again = build(dir, readFileSync(join(dir, "story.md"), "utf8")).report.scenes.find((s) => s.id === "p")!;
   assert.equal(again.cached, true);
@@ -276,4 +278,5 @@ The second target is small and fits at this scale.
   const s = report.scenes.find((x) => x.id === "s")!, p = report.scenes.find((x) => x.id === "p")!;
   assert.equal(s.pushes, undefined, `el2 at ×1.1 fits and is measured (${JSON.stringify(s.pushes)})`);
   assert.equal(p.pushes, undefined, `the second target at ×1.6 fits once measured without the first push-in's zoom (${JSON.stringify(p.pushes)})`);
+  assert.deepEqual(report.warnings.filter((w) => w.id === "push-crop"), [], "a push-in that fits raises no warning");
 });

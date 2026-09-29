@@ -113,7 +113,9 @@ window.__stage = (() => {
   #__sub[data-look="outline"]{color:var(--sc-sub-outline-ink);text-shadow:var(--sc-sub-outline-shadow);letter-spacing:.02em}
   #__sub[data-look="outline"] .__line{background:none;padding-left:0;padding-right:0}
   #__sub[data-look="outline"][data-style="karaoke"] .__word.__now{color:var(--sc-sub-accent);background:none;box-shadow:none}
-  #__sub[data-style="karaoke"] .__word{opacity:.55}
+  /* Непроизнесённые слова приглушены прозрачностью темы: светлой плашке нужно меньше приглушения,
+     чтобы слово держало 4,5:1 (правило 62: слово загорается цветом, а не пропадает). */
+  #__sub[data-style="karaoke"] .__word{opacity:var(--sc-karaoke-rest)}
   #__sub[data-style="karaoke"] .__word.__said{opacity:1}
   #__sub[data-style="karaoke"] .__word.__now{opacity:1;color:var(--sc-karaoke-ink);
     background:var(--sc-karaoke-bg);box-shadow:var(--sc-karaoke-halo)}
@@ -1352,7 +1354,7 @@ window.__stage = (() => {
   let measure: CanvasRenderingContext2D | null = null;
   const fitCache = new Map<string, number>();
   /** Шрифт и ширина блока субтитров сцены: меряются один раз после монтирования. */
-  let subBox: { font: string; room: number } | null = null;
+  let subBox: { font: string; spacing: string; room: number } | null = null;
   function linesOf(text: string, sub: HTMLElement): number {
     const hit = fitCache.get(text);
     if (hit !== undefined) return hit;
@@ -1365,18 +1367,23 @@ window.__stage = (() => {
       sub.appendChild(probe);
       const pad = parseFloat(getComputedStyle(probe).paddingLeft) || 0;
       probe.remove();
-      subBox = { font: cs.font, room: parseFloat(cs.width) - pad * 2 };
+      subBox = { font: cs.font, spacing: cs.letterSpacing, room: parseFloat(cs.width) - pad * 2 };
     }
-    const { font, room } = subBox;
+    const { font, spacing, room } = subBox;
     measure ??= document.createElement("canvas").getContext("2d");
     if (!measure || room <= 0) return 1;
     measure.font = font;
-    const space = measure.measureText(" ").width;
+    // Межбуквенный интервал субтитров canvas сам не знает: его задаёт стиль блока.
+    measure.letterSpacing = spacing === "normal" ? "0px" : spacing;
+    // Слово в кадре — отдельный блок, и пробел живёт внутри него (`white-space: pre`): последнее
+    // слово строки несёт свой пробел в её ширину. Счёт «слова плюс пробелы между ними» был уже
+    // настоящей строки на пробел, и кусок, который он клал в две строки, в кадре ложился в три.
     let lines = 1, width = 0;
-    for (const w of text.split(" ")) {
-      const ww = measure.measureText(w).width;
-      if (width && width + space + ww > room) { lines++; width = ww; } else width = width ? width + space + ww : ww;
-    }
+    const words = text.split(" ");
+    words.forEach((w, i) => {
+      const ww = measure!.measureText(i < words.length - 1 ? `${w} ` : w).width;
+      if (width && width + ww > room) { lines++; width = ww; } else width += ww;
+    });
     fitCache.set(text, lines);
     return lines;
   }
@@ -1395,6 +1402,9 @@ window.__stage = (() => {
     return out;
   }
   let subKey = "";
+  // Сколько строк занял самый длинный кусок субтитра: мерится по отрисованным словам, а не по
+  // оценке знаков — шрифт темы и формат кадра решают перенос сами.
+  let captionMost = { lines: 0, text: "" };
   /**
    * Субтитры и караоке. Окно такта — от его начала до начала следующего (у
    * последнего — до конца речи): это ИЗМЕРЕННЫЕ по звуку границы, поэтому
@@ -1445,7 +1455,10 @@ window.__stage = (() => {
       acc += span;
     }
     const chunkEnd = acc + ((end - from) * weights[ci]!) / total;
-    const key = `${beat}:${ci}`;
+    // Ключ куска — вместе с его текстом: нарезка пересчитывается на каждом кадре по настоящей
+    // раскладке, и когда она меняется (догрузился шрифт темы), кусок с тем же номером получает
+    // другой текст. По одному номеру в кадре оставался прежний кусок — и ложился в три строки.
+    const key = `${beat}:${ci}:${chunks[ci]}`;
     if (key !== subKey) {
       subKey = key;
       sub.textContent = "";
@@ -1461,6 +1474,10 @@ window.__stage = (() => {
       sub.appendChild(line);
     }
     sub.style.display = "";
+    {
+      const tops = new Set([...sub.querySelectorAll<HTMLElement>(".__word")].flatMap((w) => [...w.getClientRects()].map((r) => Math.round(r.top))));
+      if (tops.size > captionMost.lines) captionMost = { lines: tops.size, text: chunks[ci]! };
+    }
     // Субтитры — речь для тех, кто смотрит без звука, поэтому фокус камеры их не гасит:
     // иначе пропадала бы ровно та реплика, которую фокус показывает. Уступают они только
     // карточке, которая легла поверх них, и ровно настолько, насколько она видна.
@@ -2083,6 +2100,36 @@ window.__stage = (() => {
    * мельче порога, а отчёт молчал — он мерил только то, на что наезжает камера. Строка — ближайший
    * не строчный предок куска текста, как в `cutText`.
    */
+  /**
+   * Текст страницы, заходящий за безопасную зону ленты: под кнопки и подпись площадки. Меряется
+   * по кадру как есть, с наездом камеры (прямоугольник элемента — после трансформации). Элемент
+   * целиком за кадром не в счёт: его и так не видно.
+   */
+  function outsideSafe(safe: { top: number; bottom: number; left: number; right: number }): Array<{ text: string; side: string }> {
+    const body = document.body;
+    if (!body) return [];
+    const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const W = innerWidth * lz, H = innerHeight * lz, slack = 4;
+    const found = new Map<Element, string>();
+    const walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const host = n.parentElement;
+      if (!host || !n.textContent?.trim() || found.has(host)) continue;
+      const cs = getComputedStyle(host);
+      if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      for (const r0 of range.getClientRects()) {
+        const r = { left: r0.left * lz, right: r0.right * lz, top: r0.top * lz, bottom: r0.bottom * lz };
+        if (r.right <= 0 || r.left >= W || r.bottom <= 0 || r.top >= H || r0.width <= 0) continue;
+        const side = r.left < safe.left - slack ? "left" : r.right > W - safe.right + slack ? "right"
+          : r.top < safe.top - slack ? "top" : r.bottom > H - safe.bottom + slack ? "bottom" : "";
+        if (side) { found.set(host, side); break; }
+      }
+    }
+    return [...found].map(([e, side]) => ({ text: (e.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60), side }));
+  }
+
   function smallText(min: number): Array<{ text: string; px: number }> {
     const body = document.body;
     if (!body) return [];
@@ -2188,5 +2235,6 @@ window.__stage = (() => {
     return y;
   }
 
-  return { mount, renderAt, targetRect, moving, focusX: () => focusPoint, rectOf, fontPx, cutText, smallText, floor, get scene() { return scene; } };
+  return { mount, renderAt, targetRect, moving, focusX: () => focusPoint, rectOf, fontPx, cutText, smallText, floor,
+    captionLines: () => captionMost, outsideSafe, get scene() { return scene; } };
 })();

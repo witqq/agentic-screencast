@@ -1077,8 +1077,13 @@ Helpers that save a full build:
       frames, chapter cues and coded issues),
       "hits" (flashes and shakes), "transitions",
       "timing" (where the build spent its time), "segments" (each scene's
-      cached clip and its checksum), "warnings" (findings: legibility,
-      small, cut and overflow per scene, audit and muxer issues of the file).
+      cached clip and its checksum), "warnings" (findings per scene: a
+      push-in that crops its subject (push-crop), a lowered loupe
+      (loupe-scale), a subtitle that took three lines (caption-lines), page
+      text past the feed's safe zone (safe-zone), an empty band a third of
+      the frame (empty-area), small focus text (legibility), small page text
+      in a vertical film (small), cut lines (cut), overflowing slides
+      (overflow); and the file's audit and muxer issues).
       A finding here and in lint is {rule, id, message, hint}: id names the
       check, rule the film-craft rule behind it (FC-58 is rule 58 of
       docs/film-craft.md — read it for why and how), hint what to change.
@@ -1111,8 +1116,10 @@ Helpers that save a full build:
       (piece-crosses-mark), a flat empty third of a clip's frame in more
       than 30% of its frames (empty-area), an abrupt screen change inside
       a take's piece where it has no mark (scene-jump), a number, counter or
-      chart slide whose note names no source and date (number-source), and
-      with --lang the visible fields a translation left out (untranslated).
+      chart slide whose note names no source and date (number-source), a
+      theme that dims unspoken karaoke words under 4.5:1 on the plate
+      (karaoke-contrast), and with --lang the visible fields a translation
+      left out (untranslated).
       Beside the findings the JSON counts the signs of a template film in
       "cliches" — they do not fail lint, since each can be a decision:
       flash or shake outside a trailer (hit-outside-trailer), film grain

@@ -43,6 +43,8 @@ import type { Look } from "./look.js";
 import type { Safe } from "./format.js";
 import { ffmpegColour, resolveTheme } from "./theme.js";
 import { finding, type Finding } from "./rules.js";
+import { flatShare } from "./lint.js";
+import { specOf } from "./source.js";
 
 /** Порог читаемости текста в кадре — доля короткой стороны: 48 точек на кадре 1080 (docs/vertical-video.md). */
 const LEGIBLE_SHARE = 48 / 1080;
@@ -748,10 +750,25 @@ async function main() {
     const legibleMin = Math.round(Math.min(opts.width, opts.height) * LEGIBLE_SHARE);
     let legibleGot: Array<{ t: number; target: string; px: number | null }> = [];
     let cutsGot: Array<{ t: number; target: string; text: string[] }> = [];
-    // Мелкий текст встроенного слайда в вертикальном кадре — вся страница, когда элементы вошли.
-    const smallProbe = s.provider === "slides" && opts.height > opts.width
-      ? { t: Number((s.duration! * 0.9).toFixed(3)), min: Math.round(opts.width * SMALL_SHARE) } : undefined;
+    // Мелкий текст в вертикальном кадре — вся страница, когда элементы вошли: у встроенного слайда
+    // строки от 36 точек на 1080, у своей страницы автора — от 48, как любой текст, который читают
+    // на телефоне (у слайда вёрстка своя и разреженная, у страницы — чужая и плотная).
+    const smallProbe = (s.provider === "slides" || s.provider === "page") && opts.height > opts.width
+      ? { t: Number((s.duration! * 0.9).toFixed(3)), min: Math.round(opts.width * (s.provider === "page" ? LEGIBLE_SHARE : SMALL_SHARE)) } : undefined;
     let smallGot: Array<{ text: string; px: number }> = [];
+    // Текст за безопасной зоной ленты: на серединах удержаний камеры и у конца сцены, когда всё вошло.
+    const unsafeProbe = stageSafe && pitch.safe && !s.video
+      ? { times: [...new Set([...(s.overlay?.camera ?? []).map((c) => Number((c.at + (c.move ?? 0.9) + c.hold / 2).toFixed(3))),
+        Number((s.duration! * 0.9).toFixed(3))])].filter((t) => t < s.duration!), safe: stageSafe } : undefined;
+    let outsideGot: Array<{ t: number; text: string; side: string }> = [];
+    // Кусок субтитра, легший больше чем в две строки, — по отрисованному кадру, в любом пути рендера.
+    let linesGot = { lines: 0, text: "" };
+    const draw: typeof renderScene = async (...a) => {
+      const r = await renderScene(...a);
+      if ((r.captionLines?.lines ?? 0) > linesGot.lines) linesGot = r.captionLines!;
+      if (r.outside?.length) outsideGot = r.outside;
+      return r;
+    };
     const geometry = (items: LoupeAt[], frame: { width: number; height: number }, cams: Array<{ at: number; scale: number; rect: Rect }>): Record<string, unknown> => {
       const lens = items.flatMap(({ loupe, rect, floor }) => {
         const g = loupeLayout(loupe, rect, frame, floor);
@@ -766,7 +783,7 @@ async function main() {
       const legibility = legibleGot.filter((l) => l.px !== null).map((l) => ({ at: l.t, target: l.target, px: l.px!, min: legibleMin }));
       const cut = cutsGot.map((c) => ({ at: c.t, target: c.target, text: c.text }));
       const small = smallGot.length ? { at: smallProbe!.t, min: smallProbe!.min, lines: smallGot.slice(0, 5) } : undefined;
-      const out = { ...(lens.length ? { loupes: lens } : {}), ...(push.length ? { pushes: push } : {}),
+      const out = { ...(linesGot.lines > 2 ? { captionLines: linesGot } : {}), ...(outsideGot.length ? { outside: outsideGot } : {}), ...(lens.length ? { loupes: lens } : {}), ...(push.length ? { pushes: push } : {}),
         ...(legibility.length ? { legibility } : {}), ...(cut.length ? { cut } : {}), ...(small ? { small } : {}) };
       writeFileSync(`${seg}.geometry.json`, JSON.stringify(out));
       return out;
@@ -796,14 +813,14 @@ async function main() {
         mkdirSync(sceneDir, { recursive: true });
         mkdirSync(screenDir, { recursive: true });
         const scale = (opts.height / src.height) * (opts.scale ?? 1);
-        const a = await renderScene({ ...material, __layerPart: "scene" },
+        const a = await draw({ ...material, __layerPart: "scene" },
           { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes });
         legibleGot = a.legible ?? [];
         cutsGot = a.cuts ?? [];
         a.shots.forEach((shot, i) => writeFileSync(`${sceneDir}/${String(i).padStart(5, "0")}.png`, shot.buf));
         // Предмет лупы — в координатах окна: его прямоугольник на исходном кадре минус левый край
         // окна в момент лупы, в точках нового кадра.
-        const b = await renderScene({ ...s, ...stage, overlay: screenOverlay(s.overlay), __overlayOnly: true, __layerPart: "screen",
+        const b = await draw({ ...s, ...stage, overlay: screenOverlay(s.overlay), __overlayOnly: true, __layerPart: "screen",
           beats: s.beats.length, starts, theme: s.theme ?? pitch.theme }, opts);
         const k = opts.height / src.height;
         const items: LoupeAt[] = loupes.map((loupe, li) => {
@@ -916,7 +933,7 @@ async function main() {
           notes = await reframePage({ ...s, ...stage, page: html, offline: true, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme, __noZoom: true,
             ...(process.env.AGENTIC_SCREENCAST_BARE === "1" ? { __bareLayer: true } : {}) });
         } else {
-          const { shots, rects, floor } = await renderScene({ ...s, ...stage, page: html, offline: true,
+          const { shots, rects, floor } = await draw({ ...s, ...stage, page: html, offline: true,
             ...(dev ? { overlay: dev.overlay } : {}), beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
             { ...opts, ...(dev ? {} : { probes: loupeProbes }) });
           const items = dev ? [] : loupes.map((loupe, li) => ({ loupe, rect: rects[li]!, floor }));
@@ -984,7 +1001,7 @@ async function main() {
         const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
           mkdirSync(dir, { recursive: true });
           const own = cut && part === "screen";
-          const { shots, floor: line } = await renderScene({ ...s, ...stage, ...device, overlay: own ? screenOverlay(overlay) : overlay,
+          const { shots, floor: line } = await draw({ ...s, ...stage, ...device, overlay: own ? screenOverlay(overlay) : overlay,
             __overlayOnly: true, __layerPart: part, __videoCamera: true, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
           cut && part === "scene" ? { ...opts, width: cut.width, height: cut.height } : opts);
           shots.forEach((shot, index) => writeFileSync(
@@ -994,7 +1011,7 @@ async function main() {
         if (needsOverlay && (camera || cut)) { await layer(sceneDir, "scene"); await layer(screenDir, "screen"); }
         else if (needsOverlay) {
           mkdirSync(screenDir, { recursive: true });
-          const { shots, floor: line } = await renderScene({ ...s, ...stage, ...device, overlay, __overlayOnly: true,
+          const { shots, floor: line } = await draw({ ...s, ...stage, ...device, overlay, __overlayOnly: true,
             beats: s.beats.length, starts, theme: s.theme ?? pitch.theme }, opts);
           floor = line;
           shots.forEach((shot, index) => writeFileSync(
@@ -1074,9 +1091,10 @@ async function main() {
         if (reframe) {
           notes = await reframePage({ ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme });
         } else {
-          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, small } = await renderScene(
+          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, small } = await draw(
             { ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
-            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, ...(smallProbe ? { small: smallProbe } : {}) });
+            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, ...(smallProbe ? { small: smallProbe } : {}),
+              ...(unsafeProbe ? { unsafe: unsafeProbe } : {}) });
           legibleGot = legible ?? [];
           cutsGot = cuts ?? [];
           smallGot = small ?? [];
@@ -1139,6 +1157,19 @@ async function main() {
   // Мелкий текст у цели фокуса называется сразу: на телефоне его не прочтут, а по кадру на
   // большом экране этого не видно.
   for (const e of log) {
+    // Наезд сильнее, чем вмещает предмет, и лупа слабее заказанной — мерены по отрисованной
+    // странице; lint знает их только по оценке, а в отчёте они лежали без предупреждения.
+    for (const c of (e.pushes as Array<{ at: number; scale: number; fits: number }> | undefined) ?? []) {
+      warn(String(e.id), "push-crop", msg("build.pushCrop", { id: String(e.id), at: c.at, scale: c.scale, fit: c.fits }));
+    }
+    for (const o of (e.outside as Array<{ t: number; text: string; side: string }> | undefined) ?? []) {
+      warn(String(e.id), "safe-zone", msg("build.safeZone", { id: String(e.id), at: o.t, text: o.text, side: o.side }));
+    }
+    const lines = e.captionLines as { lines: number; text: string } | undefined;
+    if (lines) warn(String(e.id), "caption-lines", msg("build.captionLines", { id: String(e.id), lines: lines.lines, text: lines.text }));
+    for (const l of (e.loupes as Array<{ at: number; asked: number; scale: number; outside?: string }> | undefined) ?? []) {
+      warn(String(e.id), "loupe-scale", msg("build.loupeScale", { id: String(e.id), at: l.at, asked: l.asked, actual: l.scale }));
+    }
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
       if (l.px < l.min) warn(String(e.id), "legibility", msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }));
     }
@@ -1158,6 +1189,18 @@ async function main() {
   // сдвинулся вместе с речью, без просмотра кадров.
   for (const entry of log) {
     if (entry.overflow) warn(String(entry.id), "overflow", msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }));
+    // Пустая полоса в трети кадра и больше у нарисованной сцены — та же мера, что у листа кадров
+    // (`frames`), но по готовому сегменту: предупреждение приходит и без листа. Карта трейлера
+    // держит пустоту нарочно, у видео кадр — сам материал.
+    const drawn = pitch.scenes.find((x) => x.id === entry.id);
+    if (drawn?.__seg && !drawn.video && existsSync(drawn.__seg)
+      && !specOf(drawn as unknown as { provider: string; kind: string }, (pitch as { providers?: Record<string, string> }).providers ?? {}).trailer) {
+      const at = Number((drawn.duration! * 0.6).toFixed(2));
+      const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-ss", String(at), "-i", drawn.__seg, "-frames:v", "1",
+        "-vf", "scale=48:64:flags=area,format=gray", "-f", "rawvideo", "-"], { maxBuffer: 1 << 20 });
+      const share = raw.length === 48 * 64 ? flatShare(raw, 48, 64) : 0;
+      if (share >= 0.3) warn(String(entry.id), "empty-area", msg("build.emptyArea", { id: String(entry.id), percent: Math.round(share * 100), at }));
+    }
     const sc = pitch.scenes.find((x) => x.id === entry.id);
     if (sc?.nativePortrait) entry.nativePortrait = true;
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;

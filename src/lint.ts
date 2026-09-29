@@ -26,6 +26,7 @@ import { msg } from "./msg.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { finding, type Finding as RuleFinding } from "./rules.js";
+import { karaokeRestContrast } from "./brand.js";
 
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 
@@ -444,6 +445,12 @@ export function lint(file: string): Finding[] {
     // Слишком длинная сцена.
     if (duration > LONG) {
       add("long-scene", msg("lint.longScene", { duration: duration.toFixed(0), limit: LONG }));
+    }
+    // Караоке на плашке: непроизнесённое слово приглушено прозрачностью темы и держит 4,5:1. Тема
+    // автора или бренда может его погасить; поставляемые темы держат порог (тест тем).
+    if (src.captions?.style === "karaoke" && src.captions.look === "plate" && s.beats.length) {
+      const c = karaokeRestContrast((s.theme ?? pitch.theme ?? {}) as Record<string, string>);
+      if (c !== null && c < 4.5) add("karaoke-contrast", msg("lint.karaokeContrast", { ratio: c.toFixed(2) }));
     }
   });
   return out;

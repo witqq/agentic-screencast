@@ -27,7 +27,10 @@ export const RULES: Record<string, `FC-${number}`> = {
   "spotlight-collision": "FC-50",
   "typing-too-fast": "FC-59",
   "number-source": "FC-56",
+  "karaoke-contrast": "FC-62",
   // сборка: по отрисованному и закодированному
+  "caption-lines": "FC-35",
+  "safe-zone": "FC-58",
   "legibility": "FC-58",
   "small": "FC-58",
   "cut": "FC-58",

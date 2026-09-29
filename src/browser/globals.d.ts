@@ -125,6 +125,10 @@ interface StageApi {
   fontPx(sel: string): number | null;
   cutText(sel: string): string[];
   smallText(min: number): Array<{ text: string; px: number }>;
+  /** самый длинный кусок субтитра в строках, как он лёг в кадре */
+  captionLines(): { lines: number; text: string };
+  /** текст страницы за безопасной зоной ленты в кадре как есть */
+  outsideSafe(safe: { top: number; bottom: number; left: number; right: number }): Array<{ text: string; side: string }>;
   /** верх полосы, отведённой субтитрам или плашке подписи, в точках кадра; без них — высота кадра */
   floor(): number;
   readonly scene: StageScene | null;
