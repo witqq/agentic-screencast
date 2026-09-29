@@ -87,6 +87,8 @@ an unchanged camera does not re-record. The conditions and the fallback are in
 | `AGENTIC_SCREENCAST_FILM_LANG` | the scenario variant in another language; the command's `--lang ru` sets it | language of the scenario header |
 | `AGENTIC_SCREENCAST_FILM_FORMAT` | the build format of a horizontal scenario with reframing; the command's `--format vertical` sets it | format of the scenario header |
 | `AGENTIC_SCREENCAST_NO_LIVE_CAMERA` | `1` — a camera over a live take scales the video instead of re-recording the take with the browser performing it | the browser performs it |
+| `AGENTIC_SCREENCAST_TAKE_CAMERA` | set by the build, not by hand: the camera plan a re-run take script performs in the browser (which take, where to write it, the moves anchored to marks) | not set: the script records as usual |
+| `NODE_TEST_CONTEXT` | set by `node --test`; a take recorded under it does not store its script, so the build never re-runs a test file | not set |
 | `AGENTIC_SCREENCAST_BARE` | `1` — build without the layer over the material (highlights, captions, cards): this way the check compares the framing of the material itself | the layer is drawn |
 | `AGENTIC_SCREENCAST_JOBS` | how many scenes are drawn at once; each by its own browser from the first frame to the last, but under shared load the Chromium rasteriser may round a pixel differently (PSNR no lower than 56 dB against a one-at-a-time build), so a byte-exact rebuild uses `1`; the report field `timing` shows where the time went | a third of the cores, no more than four |
 | `AGENTIC_SCREENCAST_DEBUG` | `1` — a build failure is printed with the Node stack; without it, as one line `build failed: …` that names the scene and the reason | one line |
