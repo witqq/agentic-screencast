@@ -269,7 +269,8 @@ export function kindBrief(name: string, declared: Record<string, string> = {}): 
     ...(e.spec.silentOk ? [e.spec.video ? "may be silent" : "may be silent with duration"] : []),
     "fields:", ...e.spec.fields.map(line),
     "fields of every scene:", ...COMMON.map(line),
-    "film header: agentic-screencast schema film"].join("\n");
+    "film header: agentic-screencast schema film",
+    `rules for this kind: agentic-screencast craft ${e.provider === "slides" ? (e.spec.trailer ? "trailer" : "slides") : e.provider}`].join("\n");
 }
 
 // Сравниваются РАЗРЕШЁННЫЕ ПУТИ, а не URL со строкой пути: файловый URL

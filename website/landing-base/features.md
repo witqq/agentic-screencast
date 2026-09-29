@@ -211,4 +211,5 @@ build.
 | A guide to a film that does not look generated: clichés and their cure, type and colour norms | `docs/visual-design.md` | a cliché frame beside its cure | no |
 | Genre skeletons: pitch, product-demo, trailer, explainer, release, reel | `new <genre> [--lang] [--format]` | a skeleton built in one command | yes |
 | A film checklist with evidence per item | `checklist.md` from `new` | the ticked checklist | no |
+| The film-craft rules for the decision at hand: a scene kind, a technique, a genre or a finding | `craft <topic>` | the rules for spotlight printed beside the scene being written | no |
 | A knowledge base: directing rules, genre playbook, vertical video, visual assets, sound — with sources | `docs/` | see `knowledge.md` | no |

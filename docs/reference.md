@@ -549,6 +549,7 @@ npx agentic-screencast verify                    # four checks of the render cor
 npx agentic-screencast script --source story.md  # readable scenario to the output stream
 npx agentic-screencast schema                    # description of scene fields, JSON Schema
 npx agentic-screencast scenes --source story.md  # the source's scenes as JSON
+npx agentic-screencast craft spotlight          # film-craft rules for a decision, with FC numbers
 npm test                                     # the product's test suite
 ```
 

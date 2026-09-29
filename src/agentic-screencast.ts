@@ -44,6 +44,7 @@ import { KINETIC } from "./overlay.js";
 import { brandTheme, dominantColors, parseHex } from "./brand.js";
 import { parseFormat } from "./format.js";
 import { THEME_GROUPS } from "./theme.js";
+import { craft, TOPICS } from "./craft.js";
 
 /** Токены группы строками по ширине справки. */
 const wrapTokens = (keys: readonly string[]): string => {
@@ -98,9 +99,17 @@ Usage:
   agentic-screencast voices [--voice-json '{...}']
   agentic-screencast voice-check [command]
   agentic-screencast provider-check <command>
+  agentic-screencast craft [<topic>] [--json]
   agentic-screencast paths
   agentic-screencast version
 A command that reads a scenario also takes its path first: lint story.md.
+
+craft <topic> prints the 3–7 film-craft rules for the decision at hand — a scene
+kind (slides, page, video, report, trailer), a technique (spotlight, speed,
+captions, transitions, sound, vertical, capture, stills, theme, numbers…), a
+genre (product-demo, explainer, pitch, reel, release) or a finding's id
+(still-scene): each with its FC number, title and statement from
+docs/film-craft.md. craft alone lists the topics.
 
 Guides: agentic-screencast help video | help capture | help overlay
         agentic-screencast help slides | help vertical | help text
@@ -1336,6 +1345,17 @@ switch (cmd) {
     else if (topic === "web") console.log(WEB_HELP);
     else if (!topic) console.log(HELP);
     else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
+    break;
+  }
+  case "craft": {
+    // Правила базы по теме решения: текст — из docs/film-craft.md, здесь только выбор.
+    const topic = rest.find((x) => !x.startsWith("-"));
+    if (!topic) { console.log(msg("craft.topics", { topics: Object.keys(TOPICS).join(", ") })); break; }
+    try {
+      const rules = craft(topic);
+      if (rest.includes("--json")) console.log(JSON.stringify({ topic, rules }, null, 1));
+      else console.log(rules.map((r) => `${r.rule} · ${r.title}\n  ${r.text}`).join("\n\n"));
+    } catch (e) { console.error((e as Error).message); process.exit(2); }
     break;
   }
   case "version":

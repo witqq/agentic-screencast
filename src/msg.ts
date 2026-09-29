@@ -481,6 +481,9 @@ const en: Dict = {
   "hint.uncredited": "Add a line for the file to assets/CREDITS.md beside the scenario: title, author, source URL, licence, whether credit is required.",
   "build.stillNote": "scene {id}: the still {moment} quotes «{quote}», but that text is not visible in the frame",
   "hint.still-note": "Open the still: fix the scene so the quoted text shows at that moment, or correct the note.",
+  "craft.unknown": "no craft topic «{topic}»; topics: {topics}, or a finding's id such as still-scene",
+  "craft.noDoc": "the knowledge base is missing: {path}",
+  "craft.topics": "craft topics: {topics}\nor a finding's id (still-scene, overloaded-line…). agentic-screencast craft <topic>",
 };
 
 const ru: Dict = {
@@ -948,6 +951,9 @@ const ru: Dict = {
   "hint.uncredited": "Добавьте строку о файле в assets/CREDITS.md рядом со сценарием: название, автор, ссылка на источник, лицензия, нужно ли указывать автора.",
   "build.stillNote": "сцена {id}: заметка кадра {moment} цитирует «{quote}», а в кадре этого текста не видно",
   "hint.still-note": "Откройте кадр: поправьте сцену, чтобы цитата была видна в этот момент, или исправьте заметку.",
+  "craft.unknown": "нет темы «{topic}»; темы: {topics} или id находки, например still-scene",
+  "craft.noDoc": "нет базы знаний: {path}",
+  "craft.topics": "темы craft: {topics}\nили id находки (still-scene, overloaded-line…). agentic-screencast craft <тема>",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };
