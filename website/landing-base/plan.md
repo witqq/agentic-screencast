@@ -156,5 +156,4 @@ while the landing examples themselves play without sound.
 
 The page uses the existing agentic-report Markdown vocabulary: a real example immediately after
 the promise, sections in the order of the argument, one three-card comparison of slide roles,
-steps for sound and checks, source links for the knowledge base and one first-film action. The
-public Moira workflow remains outside the page while that workflow is deferred.
+steps for sound and checks, source links for the knowledge base and one first-film action.

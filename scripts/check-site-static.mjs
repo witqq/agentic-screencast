@@ -169,6 +169,9 @@ export async function checkSiteStatic(root = resolve(".")) {
     !html.includes(`<link rel="canonical" href="${origin}/"/>`) ||
     !html.includes(`<meta property="og:url" content="${origin}/"/>`)
   ) throw new Error("landing has no canonical public address");
+  if (!/<footer class="site-attribution" data-site-attribution><a href="https:\/\/moira-mcp\.com\/" aria-label="Made with Moira">Made with Moira<\/a><\/footer><\/body>/u.test(html)) {
+    throw new Error("landing does not end with the Made with Moira footer");
+  }
   if (Buffer.byteLength(html) > 2_097_152) throw new Error("landing HTML exceeds what search crawlers read");
   if (!(await readFile(resolve(site, "robots.txt"), "utf8")).includes(`Sitemap: ${origin}/sitemap.xml\n`)) {
     throw new Error("robots.txt does not name the sitemap");
