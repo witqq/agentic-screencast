@@ -31,7 +31,7 @@ Agentic Screencast — CLI, которым агент собирает виде�
 - **чеклист** `templates/checklist.md` — строку приёма;
 - **базу знаний**, если меняется то, как режиссировать или писать сценарий: `docs/film-craft.md`,
   `docs/scenario-playbook.md`, `docs/vertical-video.md`, `docs/visual-design.md`, `docs/visual-assets.md`,
-  `docs/sound.md`;
+  `docs/sound.md`, `docs/motion-design.md`;
   новые исследования ложатся туда же, с источниками;
 - **README.md**, **README.ru.md** и **docs/reference.md**, если меняется то, на что они отвечают;
   справочник и `README.ru.md` меняются вместе.

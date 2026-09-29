@@ -275,6 +275,12 @@ The tool brings three providers with it:
 | `slides.outro` | final card: title, line, call to action, address | `title` |
 | `slides.card` | trailer card: one to three words filling the frame, flying in with a flash and shake | `title` |
 | `slides.titlecard` | the film's name in widely spaced capitals with glare and bloom | `title` |
+| `slides.marquee` | an endless strip of logos or labels, one row or two in opposite directions | `items` |
+| `slides.stack` | a deck of cards: on each item the top one flies off and the deck moves up | `items` |
+| `slides.orbit` | icons circling the title on one or two orbits | `items` |
+| `slides.chat` | chat bubbles in turn, typing dots before each answer | `items` |
+| `slides.carousel` | cards in a real 3D ring that turns to each item | `items` |
+| `slides.globe` | a WebGL globe of dots: arcs from the first city to the others, a ping and a label | `items` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
 | `report` | a page agentic-report builds from its Markdown source for every scene, without its top bar, review, scheme toggle and theme switcher unless the source names those keys; needs agentic-report in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |

@@ -117,6 +117,7 @@ Speech sets the length of a scene; slides, pages and recorded clips are the pict
 | Transitions between scenes | `agentic-screencast help transitions` |
 | Music, sound accents and loudness | `agentic-screencast help sound` |
 | Themes, fonts and colour grading | `agentic-screencast help themes`; which look a film should have and which clichés to avoid — [the visual-design guide](docs/visual-design.md) |
+| Motion: order, curves, springs, transitions, named effects | [the motion-design guide](docs/motion-design.md) |
 | Narration: engines, pace, pronunciation, your own voice | `agentic-screencast help voice` |
 | A film for a web page | `agentic-screencast help web` |
 | The machine-readable contract of every scene kind | `agentic-screencast schema` |

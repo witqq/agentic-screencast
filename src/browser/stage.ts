@@ -103,6 +103,15 @@ window.__stage = (() => {
   /* Пометки от руки, блик и всплески — предметная половина слоя. */
   .__mark{fill:none;stroke:var(--sc-mark);stroke-linecap:round;stroke-linejoin:round}
   .__glint{position:absolute;overflow:hidden;pointer-events:none;mix-blend-mode:var(--sc-glint-blend);border-radius:var(--sc-card-radius)}
+  .__ping{position:absolute;width:0;height:0;pointer-events:none}
+  .__ping i{position:absolute;left:0;top:0;border-radius:50%;border:var(--sc-spot-width) solid var(--sc-ripple-ring);transform:translate(-50%,-50%)}
+  .__ping b{position:absolute;left:0;top:0;width:calc(var(--u)*0.9);height:calc(var(--u)*0.9);border-radius:50%;background:var(--sc-ripple-ring);transform:translate(-50%,-50%)}
+  #__toasts{position:absolute;right:var(--sc-edge);top:var(--sc-edge);width:calc(var(--u)*30);pointer-events:none}
+  .__toast{position:absolute;right:0;top:0;width:100%;display:flex;gap:calc(var(--u)*0.8);align-items:flex-start;box-sizing:border-box;
+    padding:var(--sc-pad-y) var(--sc-pad-x);border-radius:var(--sc-card-radius);background:var(--sc-card-bg);border:var(--sc-hairline) solid var(--sc-card-line);
+    box-shadow:var(--sc-card-shadow);color:var(--sc-card-body);font:500 calc(var(--u)*1.25)/1.35 var(--sans)}
+  .__toast .__ti{font-size:calc(var(--u)*2);line-height:1}
+  .__toast b{display:block;color:var(--sc-card-ink);font-weight:700;font-size:calc(var(--u)*1.4);margin-bottom:calc(var(--u)*0.15)}
   .__glint i{position:absolute;top:-20%;bottom:-20%;width:45%;transform:skewX(-18deg);background:var(--sc-glint)}
   #__bursts{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
   /* Субтитры контуром (умолчание, captions.look: outline): белый текст с чёрной обводкой в 0,08
@@ -705,6 +714,8 @@ window.__stage = (() => {
     marks: Array<{ segs: SVGPathElement[]; head: SVGPathElement[] }>;
     glints: HTMLElement[];
     bursts: HTMLCanvasElement | null;
+    pings: HTMLElement[];
+    toasts: HTMLElement[];
   }
   let prims: Prims | null = null;
   /** есть ли у сцены субтитры или плашка подписи: под них отведена полоса внизу кадра */
@@ -846,7 +857,31 @@ window.__stage = (() => {
       bursts.id = "__bursts";
       root.appendChild(bursts);
     }
-    prims = { root, arrows, sub, titles, lower, callouts, stickers, marks, glints, bursts, subOff: (s.__layerPart ?? "both") === "scene" };
+    const pings = (o.pings ?? []).map(() => {
+      const box = document.createElement("div");
+      box.className = "__ping";
+      box.innerHTML = "<i></i><i></i><b></b>";
+      root.appendChild(box);
+      return box;
+    });
+    let toasts: HTMLElement[] = [];
+    if (o.toasts?.length) {
+      const holder = document.createElement("div");
+      holder.id = "__toasts";
+      root.appendChild(holder);
+      toasts = o.toasts.map((item) => {
+        const box = document.createElement("div");
+        box.className = "__toast";
+        if (item.icon) { const ic = document.createElement("span"); ic.className = "__ti"; ic.textContent = item.icon; box.appendChild(ic); }
+        const text = document.createElement("div");
+        const b = document.createElement("b"); b.textContent = item.title; text.appendChild(b);
+        if (item.body) text.appendChild(document.createTextNode(item.body));
+        box.appendChild(text);
+        holder.appendChild(box);
+        return box;
+      });
+    }
+    prims = { root, arrows, sub, titles, lower, callouts, stickers, marks, glints, bursts, pings, toasts, subOff: (s.__layerPart ?? "both") === "scene" };
     // Какая половина слоя рисуется поверх видео: предметные примитивы (выноски,
     // стикеры) едут вместе с картинкой под наездом, экранные — поверх него.
     const part = s.__layerPart ?? "both";
@@ -857,7 +892,10 @@ window.__stage = (() => {
       for (const st of stickers) st.box.style.display = "none";
       for (const g of glints) g.style.display = "none";
       if (bursts) bursts.style.display = "none";
+      for (const g of pings) g.style.display = "none";
     }
+    // Уведомления — экранный слой: на видео с наездом они стоят поверх, постоянного размера.
+    if (part === "scene" && s.__videoCamera) for (const g of toasts) g.style.display = "none";
   }
 
   /** Прямоугольник предмета примитива на экране слоя в момент кадра. */
@@ -883,8 +921,12 @@ window.__stage = (() => {
   /** Вход, удержание, выход: доля появления и доля ухода примитива. */
   function life(t: number, at: number, hold: number, enter = 0.5, exit = 0.4): { on: boolean; enter: number; leave: number } {
     const end = at + hold;
-    return { on: t >= at && t < end, enter: ease(phase(t, at, at + enter)), leave: ease(phase(t, end - exit, end)) };
+    // Вход тормозит (сильный ease-out: быстро пришёл — долго сел), уход разгоняется (ease-in):
+    // одна симметричная кривая на то и другое делала накладку ватной (docs/motion-design.md).
+    return { on: t >= at && t < end, enter: outQuart(phase(t, at, at + enter)), leave: inCubic(phase(t, end - exit, end)) };
   }
+  const outQuart = (p: number): number => 1 - Math.pow(1 - p, 4);
+  const inCubic = (p: number): number => p * p * p;
   /** Пружина: быстрое движение с одним перелётом, чистая функция доли. */
   const spring = (p: number): number => (p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(9 * p));
 
@@ -1045,6 +1087,9 @@ window.__stage = (() => {
     renderMarks(t, lz, frameW, frameH);
     renderGlints(t, lz);
     renderBursts(t, lz, frameW, frameH);
+    renderPings(t, lz);
+    renderToasts(t);
+    renderBoops(t);
     renderSubtitles(t);
   }
 
@@ -1183,6 +1228,77 @@ window.__stage = (() => {
       const p = ease(phase(t, item.at, item.at + hold));
       (box.firstElementChild as HTMLElement).style.left = `${(-70 + p * 190).toFixed(2)}%`;
     });
+  }
+
+  /** Пинг: два кольца расходятся из центра предмета и гаснут, точка в центре стоит, пока идёт пинг. */
+  function renderPings(t: number, lz: number): void {
+    (scene!.overlay?.pings ?? []).forEach((item, i) => {
+      const box = prims!.pings[i]!;
+      const hold = item.hold ?? 2;
+      const on = t >= item.at && t < item.at + hold;
+      box.style.display = on ? "" : "none";
+      if (!on) return;
+      const r = anchorRect(item, lz);
+      box.style.left = `${(r.left + r.width / 2).toFixed(1)}px`;
+      box.style.top = `${(r.top + r.height / 2).toFixed(1)}px`;
+      const u = parseFloat(getComputedStyle(document.getElementById("__st") ?? prims!.root).getPropertyValue("--u")) || 10;
+      [...box.querySelectorAll("i")].forEach((ring, k) => {
+        // Кольцо растёт до двух с половиной диаметров точки и гаснет за секунду; второе — на полцикла позже.
+        const q = (((t - item.at) - k * 0.5) % 1 + 1) % 1;
+        const d = u * 0.9 * (1 + 2.6 * (1 - Math.pow(1 - q, 3)));
+        (ring as HTMLElement).style.width = `${d.toFixed(1)}px`;
+        (ring as HTMLElement).style.height = `${d.toFixed(1)}px`;
+        (ring as HTMLElement).style.opacity = (t - item.at < k * 0.5 ? 0 : (1 - q) * 0.9).toFixed(3);
+      });
+      const fade = Math.min(1, (t - item.at) / 0.2, (item.at + hold - t) / 0.3);
+      box.style.opacity = fade.toFixed(3);
+    });
+  }
+
+  /**
+   * Уведомления стопкой: новое въезжает справа за 0,4 с, прежние уходят вниз и назад — каждое
+   * следующее на 5 % меньше; видно три, как у тостов Sonner. Отжившее уходит вправо.
+   */
+  function renderToasts(t: number): void {
+    const list = scene!.overlay?.toasts ?? [];
+    if (!list.length) return;
+    const u = parseFloat(getComputedStyle(document.getElementById("__st") ?? prims!.root).getPropertyValue("--u")) || 10;
+    list.forEach((item, i) => {
+      const box = prims!.toasts[i]!;
+      const end = item.at + (item.hold ?? 4);
+      if (t < item.at || t >= end + 0.4) { box.style.display = "none"; return; }
+      box.style.display = "";
+      // Глубина — сколько более новых уже пришло; дробная, пока новое въезжает.
+      let depth = 0;
+      for (let j = i + 1; j < list.length; j++) if (t >= list[j]!.at) depth += spring(Math.min(1, (t - list[j]!.at) / 0.5));
+      const enter = 1 - Math.pow(1 - Math.min(1, (t - item.at) / 0.4), 3);
+      const leave = t >= end ? Math.pow(Math.min(1, (t - end) / 0.4), 2) : 0;
+      const x = (1 - enter) * u * 28 + leave * u * 28;
+      const y = depth * u * 1.4;
+      box.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${(1 - 0.05 * depth).toFixed(4)})`;
+      box.style.transformOrigin = "50% 0";
+      box.style.opacity = (Math.min(1, enter * 1.6) * (1 - leave) * Math.max(0, Math.min(1, 3 - depth))).toFixed(3);
+      box.style.zIndex = String(10 + i);
+    });
+  }
+
+  /**
+   * «Буп»: предмет на странице вздрагивает и пружиной возвращается. Пишется в отдельные свойства
+   * `scale`, `rotate`, `translate`: они складываются с трансформацией, которой страница двигает
+   * предмет сама, а не затирают её.
+   */
+  function renderBoops(t: number): void {
+    for (const item of scene!.overlay?.boops ?? []) {
+      const node = document.querySelector<HTMLElement>(item.target);
+      if (!node) throw new Error(`sc-stage:primitiveTarget:${item.target}`);
+      const p = (t - item.at) / 0.7;
+      if (p < 0 || p >= 1) { if (p >= 1 || p < -0.05) { node.style.scale = ""; node.style.rotate = ""; node.style.translate = ""; } continue; }
+      const wave = Math.exp(-5 * p) * Math.sin(p * Math.PI * 5);
+      if (item.kind === "pop") node.style.scale = (1 + 0.14 * wave).toFixed(4);
+      else if (item.kind === "shake") node.style.translate = `${(wave * 14).toFixed(2)}px 0`;
+      else if (item.kind === "nod") node.style.rotate = `${(wave * 9).toFixed(2)}deg`;
+      else node.style.scale = `${(1 + 0.12 * wave).toFixed(4)} ${(1 - 0.12 * wave).toFixed(4)}`;
+    }
   }
 
   /** Генератор с зерном: одно зерно — одна раскладка частиц в каждом прогоне. */

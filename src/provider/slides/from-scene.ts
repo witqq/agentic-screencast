@@ -184,6 +184,15 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.enter = f.enter.trim();
   }
   if (f.items) slide.items = items(f.items);
+  if (s.kind === "globe" && slide.items) {
+    // «Город :: широта долгота»: первый — откуда летят дуги.
+    for (const [i, it] of slide.items.entries()) {
+      const n = (it.text ?? "").split(/\s+/).map(Number);
+      if (n.length !== 2 || !(Math.abs(n[0]!) <= 90) || !(Math.abs(n[1]!) <= 180))
+        throw new SourceError(msg("slides.globePoint", { id: s.id, index: i + 1, value: it.text ?? "" }));
+    }
+    if (slide.items.length < 2) throw new SourceError(msg("slides.globePoint", { id: s.id, index: 1, value: "at least two cities" }));
+  }
   if (f.point) slide.focus = pair(f.point, msg("slides.where", { id: s.id, field: "point" }), 0, 1);
   if (f.push) slide.zoom = pair(f.push, msg("slides.where", { id: s.id, field: "push" }), 1, 2);
   if (f.device) slide.device = parseDevice(f.device);
@@ -239,6 +248,16 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       return { x, y, w, h, depth };
     });
     if (slide.panels.length > 8) throw new SourceError(msg("slides.panelCount", { id: s.id }));
+  }
+  if (f.rows) {
+    if (!["1", "2"].includes(f.rows.trim()))
+      throw new SourceError(msg("slides.options", { id: s.id, field: "rows", options: "1 | 2" }));
+    slide.rows = Number(f.rows.trim()) as 1 | 2;
+  }
+  if (f.speed) {
+    const v = Number(f.speed.trim());
+    if (!Number.isFinite(v) || v < 20 || v > 600) throw new SourceError(msg("slides.speed", { id: s.id }));
+    slide.speed = v;
   }
   if (f.at) slide.at = f.at.split(/\s+/);
   // Material lookup is last: an unfinished file must not hide an invalid independent field.

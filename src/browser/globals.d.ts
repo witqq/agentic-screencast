@@ -55,7 +55,11 @@ interface StageOverlay {
   pointer?: StageOverlayPoint[]; cards?: StageOverlayCard[]; camera?: StageCamera[];
   titles?: StageTitle[]; lower?: StageLower[]; callouts?: StageCallout[]; stickers?: StageSticker[];
   marks?: StageMark[]; glints?: StageGlint[]; bursts?: StageBurst[];
+  boops?: StageBoop[]; pings?: StagePing[]; toasts?: StageToast[];
 }
+interface StageBoop { at: number; target: string; kind: "pop" | "shake" | "jelly" | "nod" }
+interface StagePing extends StageAnchor { at: number; hold?: number }
+interface StageToast { at: number; title: string; body?: string; icon?: string; hold?: number }
 
 interface StageScene {
   id?: string;

@@ -619,6 +619,13 @@ Hand-drawn marks, glints and bursts ride with the subject under the camera:
     locator), placed as the clip lies in the frame (fit, device); moments
     inside overlay ("at":"@saved") are marks too
   "glints":[{"at":5,"target":".card"}] — a band of light crosses the subject once
+  "boops":[{"at":"b2","target":"#send","kind":"pop"}] — the element on the page
+    jolts and springs back: pop, shake, jelly or nod; ties a cause to its effect
+  "pings":[{"at":1,"target":"#dot","hold":2}] — rings spread from the subject,
+    like radar; also "area" or "point"
+  "toasts":[{"at":1,"icon":"✅","title":"Build finished","body":"film.mp4 is
+    ready","hold":4}] — notifications slide into the top-right corner; older
+    ones step back and shrink, three stay visible
   "bursts":[{"at":6,"kind":"confetti","target":"#done","seed":3},
             {"at":6,"kind":"sparks","point":[0.5,0.4]}]
     confetti fly up, spin and fall; sparks streak out and fade within a
@@ -950,6 +957,25 @@ Beyond them the full-frame kinds are:
             the film's title in spaced capitals of the theme's accent with a
             sheen, revealed from a blur, a flare across the frame; " / " breaks
             the title into lines
+
+Living kinds keep moving while the voice speaks:
+  marquee   items: 🟣 Linear | 🟢 Notion | …, rows: 2, speed: 110 — an endless
+            strip of logos or short labels, the second row the other way;
+            "many use it and the list goes on"
+  stack     items: ⭐ Title :: text | … — a deck of cards; on each item's
+            moment the top card flies off and the deck springs forward
+  orbit     items: 🟣 Linear | … — icons circling the kicker and title in the
+            middle, one orbit up to six, two beyond (the outer one reversed)
+  chat      items: you :: question | Agent :: answer | … — bubbles pop in turn
+            (you, user, me on the right), typing dots before each answer
+  carousel  items: 🎬 Title :: text | … — cards standing in a real 3D ring that
+            turns to each card on its moment
+  globe     items: Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | … — a WebGL
+            globe of dots; arcs fly from the first city to the others in
+            turn and ping where they land, the city's name beside it
+A title may rotate a word: title: Built for {teams|agents|you} — each word
+holds 2.2 s, the next rises from below, and the line stops on the last.
+When to use each: docs/motion-design.md, "Effect vocabulary".
 
 Items appear one by one: each on its own beat when the speech has enough beats, otherwise at an even pace across the speech, unless at: names moments.
 text: the phrase style of the headline and body — ${KINETIC.join(" | ")}

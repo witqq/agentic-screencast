@@ -71,6 +71,19 @@ export type Enter = (typeof ENTERS)[number];
 const enterOf = (s: Slide, dflt: Enter): Enter => (s.enter as Enter | undefined) ?? dflt;
 
 /**
+ * Смена слова в строке: «Built for {teams|agents|you}» — слово в скобках сменяется другими по очереди
+ * и останавливается на последнем. Все варианты стоят в одной ячейке, поэтому строка не
+ * перекладывается, пока слово меняется.
+ */
+const ROTATE = /\{([^{}|]+(?:\|[^{}|]+)+)\}/u;
+export function rich(text: string): ReactNode {
+  const m = ROTATE.exec(text);
+  if (!m) return text;
+  const words = m[1]!.split("|").map((w) => w.trim());
+  return <>{text.slice(0, m.index)}<span className="rot">{words.map((w, i) => <span className="rot-w" key={i}>{w}</span>)}</span>{rich(text.slice(m.index + m[0].length))}</>;
+}
+
+/**
  * Заголовок и текст слайда. Сцена с полем `text` собирает их фразой —
  * по словам или по буквам (`data-kinetic`), и тогда обёртка только проявляется,
  * чтобы движение не складывалось из двух.
@@ -79,7 +92,7 @@ function Title({ s, t, cls, text }: { s: Slide; t: string; cls?: string; text?: 
   const k = s.text?.title;
   return k
     ? <Reveal at={t} enter="fade"><h1 className={cls} data-kinetic={k} data-at={t}>{text ?? s.title}</h1></Reveal>
-    : <Reveal at={t} enter="lift"><h1 className={cls}>{text ?? s.title}</h1></Reveal>;
+    : <Reveal at={t} enter="lift"><h1 className={cls}>{rich(text ?? s.title ?? "")}</h1></Reveal>;
 }
 function Body({ s, t, cls }: { s: Slide; t: string; cls: string }): JSX.Element {
   const k = s.text?.body;
@@ -349,8 +362,8 @@ function KHead({ s }: { s: Slide }): JSX.Element | null {
 
 /** Заголовок, встающий по словам: у каждого слова свой вход с задержкой. */
 function Words({ s, text, t, cls }: { s: Slide; text: string; t: string; cls: string }): JSX.Element {
-  // Названный способ сборки заменяет встающие слова целиком.
-  if (s.text?.title) return <Title s={s} t={t} cls={cls} text={text} />;
+  // Названный способ сборки и смена слова заменяют встающие слова целиком.
+  if (s.text?.title || ROTATE.test(text)) return <Title s={s} t={t} cls={cls} text={text} />;
   const words = text.split(/\s+/).filter(Boolean);
   return (
     <h1 className={cls}>
@@ -709,6 +722,166 @@ function Outro({ s }: Props): JSX.Element {
   );
 }
 
+// — живые виды —
+//
+// Движение у них не только входное: лента едет, стопка листается, орбита вращается, чат пишет,
+// пока идёт речь. Ведёт его скрипт страницы как функция времени сцены; разметка кладёт моменты и
+// роли в атрибуты.
+
+/** Знак пункта: значок, если он есть, и подпись. */
+function Chip({ icon, title }: { icon?: string; title: string }): JSX.Element {
+  return <span className="chip">{icon ? <span className="chip-ic">{icon}</span> : null}<span className="chip-t">{title}</span></span>;
+}
+
+/**
+ * Бегущая лента: ряд повторён дважды, скрипт сдвигает его на свою ширину по кругу, края гаснут в
+ * фон. Вторая строка — навстречу. Лента входит целиком на своём моменте.
+ */
+function Marquee({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  const rows = s.rows ?? 1;
+  const half = Math.ceil(items.length / rows);
+  const lines = rows === 2 ? [items.slice(0, half), items.slice(half)] : [items];
+  return (
+    <Stage s={s} cls="k-mq" move="still">
+      <KHead s={s} />
+      <Reveal at={item(s, 0, 1)} enter="fade" className="mq">
+        {lines.map((line, r) => (
+          <div className="mq-row" key={r} data-dir={r % 2 ? -1 : 1} data-speed={s.speed ?? 110}>
+            <div className="mq-track">
+              {[0, 1, 2].map((k) => line.map((it, i) => <Chip key={`${k}-${i}`} icon={it.icon} title={it.title} />))}
+            </div>
+          </div>
+        ))}
+      </Reveal>
+    </Stage>
+  );
+}
+
+/**
+ * Стопка карточек: верхняя улетает на момент следующей, колода подъезжает вперёд на пружине.
+ * Моменты карточек лежат в `data-t`, а не в `data-at` входа: карточка видна с начала — в колоде.
+ */
+function Stack({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-stk" move="drift">
+      <KHead s={s} />
+      <Reveal at={item(s, 0, items.length)} enter="pop" className="stk">
+        {items.map((it, i) => (
+          <div className="stk-card" key={i} data-at={item(s, i, items.length)}>
+            {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
+            <h3>{it.title}</h3>
+            {it.text ? <p>{it.text}</p> : null}
+          </div>
+        ))}
+      </Reveal>
+    </Stage>
+  );
+}
+
+/**
+ * Орбита: пункты кружат вокруг центра — надзаголовка и заголовка сцены. До шести — одна орбита,
+ * больше — две, внешняя идёт навстречу и медленнее. Каждый пункт выпрыгивает на своём моменте.
+ */
+function Orbit({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  const inner = items.length > 6 ? Math.ceil(items.length / 2) : items.length;
+  return (
+    <Stage s={s} cls="k-orb" move="still">
+      <div className="orb">
+        <span className="orb-ring orb-r1" /><span className={items.length > inner ? "orb-ring orb-r2" : "orb-ring orb-r2 off"} />
+        <div className="orb-core">
+          {s.kicker ? <Reveal at="0" enter="track"><p className="kicker">{s.kicker}</p></Reveal> : null}
+          {s.title ? <Title s={s} t="0" cls="orb-title" /> : null}
+        </div>
+        {items.map((it, i) => {
+          const ring = i < inner ? 1 : 2, k = ring === 1 ? i : i - inner, n = ring === 1 ? inner : items.length - inner;
+          return (
+            <div className="orb-pos" key={i} data-ring={ring} data-phase={(k / n).toFixed(4)}>
+              <Reveal at={item(s, i, items.length)} enter="pop"><Chip icon={it.icon} title={it.title} /></Reveal>
+            </div>
+          );
+        })}
+      </div>
+    </Stage>
+  );
+}
+
+/**
+ * Кольцо карточек в настоящем 3D: карточки стоят по кругу, кольцо поворачивается к пункту на его
+ * моменте. Кольцо трёхмерно на каждом кадре — так его растр одинаков в любом прогоне (styles.ts).
+ */
+function Ring({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-ring" move="still">
+      <KHead s={s} />
+      <Reveal at={item(s, 0, items.length)} enter="fade" className="ring3">
+        <div className="ring3-rot" data-n={items.length}>
+          {items.map((it, i) => (
+            <div className="ring3-card" key={i} data-at={item(s, i, items.length)}>
+              {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
+              <h3>{it.title}</h3>
+              {it.text ? <p>{it.text}</p> : null}
+            </div>
+          ))}
+        </div>
+      </Reveal>
+    </Stage>
+  );
+}
+
+/**
+ * Глобус на WebGL: сфера из точек поворачивается, из первого города к остальным по очереди летят
+ * дуги, в точке прихода расходится пинг и встаёт подпись. Рисует скрипт страницы (`globe`).
+ */
+function Globe({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-globe" move="still">
+      <KHead s={s} />
+      <div className="globe">
+        <canvas className="globe-cv" data-cities={JSON.stringify(items.map((it) => (it.text ?? "0 0").split(/\s+/).map(Number)))} />
+        {items.map((it, i) => <span className="globe-l" key={i} data-at={i ? item(s, i - 1, items.length - 1) : "0"}>{it.title}</span>)}
+      </div>
+    </Stage>
+  );
+}
+
+/** Кто говорит в чате: собеседник справа, ассистент слева. */
+const USER = /^(you|user|me|human|я|вы|ты|пользователь|клиент)$/iu;
+
+/**
+ * Чат: реплики выпрыгивают по очереди от своего края; перед каждой репликой ассистента на секунду
+ * встают три точки — «ИИ думает». Когда реплики не помещаются, лента чата прокручивается вверх.
+ */
+function Chat({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-chat" move="drift">
+      <KHead s={s} />
+      <div className="chat">
+        <div className="chat-feed">
+          {items.map((it, i) => {
+            const me = USER.test(it.title);
+            const t = item(s, i, items.length);
+            return (
+              <div className={me ? "msg me" : "msg"} key={i}>
+                {me ? null : <span className="msg-dots" data-at={t}><i /><i /><i /></span>}
+                <Reveal at={t} enter="pop" className="bubble">
+                  {me ? null : <b className="msg-who">{it.title}</b>}
+                  <span>{it.text ?? it.title}</span>
+                </Reveal>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Stage>
+  );
+}
+
 /**
  * Искры карты: места, снос и задержки — из номера искры, а не из случая, поэтому кадр
  * повторим. Двигает их скрипт страницы по времени сцены.
@@ -786,6 +959,12 @@ const BODIES: Record<string, (p: Props) => JSX.Element> = {
   outro: Outro,
   card: Card,
   titlecard: TitleCard,
+  marquee: Marquee,
+  stack: Stack,
+  orbit: Orbit,
+  chat: Chat,
+  carousel: Ring,
+  globe: Globe,
 };
 
 /** Тело слайда по его виду. Незнакомый вид — ошибка, а не пустая страница. */

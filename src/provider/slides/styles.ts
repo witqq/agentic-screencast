@@ -377,6 +377,52 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
 body[data-align="center"]>.head+.el{margin-top:auto}
 body[data-align="bottom"]>.head+.el{margin-top:auto}
 body[data-align="bottom"]>.rule{margin-top:var(--space-l)}
+/* — настоящий 3D: кольцо карточек (трёхмерно на каждом кадре) и глобус на WebGL — */
+.ring3{flex:1;min-height:0;position:relative;perspective:1400px;display:flex;align-items:center;justify-content:center}
+.ring3-rot{position:relative;width:420px;height:300px;transform-style:preserve-3d}
+.ring3-card{position:absolute;inset:0;padding:var(--space-xl);border-radius:var(--radius-xl);background:var(--card);border:var(--hairline) solid var(--line);
+  backface-visibility:hidden;box-shadow:var(--shadow-3)}
+.ring3-card h3{font-size:34px;line-height:1.15;color:var(--ink);font-weight:700;margin-bottom:8px}
+.ring3-card p{font-size:26px;line-height:1.35;color:var(--body)}
+.globe{flex:1;min-height:0;position:relative}
+.globe-cv{position:absolute;inset:0;width:100%;height:100%}
+.globe-l{position:absolute;left:0;top:0;padding:var(--space-xs) var(--space-s);border-radius:var(--radius-pill);background:var(--card);border:var(--hairline) solid var(--line);
+  font:600 24px/1 var(--sans);color:var(--ink);white-space:nowrap;opacity:0}
+/* — смена слова в строке — */
+.rot{display:inline-grid;vertical-align:bottom;color:var(--acc)}
+.rot-w{grid-area:1/1;white-space:nowrap}
+/* — живые виды: лента, стопка, орбита, чат — */
+.chip{display:inline-flex;align-items:center;gap:14px;flex:none;padding:var(--space-m) var(--space-xl);border-radius:var(--radius-pill);
+  background:var(--card);border:var(--hairline) solid var(--line);font:600 32px/1 var(--sans);color:var(--ink);white-space:nowrap}
+.chip-ic{font-size:38px;line-height:1}
+.mq{display:flex;flex-direction:column;gap:26px;margin:0 calc(var(--pad-l) * -1) 0 calc(var(--pad-l) * -1);
+  -webkit-mask-image:linear-gradient(90deg,transparent,var(--bg) 12%,var(--bg) 88%,transparent);mask-image:linear-gradient(90deg,transparent,var(--bg) 12%,var(--bg) 88%,transparent)}
+.mq-row{overflow:hidden}
+.mq-track{display:flex;gap:26px;width:max-content;will-change:transform}
+.stk{display:grid;align-self:center;width:min(100%,860px);margin-top:12px}
+.stk-card{grid-area:1/1;padding:var(--space-2xl);border-radius:var(--radius-xl);background:var(--card);border:var(--hairline) solid var(--line);
+  box-shadow:var(--shadow-3);transform-origin:50% 100%}
+.stk-card h3{font-size:40px;line-height:1.15;color:var(--ink);font-weight:700;margin-bottom:10px;letter-spacing:-.01em}
+.stk-card p{font-size:30px;line-height:1.38;color:var(--body)}
+.k-orb .k-in{align-items:center}
+.orb{position:relative;height:100%;max-height:100%;aspect-ratio:1;max-width:100%}
+.orb-ring{position:absolute;left:50%;top:50%;border-radius:50%;border:var(--hairline) dashed var(--line);transform:translate(-50%,-50%)}
+.orb-r1{width:60%;height:60%}.orb-r2{width:92%;height:92%}.orb-ring.off{display:none}
+.orb-core{position:absolute;left:50%;top:50%;width:42%;transform:translate(-50%,-50%);text-align:center}
+.orb-title{font-size:48px;line-height:1.08;margin:0}
+.orb-pos{position:absolute;left:50%;top:50%;width:0;height:0;display:flex;align-items:center;justify-content:center}
+.orb-pos>.el{flex:none}
+.orb .chip{padding:var(--space-s) var(--space-l);font-size:26px}.orb .chip-ic{font-size:32px}
+.chat{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden;max-width:1100px;width:100%;align-self:center}
+.chat-feed{display:flex;flex-direction:column;gap:18px}
+.msg{display:flex;align-items:flex-end;justify-content:flex-start}
+.msg.me{justify-content:flex-end}
+.bubble{max-width:78%;padding:var(--space-m) var(--space-l);border-radius:var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);background:var(--card);border:var(--hairline) solid var(--line);
+  font-size:30px;line-height:1.38;color:var(--body);transform-origin:0 100%}
+.msg.me .bubble{border-radius:var(--radius-xl) var(--radius-xl) var(--radius-sm) var(--radius-xl);background:var(--acc);border-color:var(--acc);color:var(--sc-badge-ink);transform-origin:100% 100%}
+.msg-who{display:block;font:700 20px/1.2 var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--mut);margin-bottom:6px}
+.msg-dots{display:none;gap:9px;padding:var(--space-l);border-radius:var(--radius-xl) var(--radius-xl) var(--radius-xl) var(--radius-sm);background:var(--card);border:var(--hairline) solid var(--line)}
+.msg-dots i{width:13px;height:13px;border-radius:50%;background:var(--mut)}
 body[data-align="fill"]>.el:not(.head){margin-top:auto}
 body[data-align="top"] .k-in{justify-content:flex-start}
 body[data-align="center"] .k-in{justify-content:safe center}
@@ -810,6 +856,13 @@ function kenBurns(t) {
 // глубина) или медленный наезд к концу сцены.
 function move(t) {
   const amb = document.querySelector('.amb');
+  // Классические виды (шапка, колонки, цепочка, цитата, число) стоят потоком без секции кадра: их
+  // облёт — тот же сдвиг, но отдельным свойством \`translate\`, которое складывается со входом.
+  if (!document.querySelector('.k')) {
+    const tx = Math.sin(t * 0.13) * 7, ty = Math.cos(t * 0.19) * 5;
+    for (const el of document.querySelectorAll('body>.el')) el.style.translate = tx.toFixed(2) + 'px ' + ty.toFixed(2) + 'px';
+    if (amb) amb.style.transform = 'translate(' + (-tx * 0.5).toFixed(2) + 'px,' + (-ty * 0.5).toFixed(2) + 'px) scale(1.03)';
+  }
   for (const sec of document.querySelectorAll('.k[data-move]')) {
     const kin = sec.querySelector('.k-in');
     const mode = sec.dataset.move;
@@ -1049,6 +1102,188 @@ function fitCards() {
 }
 fitCards();
 
+// — живые виды —
+// Пружина одной формулы: быстрое движение с одним перелётом (как у слоя композиции).
+const spring = (p) => (p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(9 * p));
+
+// Бегущая лента: ряд повторён трижды, сдвиг — ширина одного повтора по кругу, линейно (бесконечный
+// цикл — единственное место линейного движения). Вторая строка идёт навстречу.
+function marquee(t) {
+  for (const row of document.querySelectorAll('.mq-row')) {
+    const track = row.firstElementChild, cw = track.scrollWidth / 3;
+    if (!cw) continue;
+    const d = (t * Number(row.dataset.speed || 110)) % cw;
+    const x = Number(row.dataset.dir) > 0 ? -d : -cw + d;
+    track.style.transform = 'translateX(' + x.toFixed(2) + 'px)';
+  }
+}
+
+// Стопка: карточка уходит влево-вверх, когда наступает момент следующей; колода подъезжает
+// вперёд на пружине — глубина карточки уменьшается на единицу за каждую ушедшую.
+function stack(t) {
+  for (const stk of document.querySelectorAll('.stk')) {
+    const cards = [...stk.querySelectorAll('.stk-card')], T = cards.map(start);
+    cards.forEach((c, i) => {
+      let depth = i;
+      for (let j = 1; j <= i; j++) depth -= spring(clamp((t - T[j]) / 0.7));
+      const leave = i + 1 < cards.length ? out3(clamp((t - T[i + 1]) / 0.55)) : 0;
+      if (leave > 0) {
+        c.style.transform = 'translate(' + (-leave * 560).toFixed(1) + 'px,' + (-leave * 40).toFixed(1) + 'px) rotate(' + (-leave * 12).toFixed(2) + 'deg)';
+        c.style.opacity = (1 - leave).toFixed(3);
+      } else {
+        c.style.transform = 'translateY(' + (-depth * 22).toFixed(2) + 'px) scale(' + (1 - depth * 0.06).toFixed(4) + ')';
+        c.style.opacity = clamp(3.5 - depth).toFixed(3);
+      }
+      c.style.zIndex = String(100 - i);
+    });
+  }
+}
+
+// Орбита: пункты кружат вокруг центра; внутренняя орбита — 16° в секунду, внешняя — навстречу, 10°.
+function orbit(t) {
+  for (const orb of document.querySelectorAll('.orb')) {
+    const w = orb.clientWidth;
+    for (const p of orb.querySelectorAll('.orb-pos')) {
+      const outer = p.dataset.ring === '2', r = w * (outer ? 0.5 : 0.33);
+      const a = Number(p.dataset.phase) * Math.PI * 2 - Math.PI / 2 + t * (outer ? -0.175 : 0.28);
+      p.style.transform = 'translate(' + (Math.cos(a) * r).toFixed(2) + 'px,' + (Math.sin(a) * r).toFixed(2) + 'px)';
+    }
+  }
+}
+
+// Чат: реплика занимает место, когда о ней заговорили; перед репликой ассистента 0,9 с прыгают
+// три точки. Новые реплики снизу, старые уходят вверх за край окна чата.
+function chat(t) {
+  for (const m of document.querySelectorAll('.msg')) {
+    const b = m.querySelector('.bubble'), dots = m.querySelector('.msg-dots'), t0 = start(b);
+    const typing = dots && t >= t0 - 0.9 && t < t0;
+    m.style.display = t >= t0 || typing ? '' : 'none';
+    b.style.display = t >= t0 ? '' : 'none';
+    if (dots) {
+      dots.style.display = typing ? 'inline-flex' : 'none';
+      [...dots.children].forEach((d, k) => {
+        const q = ((t * 1.6 - k * 0.18) % 1 + 1) % 1;
+        d.style.transform = 'translateY(' + (-Math.max(0, Math.sin(q * Math.PI * 2)) * 8).toFixed(2) + 'px)';
+      });
+    }
+  }
+}
+
+// Смена слова: вариант держится 2,2 с, сменщик поднимается снизу за 0,45 с, прежний уходит вверх;
+// на последнем варианте строка останавливается.
+function rotate(t) {
+  for (const r of document.querySelectorAll('.rot')) {
+    const words = [...r.children], n = words.length, t0 = 1.0, period = 2.2;
+    const k = Math.min(n - 1, Math.max(0, Math.floor((t - t0) / period)));
+    const since = t - t0 - k * period;
+    const e = k === 0 && t < t0 ? 1 : out3(clamp(since / 0.45));
+    words.forEach((w, i) => {
+      let y = 110, o = 0;
+      if (i === k) { y = (1 - e) * 110; o = e; }
+      else if (i === k - 1 && e < 1) { y = -e * 110; o = 1 - e; }
+      w.style.transform = 'translateY(' + y.toFixed(1) + '%)';
+      w.style.opacity = o.toFixed(3);
+    });
+  }
+}
+
+// Кольцо карточек: N карточек на окружности (радиус — половина ширины карточки на тангенс π/N),
+// кольцо поворачивается к карточке на её моменте, на пружине. Трёхмерно с первого кадра до последнего.
+function ring(t) {
+  for (const rot of document.querySelectorAll('.ring3-rot')) {
+    const cards = [...rot.children], n = cards.length, w = rot.clientWidth || 420;
+    const step = Math.min(360 / n, 38), tz = (w / 2) / Math.tan(step * Math.PI / 360) + 40;
+    cards.forEach((c, i) => { c.style.transform = 'rotateY(' + (i * step).toFixed(3) + 'deg) translateZ(' + tz.toFixed(1) + 'px)'; });
+    let turn = 0;
+    for (let i = 1; i < n; i++) turn += spring(clamp((t - start(cards[i])) / 0.9));
+    // Кольцо ещё и чуть плывёт, чтобы кадр жил на удержании.
+    const drift = Math.sin(t * 0.5) * 3;
+    rot.style.transform = 'translateZ(' + (-tz).toFixed(1) + 'px) rotateX(-6deg) rotateY(' + (-turn * step + drift).toFixed(3) + 'deg)';
+  }
+}
+
+// Глобус: ~2400 точек по спирали Фибоначчи, вращение вокруг оси, наклон 20°; дуги по большому кругу
+// с подъёмом над поверхностью, прорисовка 1,2 с; пинг в точке прихода; подписи — по проекции.
+const GLB = new WeakMap();
+function globe(t) {
+  for (const cv of document.querySelectorAll('.globe-cv')) {
+    let st = GLB.get(cv);
+    if (!st) {
+      const dpr = window.devicePixelRatio || 1;
+      cv.width = Math.max(2, Math.round(cv.clientWidth * dpr)); cv.height = Math.max(2, Math.round(cv.clientHeight * dpr));
+      const gl = cv.getContext('webgl', { preserveDrawingBuffer: true, antialias: true, premultipliedAlpha: false });
+      st = { gl };
+      if (gl) {
+        const sh = (type, src) => { const x = gl.createShader(type); gl.shaderSource(x, src); gl.compileShader(x); return x; };
+        const prog = gl.createProgram();
+        gl.attachShader(prog, sh(gl.VERTEX_SHADER, 'attribute vec3 p;uniform mat3 R;uniform vec2 K;uniform float S;varying float f;'
+          + 'void main(){vec3 q=R*p;f=q.z;gl_Position=vec4(q.x*K.x,q.y*K.y,-q.z*0.3,1.0);gl_PointSize=S;}'));
+        gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, 'precision mediump float;uniform vec3 C;uniform float A,H;varying float f;'
+          + 'void main(){vec2 c=gl_PointCoord-0.5;float d=length(c);if(d>0.5||(H>0.0&&d<0.5-H))discard;'
+          + 'if(f<0.0)discard;gl_FragColor=vec4(C,A);}'));
+        gl.linkProgram(prog); gl.useProgram(prog);
+        const N = 2400, dots = [];
+        for (let i = 0; i < N; i++) { const y = 1 - (i + 0.5) / N * 2, r = Math.sqrt(1 - y * y), a = i * 2.39996323; dots.push(Math.cos(a) * r, y, Math.sin(a) * r); }
+        const buf = (arr) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(arr), gl.DYNAMIC_DRAW); return b; };
+        const xyz = (lat, lon) => { const la = lat * Math.PI / 180, lo = lon * Math.PI / 180; return [Math.cos(la) * Math.sin(lo), Math.sin(la), Math.cos(la) * Math.cos(lo)]; };
+        const cities = JSON.parse(cv.dataset.cities).map(([la, lo]) => xyz(la, lo));
+        const arcs = cities.slice(1).map((b) => {
+          const a = cities[0], pts = [], dot = Math.max(-1, Math.min(1, a[0] * b[0] + a[1] * b[1] + a[2] * b[2])), om = Math.acos(dot) || 1e-4;
+          for (let k = 0; k <= 160; k++) { const s = k / 160, s1 = Math.sin((1 - s) * om) / Math.sin(om), s2 = Math.sin(s * om) / Math.sin(om), lift = 1 + 0.22 * Math.sin(Math.PI * s) * om / 2;
+            pts.push((a[0] * s1 + b[0] * s2) * lift, (a[1] * s1 + b[1] * s2) * lift, (a[2] * s1 + b[2] * s2) * lift); }
+          return pts;
+        });
+        gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+        st = { gl, prog, dots: buf(dots), N, arcs: arcs.map(buf), cities, city: buf(cities.flat()),
+          P: gl.getAttribLocation(prog, 'p'), R: gl.getUniformLocation(prog, 'R'), K: gl.getUniformLocation(prog, 'K'), S: gl.getUniformLocation(prog, 'S'),
+          C: gl.getUniformLocation(prog, 'C'), A: gl.getUniformLocation(prog, 'A'), H: gl.getUniformLocation(prog, 'H') };
+      }
+      GLB.set(cv, st);
+    }
+    const gl = st.gl;
+    if (!gl) { document.body.dataset.screenRenderer = 'fallback'; continue; }
+    const hub = st.cities[0], lon0 = Math.atan2(hub[0], hub[2]);
+    const yaw = -lon0 + 0.5 - t * 0.12, tilt = 0.35;
+    const cy = Math.cos(yaw), sy = Math.sin(yaw), cx = Math.cos(tilt), sx = Math.sin(tilt);
+    // R = Rx(tilt) * Ry(yaw), по столбцам.
+    const R = [cy, sx * sy, -cx * sy, 0, cx, sx, sy, -sx * cy, cx * cy];
+    const rot = (p) => [R[0] * p[0] + R[3] * p[1] + R[6] * p[2], R[1] * p[0] + R[4] * p[1] + R[7] * p[2], R[2] * p[0] + R[5] * p[1] + R[8] * p[2]];
+    const asp = cv.width / cv.height, k = 0.86, K = asp > 1 ? [k / asp, k] : [k, k * asp];
+    gl.viewport(0, 0, cv.width, cv.height); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniformMatrix3fv(st.R, false, new Float32Array(R)); gl.uniform2fv(st.K, new Float32Array(K));
+    const dpr = window.devicePixelRatio || 1;
+    const draw = (b, count, mode, size, color, alpha, hollow) => {
+      gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.enableVertexAttribArray(st.P); gl.vertexAttribPointer(st.P, 3, gl.FLOAT, false, 0, 0);
+      gl.uniform1f(st.S, size * dpr); gl.uniform3fv(st.C, color); gl.uniform1f(st.A, alpha); gl.uniform1f(st.H, hollow || 0);
+      gl.drawArrays(mode, 0, count);
+    };
+    draw(st.dots, st.N, gl.POINTS, 3.4, colorOf('--mut'), 0.85);
+    const labels = [...cv.parentElement.querySelectorAll('.globe-l')];
+    const t0s = labels.map(start);
+    st.arcs.forEach((b, i) => {
+      const e = inOut(clamp((t - t0s[i + 1]) / 1.2));
+      if (e > 0) draw(b, Math.max(1, Math.round(161 * e)), gl.POINTS, 4.2, colorOf('--acc'), 0.95);
+    });
+    // Пинги: точка города и кольцо, которое расходится, когда дуга пришла (у первого — сразу).
+    st.cities.forEach((c, i) => {
+      const since = t - (i ? t0s[i] + 1.2 : t0s[0]);
+      if (since < 0) return;
+      const one = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, one); gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(c), gl.DYNAMIC_DRAW);
+      draw(one, 1, gl.POINTS, 12, colorOf('--acc'), 1);
+      const q = (since % 1.4) / 1.4;
+      draw(one, 1, gl.POINTS, 12 + 60 * out3(q), colorOf('--acc'), (1 - q) * 0.9, 0.08);
+      gl.deleteBuffer(one);
+    });
+    labels.forEach((l, i) => {
+      const p = rot(st.cities[i]), since = t - (i ? t0s[i] + 1.2 : t0s[0]);
+      const x = (p[0] * K[0] + 1) / 2 * cv.clientWidth, y = (1 - p[1] * K[1]) / 2 * cv.clientHeight;
+      l.style.transform = 'translate(' + (x + 14).toFixed(1) + 'px,' + (y - 44).toFixed(1) + 'px)';
+      l.style.opacity = (p[2] > 0 ? clamp(since / 0.4) : 0).toFixed(3);
+    });
+    if (gl.getError() === gl.NO_ERROR) document.body.dataset.screenRenderer = 'webgl';
+  }
+}
+
 // Кусочно-линейная кривая по точкам [доля, значение].
 const curve = (pts, p) => {
   if (p <= pts[0][0]) return pts[0][1];
@@ -1183,6 +1418,13 @@ window.renderAt = (t) => {
   ambient(t);
   chapter(t);
   cards(t);
+  rotate(t);
+  marquee(t);
+  stack(t);
+  orbit(t);
+  chat(t);
+  ring(t);
+  globe(t);
 };
 window.renderAt(0);
 })();

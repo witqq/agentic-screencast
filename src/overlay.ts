@@ -170,6 +170,29 @@ export interface OverlayGlint extends OverlayAnchor {
   hold?: number;
 }
 
+/** Отклик предмета на событие: он вздрагивает и пружиной возвращается — «буп». */
+export interface OverlayBoop {
+  at: number;
+  /** CSS-селектор предмета на странице */
+  target: string;
+  kind: "pop" | "shake" | "jelly" | "nod";
+}
+
+/** Пинг: из точки расходятся кольца, как сигнал радара. */
+export interface OverlayPing extends OverlayAnchor {
+  at: number;
+  hold?: number;
+}
+
+/** Уведомление: карточка въезжает в угол, прежние уходят назад стопкой. */
+export interface OverlayToast {
+  at: number;
+  title: string;
+  body?: string;
+  icon?: string;
+  hold?: number;
+}
+
 /** Всплеск в момент успеха: конфетти или искры из предмета; раскладку задаёт зерно. */
 export interface OverlayBurst extends OverlayAnchor {
   at: number;
@@ -206,6 +229,9 @@ export interface SceneOverlay {
   glints?: OverlayGlint[];
   bursts?: OverlayBurst[];
   loupe?: OverlayLoupe[];
+  boops?: OverlayBoop[];
+  pings?: OverlayPing[];
+  toasts?: OverlayToast[];
 }
 
 /** Время чтения короткой надписи: секунда на то, чтобы увидеть, плюс 15 знаков в секунду. */
@@ -272,7 +298,8 @@ function parseOverlayBody(json: string): SceneOverlay {
   try { value = JSON.parse(json); }
   catch { throw new Error(msg("source.jsonObject", { field: "overlay" })); }
   if (!object(value)) throw new Error(msg("source.jsonObject", { field: "overlay" }));
-  keys(value, ["pointer", "cards", "camera", "titles", "lower", "callouts", "stickers", "marks", "glints", "bursts", "loupe"], "overlay");
+  keys(value, ["pointer", "cards", "camera", "titles", "lower", "callouts", "stickers", "marks", "glints", "bursts", "loupe",
+    "boops", "pings", "toasts"], "overlay");
   const overlay: SceneOverlay = {};
   if (value.pointer !== undefined) {
     if (!Array.isArray(value.pointer)) throw new Error(msg("overlay.array", { where: "overlay.pointer" }));
@@ -551,6 +578,33 @@ function parseOverlayBody(json: string): SceneOverlay {
     // Блик идёт по предмету или области: у точки нет ширины, и полосе нечего пересечь.
     return { at: momentAt(raw.at, where), ...anchor(raw, where, true), hold: raw.hold === undefined ? 1.1 : time(raw.hold, where) };
   });
+  const boops = list("boops");
+  if (boops) overlay.boops = boops.map((raw: unknown, i: number): OverlayBoop => {
+    const where = `overlay.boops[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "target", "kind"], where);
+    if (typeof raw.target !== "string" || !raw.target.trim()) throw new Error(msg("overlay.cssSelector", { where: `${where}.target` }));
+    const kind = oneOf(raw, "kind", ["pop", "shake", "jelly", "nod"] as const, where) ?? "pop";
+    return { at: momentAt(raw.at, where), target: raw.target.trim(), kind };
+  });
+  const pings = list("pings");
+  if (pings) overlay.pings = pings.map((raw: unknown, i: number): OverlayPing => {
+    const where = `overlay.pings[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "target", "area", "point", "hold"], where);
+    return { at: momentAt(raw.at, where), ...anchor(raw, where, true), hold: raw.hold === undefined ? 2 : time(raw.hold, where) };
+  });
+  const toasts = list("toasts");
+  if (toasts) overlay.toasts = toasts.map((raw: unknown, i: number): OverlayToast => {
+    const where = `overlay.toasts[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "title", "body", "icon", "hold"], where);
+    if (typeof raw.title !== "string" || !raw.title.trim()) throw new Error(msg("overlay.text", { where: `${where}.title` }));
+    return { at: momentAt(raw.at, where), title: raw.title.trim(),
+      ...(typeof raw.body === "string" && raw.body.trim() ? { body: raw.body.trim() } : {}),
+      ...(typeof raw.icon === "string" && raw.icon.trim() ? { icon: raw.icon.trim() } : {}),
+      ...(raw.hold !== undefined ? { hold: time(raw.hold, where) } : {}) };
+  });
   const bursts = list("bursts");
   if (bursts) overlay.bursts = bursts.map((raw: unknown, i: number): OverlayBurst => {
     const where = `overlay.bursts[${i}]`;
@@ -580,7 +634,8 @@ function parseOverlayBody(json: string): SceneOverlay {
   }), "loupe");
   if (!overlay.pointer?.length && !overlay.cards?.length && !overlay.camera?.length
     && !overlay.titles?.length && !overlay.lower?.length && !overlay.callouts?.length && !overlay.stickers?.length
-    && !overlay.marks?.length && !overlay.glints?.length && !overlay.bursts?.length && !overlay.loupe?.length)
+    && !overlay.marks?.length && !overlay.glints?.length && !overlay.bursts?.length && !overlay.loupe?.length
+    && !overlay.boops?.length && !overlay.pings?.length && !overlay.toasts?.length)
     throw new Error(msg("overlay.empty"));
   return overlay;
 }
@@ -592,5 +647,7 @@ export function overlayEnd(overlay: SceneOverlay): number {
     ...(overlay.camera?.map(cameraEnd) ?? []),
     ...[...(overlay.titles ?? []), ...(overlay.lower ?? []), ...(overlay.callouts ?? []),
       ...(overlay.stickers ?? []), ...(overlay.marks ?? []), ...(overlay.glints ?? []),
-      ...(overlay.bursts ?? []), ...(overlay.loupe ?? [])].map((item) => item.at + (item.hold ?? 0) + 0.35));
+      ...(overlay.bursts ?? []), ...(overlay.loupe ?? []), ...(overlay.pings ?? [])].map((item) => item.at + (item.hold ?? 0) + 0.35),
+    ...(overlay.boops ?? []).map((b) => b.at + 0.7),
+    ...(overlay.toasts ?? []).map((toast) => toast.at + (toast.hold ?? 4) + 0.4));
 }

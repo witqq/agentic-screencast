@@ -185,6 +185,60 @@ export const KINDS: Record<string, KindSpec> = {
     effects: still,
     check: { ...check, body: 16 },
   },
+  // Живые виды: кадр держит движение, пока идёт речь, — лента едет, стопка листается,
+  // орбита вращается, чат пишет (docs/motion-design.md, «Effect vocabulary»).
+  marquee: {
+    about: "an endless strip of logos or short labels that runs sideways, one row or two in opposite directions: «🟣 Linear | 🟢 Notion | …» — \"many use it and the list goes on\"",
+    fields: [...staged, "items", "rows", "speed"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  stack: {
+    about: "a deck of cards: the top one flies off on each beat and the deck springs forward: «Title :: text | …» — one at a time, the rest waiting",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  orbit: {
+    about: "icons circling the product on one or two orbits around the centre (kicker and title in the middle): «🟣 Linear | 🟢 Notion | …» — integrations, an ecosystem",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  chat: {
+    about: "a conversation that writes itself: bubbles pop in turn, the assistant shows typing dots before each answer: «you :: question | bot :: answer | …»",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  carousel: {
+    about: "cards standing in a real 3D ring that turns to bring the next card forward on each beat: «🚀 Title :: text | …» — a whole set with no start or end",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  globe: {
+    about: "a WebGL globe of dots that turns; from the first city arcs fly to the others in turn and ping where they land: «Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | …» (latitude longitude)",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
   // Кегль карты подбирается под ширину кадра, а не задаётся: пороги текста у неё свои.
   card: {
     about: "a trailer card: one to three words across the whole frame that slam in with a flash, a shake, a sheen over metal letters and rising sparks",
@@ -224,7 +278,7 @@ for (const spec of Object.values(KINDS)) spec.moving = true;
 const SHOWN = ["title", "kicker", "body", "note", "items", "left", "right", "nodes", "back", "parts",
   "values", "value", "label", "tags", "cta", "data", "labels"];
 const STAGING = ["align", "at", "background", "code", "count", "cps", "device", "enter", "file", "highlight", "image",
-  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels"];
+  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels", "rows", "speed"];
 for (const spec of Object.values(KINDS)) {
   spec.shown = spec.fields.filter((f) => SHOWN.includes(f));
   spec.staging = spec.fields.filter((f) => STAGING.includes(f));

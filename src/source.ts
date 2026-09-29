@@ -300,6 +300,9 @@ export interface Slide {
   split?: [number, number];
   /** параллакс: панели снимка (доли картинки) и их глубина 0…1, где 1 — ближе всего */
   panels?: Array<{ x: number; y: number; w: number; h: number; depth: number }>;
+  /** бегущая лента: число строк (вторая идёт навстречу) и скорость в точках кадра за секунду */
+  rows?: 1 | 2;
+  speed?: number;
   /** график из CSV: вид, строки «подпись — значение», подсвеченная строка */
   chart?: { type: "bar" | "line"; rows: Array<{ label: string; value: number; shown: string }>; peak?: number };
 }
