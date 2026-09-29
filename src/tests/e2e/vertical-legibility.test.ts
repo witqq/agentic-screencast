@@ -19,7 +19,7 @@ const PAGE = `<html><body style="margin:0;width:1920px;height:1080px;background:
 <table style="position:absolute;top:500px;left:40px;width:1840px;border-collapse:collapse"><tr id="row">
 <td style="padding:6px">first</td><td style="padding:6px">middle</td><td style="padding:6px;text-align:right"><span id="last" style="background:#e00;color:#e00">LAST</span></td></tr></table></body></html>`;
 
-function build(dir: string, spot: string): { report: { scenes: Array<{ legibility?: Array<{ target: string; px: number; min: number }> }> }; stderr: string; film: string } {
+function build(dir: string, spot: string): { report: { scenes: Array<{ legibility?: Array<{ target: string; px: number; min: number }> }>; warnings: Array<{ scene: string; rule: string; id: string; message: string; hint: string }> }; stderr: string; film: string } {
   writeFileSync(join(dir, "story.md"), `# V\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":1920,"height":1080,"fps":10,"scale":1}\n\n## one · page\npage: p.html\nduration: 6\nfade: none\nspotlight: ${spot}\n`);
   const r = spawnSync("node", [ENTRY, "build", "--source", "story.md", "--format", "vertical", "--out", "f.mp4"],
     { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
@@ -40,6 +40,10 @@ test("a vertical build names small text at a focus, and a pan reads a wide row t
   const small = plain.report.scenes[0]!.legibility![0]!;
   assert.ok(small.px < small.min, `the whole row fitted into the window leaves its text small (${small.px} px < ${small.min})`);
   assert.match(plain.stderr, /text of #row is [\d.]+ px in the frame .* under the 48 px a phone reads/);
+  // В отчёте то же предупреждение — находка общего формата с правилом базы и подсказкой.
+  const w = plain.report.warnings.find((x) => x.id === "legibility")!;
+  assert.equal(w.rule, "FC-58");
+  assert.ok(w.hint.length > 10 && w.scene.length > 0, JSON.stringify(w));
   // Проход: крупно, без предупреждения, и в конце удержания в кадре — последнее слово строки.
   const pan = build(dir, '{"target":"#row","at":"0.3","until":"5","pan":true}');
   const big = pan.report.scenes[0]!.legibility![0]!;

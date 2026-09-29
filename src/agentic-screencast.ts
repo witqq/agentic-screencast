@@ -1077,15 +1077,20 @@ Helpers that save a full build:
       frames, chapter cues and coded issues),
       "hits" (flashes and shakes), "transitions",
       "timing" (where the build spent its time), "segments" (each scene's
-      cached clip and its checksum), "warnings" (muxer and audit findings).
+      cached clip and its checksum), "warnings" (findings: legibility,
+      small, cut and overflow per scene, audit and muxer issues of the file).
+      A finding here and in lint is {rule, id, message, hint}: id names the
+      check, rule the film-craft rule behind it (FC-58 is rule 58 of
+      docs/film-craft.md — read it for why and how), hint what to change.
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
   agentic-screencast lint story.md [--lang ru] [--format vertical|square]
       --format measures the scenario as that build would reframe it (run it
       for every format you build: a beat that fits a landscape subtitle can
-      overflow a phone one). Director rules, each named by its id in the
-      JSON it prints: a card
+      overflow a phone one). Director rules; each finding in the JSON
+      it prints is {scene, index, rule, id, message, hint}, rule naming the
+      film-craft rule (FC-N) behind it: a card
       while the caption runs (two-text-layers), a beat longer than two
       subtitle lines (overloaded-line), a page that stands still
       (still-scene), a page using the layer's attributes without the

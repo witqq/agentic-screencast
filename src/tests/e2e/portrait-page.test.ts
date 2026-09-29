@@ -93,11 +93,11 @@ ${moving ? '<style>@keyframes drift{to{opacity:.5}} body::before{content:"";anim
   process.env.AGENTIC_SCREENCAST_FILM_LANG = "en";
   try {
     process.env.AGENTIC_SCREENCAST_FILM_FORMAT = "landscape";
-    assert.equal(lint(story).some((f) => f.scene === "long" && f.rule === "still-scene"), true,
+    assert.equal(lint(story).some((f) => f.scene === "long" && f.id === "still-scene"), true,
       "lint sees the static landscape page");
     process.env.AGENTIC_SCREENCAST_FILM_FORMAT = "vertical";
     const findings = lint(story);
-    assert.equal(findings.some((f) => f.scene === "long" && f.rule === "still-scene"), false,
+    assert.equal(findings.some((f) => f.scene === "long" && f.id === "still-scene"), false,
       "lint reads the selected moving portrait page");
     const server = await serve({ source: story, voice: { engine: "recorded", dir: join(dir, "recordings") } });
     try {

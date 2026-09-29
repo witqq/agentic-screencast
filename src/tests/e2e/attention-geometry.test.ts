@@ -149,7 +149,7 @@ test("lint names a push-in whose named scale crops its area, and a loupe that ha
   execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=320x180:r=10:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "clip.mp4")]);
   const file = join(dir, "story.md");
   const scene = (overlay: string): void => writeFileSync(file, `# G\nvoice: {"engine":"stub","name":"silent","cps":15}\nlang: en\n\n## v · video\nfile: clip.mp4\nduration: 4\noverlay: ${overlay}\n`);
-  const rules = (): string[] => lint(file).filter((f) => f.rule === "push-crop" || f.rule === "loupe-scale").map((f) => `${f.rule}: ${f.message}`);
+  const rules = (): string[] => lint(file).filter((f) => f.id === "push-crop" || f.id === "loupe-scale").map((f) => `${f.id}: ${f.message}`);
   scene('{"camera":[{"at":0.5,"hold":1,"area":[0.1,0.1,0.7,0.5],"scale":1.8}],"loupe":[{"at":2.5,"area":[0.1,0.1,0.6,0.6],"scale":3,"hold":1}]}');
   const found = rules().join("\n");
   assert.match(found, /push-crop: the push-in at 0\.5s scales ×1\.8, but its area stays whole in the frame only up to ×1\.29/);

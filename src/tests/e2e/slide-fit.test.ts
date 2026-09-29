@@ -195,8 +195,8 @@ test("a chapter's typed subtitle is whole by the scene's last frame, and lint na
     assert.equal(await hiddenAt(4.9), 0, "the whole subtitle is typed by the last frame");
   } finally { await browser.close(); }
   const { lint } = await import("../../lint.js");
-  assert.deepEqual(lint(chapterStory(5, body).file).filter((f) => f.rule === "typing-too-fast"), [], "five seconds are enough");
-  const short = lint(chapterStory(3.5, body).file).filter((f) => f.rule === "typing-too-fast");
+  assert.deepEqual(lint(chapterStory(5, body).file).filter((f) => f.id === "typing-too-fast"), [], "five seconds are enough");
+  const short = lint(chapterStory(3.5, body).file).filter((f) => f.id === "typing-too-fast");
   assert.equal(short.length, 1, "a 3.5 s chapter cannot type the subtitle readably");
   assert.match(short[0]!.message, /хотя бы до [\d.]+ с или сократите body/u);
 });

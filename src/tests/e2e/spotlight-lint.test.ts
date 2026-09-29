@@ -31,18 +31,18 @@ function story(spotlight: string, beats: string[], lang = "en"): string {
 
 test("lint finds a spotlight collision before the build, and a long focus over a still clip", () => {
   const collide = lint(story(TWO, ["The first focus holds to the end of this line.", "Then the second one."]))
-    .filter((f) => f.rule === "spotlight-collision");
+    .filter((f) => f.id === "spotlight-collision");
   assert.equal(collide.length, 1);
   assert.match(collide[0]!.message, /spotlight\[0\] at .* spotlight\[1\] starts at .*0\.35s between moves/);
   const russian = lint(story(TWO, ["Первый фокус удерживается до конца реплики.", "Следом начинается второй."], "ru"))
-    .filter((f) => f.rule === "spotlight-collision");
+    .filter((f) => f.id === "spotlight-collision");
   assert.equal(russian.length, 1);
   assert.match(russian[0]!.message, /между движениями камеры нужно 0,35 с/);
   const still = lint(story('[{"area":[0.1,0.1,0.3,0.3],"at":"b1"}]', ["A long line of narration that keeps the focus on a clip where nothing moves at all."]))
-    .filter((f) => f.rule === "still-hold");
+    .filter((f) => f.id === "still-hold");
   assert.equal(still.length, 1, "a still clip under a long hold is named");
   assert.match(still[0]!.message, /speed: \[\{"from":/);
   const slowed = lint(story('[{"area":[0.1,0.1,0.3,0.3],"at":"b1","slow":0.5}]', ["A long line of narration that keeps the focus on a clip where nothing moves at all."]))
-    .filter((f) => f.rule === "still-hold");
+    .filter((f) => f.id === "still-hold");
   assert.deepEqual(slowed, [], "a focus that retimes the clip on purpose is left alone");
 });

@@ -25,6 +25,7 @@ import { marksOf } from "./marks.js";
 import { msg } from "./msg.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { finding, type Finding as RuleFinding } from "./rules.js";
 
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 
@@ -101,7 +102,8 @@ function clipLength(clip: string): number {
   return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
 }
 
-export interface Finding { scene: string; index: number; rule: string; message: string }
+/** Находка по сцене: номер сцены и общий формат находки (правило базы, id, сообщение, подсказка). */
+export type Finding = { scene: string; index: number } & RuleFinding;
 
 /** Сцена длиннее — это уже не кадр, а несколько кадров под одной подписью. */
 const LONG = 25;
@@ -171,7 +173,7 @@ export function lint(file: string): Finding[] {
   // Вариант на другом языке: видимое поле без перевода — текст оригинала в чужом ролике.
   for (const u of src.untranslated ?? []) {
     if (u.scene < 0 && u.key === "title") {
-      out.push({ scene: "(film)", index: 0, rule: "untranslated", message: msg("lint.untranslatedFilm", { lang: src.variant ?? "" }) });
+      out.push({ scene: "(film)", index: 0, ...finding("untranslated", msg("lint.untranslatedFilm", { lang: src.variant ?? "" })) });
     } else if (u.scene >= 0) {
       const sc = src.scenes[u.scene]!;
       const shown = [...SHOWN_COMMON, ...(specOf(sc, src.providers ?? {}).shown ?? [])];
@@ -179,13 +181,13 @@ export function lint(file: string): Finding[] {
       // Накладка и фокус видны переводу только текстом: пометки, лупа и всплески без
       // единой надписи одинаковы на любом языке.
       if ((u.key === "overlay" || u.key === "spotlight") && !/"(text|title|subtitle|body)"\s*:/u.test(sc.fields[u.key] ?? "")) continue;
-      out.push({ scene: sc.id, index: u.scene + 1, rule: "untranslated", message: msg("lint.untranslatedScene",
-        { line: u.n, field: u.key, lang: src.variant ?? "" }) });
+      out.push({ scene: sc.id, index: u.scene + 1, ...finding("untranslated", msg("lint.untranslatedScene",
+        { line: u.n, field: u.key, lang: src.variant ?? "" })) });
     }
   }
   pitch.scenes.forEach((s: PitchScene, i: number) => {
     const n = i + 1;
-    const add = (rule: string, message: string): void => { out.push({ scene: s.id, index: n, rule, message }); };
+    const add = (id: string, message: string): void => { out.push({ scene: s.id, index: n, ...finding(id, message) }); };
     const spec = specOf(s, src.providers ?? {});
     const spoken = (s.beats.length ? s.speechAt ?? 0 : 0) + s.beats.reduce((t, b) => t + Math.max(0.6, (b.speech ?? b.text).length / cps), 0);
     const duration = Math.max(s.duration ?? 0, spoken + (s.tail ?? pitch.tail ?? 0.4));
@@ -448,7 +450,7 @@ export function lint(file: string): Finding[] {
 }
 
 /** Признак клише облика: приём, взятый без причины (docs/visual-design.md). */
-export interface Sign { rule: string; scenes: string[]; message: string }
+export interface Sign { id: string; scenes: string[]; message: string }
 
 const DECORATIVE = new Set(["aurora", "mesh", "bokeh", "particles"]);
 const PLACEHOLDER_URL = /^(?:$|https?:\/\/)?(?:$|(?:www\.)?(?:example\.(?:com|org)|localhost|127\.0\.0\.1|your[-\w]*\.\w+|app\.com|placeholder|acme\.\w+))/iu;
@@ -469,7 +471,7 @@ export function clicheSigns(file: string): Sign[] {
   const src = parseSource(file);
   const pitch = toPitch(src);
   const out: Sign[] = [];
-  const sign = (rule: string, scenes: string[], message: string): void => { if (scenes.length) out.push({ rule, scenes, message }); };
+  const sign = (id: string, scenes: string[], message: string): void => { if (scenes.length) out.push({ id, scenes, message }); };
   const scenes = pitch.scenes.map((s, i) => ({ s, f: src.scenes[i]?.fields ?? {}, vars: s.theme ?? pitch.theme, spec: specOf(s, src.providers ?? {}) }));
   const trailer = scenes.some(({ spec }) => spec.trailer)
     || (src.look?.bars !== undefined && src.look?.grade === "teal-orange") || scenes.some(({ vars }) => genre(vars));

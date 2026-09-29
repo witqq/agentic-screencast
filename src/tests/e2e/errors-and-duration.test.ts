@@ -25,7 +25,7 @@ test("lint names a speed that runs past the piece a scene shows, and the build r
   const dir = dirWithClip();
   // Кусок — секунды 5–7,5 исходника (2,5 с), а speed записан секундами исходника.
   writeFileSync(join(dir, "story.md"), story(`## fight · video\nfile: c.mp4\nfrom: 5\nto: 7.5\nspeed: [{"from":5.5,"to":6.4,"rate":0.5}]\n`));
-  const f = lint(join(dir, "story.md")).filter((x) => x.rule === "speed-range");
+  const f = lint(join(dir, "story.md")).filter((x) => x.id === "speed-range");
   assert.equal(f.length, 1, "lint finds the speed past the piece");
   assert.equal(f[0]!.scene, "fight");
   assert.match(f[0]!.message, /2\.50s long.*count from the start of the piece.*write 1\.40s/);
@@ -36,10 +36,10 @@ test("lint names a speed that runs past the piece a scene shows, and the build r
   assert.doesNotMatch(r.stderr, /\n\s+at /, "no Node stack");
   // Кусок в пределах: находки нет.
   writeFileSync(join(dir, "story.md"), story(`## fight · video\nfile: c.mp4\nfrom: 5\nto: 7.5\nspeed: [{"from":0.5,"to":1.4,"rate":0.5}]\n`));
-  assert.equal(lint(join(dir, "story.md")).filter((x) => x.rule === "speed-range").length, 0);
+  assert.equal(lint(join(dir, "story.md")).filter((x) => x.id === "speed-range").length, 0);
   // Перелёт на 4 мс за конец куска: подсказка — конец куска числом, а не «write 0.00s».
   writeFileSync(join(dir, "story.md"), story(`## fight · video\nfile: c.mp4\nfrom: 5\nto: 7.5\nspeed: [{"from":1,"to":2.504,"rate":0.5}]\n`));
-  const over = lint(join(dir, "story.md")).filter((x) => x.rule === "speed-range");
+  const over = lint(join(dir, "story.md")).filter((x) => x.id === "speed-range");
   assert.equal(over.length, 1);
   assert.match(over[0]!.message, /end the speed at 2\.50s at the latest, or lengthen the piece \(to\)/);
   assert.doesNotMatch(over[0]!.message, /write 0\.00s/);

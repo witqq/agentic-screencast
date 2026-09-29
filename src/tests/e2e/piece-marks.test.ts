@@ -25,7 +25,7 @@ test("lint names a piece of a take that runs past a mark the scene does not name
     + scene("checkedBlock", "from: @steps\nto: @next\nstills: |\n  - @saved :: the intermediate state is visible\n  - 50%") + "\n"
     + scene("mentioned", "from: @steps\nto: @next\nstills: 50% :: check @saved in the caption") + "\n"
     + scene("inside", "from: @steps\nto: @steps+1.5"));
-  const found = lint(join(dir, "story.md")).filter((f) => f.rule === "piece-crosses-mark");
+  const found = lint(join(dir, "story.md")).filter((f) => f.id === "piece-crosses-mark");
   assert.deepEqual(found.map((f) => f.scene), ["over", "exact", "named", "mentioned"], JSON.stringify(found));
   assert.match(found[0]!.message, /runs past @saved \(3s\)/);
 });

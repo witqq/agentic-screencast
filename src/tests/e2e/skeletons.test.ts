@@ -27,7 +27,7 @@ test("every genre skeleton that new writes builds on the stub voice and carries 
     if (made.status !== 0) { failed.push(`${genre}: new — ${made.stderr.trim()}`); continue; }
     // Скелет — образец облика: ни одного признака шаблона (docs/visual-design.md); трейлер держит
     // удары, зерно и заглавные законно — их lint у трейлера не считает.
-    const signs = clicheSigns(join(dir, "story.md")).map((x) => x.rule);
+    const signs = clicheSigns(join(dir, "story.md")).map((x) => x.id);
     if (signs.length) failed.push(`${genre}: signs of a template — ${signs.join(", ")}`);
     // Пять кадров в секунду — ради времени проверки; всё остальное как у скелета.
     const story = join(dir, "story.md");

@@ -44,5 +44,5 @@ stills: @c :: the focus arrives
   assert.deepEqual(report.marks?.map((m) => `${m.mark}=${m.film}`), ["@a=0", "@c=0.8", "@b=4"], "marks outside the piece drop out");
   // Тема дубля по-прежнему сверяется со сценой.
   writeFileSync(join(dir, "story.md"), story("noir"));
-  assert.equal(lint(join(dir, "story.md")).filter((f) => f.rule === "take-theme").length, 1);
+  assert.equal(lint(join(dir, "story.md")).filter((f) => f.id === "take-theme").length, 1);
 });

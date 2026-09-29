@@ -28,9 +28,9 @@ test("lint names a flat empty third of the frame and a screen change inside a pi
   writeFileSync(join(dir, "marked.mp4.marks.json"), JSON.stringify({ version: 1, trimmed: 0, marks: { start: 0, next: 2 }, clicks: [] }));
   const scene = (id: string): string => `## ${id} · video\nfile: ${id}.mp4\n\nOne line of speech.\n\n`;
   writeFileSync(join(dir, "story.md"), `# F\nlang: en\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n${["clean", "filler", "jump", "marked"].map(scene).join("")}`);
-  const found = lint(join(dir, "story.md")).filter((f) => f.rule === "empty-area" || f.rule === "scene-jump");
-  assert.deepEqual(found.map((f) => `${f.scene}:${f.rule}`).sort(), ["filler:empty-area", "jump:scene-jump"], JSON.stringify(found));
-  assert.match(found.find((f) => f.rule === "scene-jump")!.message, /2\.0s into the piece/);
+  const found = lint(join(dir, "story.md")).filter((f) => f.id === "empty-area" || f.id === "scene-jump");
+  assert.deepEqual(found.map((f) => `${f.scene}:${f.id}`).sort(), ["filler:empty-area", "jump:scene-jump"], JSON.stringify(found));
+  assert.match(found.find((f) => f.id === "scene-jump")!.message, /2\.0s into the piece/);
 });
 
 test("a recorded camera move is not navigation, but a later screen change remains a scene-jump", () => {
@@ -48,7 +48,7 @@ test("a recorded camera move is not navigation, but a later screen change remain
   writeFileSync(join(dir, "story.md"), `# F\nlang: en\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n`
     + `## camera · video\nfile: camera.mp4\n\nOne line.\n\n`
     + `## navigation · video\nfile: navigation.mp4\n\nAnother line.\n`);
-  const found = lint(join(dir, "story.md")).filter((f) => f.rule === "scene-jump");
+  const found = lint(join(dir, "story.md")).filter((f) => f.id === "scene-jump");
   assert.deepEqual(found.map((f) => f.scene), ["navigation"], JSON.stringify(found));
   assert.match(found[0]!.message, /3\.5s into the piece/);
   const trimmed = trimMarks({ trimmed: 0, marks: {}, clicks: [], cameraMoves: [{ from: 1.75, to: 2.25 }] }, { from: 2, to: 4 });

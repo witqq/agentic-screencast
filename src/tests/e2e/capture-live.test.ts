@@ -101,7 +101,7 @@ test("a live take pushes in, dims, marks, shows keys and the cursor, and trims i
   assert.ok(push.from >= marks.marks.overview! && push.to <= marks.marks.focused! && push.to - push.from >= 0.7,
     `the push-in interval covers its visible movement: ${JSON.stringify(push)}, marks ${JSON.stringify(marks.marks)}`);
   writeFileSync(join(dir, "story.md"), `# Take\ntheme: midnight\nvoice: {"engine":"stub","name":"silent"}\n\n## v · video\nfile: take.webm\nduration: 5\n`);
-  assert.deepEqual(lint(join(dir, "story.md")).filter((f) => f.rule === "scene-jump"), [],
+  assert.deepEqual(lint(join(dir, "story.md")).filter((f) => f.id === "scene-jump"), [],
     "the take's actual camera move and dimmed surround are not navigation");
   // Наезд: цель крупнее, чем на общем плане.
   // Отметка ставится вплотную перед наездом: кадр общего плана берём чуть раньше

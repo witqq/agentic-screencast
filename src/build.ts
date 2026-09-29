@@ -42,6 +42,7 @@ import { DEVICE_CSS, deviceLayout, deviceMarkup, type Device, type DeviceLayout 
 import type { Look } from "./look.js";
 import type { Safe } from "./format.js";
 import { ffmpegColour, resolveTheme } from "./theme.js";
+import { finding, type Finding } from "./rules.js";
 
 /** Порог читаемости текста в кадре — доля короткой стороны: 48 точек на кадре 1080 (docs/vertical-video.md). */
 const LEGIBLE_SHARE = 48 / 1080;
@@ -1128,20 +1129,27 @@ async function main() {
     pump();
   });
   for (const slot of slots) log.push(...slot);
+  // Предупреждения по сценам копятся находками общего формата (правило базы, id, сообщение,
+  // подсказка) и идут в отчёт вместе с предупреждениями готового файла, а в поток ошибок — сразу.
+  const sceneWarnings: Array<Finding & { scene: string }> = [];
+  const warn = (scene: string, id: string, message: string): void => {
+    sceneWarnings.push({ scene, ...finding(id, message) });
+    process.stderr.write(message + "\n");
+  };
   // Мелкий текст у цели фокуса называется сразу: на телефоне его не прочтут, а по кадру на
   // большом экране этого не видно.
   for (const e of log) {
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
-      if (l.px < l.min) process.stderr.write(msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }) + "\n");
+      if (l.px < l.min) warn(String(e.id), "legibility", msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }));
     }
     const small = e.small as { at: number; min: number; lines: Array<{ text: string; px: number }> } | undefined;
     if (small) {
-      process.stderr.write(msg("build.small", { id: String(e.id), min: small.min,
-        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }) + "\n");
+      warn(String(e.id), "small", msg("build.small", { id: String(e.id), min: small.min,
+        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }));
     }
     for (const c of (e.cut as Array<{ at: number; target: string; text: string[] }> | undefined) ?? []) {
-      process.stderr.write(msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
-        text: `«${c.text.slice(0, 3).join("», «")}»` }) + "\n");
+      warn(String(e.id), "cut", msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
+        text: `«${c.text.slice(0, 3).join("», «")}»` }));
     }
   }
   const tScenes = Date.now();
@@ -1149,7 +1157,7 @@ async function main() {
   // Куда пришлись фокусы внимания — в отчёт сцены: по ним видно, что фокус
   // сдвинулся вместе с речью, без просмотра кадров.
   for (const entry of log) {
-    if (entry.overflow) process.stderr.write(msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }) + "\n");
+    if (entry.overflow) warn(String(entry.id), "overflow", msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }));
     const sc = pitch.scenes.find((x) => x.id === entry.id);
     if (sc?.nativePortrait) entry.nativePortrait = true;
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;
@@ -1382,12 +1390,13 @@ async function main() {
     });
   });
 
-  const warnings = [
-    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)),
-    ...audit.issues.map((issue) => msg("build.auditIssue", { code: issue.code,
-      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") })),
+  const fileWarnings = [
+    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)).map((l) => finding("mux", l)),
+    ...audit.issues.map((issue) => finding("audit", msg("build.auditIssue", { code: issue.code,
+      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") }))),
   ];
-  for (const warning of warnings) process.stderr.write(warning + "\n");
+  for (const warning of fileWarnings) process.stderr.write(warning.message + "\n");
+  const warnings = [...sceneWarnings, ...fileWarnings];
   const finalAudioReport = audioReport ? { ...audioReport,
     ...(audioReport.loudness && encodedAudio
       ? { loudness: { ...audioReport.loudness, measured: encodedAudio.integrated } } : {}),

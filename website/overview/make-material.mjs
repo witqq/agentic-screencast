@@ -306,9 +306,9 @@ ${terminal([{ cmd: "agentic-screencast theme --from flow-logo.png", at: "b1+0.6"
       const bad = JSON.parse(read(`lint-bad${s}.json`)).findings;
       const seen = new Set(), lines = [];
       for (const f of bad) {
-        if (seen.has(f.rule)) continue;
-        seen.add(f.rule);
-        lines.push({ t: `${f.scene} · ${f.rule} — ${f.message.length > 70 ? f.message.slice(0, 68) + "…" : f.message}`, cls: "hl" });
+        if (seen.has(f.id)) continue;
+        seen.add(f.id);
+        lines.push({ t: `${f.scene} · ${f.id} — ${f.message.length > 70 ? f.message.slice(0, 68) + "…" : f.message}`, cls: "hl" });
       }
       let film;
       try { film = JSON.parse(read(`lint-film${s}.json`)); }
