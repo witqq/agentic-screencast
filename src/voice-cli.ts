@@ -10,6 +10,7 @@
 // Подкоманды и их ответы описаны в README, раздел про договор о движке.
 import { BUILTIN } from "./voice/builtin.js";
 import type { VoiceData } from "./voice/types.js";
+import { msg } from "./msg.js";
 
 const [, , cmd, ...rest] = process.argv;
 const arg = (k: string): string | undefined => {
@@ -83,6 +84,6 @@ switch (cmd) {
     break;
   }
   default:
-    console.error("voice-cli.js voices|synth|probe|paths [--voice-json '{…}'] [--text …] [--out …]");
+    console.error(msg("voiceCli.usage"));
     process.exit(2);
 }

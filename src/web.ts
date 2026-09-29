@@ -20,6 +20,7 @@ import { createRequire } from "node:module";
 import { basename, extname, join, resolve } from "node:path";
 
 import { vttStamp } from "./film.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -120,7 +121,7 @@ function ssim(output: string, source: string, w: number, h: number): number {
     `[1:v]scale=${w}:${h}:flags=bicubic,setsar=1[ref];[0:v]setsar=1[out];[out][ref]ssim`, "-f", "null", "-"],
   { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   const m = /All:([0-9.]+)/u.exec(r.stderr ?? "");
-  if (r.status !== 0 || !m) throw new Error(`SSIM of ${output} could not be measured: ${(r.stderr ?? "").slice(-300)}`);
+  if (r.status !== 0 || !m) throw new Error(msg("web.ssim", { file: output, why: (r.stderr ?? "").slice(-300) }));
   return Number(m[1]);
 }
 
@@ -202,7 +203,7 @@ export function encodeForWeb(input: string, opts: {
     }
     report.outputs.push(out);
   }
-  if (!report.outputs.length) throw new Error("no web format was written");
+  if (!report.outputs.length) throw new Error(msg("web.none"));
 
   // Постер: кадр, который браузер показывает до воспроизведения, в JPEG и WebP.
   const at = Math.min(opts.poster ?? Math.min(1, src.duration / 10), Math.max(0, src.duration - 0.1));

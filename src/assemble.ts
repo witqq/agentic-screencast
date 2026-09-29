@@ -13,6 +13,7 @@ import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createRequire } from "node:module";
 import { CUT, framesOf, renderMorph, renderTransition, type MorphInput, type Renderer, type Transition } from "./transition.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -95,7 +96,7 @@ export async function assembleVideo(opts: {
         duration: Number((kIn / enc.fps).toFixed(3)) });
     }
     const from = kIn, to = s.frames - kOut;
-    if (to - from < 1) throw new Error(`scene ${s.id} is shorter than its transitions (${s.frames} frames, ${kIn}+${kOut} taken)`);
+    if (to - from < 1) throw new Error(msg("assemble.shortScene", { id: s.id, frames: s.frames, in: kIn, out: kOut }));
     if (!from && to === s.frames) { parts.push(s.seg); continue; }
     const key = md5(JSON.stringify({ seg: segHash[i], from, to, enc }));
     const part = resolve(cache, `part-${key}.mp4`);

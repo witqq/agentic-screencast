@@ -15,6 +15,7 @@ import { SlideBody, type Grid } from "./Slide.js";
 import { DEVICE_CSS } from "../../device.js";
 import type { Deck, Film, Slide } from "../../source.js";
 import { partLabelHeight } from "../../part-label.js";
+import { msg } from "../../msg.js";
 
 const esc = (s: string): string =>
   String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -149,7 +150,7 @@ if (process.argv[1] && realpathSync(process.argv[1]) === fileURLToPath(import.me
   // продукта, то есть чужой запуск мусорил в установленном пакете.
   // Точка входа — `agentic-screencast slides --source story.md`.
   if (!process.argv[2] || !process.argv[3]) {
-    console.error("slides.js <файл-слайдов.json> <каталог-вывода>");
+    console.error(msg("slides.usage"));
     process.exit(2);
   }
   const deck = JSON.parse(readFileSync(process.argv[2], "utf8")) as Deck;

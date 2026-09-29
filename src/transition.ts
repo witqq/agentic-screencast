@@ -338,7 +338,7 @@ export async function renderTransition(opts: {
 /** `#rrggbb[aa]` → доли 0…1: так цвет темы уходит в шейдер. */
 const rgbOf = (hex: string): number[] => {
   const m = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(hex.trim());
-  if (!m) throw new Error(`transition colour «${hex}» is not #rrggbb`);
+  if (!m) throw new Error(msg("transition.colour", { value: hex }));
   const v = Number.parseInt(m[1]!, 16);
   return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255, m[2] ? Number.parseInt(m[2], 16) / 255 : 1];
 };

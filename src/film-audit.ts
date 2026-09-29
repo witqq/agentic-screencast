@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { msg } from "./msg.js";
 
 const FFPROBE = (createRequire(import.meta.url)("@ffprobe-installer/ffprobe") as { path: string }).path;
 
@@ -60,14 +61,14 @@ const stamp = (raw: string): number | undefined => {
 export function readChapterTrack(file: string): AuditChapter[] {
   const text = readFileSync(file, "utf8").replace(/\r\n/g, "\n").trim();
   const blocks = text.split(/\n\s*\n/u);
-  if (blocks.shift()?.trim() !== "WEBVTT") throw new Error("WEBVTT header missing");
+  if (blocks.shift()?.trim() !== "WEBVTT") throw new Error(msg("audit.vttHeader"));
   return blocks.map((block, i) => {
     const lines = block.split("\n");
     if (/^\d+$/u.test(lines[0]?.trim() ?? "")) lines.shift();
     const m = /^(\S+) --> (\S+)$/u.exec(lines.shift()?.trim() ?? "");
     const start = stamp(m?.[1] ?? ""), end = stamp(m?.[2] ?? "");
     const name = lines.join("\n").trim();
-    if (start === undefined || end === undefined || end <= start || !name) throw new Error(`cue ${i + 1} is malformed`);
+    if (start === undefined || end === undefined || end <= start || !name) throw new Error(msg("audit.vttCue", { index: i + 1 }));
     return { name, start, end };
   });
 }

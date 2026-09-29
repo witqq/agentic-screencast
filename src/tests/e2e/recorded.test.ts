@@ -140,7 +140,7 @@ test("нечитаемая запись — отказ с именем файл�
     () => recorded.synth(text, voice, join(root, "broken.wav")),
     (e: Error & { engineError?: boolean }) => {
       assert.equal(e.engineError, true, "отказ обязан быть отказом движка");
-      assert.match(e.message, /запись не читается/);
+      assert.match(e.message, /запись не читается|the recording cannot be read/);
       assert.match(e.message, new RegExp(slotFor(text)), "отказ обязан называть файл");
       return true;
     },

@@ -802,7 +802,7 @@ window.__stage = (() => {
       } else {
         img = document.createElement("img");
         const src = item.emoji ? scene?.emoji?.[item.emoji] : media.src ?? media.frames?.[0];
-        if (!src) throw new Error(`sticker has no image: ${item.emoji ?? item.image ?? "?"}`);
+        if (!src) throw new Error(`sc-stage:stickerImage:${item.emoji ?? item.image ?? "?"}`);
         img.src = src;
         if (item.emoji) img.setAttribute("data-emoji-set", "noto");
         box.appendChild(img);
@@ -858,7 +858,7 @@ window.__stage = (() => {
   function anchorRect(a: StageAnchor, lz: number): Rect {
     if (a.target) {
       const node = document.querySelector(a.target);
-      if (!node) throw new Error(`Primitive target not found: ${a.target}`);
+      if (!node) throw new Error(`sc-stage:primitiveTarget:${a.target}`);
       const r = node.getBoundingClientRect();
       return { left: r.left / lz, top: r.top / lz, width: r.width / lz, height: r.height / lz };
     }
@@ -1492,7 +1492,7 @@ window.__stage = (() => {
     let rect: Rect;
     if (c.target) {
       const node = findTarget(c.target);
-      if (!node) throw new Error(`Camera target not found: ${c.target}`);
+      if (!node) throw new Error(`sc-stage:cameraTarget:${c.target}`);
       rect = contentRect(node);
     } else {
       rect = { left: c.area![0] * innerWidth, top: c.area![1] * innerHeight,
@@ -2160,7 +2160,7 @@ window.__stage = (() => {
     // цепочки фокусов вторая цель мерялась бы увеличенной первым наездом.
     if ("cue" in a) {
       const node = findTarget(a.cue);
-      if (!node) throw new Error(`Camera target not found: ${a.cue}`);
+      if (!node) throw new Error(`sc-stage:cameraTarget:${a.cue}`);
       return contentRect(node);
     }
     const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;

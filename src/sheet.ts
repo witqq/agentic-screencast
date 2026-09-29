@@ -13,6 +13,7 @@ import { basename, dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 import { resolveTheme } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -22,7 +23,7 @@ const args = process.argv.slice(2);
 const arg = (k: string): string | undefined => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
 const clip = args[0];
 if (!clip || clip.startsWith("--")) {
-  console.error("sheet.js <clip> [--count 12 | --every 2] [--from s --to s] [--out sheet.png]");
+  console.error(msg("sheet.usage"));
   process.exit(2);
 }
 const file = resolve(clip);
@@ -30,13 +31,13 @@ let length: number;
 try {
   length = Number(execFileSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", file],
     { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim());
-} catch { console.error(`sheet: ${clip} is not a readable video`); process.exit(2); }
-if (!(length > 0)) { console.error(`sheet: ${clip} has no duration`); process.exit(2); }
+} catch { console.error(msg("sheet.unreadable", { clip })); process.exit(2); }
+if (!(length > 0)) { console.error(msg("sheet.noDuration", { clip })); process.exit(2); }
 const from = Math.max(0, Number(arg("from") ?? 0)), to = Math.min(length, Number(arg("to") ?? length));
-if (!(to > from)) { console.error(`sheet: --to must be later than --from, within the ${length.toFixed(2)}s clip`); process.exit(2); }
+if (!(to > from)) { console.error(msg("sheet.range", { length: length.toFixed(2) })); process.exit(2); }
 const every = arg("every") ? Number(arg("every")) : undefined;
 const count = every ? Math.min(60, Math.max(1, Math.floor((to - from) / every) + 1)) : Math.min(60, Math.max(1, Number(arg("count") ?? 12)));
-if (!Number.isFinite(count)) { console.error("sheet: --count and --every take numbers"); process.exit(2); }
+if (!Number.isFinite(count)) { console.error(msg("sheet.numbers")); process.exit(2); }
 // Моменты — середины равных долей куска (или шаг --every от его начала): крайний кадр клипа часто чёрный.
 const times = Array.from({ length: count }, (_, k) => Number((every ? from + k * every : from + ((k + 0.5) / count) * (to - from)).toFixed(2)));
 const out = resolve(arg("out") ?? `${basename(file).replace(/\.[^.]+$/u, "")}.sheet.png`);

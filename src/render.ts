@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { fontFaceCss, themeFamilies, FONT_PROBE } from "./fonts.js";
 import { parseOverlay } from "./overlay.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -186,7 +187,7 @@ export async function renderScene(
           }
           return true;
         });
-        if (shown.length !== 1) throw new Error(`morph target ${selector}: expected one visible element, found ${shown.length}`);
+        if (shown.length !== 1) throw new Error(msg("render.morphTarget", { selector, found: shown.length }));
         shown[0]!.setAttribute("data-sc-morph-target", "");
       }, o.morphTarget);
     }
@@ -265,9 +266,20 @@ export async function renderScene(
     const overflow = scene.__overlayOnly ? undefined
       : await page.evaluate(() => Number(document.body?.dataset.overflow) || undefined).catch(() => undefined);
     return { frames, shots, opts: o, rects, floor, ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
+  } catch (e) {
+    throw stageError(e);
   } finally {
     await browser.close();
   }
+}
+
+/**
+ * Слой композиции живёт в странице, куда словарь сообщений не попадает, поэтому он бросает
+ * устойчивый код `sc-stage:<код>:<цель>`, а слова на языке запуска подставляются здесь.
+ */
+function stageError(e: unknown): unknown {
+  const m = /sc-stage:(\w+):([^\n]*)/.exec(String((e as Error)?.message ?? ""));
+  return m ? new Error(msg(`stage.${m[1]}`, { target: m[2]!.trim() })) : e;
 }
 
 /**

@@ -211,7 +211,7 @@ await check("съёмка снимает приложение, о котором
     const d = run("node", [resolve(HERE, "dist", "snapshot.js"), join(dir, "dup.json"), join(dir, "dup-out")],
       { timeout: 60_000, env });
     if (d.status === 0) return "настройка с двумя экранами одного id принята молча";
-    if (!/два экрана с одним id/.test(d.stderr || d.stdout)) {
+    if (!/два экрана с одним id|two screens share the id/.test(d.stderr || d.stdout)) {
       return `отказ не называет причину: ${(d.stderr || d.stdout).trim().slice(-160)}`;
     }
     if (existsSync(join(dir, "dup-out"))) return "при негодной настройке уже создан каталог подложек";

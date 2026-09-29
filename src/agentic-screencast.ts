@@ -1283,7 +1283,7 @@ switch (cmd) {
     else if (topic === "voice") console.log(VOICE_HELP);
     else if (topic === "web") console.log(WEB_HELP);
     else if (!topic) console.log(HELP);
-    else { console.error(`Unknown help topic: ${topic}\n\n${HELP}`); process.exit(2); }
+    else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
     break;
   }
   case "version":
@@ -1443,7 +1443,7 @@ switch (cmd) {
     const dir = resolve(HERE, "..", "templates");
     const genres = readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md" && f !== "checklist.md").map((f) => f.replace(/\.md$/, ""));
     if (!genre || !genres.includes(genre)) {
-      console.error(`agentic-screencast new <genre> [--lang ru] [--format vertical|square] [--out story.md]\ngenres: ${genres.join(", ")}`);
+      console.error(msg("cli.newUsage", { genres: genres.join(", ") }));
       process.exit(2);
     }
     const out = resolve(arg("out", "story.md"));
@@ -1517,7 +1517,7 @@ switch (cmd) {
     // ошибок для человека.
     const from = arg("from"), colors = arg("colors");
     if (!from && !colors) {
-      console.error("agentic-screencast theme --from logo.png [--base neutral] | --colors \"#ff5a1f,#1f6fff\"");
+      console.error(msg("cli.themeUsage"));
       process.exit(2);
     }
     try {
@@ -1547,6 +1547,6 @@ switch (cmd) {
     break;
   }
   default:
-    console.error(`Unknown command: ${cmd}\n\n${HELP}`);
+    console.error(`${msg("cli.unknownCommand", { cmd: String(cmd) })}\n\n${HELP}`);
     process.exit(1);
 }

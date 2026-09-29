@@ -18,6 +18,7 @@ import { fontFaceCss } from "./fonts.js";
 import type { Pip, Progress } from "./source.js";
 import { lookGraph, type Look } from "./look.js";
 import { ffmpegColour } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -338,7 +339,7 @@ export async function filmPass(opts: {
   }
   if (opts.pip) {
     const file = resolve(opts.srcDir, opts.pip.file);
-    if (!existsSync(file)) throw new Error(`pip.file not found: ${file}`);
+    if (!existsSync(file)) throw new Error(msg("film.pipMissing", { file }));
     const D = Math.round((opts.pip.size ?? 0.2) * W / 2) * 2;
     const margin = Math.round(W * 0.03);
     const corner = opts.pip.corner ?? "bottom-right";

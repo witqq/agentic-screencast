@@ -10,6 +10,7 @@
 // Тема — это ПЕРЕМЕННЫЕ, а не правила: их толкует тот, кто рисует, —
 // страница слайдов и слой композиции. Поэтому добавление темы не трогает
 // ни разметку, ни рендер.
+import { msg } from "./msg.js";
 
 /** Переменные оформления: имя без ведущих дефисов допускается. */
 export type ThemeVars = Record<string, string>;
@@ -2312,9 +2313,8 @@ export function resolveTheme(input: ThemeInput | undefined, over?: ThemeVars): T
   if (name === undefined && !over) {
     const missing = THEME_KEYS.filter((k) => !vars[k]);
     if (missing.length) {
-      throw new ThemeError(`a theme without a named base must write every token of the contract; missing ${missing.length}: `
-        + `${missing.slice(0, 12).join(", ")}${missing.length > 12 ? ", …" : ""}. Start from a named theme instead: `
-        + `{"preset":"neutral","--acc":"#ff5a1f"} (help themes)`);
+      throw new ThemeError(msg("theme.incomplete", { count: missing.length,
+        missing: `${missing.slice(0, 12).join(", ")}${missing.length > 12 ? ", …" : ""}` }));
     }
   }
   return checked(vars);
@@ -2334,7 +2334,7 @@ function checked(vars: ThemeVars): ThemeVars {
 function preset(name: string): ThemeVars {
   const found = THEMES[name.trim()];
   if (!found) {
-    throw new ThemeError(`unknown theme «${name}»; available: ${THEME_NAMES.join(", ")}`);
+    throw new ThemeError(msg("theme.unknown", { name: String(name), available: THEME_NAMES.join(", ") }));
   }
   return { ...found };
 }

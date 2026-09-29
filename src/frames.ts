@@ -35,7 +35,7 @@ const args = process.argv.slice(2);
 const arg = (k: string): string | undefined => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
 const source = args[0];
 if (!source || source.startsWith("--")) {
-  console.error("frames.js <story.md> [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]");
+  console.error(msg("frames.usage"));
   process.exit(2);
 }
 const only = arg("scene");

@@ -8,6 +8,7 @@
 // Каждый знак кладётся отдельным узлом: набор открывает знаки по одному на
 // их собственных местах, и строка не перекладывается, пока её набирают.
 import { SourceError } from "../../source.js";
+import { msg } from "../../msg.js";
 
 const KEYWORDS = new Set(`
 abstract and as async await break case catch class const continue def default defer del delete do elif else enum
@@ -70,10 +71,10 @@ export function highlight(text: string, range?: string): Array<{ no: number; htm
   let from = 1, to = all.length;
   if (range) {
     const m = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(range.trim());
-    if (!m) throw new SourceError(`lines: expected «3-14» or «7», got «${range}»`);
+    if (!m) throw new SourceError(msg("code.lines", { value: range }));
     from = Number(m[1]);
     to = m[2] ? Number(m[2]) : from;
-    if (from < 1 || to > all.length || from > to) throw new SourceError(`lines: ${range} is outside the ${all.length} lines of the code`);
+    if (from < 1 || to > all.length || from > to) throw new SourceError(msg("code.linesOutside", { value: range, count: all.length }));
   }
   // Общий отступ снимается: показанный кусок из середины файла иначе стоит
   // лесенкой у правого края.
@@ -89,7 +90,7 @@ export function lineSet(v: string | undefined): number[] {
   if (!v) return [];
   return v.split(/[\s,]+/).filter(Boolean).flatMap((part) => {
     const m = /^(\d+)(?:-(\d+))?$/.exec(part);
-    if (!m) throw new SourceError(`highlight: expected line numbers like «5 7-9», got «${part}»`);
+    if (!m) throw new SourceError(msg("code.highlight", { value: part }));
     const a = Number(m[1]), b = m[2] ? Number(m[2]) : a;
     return Array.from({ length: b - a + 1 }, (_, i) => a + i);
   });

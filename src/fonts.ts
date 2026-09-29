@@ -8,6 +8,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { msg } from "./msg.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -85,7 +86,7 @@ export function fontFaceCss(theme: Record<string, string> | undefined): string {
   for (const f of themeFamilies(theme)) {
     for (const sub of Object.keys(RANGES)) {
       const face = (file: string, weight: string, style = "normal"): void => {
-        if (!existsSync(file)) throw new Error(`font file missing from the bundled set: ${file}`);
+        if (!existsSync(file)) throw new Error(msg("fonts.missing", { file }));
         out.push(`@font-face{font-family:"${f.family}";font-style:${style};font-weight:${weight};font-display:block;`
           + `src:url(${dataUri(file)}) format("woff2");unicode-range:${RANGES[sub]}}`);
       };

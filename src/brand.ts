@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { THEMES, type ThemeVars } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -23,7 +24,7 @@ type RGB = [number, number, number];
 const hex = (c: RGB): string => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
 export const parseHex = (s: string): RGB => {
   const m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
-  if (!m) throw new Error(`expected a colour like #ff5a1f, got «${s}»`);
+  if (!m) throw new Error(msg("brand.colour", { value: s }));
   const n = parseInt(m[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
@@ -62,7 +63,7 @@ export const contrast = (a: RGB, b: RGB): number => {
  * сорока градусов к первому, иначе это оттенок того же цвета.
  */
 export function dominantColors(image: string): RGB[] {
-  if (!existsSync(image)) throw new Error(`image not found: ${image}`);
+  if (!existsSync(image)) throw new Error(msg("brand.noImage", { path: image }));
   const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", image, "-vf", "scale=96:96:flags=area",
     "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1 << 24 });
   const bins = Array.from({ length: 36 }, () => ({ w: 0, r: 0, g: 0, b: 0 }));
@@ -137,8 +138,8 @@ function recolour(theme: ThemeVars, swap: Array<[RGB, RGB]>): ThemeVars {
  */
 export function brandTheme(colors: RGB[], base = "neutral"): ThemeVars & { preset: string } {
   const theme = THEMES[base];
-  if (!theme) throw new Error(`unknown base theme «${base}»; available: ${Object.keys(THEMES).join(", ")}`);
-  if (!colors.length) throw new Error("no brand colour found: the picture is grey; name the colours with --colors");
+  if (!theme) throw new Error(msg("brand.unknownBase", { base, available: Object.keys(THEMES).join(", ") }));
+  if (!colors.length) throw new Error(msg("brand.grey"));
   const bg = parseHex(theme["--bg"]!);
   const acc = readableOn(colors[0]!, bg);
   // Акцент один (docs/visual-design.md): второй цвет темы — тихий, для надзаголовков и меток. Второй

@@ -16,6 +16,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { durationOf, ff } from "./audio.js";
 import { CHANNELS, SAMPLE_RATE, type SynthResult, type VoiceData, type VoiceEngine } from "./types.js";
+import { msg } from "../msg.js";
 
 /** Отказ движка записанного голоса: причина словами, а не дамп. */
 export class RecordedError extends Error {
@@ -123,7 +124,7 @@ export const recorded: VoiceEngine = {
     try {
       ff(["-i", src, "-ar", String(SAMPLE_RATE), "-ac", String(CHANNELS), out]);
     } catch (e) {
-      throw new RecordedError(`запись не читается: ${src}\n${whyFfmpeg(e)}`);
+      throw new RecordedError(msg("recorded.unreadable", { file: src, why: whyFfmpeg(e) }));
     }
     // Длительность обязана быть настоящим числом: из неё считается число
     // кадров сцены. Частично декодируемый файл даёт её пустой, и дальше
@@ -134,7 +135,7 @@ export const recorded: VoiceEngine = {
     try {
       duration = durationOf(out);
     } catch (e) {
-      throw new RecordedError(`длительность записи не измеряется: ${src}\n${whyFfmpeg(e)}`);
+      throw new RecordedError(msg("recorded.noDuration", { file: src, why: whyFfmpeg(e) }));
     }
     if (!Number.isFinite(duration) || duration <= 0) {
       throw new RecordedError(

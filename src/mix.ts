@@ -19,6 +19,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -226,7 +227,7 @@ export function mixFilm(opts: {
   for (const span of spans) {
     const m = span.music;
     const src = pcm(m.file, m.from ?? 0);
-    if (!src.length) throw new Error(`music: ${m.file} decodes to no sound`);
+    if (!src.length) throw new Error(msg("mix.silentMusic", { file: m.file }));
     const pauseDb = m.level ?? -26;
     const duck = m.duck ?? 20;
     const base = pauseDb - levelDb(src);
