@@ -18,7 +18,9 @@ against the document on 2026-09-27; the bracketed source numbers are the documen
   language, look, transitions, material and structure all belong to the owner. The agent infers
   what the request answers and asks the rest in at most three structured questions.
 - **Voice rules.** Drafts are always silent on `stub`. A system voice is never a default and needs
-  the owner's explicit permission. Before drafting, the agent measures the final voice's pace.
+  the owner's explicit permission. The draft's pace starts from the measured estimates of the
+  built-in voices in `help voice`; the agent measures a scene with the chosen voice only when it
+  needs a closer estimate.
 - **A technique table.** For each technique it says when to use it and when not.
 - **A short checklist.** `new` writes a checklist with one box per step, then the technique menu and
   the film-craft rules as lists to consult. The film is handed over only when `grep -c "\- \[ \]" checklist.md` prints 0.

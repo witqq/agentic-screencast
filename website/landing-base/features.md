@@ -26,7 +26,7 @@ becomes the landing example, is listed in `clips.md`.
 | Moments named by the speech (anchors): `b2`, `b2+0.4`, `b2.end`, `40%` — the picture follows the words when the voice changes | `at`, `spotlight`, `overlay` `at`, `stills`, `sfx`, `flash`, `shake`, `data-at` | The same scene built at two paces: cards and push-ins move with the words | no |
 | Cache: an unchanged scene is not redrawn, a page's linked images count | automatic | The build log: "taken from the cache" on a rebuild | no |
 | One scene alone, the same segment it has in the film | `build --only` | — (a working tool) | no |
-| Build report: each scene's start and end, beats, stills, marks, audio, checks, timing | `<film>.report.json` | The JSON beside the film, its warnings highlighted | no |
+| Build report: each scene's start and end, beats, stills, marks, audio, checks, timing; `audit` compares the encoded video and audio lengths and the chapter cues with what the build expected | `<film>.report.json` | The JSON beside the film, its warnings highlighted | no |
 | Parse errors name the line and suggest the nearest name ("did you mean «title»?"); a build failure is one line | automatic | A typo in the terminal and the answer | no |
 | Long fields over several lines (block, list, JSON) | `code: \|`, `items: \|` | — | no |
 | A silent tail after a scene's speech | `tail` (header and scene) | — | no |
@@ -47,7 +47,7 @@ build.
 | `slides.steps` | items lit one by one with the narration | "three moves" of making a film | yes |
 | `slides.features` | two to six cards flipping in, emoji | the kit in six cards | yes |
 | `slides.timeline` | a line that draws itself to each stop | the road from a request to the MP4 | yes |
-| `slides.counter` | odometer digits and a % ring (`values`) | 23 fonts, 12 transitions, 20 slide kinds | yes |
+| `slides.counter` | odometer digits and a % ring (`values`) | 24 font families, 12 transitions, 20 slide kinds | yes |
 | `slides.number` | a big `value`, `label`, `tags`; `count` off stops the roll | the −14 LUFS target | text |
 | `slides.compare` | two columns (`left`, `right`) sliding in from their sides | an editor timeline vs a scenario file | text |
 | `slides.chain` | `nodes` pop, arrows draw; `back` names the loop back | the build pipeline | text |
@@ -104,7 +104,7 @@ build.
 | Loupe: a magnified circle while the camera stands | `overlay.loupe` (`place`) | the peak of a chart magnified | yes |
 | Hand-drawn marks: circle passing its start, arrow, underline — tapered pen strokes | `overlay.marks` | a circle drawn around a total | stale |
 | Glints and bursts (confetti, sparks, seeded) | `overlay.glints`, `overlay.bursts` | success confetti | yes |
-| Vertical reframing: a landscape page or clip cut by a 9:16 window that follows the focus and clicks | `--format vertical` | the landscape film and its vertical cut side by side | yes |
+| Vertical reframing: a landscape page or clip cut by a 9:16 window that follows the focus and clicks; a page that cannot be cut names its own portrait layout | `--format vertical`, `pageVertical` | the landscape film and its vertical cut side by side | yes |
 
 ## 5. Text on screen
 

@@ -24,7 +24,7 @@ proof is text, source or a documented check. A section need not repeat an entire
 | 1 | First screen: one scenario becomes the film | the promise on a real app | 1 | Silent `c00-cold` excerpt, slot `showcase` |
 | 2 | A real product, clicked for real | live capture with a living cursor | 3 | Silent `c03-auto` excerpt, slot `live` |
 | 3 | The camera knows where to look | spotlight, pan, loupe, marks, time inside the shot | 4 | Silent `c04-chain` excerpt, slot `focus` |
-| 4 | Slides that never stand still | twenty kinds, kinetic text, live backgrounds | 2 | Four distinct feature examples in text |
+| 4 | Slides that never stand still | twenty kinds, kinetic text, live backgrounds | 2 | Three cards of slide roles in text |
 | 5 | Words stay readable | subtitles that move off the subject, titles, callouts, stickers | 5 | Caption placement contract in text |
 | 6 | Cuts, sound and a voice | transitions, ducking, music by parts and chosen voices | 6, 7, 8 | Three-step account of the sound path |
 | 7 | A trailer, too | trailer cards, a title card, hard cuts and dips, hits | 2 (card, titlecard), 4 (flash, shake), 6 (cut, dip) | Link to the overview scenario |
@@ -155,6 +155,6 @@ overview brief. The page's written claims about voice and music describe what th
 while the landing examples themselves play without sound.
 
 The page uses the existing agentic-report Markdown vocabulary: a real example immediately after
-the promise, sections in the order of the argument, one four-card comparison of slide roles,
+the promise, sections in the order of the argument, one three-card comparison of slide roles,
 steps for sound and checks, source links for the knowledge base and one first-film action. The
 public Moira workflow remains outside the page while that workflow is deferred.
