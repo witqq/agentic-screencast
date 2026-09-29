@@ -103,8 +103,10 @@ duration: 4
   assert.equal(r.status, 0, r.stderr.slice(-400));
   const report = JSON.parse(r.stdout) as { chapters: Array<{ name: string; start: number; end: number }>; chaptersFile: string; duration: number };
   const w = encodeForWeb(join(dir, "film.mp4"), { out: join(dir, "web"), formats: ["h264"], thumbs: 1 });
-  assert.equal((JSON.parse(readFileSync(w.manifest, "utf8")) as { chapters?: string }).chapters, basename(w.chapters!),
-    "the manifest names the chapter track");
+  const manifest = JSON.parse(readFileSync(w.manifest, "utf8")) as { chapters?: string; lang?: string };
+  assert.equal(manifest.chapters, basename(w.chapters!), "the manifest names the chapter track");
+  // Язык глав — язык ролика из отчёта сборки, без --lang у web.
+  assert.equal(manifest.lang, "en", "the manifest takes the film's language from its build report");
   // Главы: реплики начинаются в моменты глав из отчёта сборки.
   const vtt = readFileSync(w.chapters!, "utf8");
   const stamp = (s: string): number => { const [h, m, x] = s.split(":"); return Number(h) * 3600 + Number(m) * 60 + Number(x); };

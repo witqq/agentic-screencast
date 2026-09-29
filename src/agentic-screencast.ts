@@ -144,7 +144,10 @@ agentic-screencast schema <kind> prints a kind's fields.
           camera frames its blocks by id (#section-id) or
           [data-review-target=…]; target, mustRead, zoom, spotFrom and focus
           work as on a page. The page keeps its own motion: its data-type
-          and data-at mean agentic-report's roles, not typing.
+          and data-at mean agentic-report's roles, not typing. The scene
+          builds the page without its top bar and what opens from it
+          (topbar, review, schemeToggle, themeSwitcher: false) unless the
+          report names those keys itself.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).
@@ -1011,7 +1014,9 @@ the film: size, duration, whether it has sound, the posters, the sources in
 order of preference with their type and bytes, the chapter track and its
 language, the thumbnails and the GIF — every path relative to the manifest, so
 the folder moves as a whole. A page builder reads it instead of guessing file
-names.`;
+names; agentic-report takes it as ::video{from="web/film.web.json"} (or the
+folder). The language is --lang, otherwise the one the build wrote into
+film.report.json.`;
 const VERTICAL_HELP = `Vertical and square films, and the agent's helpers
 
 # My short

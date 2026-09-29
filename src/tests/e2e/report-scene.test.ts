@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 // Сначала реестр поставщиков: он и `source.ts` ссылаются друг на друга, как в самой команде.
 import { BUILTIN } from "../../provider/index.js";
-import { sceneKeys, sceneSource } from "../../provider/report.js";
+import { SCENE_KEYS, sceneSource } from "../../provider/report.js";
 
 const reportProvider = BUILTIN.report!;
 
@@ -33,12 +33,12 @@ Builds are **38% faster** after the cache moved next to the sources.
 `;
 
 test("a report scene's source gains the scene keys without losing the author's own", () => {
-  assert.match(sceneSource(REPORT), /^---\n[\s\S]*\nreview: false\n---\n/u);
-  assert.equal(sceneSource("---\nreview: true\n---\n# A\n"), "---\nreview: true\n---\n# A\n", "an author's key wins");
-  assert.equal(sceneSource("# A\n"), "---\nreview: false\n---\n# A\n");
-  // Переключатели схемы и темы выключаются только там, где компилятор знает их ключи.
-  assert.deepEqual(sceneKeys("0.17.0").map(([k]) => k), ["review"]);
-  assert.deepEqual(sceneKeys("0.18.1").map(([k]) => k), ["review", "schemeToggle", "themeSwitcher"]);
+  const keys = "topbar: false\nreview: false\nschemeToggle: false\nthemeSwitcher: false";
+  assert.match(sceneSource(REPORT), new RegExp(`^---\\n[\\s\\S]*\\n${keys}\\n---\\n`, "u"));
+  assert.equal(sceneSource("# A\n"), `---\n${keys}\n---\n# A\n`);
+  assert.equal(sceneSource("---\ntopbar: true\n---\n# A\n"), "---\ntopbar: true\nreview: false\nschemeToggle: false\nthemeSwitcher: false\n---\n# A\n",
+    "an author's key wins");
+  assert.deepEqual(SCENE_KEYS.map(([k]) => k), ["topbar", "review", "schemeToggle", "themeSwitcher"]);
 });
 
 test("a report scene renders its sections whole, not typed by the stage", { skip: nodeOk ? false : "agentic-report needs Node 24.18+" }, async () => {
@@ -47,7 +47,11 @@ test("a report scene renders its sections whole, not typed by the stage", { skip
   const out = join(dir, "slides");
   const page = reportProvider.page!({ id: "r", provider: "report", kind: "report", fields: { report: "report.md" } } as never,
     out, { dir } as never);
-  assert.doesNotMatch(readFileSync(page, "utf8"), /<html\b[^>]*data-sc-page/u, "the page is not handed to the layer");
+  const html = readFileSync(page, "utf8");
+  assert.doesNotMatch(html, /<html\b[^>]*data-sc-page/u, "the page is not handed to the layer");
+  // Кадр отчёта — сама страница: без верхней панели и того, что из неё открывается.
+  assert.match(html, /data-topbar="none"/u, "the page is built without its top bar");
+  assert.doesNotMatch(html, /<header class="topbar"/u, "no top bar is drawn");
   const browser = await chromium.launch();
   try {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });
@@ -57,6 +61,7 @@ test("a report scene renders its sections whole, not typed by the stage", { skip
     await p.evaluate((s) => (window as unknown as { __stage: { mount(x: unknown): void } }).__stage.mount(s),
       { id: "r", page, duration: 4, beats: 1, starts: [0], caption: "" });
     await p.evaluate(() => (window as unknown as { __clock: { seek(t: number): void } }).__clock.seek(0.2));
+    assert.equal(await p.locator("header.topbar").count(), 0, "the frame has no top bar");
     const seen = await p.evaluate(() => ({ title: document.querySelector("#speed h2")?.textContent ?? null,
       body: document.querySelector("#speed")?.textContent ?? "" }));
     assert.equal(seen.title, "Speed", "the section keeps its heading");

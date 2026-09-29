@@ -15,7 +15,7 @@
 // Запуск: web.js <film.mp4> [--out каталог] [--formats av1,vp9,h264] [--width 1280]
 //   [--quality high|balanced|small] [--mute] [--poster 1.5]
 import { execFileSync, spawnSync } from "node:child_process";
-import { copyFileSync, mkdirSync, openSync, readSync, closeSync, statSync, writeFileSync, existsSync } from "node:fs";
+import { copyFileSync, mkdirSync, openSync, readSync, closeSync, readFileSync, statSync, writeFileSync, existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { basename, extname, join, resolve } from "node:path";
 
@@ -237,6 +237,12 @@ export function encodeForWeb(input: string, opts: {
     report.posters.push(poster);
   }
 
+  // Язык ролика — у его глав и подписей: названный командой, иначе записанный сборкой в отчёт
+  // `<ролик>.report.json`. Без него страница ставила бы дорожке глав свой язык.
+  const builtReport = source.replace(/\.[^./]+$/u, "") + ".report.json";
+  const lang = opts.lang ?? (existsSync(builtReport)
+    ? (JSON.parse(readFileSync(builtReport, "utf8")) as { lang?: string }).lang : undefined);
+
   // Главы: файл, который сборка кладёт рядом с роликом, едет в выпуск дорожкой.
   const chaptersSrc = opts.chapters ?? source.replace(/\.[^./]+$/u, "") + ".chapters.vtt";
   if (existsSync(chaptersSrc)) {
@@ -270,7 +276,7 @@ export function encodeForWeb(input: string, opts: {
   const rel = (p: string): string => basename(p);
   const html = `<video controls playsinline preload="none"${audio ? "" : " muted loop"} width="${width}" height="${height}" poster="${rel(report.posters[0]!)}">\n`
     + order.map((o) => `  <source src="${rel(o.file)}" type='${o.type}'>\n`).join("")
-    + (report.chapters ? `  <track kind="chapters" src="${rel(report.chapters)}" srclang="${opts.lang ?? "en"}" label="Chapters" default>\n` : "")
+    + (report.chapters ? `  <track kind="chapters" src="${rel(report.chapters)}" srclang="${lang ?? "en"}" label="Chapters" default>\n` : "")
     + (report.thumbnails ? `  <track kind="metadata" src="${rel(report.thumbnails.vtt)}" label="thumbnails">\n` : "")
     + "</video>\n";
   // GIF — для мест, где видео не играет (README, задача, чат): своя палитра на кусок, чтобы цвета не
@@ -290,7 +296,7 @@ export function encodeForWeb(input: string, opts: {
   report.html = join(outDir, `${name}.html`);
   writeFileSync(report.html, html);
   const manifest: WebManifest = { version: 1, film: name, width, height, duration: Number(src.duration.toFixed(3)), audio,
-    ...(opts.lang ? { lang: opts.lang } : {}),
+    ...(lang ? { lang } : {}),
     poster: { jpg: rel(report.posters[0]!), webp: rel(report.posters[1]!) },
     sources: order.map((o) => ({ src: rel(o.file), type: o.type, format: o.format, width: o.width, height: o.height, bytes: o.bytes })),
     ...(report.chapters ? { chapters: rel(report.chapters) } : {}),

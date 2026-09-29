@@ -1559,8 +1559,11 @@ async function main() {
   // Отчёт — ещё и файлом рядом с роликом (`<ролик>.report.json`): поток вывода прочитан
   // один раз, а по файлу сцены, их начала и контрольные кадры сверяют и через час.
   const reportFile = `${out.replace(/\.[^./]+$/, "")}.report.json`;
+  // Язык собранного ролика: вариант, выбранный `--lang`, иначе язык шапки. По нему `web` ставит
+  // язык дорожки глав.
+  const filmLang = process.env.AGENTIC_SCREENCAST_FILM_LANG || pitch.lang;
   const report = JSON.stringify({
-    out, report: reportFile, scenes: log, ...(only ? { only } : {}),
+    out, report: reportFile, ...(filmLang ? { lang: filmLang } : {}), scenes: log, ...(only ? { only } : {}),
     segments: taken.map((s) => ({ id: s.id, seg: s.__seg, md5: md5file(s.__seg!) })),
     // Начала тактов от начала ролика: по ним сверяются субтитры и всё, что
     // привязано к речи, без повторного измерения звука.
