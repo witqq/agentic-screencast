@@ -382,6 +382,8 @@ export interface Pitch {
   scenes: PitchScene[];
   /** Явные части из авторского сценария, независимо от порождённого списка глав. */
   authoredParts?: string[];
+  /** Ролик для ленты (вертикаль или квадрат с зоной площадки): его первый кадр — превью и начало петли. */
+  feed?: boolean;
   tail?: number;
   /** посторонние поставщики: их объявил ролик, и проверкам они тоже нужны */
   providers?: Record<string, string>;
@@ -1301,6 +1303,18 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
         : !explicitParts && spec.chapterFrom?.some((k) => f[k]) ? { chapter: spec.chapterFrom.map((k) => f[k]).find(Boolean)! } : {}),
     };
   });
+  // Куски одного дубля встык (конец одного — начало следующего, одна запись) склеиваются без
+  // затемнения: правило 21 снимает живое приложение одним дублем, а затемнение на стыке выглядело
+  // перезагрузкой. Автор, назвавший `fade` или переход сам, решает сам.
+  for (let i = 1; i < scenes.length; i++) {
+    const prev = scenes[i - 1]!, cur = scenes[i]!;
+    const joined = prev.video && cur.video && prev.page === cur.page && prev.trim?.to !== undefined && cur.trim
+      && Math.abs(prev.trim.to - cur.trim.from) <= 0.05 && !src.scenes[i]!.fields.transition;
+    if (!joined) continue;
+    const fadeOf = (x: PitchScene): Record<string, unknown> => ((x.effects ??= {}).fade ??= {}) as Record<string, unknown>;
+    if (!src.scenes[i - 1]!.fields.fade) fadeOf(prev).out = 0;
+    if (!src.scenes[i]!.fields.fade) fadeOf(cur).in = 0;
+  }
   const pitch: Pitch = { scenes };
   if (explicitParts) pitch.authoredParts = src.scenes.flatMap((s) => s.fields.part ? [s.fields.part] : []);
   if (src.tail !== undefined) pitch.tail = src.tail;
@@ -1322,6 +1336,14 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
   if (src.look) pitch.look = src.look;
   if (src.format) pitch.format = src.format;
   if (src.safe) pitch.safe = src.safe;
+  // Лента: первый кадр — превью и начало петли, и он показывает предмет (правило 64), а не чёрный
+  // вход; последний кадр переходит в первый без затемнения. Автор, назвавший fade, решает сам.
+  if (src.safe && src.zone !== "plain" && scenes.length) {
+    pitch.feed = true;
+    const fadeOf = (x: PitchScene): Record<string, unknown> => ((x.effects ??= {}).fade ??= {}) as Record<string, unknown>;
+    if (!src.scenes[0]!.fields.fade) fadeOf(scenes[0]!).in = 0;
+    if (!src.scenes.at(-1)!.fields.fade) fadeOf(scenes.at(-1)!).out = 0;
+  }
   if (src.reframe) pitch.reframe = src.reframe;
   if (src.lookNote) pitch.lookNote = src.lookNote;
   pitch.dir = src.dir;

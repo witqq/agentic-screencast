@@ -1083,7 +1083,13 @@ Helpers that save a full build:
       text past the feed's safe zone (safe-zone), an empty band a third of
       the frame (empty-area), small focus text (legibility), small page text
       in a vertical film (small), cut lines (cut), overflowing slides
-      (overflow); and the file's audit and muxer issues).
+      (overflow), a stretch standing still three seconds (still-stretch),
+      flashing more than three times a second (flashing), clicks of a take
+      after the speech ends (silent-action), a still in a scene's fade
+      (still-in-fade), a feed film's dark first frame (loop-start); and the
+      file's audit and muxer issues). Adjacent pieces of one take join edge
+      to edge without a fade, and a feed film's first scene opens and its
+      last scene ends without one, unless the scene names fade.
       A finding here and in lint is {rule, id, message, hint}: id names the
       check, rule the film-craft rule behind it (FC-58 is rule 58 of
       docs/film-craft.md — read it for why and how), hint what to change.

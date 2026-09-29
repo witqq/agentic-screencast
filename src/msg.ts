@@ -465,6 +465,16 @@ const en: Dict = {
   "build.emptyArea": "scene {id}: a flat empty band {percent}% of the frame high at {at}s: the frame has no subject there",
   "lint.karaokeContrast": "an unspoken karaoke word reaches only {ratio}:1 on the subtitle plate, under the 4.5:1 body text needs",
   "hint.karaoke-contrast": "Raise the theme's --sc-karaoke-rest, or darken the plate or the subtitle ink, until the unspoken word holds 4.5:1.",
+  "build.stillStretch": "scene {id}: the frame stands still for {seconds} s from {from}s: give it a camera move, a focus or cut it shorter",
+  "build.flashing": "scene {id}: the frame flashes more than three times a second from {at}s",
+  "build.silentAction": "scene {id}: {count} click(s) of the take come after the speech ends at {said}s, the first at {at}s: the action runs without words",
+  "build.stillInFade": "scene {id}: the still {moment} at {time}s falls in the scene's fade and shows a dimmed frame",
+  "build.loopStart": "scene {id}: the film's first frame is dark; in a feed it is the preview and the start of the loop",
+  "hint.still-stretch": "Move the camera or a focus over the stretch, speed it up, or cut it out.",
+  "hint.flashing": "Slow the flashes to three a second or fewer, or remove them: fast flashing tires and can harm viewers.",
+  "hint.silent-action": "Cut the piece to the speech, or add a beat that names the action while it happens.",
+  "hint.still-in-fade": "Move the still's moment inside the scene, away from its first and last fraction of a second.",
+  "hint.loop-start": "Open on the product from the first frame: drop the fade-in of the first scene or start on a bright frame.",
 };
 
 const ru: Dict = {
@@ -916,6 +926,16 @@ const ru: Dict = {
   "build.emptyArea": "сцена {id}: ровная пустая полоса на {percent}% высоты кадра на {at} с: там нет предмета",
   "lint.karaokeContrast": "непроизнесённое слово караоке даёт на плашке только {ratio}:1 — меньше 4,5:1, нужных основному тексту",
   "hint.karaoke-contrast": "Поднимите --sc-karaoke-rest темы или сделайте плашку и цвет субтитров контрастнее, пока непроизнесённое слово не удержит 4,5:1.",
+  "build.stillStretch": "сцена {id}: кадр стоит {seconds} с с {from} с — дайте ему камеру, фокус или сократите",
+  "build.flashing": "сцена {id}: кадр мигает чаще трёх раз в секунду с {at} с",
+  "build.silentAction": "сцена {id}: клики дубля ({count}) идут после конца речи на {said} с, первый — на {at} с: действие без слов",
+  "build.stillInFade": "сцена {id}: контрольный кадр {moment} на {time} с приходится на затемнение сцены и показывает тёмный кадр",
+  "build.loopStart": "сцена {id}: первый кадр ролика тёмный; в ленте это превью и начало петли",
+  "hint.still-stretch": "Проведите над отрезком камеру или фокус, ускорьте его или вырежьте.",
+  "hint.flashing": "Замедлите вспышки до трёх в секунду и реже или уберите их: частое мигание утомляет и может навредить зрителю.",
+  "hint.silent-action": "Обрежьте кусок по речи или добавьте такт, который называет действие, пока оно идёт.",
+  "hint.still-in-fade": "Перенесите момент кадра внутрь сцены, подальше от первой и последней доли секунды.",
+  "hint.loop-start": "Откройте ролик продуктом с первого кадра: уберите вход из затемнения у первой сцены или начните со светлого кадра.",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };

@@ -35,7 +35,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 ## 6. Draft
 
 - [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles and the
-      rhythm of sparse trailer cards; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `push-crop`, `small` and the rest name their film-craft rule);
+      rhythm of sparse trailer cards; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `still-stretch`, `silent-action`, `still-in-fade` and the rest name their film-craft rule);
       the stills match their notes; the owner has seen the draft and their remarks are fixed.
 
 ## 7. Final

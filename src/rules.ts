@@ -31,6 +31,11 @@ export const RULES: Record<string, `FC-${number}`> = {
   // сборка: по отрисованному и закодированному
   "caption-lines": "FC-35",
   "safe-zone": "FC-58",
+  "still-stretch": "FC-9",
+  "flashing": "FC-66",
+  "silent-action": "FC-25",
+  "still-in-fade": "FC-37",
+  "loop-start": "FC-64",
   "legibility": "FC-58",
   "small": "FC-58",
   "cut": "FC-58",

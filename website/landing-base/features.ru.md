@@ -190,7 +190,7 @@
 | Лист кадров сырого клипа или готового ролика, кадр в секунду | `sheet` | выбор куска дубля | нет |
 | Контрольные кадры готового ролика с заметками | `stills:` (`every 1s`) | папка кадров | нет |
 | Читаемость собранных страниц (основной текст 4,5:1, размером с заголовок 3:1), порядок появления, повторимость ядра | `check`, `order`, `verify` | — | текст |
-| Проверки в отчёте сборки: `overflow`, `cut`, `legibility`, `small`, `pushes`, `loupes`, `captionPlaces`, caption-lines, safe-zone, empty-area | само | отчёт, называющий обрезанную строку | нет |
+| Проверки в отчёте сборки: `overflow`, `cut`, `legibility`, `small`, `pushes`, `loupes`, `captionPlaces`, caption-lines, safe-zone, empty-area, still-stretch, flashing, silent-action, still-in-fade, loop-start | само | отчёт, называющий обрезанную строку | нет |
 | Команды печатают свою справку (`<command> --help`) | само | — | нет |
 | Разбор сценария | `scenes`, `script`, `schema`, `paths`, `version` | — | нет |
 

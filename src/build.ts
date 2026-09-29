@@ -1433,6 +1433,72 @@ async function main() {
     });
   });
 
+  // Готовый ролик по сценам: то, что видно только в кадрах, — неподвижный отрезок, мигание,
+  // действие без речи, контрольный кадр на затухании, тёмный первый кадр ленты.
+  if (!only) {
+    const W = 32, H = 18, size = W * H;
+    const grayFrames = (file: string): Buffer[] => {
+      const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", file, "-vf", `fps=${opts.fps},scale=${W}:${H}:flags=area,format=gray`,
+        "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
+      return Array.from({ length: Math.floor(raw.length / size) }, (_, k) => raw.subarray(k * size, (k + 1) * size));
+    };
+    const meanDiff = (a: Buffer, b: Buffer): number => { let d = 0; for (let k = 0; k < size; k++) d += Math.abs(a[k]! - b[k]!); return d / size; };
+    const mean = (a: Buffer): number => a.reduce((t, v) => t + v, 0) / size;
+    taken.forEach((s) => {
+      if (!s.__seg || !existsSync(s.__seg)) return;
+      const frames = grayFrames(s.__seg);
+      const trailer = !s.video && specOf(s as unknown as { provider: string; kind: string }, (pitch as { providers?: Record<string, string> }).providers ?? {}).trailer;
+      // Почти неподвижный отрезок: кадры три секунды подряд не отличаются друг от друга.
+      let run = 0, runFrom = 0, reported = false;
+      for (let k = 1; k < frames.length && !trailer && !reported; k++) {
+        if (meanDiff(frames[k]!, frames[k - 1]!) < 0.15) { if (!run) runFrom = (k - 1) / opts.fps; run++; } else run = 0;
+        if (run / opts.fps >= 3) {
+          warn(s.id, "still-stretch", msg("build.stillStretch", { id: s.id, from: runFrom.toFixed(1), seconds: 3 }));
+          reported = true;
+        }
+      }
+      // Мигание (как вспышку считает WCAG 2.3.1): пара противоположных перепадов яркости на десятую
+      // долю шкалы и больше; больше трёх таких пар за секунду — семь перепадов с чередованием знака.
+      const lum = frames.map(mean);
+      const turns: number[] = [];
+      let sign = 0;
+      for (let k = 1; k < lum.length; k++) {
+        const d = lum[k]! - lum[k - 1]!;
+        if (Math.abs(d) < 25) continue;
+        if (Math.sign(d) !== sign) { turns.push(k / opts.fps); sign = Math.sign(d); }
+      }
+      for (let k = 0; k + 6 < turns.length; k++) {
+        if (turns[k + 6]! - turns[k]! <= 1) {
+          warn(s.id, "flashing", msg("build.flashing", { id: s.id, at: turns[k]!.toFixed(1) }));
+          break;
+        }
+      }
+      // Действие без речи: клики дубля позже чем через секунду после конца речи сцены.
+      if (s.video && s.beats.length) {
+        const clicks = trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim)?.clicks ?? [];
+        const said = speechEnds(s).at(-1) ?? 0;
+        const late = clicks.map((c) => (s.speed?.length ? filmTimeOf(s.speed, c.t) : c.t)).filter((t) => t > said + 1 && t < s.duration);
+        if (late.length) warn(s.id, "silent-action", msg("build.silentAction", { id: s.id, count: late.length, at: late[0]!.toFixed(1), said: said.toFixed(1) }));
+      }
+    });
+    // Контрольный кадр на затухании края сцены: на нём не видно того, ради чего он назван.
+    for (const st of stills) {
+      const i = taken.findIndex((x) => x.id === st.scene);
+      const s = taken[i]!, local = st.time - tl.starts[i]!, dur = sceneFrames(s) / opts.fps;
+      const f = (s.effects as { fade?: { in?: number; out?: number } } | undefined)?.fade;
+      const fin = f?.in ?? 0.3, fout = f?.out ?? 0.3;
+      if ((fin > 0 && local < fin) || (fout > 0 && local > dur - fout)) {
+        warn(st.scene, "still-in-fade", msg("build.stillInFade", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
+      }
+    }
+    // Лента: первый кадр — превью и начало петли, тёмный кадр там выглядит мёртвым.
+    if ((pitch as { feed?: boolean }).feed) {
+      const first = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", out, "-frames:v", "1",
+        "-vf", `scale=${W}:${H}:flags=area,format=gray`, "-f", "rawvideo", "-"]);
+      if (first.length === size && mean(first) < 25) warn(taken[0]!.id, "loop-start", msg("build.loopStart", { id: taken[0]!.id }));
+    }
+  }
+
   const fileWarnings = [
     ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)).map((l) => finding("mux", l)),
     ...audit.issues.map((issue) => finding("audit", msg("build.auditIssue", { code: issue.code,
