@@ -118,5 +118,13 @@
     "oxlint": "1.80.0",
     "typescript": "7.0.2",
     "vite": "8.2.2"
+  },
+  "peerDependencies": {
+    "agentic-report": ">=0.17.0"
+  },
+  "peerDependenciesMeta": {
+    "agentic-report": {
+      "optional": true
+    }
   }
 }

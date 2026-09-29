@@ -116,8 +116,18 @@ docs/scenario-playbook.md.
 
 Scene kinds come from providers: slides.<kind> (slides.chapter opens a
 film or a part; help slides lists them all), page (a saved
-or self-contained HTML page), video (a finished clip or a live take — help
-capture). agentic-screencast schema <kind> prints a kind's fields.
+or self-contained HTML page), report (a page agentic-report builds from its
+Markdown source), video (a finished clip or a live take — help capture).
+agentic-screencast schema <kind> prints a kind's fields.
+
+  report  report: page.md — a report, presentation or landing written for
+          agentic-report, rebuilt from its source for every scene, so the
+          film shows the latest edit. Needs agentic-report in the project
+          (npm i -D agentic-report) and the Node version it requires. The
+          camera frames its blocks by id (#section-id) or
+          [data-review-target=…]; target, mustRead, zoom, spotFrom and focus
+          work as on a page. The page keeps its own motion: its data-type
+          and data-at mean agentic-report's roles, not typing.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).

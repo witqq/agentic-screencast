@@ -73,6 +73,7 @@ Every technique below has a place where it earns attention and a place where it 
 | several languages (`.ru` fields, `[ru]` blocks, `--lang ru`) | the audience speaks more than one language | a translation nobody checked in its own frames |
 | `stills` | every scene with a moment that must be right | — it costs nothing and does not re-render |
 | live capture helpers (`take.clickAt`, `click({force})`, `withFocus`, `withCard`, `mark`; `click: spot | echo` for a quieter or louder click) | the real product must act on screen | a mockup would be dishonest; `overlay.pointer` on existing footage is only a graphic and clicks nothing |
+| a `report` scene | the subject is a report, presentation or landing written for agentic-report: the scene rebuilds it from `page.md` and the camera frames its sections by id | the page itself should be handed over — send it, not a film of it |
 | a page instead of a film ([agentic-report](https://www.npmjs.com/package/agentic-report)) | the result is read at the reader's own pace: a report, a presentation, a landing, facts and tables; a short film goes into that page from `agentic-screencast web` and its `film.web.json` | the point is motion: a process, a live interface, a change over time — a film carries it and a page does not |
 
 ## Brief first: ask what you cannot infer

@@ -63,6 +63,7 @@ build.
 | `slides.card` | a trailer card: one to three words slamming in, flash, shake, sparks | "ONE FILE" in the trailer chapter | text |
 | `slides.titlecard` | the film's title in spaced capitals, from a blur, a flare | the overview's title | text |
 | `page` | any HTML page: saved, generated, or your own with its animations on the scene clock; `target`, `mustRead`, `zoom`, `spotFrom`, `focus` | a diagram page drawn beat by beat | yes |
+| `report` | a report, presentation or landing built by agentic-report from `report`, rebuilt for every scene; the camera frames its sections by id | the landing's own source filmed section by section | no |
 | `page` drawing by the narration | `window.renderAt(t)` and `data-at` anchors | a diagram whose boxes appear as they are named | no |
 | `video` | a finished clip or a live take: `from`/`to` piece, `fit` contain or cover, `freezeAt`, `duration` | a live take in several scenes | yes |
 | Slide options on every kind | `text` (14 phrase styles), `enter` (18 entrances), `move` drift/push/still, `background`, `align`, `at`, `count`, `note` | one slide rebuilt in three styles | text |

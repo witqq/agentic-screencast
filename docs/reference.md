@@ -264,6 +264,7 @@ The tool brings three providers with it:
 | `slides.card` | trailer card: one to three words filling the frame, flying in with a flash and shake | `title` |
 | `slides.titlecard` | the film's name in widely spaced capitals with glare and bloom | `title` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
+| `report` | a page agentic-report builds from its Markdown source for every scene; needs agentic-report in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |
 
 For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 frame.

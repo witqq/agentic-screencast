@@ -216,7 +216,7 @@ export const FIELD_FORMATS: Record<string, string> = {
   cps: "characters per second, 5–400 (default: typing fits the scene)", name: "tab name",
   move: "drift | push | still", count: "on | off", background: "grid | aurora | mesh | waves | particles | bokeh | none",
   text: "kinetic style of the title [and the body]: fly scramble …", enter: "how items enter: rise | left | pop | flip | …",
-  label: "text", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
+  label: "text", report: "page.md — an agentic-report source, rebuilt for the scene", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
   focus: "CSS selector @ anchor | …", zoom: "scale, e.g. 1.2", spotFrom: "seconds when the spot starts", freezeAt: "seconds or @mark",
   speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay)",
   autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36}", from: "clip second or @mark where the piece starts",

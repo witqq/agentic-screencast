@@ -425,6 +425,9 @@ const en: Dict = {
   "web.width": "--width: expected a number of pixels",
   "web.thumbs": "--thumbs: seconds between thumbnails, or 0 for none",
   "web.gif": "--gif: expected a piece in seconds, e.g. --gif 2-8, or nothing for the first six seconds",
+  "report.noCompiler": "report scenes need agentic-report: install it in the project (npm i -D agentic-report)",
+  "report.notFound": "scene {id}: report source not found: {path}",
+  "report.buildFailed": "scene {id}: agentic-report could not build the page: {why}",
 };
 
 const ru: Dict = {
@@ -836,6 +839,9 @@ const ru: Dict = {
   "web.width": "--width: ожидалось число точек",
   "web.thumbs": "--thumbs: секунды между миниатюрами или 0, чтобы их не было",
   "web.gif": "--gif: ожидался кусок в секундах, например --gif 2-8, или ничего — первые шесть секунд",
+  "report.noCompiler": "сценам report нужен agentic-report: поставьте его в проект (npm i -D agentic-report)",
+  "report.notFound": "сцена {id}: исходник отчёта не найден: {path}",
+  "report.buildFailed": "сцена {id}: agentic-report не собрал страницу: {why}",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };
