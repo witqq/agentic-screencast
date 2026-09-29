@@ -48,11 +48,8 @@ language: ru
 :::card{title="Измерение"}
 График читает CSV и выделяет пик; счётчик приходит к числу с названным источником.
 :::
-:::card{title="Механизм"}
-Код набирается на месте, а цепочка показывает путь от сценария до MP4.
-:::
-:::card{title="Изменение"}
-Два состояния делят один движущийся разделитель, а сохранённая страница откликается на время сцены.
+:::card{title="Механизм или изменение"}
+Код набирается на месте, а цепочка показывает путь от сценария до MP4; два состояния делят один движущийся разделитель, а сохранённая страница откликается на время сцены.
 :::
 ::::
 
@@ -128,10 +125,15 @@ language: ru
 :::
 
 ```sh
+# установка
 npm i -D agentic-screencast
-npx playwright install chromium
-npx agentic-screencast new product-demo
-npx agentic-screencast build --out draft.mp4
+npx playwright install \
+  chromium
+# заготовка и черновик
+npx agentic-screencast \
+  new product-demo
+npx agentic-screencast \
+  build --out draft.mp4
 ```
 
 ::::actions{placement="inline"}

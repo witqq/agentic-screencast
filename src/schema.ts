@@ -27,6 +27,7 @@ import { LOOKS, GRADES } from "./look.js";
 import { DEVICE_KINDS } from "./device.js";
 import { LOUPE_PLACES } from "./overlay.js";
 import { SPOTLIGHT_KEYS } from "./spotlight.js";
+import { msg } from "./msg.js";
 
 /**
  * Все виды всех поставщиков — поставляемых и объявленных роликом.
@@ -215,7 +216,7 @@ export const FIELD_FORMATS: Record<string, string> = {
   cps: "characters per second, 5–400 (default: typing fits the scene)", name: "tab name",
   move: "drift | push | still", count: "on | off", background: "grid | aurora | mesh | waves | particles | bokeh | none",
   text: "kinetic style of the title [and the body]: fly scramble …", enter: "how items enter: rise | left | pop | flip | …",
-  label: "text", page: "pages/app.html", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
+  label: "text", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
   focus: "CSS selector @ anchor | …", zoom: "scale, e.g. 1.2", spotFrom: "seconds when the spot starts", freezeAt: "seconds or @mark",
   speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay)",
   autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36}", from: "clip second or @mark where the piece starts",
@@ -260,7 +261,7 @@ export function kindBrief(name: string, declared: Record<string, string> = {}): 
   // Вид можно назвать и без поставщика (`parallax`), если имя однозначно.
   const bare = entries.filter((x) => x.kind === name);
   const e = entries.find((x) => nameOf(x) === name || `${x.provider}.${x.kind}` === name) ?? (bare.length === 1 ? bare[0] : undefined);
-  if (!e) throw new Error(`unknown kind «${name}»; known: ${entries.map(nameOf).join(", ")}, film`);
+  if (!e) throw new Error(msg("schema.unknownKind", { name, known: `${entries.map(nameOf).join(", ")}, film` }));
   const required = e.spec.required.map((g) => g.join(" or "));
   const line = (f: string): string => `  ${f}: ${FIELD_FORMATS[f] ?? "text"}`;
   return [`${nameOf(e)} — ${e.spec.about}`,

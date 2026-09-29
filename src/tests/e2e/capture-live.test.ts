@@ -94,8 +94,12 @@ test("a live take pushes in, dims, marks, shows keys and the cursor, and trims i
   assert.ok(count(first, (r, g, b) => r < 200 || g < 200 || b < 200) > 500, "the first frame has content");
   assert.ok(marks.trimmed > 0.5, `blank start trimmed: ${marks.trimmed}s`);
   assert.equal(marks.cameraMoves?.length, 2, "the take records its push-in and return intervals");
-  assert.ok(marks.cameraMoves![0]!.from <= marks.marks.overview! + 0.4
-    && marks.cameraMoves![0]!.to >= marks.marks.focused!, "the push-in interval covers its visible movement");
+  // Отметка `focused` ставится после того, как focus() закрыл интервал, поэтому конец интервала не
+  // позже неё; сравнение «конец не раньше отметки» проходило, только пока оба попадали в одну
+  // миллисекунду. Интервал начинается после общего плана и длится не меньше хода камеры (move 0.7).
+  const push = marks.cameraMoves![0]!;
+  assert.ok(push.from >= marks.marks.overview! && push.to <= marks.marks.focused! && push.to - push.from >= 0.7,
+    `the push-in interval covers its visible movement: ${JSON.stringify(push)}, marks ${JSON.stringify(marks.marks)}`);
   writeFileSync(join(dir, "story.md"), `# Take\ntheme: midnight\nvoice: {"engine":"stub","name":"silent"}\n\n## v · video\nfile: take.webm\nduration: 5\n`);
   assert.deepEqual(lint(join(dir, "story.md")).filter((f) => f.rule === "scene-jump"), [],
     "the take's actual camera move and dimmed surround are not navigation");

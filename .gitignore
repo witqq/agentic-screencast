@@ -20,6 +20,9 @@ node_modules/
 # не то. Порождаемое лежит рядом с источником, и здесь источник один.
 .generated-*.json
 /example/slides/
+# Кадры, которые пишут команды frames из README в каталоге примера.
+/example/*.png
+/example/*-frames/
 
 # Собранное: порождается из src, в историю не входит
 dist/

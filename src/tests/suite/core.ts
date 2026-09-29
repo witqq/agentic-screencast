@@ -219,6 +219,11 @@ await check("в ядре нет ни имён видов сцен, ни поро
     ["spotlight.ts", `"slow", "card"`], ["schema.ts", `"slow", "card"]`], ["agentic-screencast.ts", `"card":{"title"`],
     // Сила вспышки и запас увеличения тряски — числа эффекта, а не пороги приёмки кадра.
     ["effects.ts", "strength: 0.85"], ["effects.ts", "+ 0.002)"], ["agentic-screencast.ts", "strength 0.85"],
+    // Предмет выше 85% кадра — весь экран: полосу субтитров от него не уводят. Это геометрия
+    // выбора полосы, а не приёмка кадра.
+    ["capband.ts", "r.height >= frame.height * 0.85"],
+    // Допуск округления времени главы в WebVTT (миллисекунды записи), а не порог качества кадра.
+    ["film-audit.ts", "Math.abs(cue.start - r.start) > 0.002"],
   ];
   const hits: string[] = [];
   for (const [file, body] of core) {

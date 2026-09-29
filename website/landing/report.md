@@ -58,11 +58,8 @@ Steps enter with their spoken beats; a timeline draws toward each stop.
 :::card{title="A measurement"}
 A chart reads CSV data and highlights its peak; a counter lands on a sourced number.
 :::
-:::card{title="A mechanism"}
-Code types in place, while a chain draws the hand-off from scenario to MP4.
-:::
-:::card{title="A change"}
-Before-and-after images share one divider, and a saved page can respond to the scene clock.
+:::card{title="A mechanism or a change"}
+Code types in place and a chain draws the hand-off from scenario to MP4; before-and-after images share one divider, and a saved page can respond to the scene clock.
 :::
 ::::
 
@@ -138,10 +135,15 @@ Ask your agent to explain one product to one audience. Begin with a genre skelet
 :::
 
 ```sh
+# install
 npm i -D agentic-screencast
-npx playwright install chromium
-npx agentic-screencast new product-demo
-npx agentic-screencast build --out draft.mp4
+npx playwright install \
+  chromium
+# a skeleton and a draft
+npx agentic-screencast \
+  new product-demo
+npx agentic-screencast \
+  build --out draft.mp4
 ```
 
 ::::actions{placement="inline"}

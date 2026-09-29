@@ -212,10 +212,11 @@ The second beat follows.
   // Язык шапки выбирается и явно — это тот же оригинал.
   assert.equal(parseSource(file, { lang: "en" }).scenes[0]!.fields.title, "The first part");
 
-  // Перевод речи обязан быть в каждой сцене с речью и такт в такт.
-  assert.throws(() => parseSource(story(BI.replace(/\[ru\][\s\S]*$/u, "")), { lang: "ru" }), /scene a: no \[ru\] narration/);
+  // Перевод речи обязан быть в каждой сцене с речью и такт в такт. Ошибка русской сборки — на
+  // языке ролика.
+  assert.throws(() => parseSource(story(BI.replace(/\[ru\][\s\S]*$/u, "")), { lang: "ru" }), /сцена a: нет реплики \[ru\]/u);
   assert.throws(() => parseSource(story(BI.replace("\nВторой такт идёт следом.\n", "\n")), { lang: "ru" }),
-    /\[ru\] has 1 beats, the original 2/);
+    /в \[ru\] тактов 1, в оригинале 2/u);
   assert.throws(() => parseSource(file, { lang: "de" }), /the scenario has no de text/);
   // Опечатка в поле чужого языка видна и в сборке оригинала.
   assert.throws(() => parseSource(story(BI.replace("kicker.ru:", "kikcer.ru:"))), /kikcer.*kicker/su);
