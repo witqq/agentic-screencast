@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { chromium } from "playwright";
 // Сначала реестр поставщиков: он и `source.ts` ссылаются друг на друга, как в самой команде.
 import { BUILTIN } from "../../provider/index.js";
-import { sceneSource } from "../../provider/report.js";
+import { sceneKeys, sceneSource } from "../../provider/report.js";
 
 const reportProvider = BUILTIN.report!;
 
@@ -36,6 +36,9 @@ test("a report scene's source gains the scene keys without losing the author's o
   assert.match(sceneSource(REPORT), /^---\n[\s\S]*\nreview: false\n---\n/u);
   assert.equal(sceneSource("---\nreview: true\n---\n# A\n"), "---\nreview: true\n---\n# A\n", "an author's key wins");
   assert.equal(sceneSource("# A\n"), "---\nreview: false\n---\n# A\n");
+  // Переключатели схемы и темы выключаются только там, где компилятор знает их ключи.
+  assert.deepEqual(sceneKeys("0.17.0").map(([k]) => k), ["review"]);
+  assert.deepEqual(sceneKeys("0.18.1").map(([k]) => k), ["review", "schemeToggle", "themeSwitcher"]);
 });
 
 test("a report scene renders its sections whole, not typed by the stage", { skip: nodeOk ? false : "agentic-report needs Node 24.18+" }, async () => {

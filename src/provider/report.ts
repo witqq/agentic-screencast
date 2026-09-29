@@ -53,15 +53,15 @@ const report: KindSpec = {
  * только ESM-экспорт, и `require.resolve` его не видит, поэтому каталог ищется подъёмом по
  * `node_modules`, а вход — по полю `exports` его манифеста.
  */
-function compilerEntry(filmDir: string): string {
+function compilerEntry(filmDir: string): { entry: string; version: string } {
   for (const start of [resolve(filmDir), resolve(HERE, "..", "..")]) {
     for (let dir = start; ; dir = dirname(dir)) {
       const manifest = join(dir, "node_modules", "agentic-report", "package.json");
       if (existsSync(manifest)) {
-        const pkg = JSON.parse(readFileSync(manifest, "utf8")) as { exports?: Record<string, { import?: string } | string>; main?: string };
+        const pkg = JSON.parse(readFileSync(manifest, "utf8")) as { version: string; exports?: Record<string, { import?: string } | string>; main?: string };
         const dot = pkg.exports?.["."];
         const rel = typeof dot === "string" ? dot : dot?.import ?? pkg.main ?? "index.js";
-        return join(dirname(manifest), rel);
+        return { entry: join(dirname(manifest), rel), version: pkg.version };
       }
       if (dirname(dir) === dir) break;
     }
@@ -71,14 +71,19 @@ function compilerEntry(filmDir: string): string {
 
 /**
  * Кнопки шапки отчёта — переключатели схемы и темы, ревью — в ролике ничего не делают и только
- * занимают кадр; сцена выключает их, если автор не назвал их сам.
+ * занимают кадр; сцена выключает их, если автор не назвал их сам. Переключатели схемы и темы
+ * выключаются ключами, которые компилятор знает с 0.18: старший отказал бы «unknown keys».
  */
-const SCENE_KEYS: Array<[string, string]> = [["review", "false"]];
+export function sceneKeys(version: string): Array<[string, string]> {
+  const [major = 0, minor = 0] = version.split(".").map(Number);
+  const modern = major > 0 || minor >= 18;
+  return [["review", "false"], ...(modern ? [["schemeToggle", "false"], ["themeSwitcher", "false"]] as Array<[string, string]> : [])];
+}
 
-export function sceneSource(markdown: string): string {
+export function sceneSource(markdown: string, keys: Array<[string, string]> = sceneKeys("0.17.0")): string {
   const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/u.exec(markdown);
   const head = m ? m[1]! : "";
-  const add = SCENE_KEYS.filter(([k]) => !new RegExp(`^${k}\\s*:`, "mu").test(head)).map(([k, v]) => `${k}: ${v}`);
+  const add = keys.filter(([k]) => !new RegExp(`^${k}\\s*:`, "mu").test(head)).map(([k, v]) => `${k}: ${v}`);
   if (!add.length) return markdown;
   return m ? `---\n${head}\n${add.join("\n")}\n---\n${markdown.slice(m[0].length)}` : `---\n${add.join("\n")}\n---\n${markdown}`;
 }
@@ -93,11 +98,11 @@ export const reportProvider: Provider = {
   page: (scene: RawScene, outDir: string, film: Film): string => {
     const input = resolve(film.dir ?? ".", String(scene.fields.report ?? ""));
     if (!existsSync(input)) throw new SourceError(msg("report.notFound", { id: scene.id, path: input }));
-    const entry = compilerEntry(film.dir ?? ".");
+    const { entry, version } = compilerEntry(film.dir ?? ".");
     // Копия исходника рядом с ним: относительные пути отчёта (данные, картинки, частичные файлы)
     // остаются верными, а исходник автора не трогается.
     const staged = join(dirname(input), `.${basename(input, ".md")}.scene.md`);
-    writeFileSync(staged, sceneSource(readFileSync(input, "utf8")));
+    writeFileSync(staged, sceneSource(readFileSync(input, "utf8"), sceneKeys(version)));
     const output = join(outDir, `${scene.id}.html`);
     const script = "const [entry, input, output] = process.argv.slice(1);"
       + "import(require('node:url').pathToFileURL(entry).href)"
