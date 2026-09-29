@@ -37,3 +37,8 @@ agent_temp_files_local/
 # в историю.
 external/.venv/
 external/silero/v5_ru.pt
+
+# Системный мусор macOS.
+.DS_Store
+# Локальный бэклог, в репозиторий не входит.
+/BACKLOG.md
