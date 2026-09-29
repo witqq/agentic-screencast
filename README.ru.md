@@ -118,7 +118,13 @@ npx playwright install chromium            # ~180 МБ
 
 # 2. сказать инструменту, где держать кэш и вывод
 export AGENTIC_SCREENCAST_HOME="$PWD/.agentic-screencast"
+
+# 3. команда agentic-screencast в PATH — для агентов и оболочки
+npm link
 ```
+
+Без `npm link` у чекаута нет команды `agentic-screencast`, и агент, идущий по
+скиллу, её не найдёт; тот же CLI запускается как `node dist/agentic-screencast.js`.
 
 Локальный бесплатный синтез (Silero) и шлюз разборчивости живут
 отдельно — они держатся за torch, а это окружение примерно на 600 МБ.
@@ -165,7 +171,7 @@ npx agentic-screencast build --source story.md --out pitch.mp4
 **Пока подбираете сцену, собирайте её одну:**
 
 ```bash
-npx agentic-screencast build --source story.md --only s03 --out проба.mp4
+npx agentic-screencast build --source story.md --only e1 --out проба.mp4
 ```
 
 Полный ролик из двух десятков сцен строится минутами, одна — секундами,
@@ -174,8 +180,8 @@ npx agentic-screencast build --source story.md --only s03 --out проба.mp4
 Кадр без синтеза речи удобно смотреть командой `frames`:
 
 ```bash
-npx agentic-screencast frames --source story.md --scene s03 --out s03.png
-npx agentic-screencast frames --source story.md --except s03 --out sheet.png
+npx agentic-screencast frames --source story.md --scene e1 --out e1.png
+npx agentic-screencast frames --source story.md --except e1 --out sheet.png
 ```
 
 `--scene` порождает только выбранную сцену; `--except` делает лист остальных,

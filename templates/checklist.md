@@ -29,7 +29,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 5. Scenario
 
-- [ ] `agentic-screencast lint story.md` (and `--lang`) is clean; each sign in its `cliches` is a
+- [ ] `agentic-screencast lint story.md` (and `--lang`, `--format` for each built format) is clean; each sign in its `cliches` is a
       decision you can name; scenes with a moment that must be right have `stills:`.
 
 ## 6. Draft

@@ -1059,8 +1059,11 @@ Helpers that save a full build:
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
-  agentic-screencast lint story.md [--lang ru]
-      director rules, each named by its id in the JSON it prints: a card
+  agentic-screencast lint story.md [--lang ru] [--format vertical|square]
+      --format measures the scenario as that build would reframe it (run it
+      for every format you build: a beat that fits a landscape subtitle can
+      overflow a phone one). Director rules, each named by its id in the
+      JSON it prints: a card
       while the caption runs (two-text-layers), a beat longer than two
       subtitle lines (overloaded-line), a page that stands still
       (still-scene), a scene over 25 s (long-scene), a top title over an

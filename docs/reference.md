@@ -122,7 +122,13 @@ npx playwright install chromium            # ~180 MB
 
 # 2. tell the tool where to keep the cache and output
 export AGENTIC_SCREENCAST_HOME="$PWD/.agentic-screencast"
+
+# 3. put the agentic-screencast command on PATH for agents and shells
+npm link
 ```
+
+Without `npm link` a checkout has no `agentic-screencast` command, and an agent following the
+skill will not find it; `node dist/agentic-screencast.js` runs the same CLI.
 
 Local free synthesis (Silero) and the intelligibility gate live
 separately — they depend on torch, and that is an environment of about 600 MB.
@@ -168,7 +174,7 @@ rebuilding one without parts removes an older file at that output path.
 **While you are tuning a scene, build it alone:**
 
 ```bash
-npx agentic-screencast build --source story.md --only s03 --out try.mp4
+npx agentic-screencast build --source story.md --only e1 --out try.mp4
 ```
 
 A full film of a couple of dozen scenes takes minutes to build, one scene takes seconds,
@@ -177,8 +183,8 @@ and the segment is exactly the same one that will go into the finished file.
 Preview a frame without synthesising speech with `frames`:
 
 ```bash
-npx agentic-screencast frames --source story.md --scene s03 --out s03.png
-npx agentic-screencast frames --source story.md --except s03 --out sheet.png
+npx agentic-screencast frames --source story.md --scene e1 --out e1.png
+npx agentic-screencast frames --source story.md --except e1 --out sheet.png
 ```
 
 `--scene` generates only the selected scene; `--except` makes a sheet of the

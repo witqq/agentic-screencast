@@ -25,6 +25,8 @@ npx playwright install chromium
 
 On Linux, Chromium may also require operating-system packages. Playwright can install them with `npx playwright install --with-deps chromium` when you have the required system permissions.
 
+From a source checkout, `npm install` builds `dist/` and `npm link` puts the `agentic-screencast` command on `PATH`, which the skill expects. Without the link, run the same CLI as `node dist/agentic-screencast.js`.
+
 ## Capture real browser actions
 
 Use the public `agentic-screencast/capture` module. `recordTake` owns a browser; `capturePage` attaches to an existing Playwright page. The `prepare` callback runs before recording, so authentication and private setup do not appear in the video. Actions operate on Playwright locators, which auto-wait and scroll. The cursor follows real pointer movement, and the click ripple starts on the actual `pointerdown` event. No timestamp or frame coordinate is authored.
