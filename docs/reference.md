@@ -281,6 +281,8 @@ The tool brings three providers with it:
 | `slides.chat` | chat bubbles in turn, typing dots before each answer | `items` |
 | `slides.carousel` | cards in a real 3D ring that turns to each item | `items` |
 | `slides.globe` | a WebGL globe of dots: arcs from the first city to the others, a ping and a label | `items` |
+| `slides.layers` | an exploded view: panels of a snapshot lift off to their depth while the camera tilts, then settle flat | `image` and `panels` |
+| `slides.bento` | a bento grid: a large first cell, the last ones wide so the grid closes, the rest small, each tilting in from depth | `items` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
 | `report` | a page agentic-report builds from its Markdown source for every scene, without its top bar, review, scheme toggle and theme switcher unless the source names those keys; needs agentic-report in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |

@@ -35,6 +35,10 @@ uniform float progress; uniform float ratio;
 uniform vec3 SEAM; uniform vec3 IRIS; uniform vec3 FLASH; uniform vec4 FILL; uniform float SHADE;
 // Цвет провала (dip): названный сценарием или цвет затемнения темы входящей сцены.
 uniform vec3 DIP;
+// Направление толчка и хлёста: куда уезжает уходящая сцена (1,0) — влево, (0,1) — вверх.
+uniform vec2 DIR;
+// Точка, в которую влетает камера у пролёта (zoom): доли кадра, (0.5, 0.5) — центр.
+uniform vec2 AT;
 in vec2 uv; out vec4 color;
 vec4 A(vec2 p) { return texture(from, p); }
 vec4 B(vec2 p) { return texture(to, p); }
@@ -72,7 +76,7 @@ export const KINDS: Record<string, Kind> = {
     }`,
   },
   whip: {
-    about: "a whip pan: the frame streaks sideways and lands on the next scene",
+    about: "a whip pan: the frame streaks along its direction (left by default) and lands on the next scene",
     xfade: "slideleft", geometric: true,
     glsl: `void main() {
       float x = smoothstep(0.0, 1.0, progress);
@@ -80,10 +84,31 @@ export const KINDS: Record<string, Kind> = {
       vec4 acc = vec4(0.0);
       for (int i = 0; i < 20; i++) {
         float o = x + (float(i) / 19.0 - 0.5) * 0.18 * s;
-        vec2 p = vec2(uv.x + o, uv.y);
-        acc += p.x < 1.0 ? A(p) : B(vec2(p.x - 1.0, p.y));
+        vec2 p = uv + DIR * o;
+        acc += dot(p - 0.5, DIR) + 0.5 < 1.0 ? A(p) : B(p - DIR);
       }
       color = acc / 20.0;
+    }`,
+  },
+  zoom: {
+    about: "the camera flies into a point of the first scene (at, or a named element) and lands in the next one",
+    xfade: "zoomin", geometric: false,
+    glsl: `vec4 rush(sampler2D t, vec2 c, vec2 p, float k) {
+      vec4 acc = vec4(0.0);
+      for (int i = 0; i < 12; i++) { float f = 1.0 - k * float(i) / 11.0 * 0.25; acc += texture(t, c + (p - c) * f); }
+      return acc / 12.0;
+    }
+    void main() {
+      float a = smoothstep(0.0, 0.62, progress);
+      float sa = exp(a * a * log(14.0));
+      vec2 pa = AT + (uv - AT) / sa;
+      float b = smoothstep(0.38, 1.0, progress);
+      float sb = 1.0 + 0.5 * (1.0 - b) * (1.0 - b);
+      vec2 pb = 0.5 + (uv - 0.5) / sb;
+      float m = smoothstep(0.42, 0.62, progress);
+      float ka = a * (1.0 - a) * 4.0, kb = (1.0 - b) * 0.8;
+      vec4 ca = rush(from, AT, pa, ka), cb = rush(to, vec2(0.5), pb, kb);
+      color = mix(ca, cb, m);
     }`,
   },
   wipe: {
@@ -197,16 +222,16 @@ export const KINDS: Record<string, Kind> = {
     }`,
   },
   push: {
-    about: "the next scene pushes the first one out, both slightly scaled with depth",
+    about: "the next scene pushes the first one out along its direction (left by default), both slightly scaled with depth",
     xfade: "slideleft", geometric: true,
     glsl: `void main() {
       float p = smoothstep(0.0, 1.0, progress);
       float k = 1.0 - 0.08 * sin(progress * PI);
       vec2 c = 0.5 + (uv - 0.5) / k;
-      vec2 pa = vec2(c.x + p, c.y);
-      vec2 pb = vec2(c.x + p - 1.0, c.y);
+      vec2 pa = c + DIR * p;
+      vec2 pb = c + DIR * (p - 1.0);
       // Толчок уводит сцену в тень слабее куба: 7/11 тени темы, как было до переноса тени в тему.
-      if (pa.x <= 1.0) color = inside(pa) ? shade(A(pa), p * 7.0 / 11.0) : FILL;
+      if (dot(pa - 0.5, DIR) + 0.5 <= 1.0) color = inside(pa) ? shade(A(pa), p * 7.0 / 11.0) : FILL;
       else color = inside(pb) ? B(pb) : FILL;
     }`,
   },
@@ -241,7 +266,22 @@ export interface Transition {
   element?: string;
   /** у провала (dip): цвет, в который уходит кадр, `#rrggbb`, `black` или `white` */
   color?: string;
+  /** у толчка и хлёста: куда уезжает уходящая сцена; без него — влево */
+  direction?: Direction;
+  /** у пролёта (zoom): точка первой сцены, в которую влетает камера, доли кадра `[x, y]` */
+  at?: [number, number];
 }
+
+/** Куда уезжает уходящая сцена у толчка и хлёста. */
+export const DIRECTIONS = ["left", "right", "up", "down"] as const;
+export type Direction = (typeof DIRECTIONS)[number];
+/** Виды, у которых есть направление. */
+export const DIRECTED = ["push", "whip"];
+/** Пролёт камеры в точку или предмет первой сцены. */
+export const ZOOM = "zoom";
+/** Вектор направления в координатах кадра (y вниз): так его читает шейдер. */
+export const dirVector = (d: Direction | undefined): [number, number] =>
+  d === "right" ? [-1, 0] : d === "up" ? [0, 1] : d === "down" ? [0, -1] : [1, 0];
 
 /**
  * Разбор поля `transition`: `cube`, `cube 0.8`, `dip 0.6 white`, `cut` или объект
@@ -255,10 +295,11 @@ export function parseTransition(raw: string): Transition {
     catch { throw new Error(msg("transition.form")); }
     if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(msg("transition.form"));
   } else {
-    const [kind, dur, color] = text.split(/\s+/);
-    value = { kind, ...(dur !== undefined ? { duration: Number(dur) } : {}), ...(color !== undefined ? { color } : {}) };
+    const [kind, dur, third] = text.split(/\s+/);
+    value = { kind, ...(dur !== undefined ? { duration: Number(dur) } : {}),
+      ...(third !== undefined ? DIRECTED.includes(kind!) ? { direction: third } : { color: third } : {}) };
   }
-  for (const k of Object.keys(value)) if (!["kind", "duration", "sound", "snap", "element", "color"].includes(k))
+  for (const k of Object.keys(value)) if (!["kind", "duration", "sound", "snap", "element", "color", "direction", "at"].includes(k))
     throw new Error(msg("source.unknownProperty", { field: "transition", key: k }));
   const kind = String(value.kind ?? "");
   if (!KINDS[kind] && kind !== MORPH && kind !== CUT)
@@ -272,7 +313,16 @@ export function parseTransition(raw: string): Transition {
   }
   if (kind === MORPH && (typeof value.element !== "string" || !value.element.trim()))
     throw new Error(msg("transition.morphElement"));
-  if (kind !== MORPH && value.element !== undefined) throw new Error(msg("transition.onlyMorphElement"));
+  if (kind !== MORPH && kind !== ZOOM && value.element !== undefined) throw new Error(msg("transition.onlyMorphElement"));
+  if (value.direction !== undefined && (!DIRECTED.includes(kind) || !DIRECTIONS.includes(value.direction as Direction)))
+    throw new Error(msg("transition.direction", { direction: String(value.direction), available: DIRECTIONS.join(", ") }));
+  let at: [number, number] | undefined;
+  if (value.at !== undefined) {
+    const nums = (Array.isArray(value.at) ? value.at : String(value.at).trim().split(/\s+/)).map(Number);
+    if (kind !== ZOOM || nums.length !== 2 || nums.some((v) => !Number.isFinite(v) || v < 0 || v > 1))
+      throw new Error(msg("transition.at"));
+    at = [nums[0]!, nums[1]!];
+  }
   const duration = value.duration === undefined ? 0.8 : Number(value.duration);
   if (!Number.isFinite(duration) || duration < 0.2 || duration > 2)
     throw new Error(msg("transition.duration"));
@@ -280,8 +330,9 @@ export function parseTransition(raw: string): Transition {
     throw new Error(msg("transition.sound"));
   if (value.snap !== undefined && value.snap !== "music") throw new Error(msg("transition.snap"));
   return { kind, duration, ...(value.sound ? { sound: String(value.sound).trim() } : {}),
-    ...(value.snap ? { snap: "music" as const } : {}), ...(kind === MORPH ? { element: String(value.element).trim() } : {}),
-    ...(color ? { color } : {}) };
+    ...(value.snap ? { snap: "music" as const } : {}),
+    ...(kind === MORPH || (kind === ZOOM && typeof value.element === "string" && value.element.trim()) ? { element: String(value.element).trim() } : {}),
+    ...(color ? { color } : {}), ...(value.direction ? { direction: value.direction as Direction } : {}), ...(at ? { at } : {}) };
 }
 
 /** Цвет провала: `black`, `white` или `#rgb` / `#rrggbb` — в виде `#rrggbb`. */
@@ -323,6 +374,8 @@ export async function renderTransition(opts: {
   theme?: ThemeVars;
   /** цвет провала; без него — цвет затемнения темы (`--sc-fade`) */
   color?: string;
+  direction?: Direction;
+  at?: [number, number];
 }): Promise<{ frames: string[]; renderer: Renderer }> {
   const n = opts.a.length;
   if (n !== opts.b.length || n < 2) throw new Error("transition: both scenes must give the same number of frames");
@@ -347,12 +400,14 @@ const rgbOf = (hex: string): number[] => {
 const dipOf = (opts: { color?: string; theme?: ThemeVars }): string =>
   opts.color ?? (opts.theme ?? resolveTheme(undefined))["--sc-fade"]!;
 
-async function webgl(opts: { kind: string; a: string[]; b: string[]; width: number; height: number; out: string; theme?: ThemeVars; color?: string },
+async function webgl(opts: { kind: string; a: string[]; b: string[]; width: number; height: number; out: string; theme?: ThemeVars; color?: string;
+  direction?: Direction; at?: [number, number] },
   n: number): Promise<string[] | null> {
   const kind = KINDS[opts.kind]!;
   const theme = opts.theme ?? resolveTheme(undefined);
   const light = { SEAM: rgbOf(theme["--tr-seam"]!), IRIS: rgbOf(theme["--tr-iris"]!), FLASH: rgbOf(theme["--tr-flash"]!),
-    FILL: rgbOf(theme["--tr-fill"]!), SHADE: Number(theme["--tr-shade"]), DIP: rgbOf(dipOf(opts)) };
+    FILL: rgbOf(theme["--tr-fill"]!), SHADE: Number(theme["--tr-shade"]), DIP: rgbOf(dipOf(opts)),
+    DIR: dirVector(opts.direction), AT: opts.at ?? [0.5, 0.5] };
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: opts.width, height: opts.height }, deviceScaleFactor: 1 });
@@ -401,6 +456,8 @@ async function webgl(opts: { kind: string; a: string[]; b: string[]; width: numb
       for (const k of ["SEAM", "IRIS", "FLASH", "DIP"] as const) gl.uniform3fv(gl.getUniformLocation(prog, k), light[k].slice(0, 3));
       gl.uniform4fv(gl.getUniformLocation(prog, "FILL"), light.FILL);
       gl.uniform1f(gl.getUniformLocation(prog, "SHADE"), light.SHADE);
+      gl.uniform2fv(gl.getUniformLocation(prog, "DIR"), light.DIR);
+      gl.uniform2fv(gl.getUniformLocation(prog, "AT"), light.AT);
       return gl.getError() === gl.NO_ERROR;
     }, { frag: kind.glsl, prelude: PRELUDE, light });
     if (!ok) return null;
@@ -442,8 +499,8 @@ export interface MorphInput { aBg: string; bBg: string; aFull: string; bFull: st
 
 /**
  * Кадры перехода общим элементом. Фон — наплыв кадра первой сцены без предмета в кадр
- * второй без предмета; предмет — один прямоугольник, который едет и меняет размер от
- * своего места в первой сцене к месту во второй (smoothstep). Содержимое предмета
+ * второй без предмета; предмет — один прямоугольник, который едет дугой и меняет размер от
+ * своего места в первой сцене к месту во второй (smoothstep), смазанный на лету. Содержимое предмета
  * меняется на полпути: смешение двух разных раскладок текста даёт нечитаемые двойные
  * надписи. Старого и нового места в середине перехода предмет не занимает: там фон без него.
  */
@@ -472,18 +529,31 @@ Promise<{ frames: string[]; renderer: Renderer }> {
         uniform sampler2D abg; uniform sampler2D bbg; uniform sampler2D af; uniform sampler2D bf;
         uniform vec4 ra; uniform vec4 rb; uniform float progress;
         in vec2 uv; out vec4 color;
+        // Предмет летит дугой, а не по прямой: середина пути отнесена вбок на шестую часть его длины,
+        // как у брошенного предмета. На лету он смазан вдоль пути — двенадцать отсчётов назад по дуге.
+        vec4 rectAt(float e) {
+          vec4 r = mix(ra, rb, e);
+          vec2 d = rb.xy - ra.xy;
+          r.xy += vec2(-d.y, d.x) * sin(e * 3.14159265) / 6.0;
+          return r;
+        }
+        vec4 item(vec4 r, vec2 p) {
+          vec2 l = (p - r.xy) / r.zw;
+          if (l.x < 0.0 || l.x > 1.0 || l.y < 0.0 || l.y > 1.0) return vec4(0.0);
+          return progress < 0.5 ? texture(af, ra.xy + l * ra.zw) : texture(bf, rb.xy + l * rb.zw);
+        }
         void main() {
           float e = smoothstep(0.0, 1.0, progress);
           vec4 bg = mix(texture(abg, uv), texture(bbg, uv), e);
-          vec4 r = mix(ra, rb, e);
-          vec2 l = (uv - r.xy) / r.zw;
-          if (l.x >= 0.0 && l.x <= 1.0 && l.y >= 0.0 && l.y <= 1.0) {
-            if (progress < 0.5)
-              color = texture(af, ra.xy + l * ra.zw);
-            else
-              color = texture(bf, rb.xy + l * rb.zw);
+          vec4 acc = vec4(0.0);
+          float speed = 6.0 * progress * (1.0 - progress);
+          for (int i = 0; i < 12; i++) {
+            float k = e - float(i) / 11.0 * 0.06 * speed;
+            vec4 c = item(rectAt(clamp(k, 0.0, 1.0)), uv);
+            acc += vec4(c.rgb * c.a, c.a);
           }
-          else color = bg;
+          acc /= 12.0;
+          color = vec4(acc.rgb + bg.rgb * (1.0 - acc.a), max(acc.a, bg.a));
         }`);
       if (!vs || !fs) return false;
       const prog = gl.createProgram()!;
@@ -540,11 +610,12 @@ function morphFallback(opts: MorphInput & { n: number; out: string }): string[] 
 }
 
 /** Запасной путь: тот же переход средствами ffmpeg xfade. */
-function xfade(opts: { kind: string; a: string[]; b: string[]; out: string; theme?: ThemeVars; color?: string }, n: number): string[] {
+function xfade(opts: { kind: string; a: string[]; b: string[]; out: string; theme?: ThemeVars; color?: string; direction?: Direction }, n: number): string[] {
   const kind = KINDS[opts.kind]!;
   // ffmpeg умеет провал только в чёрное или белое: берётся ближайшее по яркости.
   const [r, g, b] = rgbOf(dipOf(opts));
-  const via = opts.kind === "dip" ? (0.2126 * r! + 0.7152 * g! + 0.0722 * b! > 0.5 ? "fadewhite" : "fadeblack") : kind.xfade;
+  const via = opts.kind === "dip" ? (0.2126 * r! + 0.7152 * g! + 0.0722 * b! > 0.5 ? "fadewhite" : "fadeblack")
+    : DIRECTED.includes(opts.kind) && opts.direction ? `slide${opts.direction}` : kind.xfade;
   const dirA = resolve(opts.a[0]!, ".."), dirB = resolve(opts.b[0]!, "..");
   execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error",
     "-framerate", "25", "-i", resolve(dirA, "%05d.png"), "-framerate", "25", "-i", resolve(dirB, "%05d.png"),

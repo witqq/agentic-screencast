@@ -56,6 +56,7 @@ interface StageOverlay {
   titles?: StageTitle[]; lower?: StageLower[]; callouts?: StageCallout[]; stickers?: StageSticker[];
   marks?: StageMark[]; glints?: StageGlint[]; bursts?: StageBurst[];
   boops?: StageBoop[]; pings?: StagePing[]; toasts?: StageToast[];
+  ease?: "standard" | "emphasized" | "expressive" | "spring" | "bouncy";
 }
 interface StageBoop { at: number; target: string; kind: "pop" | "shake" | "jelly" | "nod" }
 interface StagePing extends StageAnchor { at: number; hold?: number }

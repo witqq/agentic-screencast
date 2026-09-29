@@ -923,8 +923,25 @@ window.__stage = (() => {
     const end = at + hold;
     // Вход тормозит (сильный ease-out: быстро пришёл — долго сел), уход разгоняется (ease-in):
     // одна симметричная кривая на то и другое делала накладку ватной (docs/motion-design.md).
-    return { on: t >= at && t < end, enter: outQuart(phase(t, at, at + enter)), leave: inCubic(phase(t, end - exit, end)) };
+    // Кривую входа сцена может назвать (`overlay.ease`): те же кривые, что у входов слайда.
+    const named = scene?.overlay?.ease ? OVERLAY_EASE[scene.overlay.ease] : undefined;
+    return { on: t >= at && t < end, enter: (named ?? outQuart)(phase(t, at, at + enter)), leave: inCubic(phase(t, end - exit, end)) };
   }
+  const bezier = (x1: number, y1: number, x2: number, y2: number) => (p: number): number => {
+    let u = p;
+    for (let k = 0; k < 8; k++) {
+      const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - p;
+      const dx = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2);
+      if (Math.abs(dx) < 1e-6) break;
+      u = Math.min(1, Math.max(0, u - x / dx));
+    }
+    return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3;
+  };
+  const OVERLAY_EASE: Record<string, (p: number) => number> = {
+    standard: bezier(0.2, 0, 0, 1), emphasized: bezier(0.05, 0.7, 0.1, 1), expressive: bezier(0.16, 1, 0.3, 1),
+    spring: (p) => (p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(10 * p)),
+    bouncy: (p) => (p >= 1 ? 1 : 1 - Math.exp(-4.5 * p) * Math.cos(14 * p)),
+  };
   const outQuart = (p: number): number => 1 - Math.pow(1 - p, 4);
   const inCubic = (p: number): number => p * p * p;
   /** Пружина: быстрое движение с одним перелётом, чистая функция доли. */
@@ -1468,6 +1485,10 @@ window.__stage = (() => {
    * стороны на каждой строке, поэтому место под текст — ширина блока без двух отступов.
    */
   let measure: CanvasRenderingContext2D | null = null;
+  /** Длины штрихов прорисовываемых фигур: замер один раз на фигуру. */
+  const drawLength = new WeakMap<SVGGeometryElement, number>();
+  /** Исходные формы путей с `data-morph`: морф считается от них, а не от прошлого кадра. */
+  const morphFrom = new WeakMap<SVGPathElement, string>();
   const fitCache = new Map<string, number>();
   /** Шрифт и ширина блока субтитров сцены: меряются один раз после монтирования. */
   let subBox: { font: string; spacing: string; room: number } | null = null;
@@ -1935,8 +1956,13 @@ window.__stage = (() => {
       const lo = Math.max(0, hi - 1);
       const a = points[lo]!, b = points[hi]!;
       const p = hi === lo ? 1 : ease(phase(t, a.at, b.at));
-      const px = (a.x + (b.x - a.x) * p) * innerWidth;
-      const py = (a.y + (b.y - a.y) * p) * innerHeight;
+      // Рука ведёт мышь дугой, а не по линейке: путь — квадратичная кривая с вершиной, отнесённой
+      // вбок на восьмую часть длины перехода; сторона дуги чередуется от точки к точке.
+      const ax = a.x * innerWidth, ay = a.y * innerHeight, bx = b.x * innerWidth, by = b.y * innerHeight;
+      const side = hi % 2 ? 1 : -1;
+      const cx = (ax + bx) / 2 - (by - ay) * 0.125 * side, cy = (ay + by) / 2 + (bx - ax) * 0.125 * side;
+      const px = (1 - p) * (1 - p) * ax + 2 * (1 - p) * p * cx + p * p * bx;
+      const py = (1 - p) * (1 - p) * ay + 2 * (1 - p) * p * cy + p * p * by;
       el.cur.style.display = t < points[0]!.at ? "none" : "";
       el.cur.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px)`;
       const clicked = [...points].reverse().find((point) => point.click && t >= point.at && t < point.at + 0.65);
@@ -2072,6 +2098,36 @@ window.__stage = (() => {
       const room = scene ? scene.duration - TYPE_HOLD - from : Infinity;
       const speed = room > 0.2 ? Math.max(base, glyphCount(node) / room) : Infinity;
       typeTo(node, (t - from) * speed);
+    }
+    // Прорисовка линий страницы: `data-draw` на фигуре SVG (или на SVG с фигурами) рисует её
+    // штрих за названные секунды (без числа — 1,2 с) от её `data-at`, как пером.
+    for (const node of own ? document.querySelectorAll<Element>("[data-draw]") : []) {
+      const from = Number((node as HTMLElement).dataset.at) || 0;
+      const len = Number((node as HTMLElement).dataset.draw) || 1.2;
+      const p = ease(phase(t, from, from + len));
+      const shapes = node instanceof SVGGeometryElement ? [node]
+        : [...node.querySelectorAll<SVGGeometryElement>("path,line,polyline,polygon,circle,ellipse,rect")];
+      for (const shape of shapes) {
+        let total = drawLength.get(shape);
+        if (total === undefined) { total = shape.getTotalLength(); drawLength.set(shape, total); }
+        shape.style.strokeDasharray = `${total} ${total}`;
+        shape.style.strokeDashoffset = String(total * (1 - p));
+      }
+    }
+    // Морф формы: `data-morph` на пути SVG — форма, в которую путь перетекает от своего `data-at`
+    // за 0,9 с. Числа обеих форм сводятся попарно; у форм с разным числом точек форма сменяется
+    // на полпути — рисуйте обе с одинаковым числом точек.
+    for (const node of own ? document.querySelectorAll<SVGPathElement>("path[data-morph]") : []) {
+      let from = morphFrom.get(node);
+      if (from === undefined) { from = node.getAttribute("d") ?? ""; morphFrom.set(node, from); }
+      const to = node.dataset.morph ?? "";
+      const p = ease(phase(t, Number(node.dataset.at) || 0, (Number(node.dataset.at) || 0) + 0.9));
+      const num = /-?\d*\.?\d+(?:e-?\d+)?/gi;
+      const a = from.match(num) ?? [], b = to.match(num) ?? [];
+      if (a.length === b.length && from.replace(num, "#") === to.replace(num, "#")) {
+        let k = 0;
+        node.setAttribute("d", from.replace(num, () => { const v = Number(a[k]) + (Number(b[k]) - Number(a[k])) * p; k++; return v.toFixed(3); }));
+      } else node.setAttribute("d", p < 0.5 ? from : to);
     }
     // Кинетические фразы страницы: `data-kinetic="fly"` объявляет сама страница —
     // слайд или своя вёрстка автора, — момент начала — её `data-at`.

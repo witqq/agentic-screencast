@@ -75,6 +75,35 @@ test("every kind differs from a plain blend, and geometric kinds move the pictur
   }
 });
 
+test("push and whip take a direction, zoom takes a point or an element", () => {
+  assert.deepEqual(parseTransition("push 0.6 up"), { kind: "push", duration: 0.6, direction: "up" });
+  assert.equal(parseTransition('{"kind":"whip","direction":"right"}').direction, "right");
+  assert.deepEqual(parseTransition('{"kind":"zoom","at":"0.7 0.3"}').at, [0.7, 0.3]);
+  assert.equal(parseTransition('{"kind":"zoom","element":".feat"}').element, ".feat");
+  assert.throws(() => parseTransition("push 0.6 sideways"), /not a direction/);
+  assert.throws(() => parseTransition('{"kind":"cube","direction":"up"}'), /not a direction/);
+  assert.throws(() => parseTransition('{"kind":"zoom","at":"2 0"}'), /two fractions/);
+});
+
+test("a push goes where its direction says", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-trans-dir-"));
+  const a = frames(join(dir, "a"), "red", 8), b = frames(join(dir, "b"), "blue", 8);
+  // Доля красного (уходящая сцена) в полосе кадра на середине перехода.
+  const redIn = (m: Buffer, x0: number, x1: number, y0: number, y1: number): number => {
+    let red = 0, all = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const i = (y * W + x) * 3;
+      all++;
+      if (m[i]! > m[i + 2]! + 60) red++;
+    }
+    return red / all;
+  };
+  const left = rgb((await renderTransition({ kind: "push", a, b, width: W, height: H, out: join(dir, "l") })).frames[3]!);
+  assert.ok(redIn(left, 0, W / 5, 0, H) > 0.5 && redIn(left, W * 4 / 5, W, 0, H) < 0.1, "left: the old scene leaves by the left edge");
+  const up = rgb((await renderTransition({ kind: "push", a, b, width: W, height: H, out: join(dir, "u"), direction: "up" })).frames[3]!);
+  assert.ok(redIn(up, 0, W, 0, H / 5) > 0.5 && redIn(up, 0, W, H * 4 / 5, H) < 0.1, "up: the old scene leaves by the top edge");
+});
+
 test("the webgl mark comes only from the WebGL branch", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-trans-ff-"));
   const a = frames(join(dir, "a"), "red", 6), b = frames(join(dir, "b"), "blue", 6);

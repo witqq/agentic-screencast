@@ -198,15 +198,16 @@ ${lines[1]}
   const r = spawnSync("node", [ENTRY, "build", "--source", "story.md", "--out", "f.mp4"],
     { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
   assert.equal(r.status, 0, r.stderr);
-  const rep = JSON.parse(r.stdout) as { beats: Array<{ start: number; spoken: number }>; transitions: Array<{ at: number }> };
+  const rep = JSON.parse(r.stdout) as { beats: Array<{ start: number; spoken: number }>; transitions: Array<{ at: number; duration: number }> };
   const film = join(dir, "f.mp4");
   const margins = rep.beats.map((b) => band(film, SPEECH, b.start + 0.3, b.start + b.spoken - 0.3)
     - band(film, MUSIC, b.start + 0.3, b.start + b.spoken - 0.3));
   for (const m of margins) assert.ok(m > 15, `speech over bed ${m.toFixed(1)} dB in the built film`);
   assert.ok(Math.abs(margins[0]! - margins[1]!) < 4, `the margin holds at both takes: ${margins.map((m) => m.toFixed(1)).join(" vs ")}`);
-  // Переход «в долю»: при 120 ударах в минуту доля — полсекунды.
-  const at = rep.transitions[0]!.at;
-  assert.ok(Math.abs(at / 0.5 - Math.round(at / 0.5)) < 0.1 / 0.5 + 1e-9, `the cut starts on a beat: ${at}`);
+  // Переход «в долю»: при 120 ударах в минуту доля — полсекунды. На долю приходится середина
+  // перехода плюс два кадра упреждения (pre-hit), а не его начало.
+  const hit = rep.transitions[0]!.at + rep.transitions[0]!.duration / 2 + 2 / 10;
+  assert.ok(Math.abs(hit / 0.5 - Math.round(hit / 0.5)) < 0.1 / 0.5 + 1e-9, `the cut's middle lands two frames before a beat: ${hit}`);
 });
 
 test("music spans: a scene's track crossfades in, a stop cuts the bed, the last one fades at the end", () => {

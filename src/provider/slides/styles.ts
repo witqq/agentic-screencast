@@ -184,12 +184,11 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
 .step.on{background:linear-gradient(90deg,color-mix(in srgb,var(--acc) 13%,transparent),transparent 85%)}
 .step.on .step-n{background:var(--acc);border-color:var(--acc);color:var(--sc-badge-ink);box-shadow:var(--step-halo)}
 
-.feats{display:grid;gap:22px;perspective:1200px;grid-template-columns:repeat(3,1fr)}
+.feats{display:grid;gap:22px;grid-template-columns:repeat(3,1fr)}
 .feats[data-n="2"],.feats[data-n="4"]{grid-template-columns:repeat(2,1fr)}
 .feat{position:relative;overflow:hidden;padding:var(--space-xl);border-radius:var(--radius-xl);
   background:var(--card);border:var(--hairline) solid var(--line);transform-origin:50% 100%}
-.feat::before{content:"";position:absolute;left:0;right:0;top:0;height:var(--rule-size);
-  background:var(--acc);transform:scaleX(var(--p,1));transform-origin:left}
+.feat::before{content:"";position:absolute;left:0;top:0;height:var(--rule-size);width:calc(var(--p,1) * 100%);background:var(--acc)}
 .feat-ic{display:grid;place-items:center;width:66px;height:66px;margin-bottom:18px;border-radius:var(--radius-lg);font-size:36px;
   background:color-mix(in srgb,var(--acc) 16%,var(--card))}
 .feat h3{font-size:32px;line-height:1.15;color:var(--ink);font-weight:700;margin-bottom:8px;letter-spacing:-.01em}
@@ -273,6 +272,18 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
 .px{align-self:stretch;flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
 .px-frame{position:relative;height:100%;max-width:100%}
 .px-base{position:absolute;inset:0;background-size:cover;border-radius:var(--radius-sm);filter:var(--px-dim)}
+.lay{align-self:stretch;flex:1 1 0;min-height:0;display:flex;align-items:center;justify-content:center}
+.lay-frame{position:relative;height:88%;max-width:88%;transform-style:preserve-3d}
+.lay-base{position:absolute;inset:0;background-size:cover;border-radius:var(--radius-sm);filter:var(--px-dim)}
+.lay-panel{position:absolute;border-radius:var(--radius-sm);background-repeat:no-repeat;outline:var(--hairline) solid var(--px-edge)}
+.bento{display:grid;flex:1 1 0;min-height:0;gap:var(--space-m);grid-template-columns:repeat(4,1fr);grid-auto-rows:1fr;grid-auto-flow:dense;margin-top:var(--space-l)}
+.bento-cell{position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;padding:var(--space-xl);
+  border-radius:var(--radius-xl);background:var(--card);border:var(--hairline) solid var(--line);box-shadow:var(--shadow-3)}
+.bento-cell.big{grid-column:span 2;grid-row:span 2}
+.bento-cell.wide{grid-column:span 2}
+.bento-cell h3{font-size:34px;line-height:1.15;color:var(--ink);font-weight:700;letter-spacing:-.01em}
+.bento-cell.big h3{font-size:52px}
+.bento-cell p{font-size:28px;line-height:1.35;color:var(--body);margin-top:var(--space-s)}
 .px-panel{position:absolute;border-radius:var(--radius-sm);background-repeat:no-repeat;outline:var(--hairline) solid var(--px-edge)}
 
 /* Код: окно редактора — его палитру даёт тема (у тёмных тем тёмная, у светлых светлая). */
@@ -402,6 +413,10 @@ body[data-align="bottom"]>.rule{margin-top:var(--space-l)}
 .stk{display:grid;align-self:center;width:min(100%,860px);margin-top:12px}
 .stk-card{grid-area:1/1;padding:var(--space-2xl);border-radius:var(--radius-xl);background:var(--card);border:var(--hairline) solid var(--line);
   box-shadow:var(--shadow-3);transform-origin:50% 100%}
+body[data-glow="border"] :is(.stk-card,.chip){position:relative}
+body[data-glow="border"] :is(.feat,.stk-card,.chip,.bento-cell)::after{content:"";position:absolute;inset:0;border-radius:inherit;padding:var(--rule-size);pointer-events:none;
+  background:conic-gradient(from var(--glow-a,0deg),transparent 0 62%,var(--acc) 80%,var(--acc2) 90%,transparent 100%);
+  -webkit-mask:linear-gradient(var(--ink) 0 0) content-box,linear-gradient(var(--ink) 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
 .stk-card h3{font-size:40px;line-height:1.15;color:var(--ink);font-weight:700;margin-bottom:10px;letter-spacing:-.01em}
 .stk-card p{font-size:30px;line-height:1.38;color:var(--body)}
 .k-orb .k-in{align-items:center}
@@ -557,7 +572,93 @@ const ENTER = {
   swing: { d: 1.1, ease: out3, move: (e, i, p) => ['rotate(' + (Math.sin(p * Math.PI * 2.5) * 16 * (1 - p)).toFixed(2) + 'deg) translateY(' + ((1 - e) * 30).toFixed(2) + 'px)', 0], origin: '0 0' },
   // Разворачивается слева направо.
   unfold: { d: 0.8, ease: out3, move: (e) => ['scaleX(' + Math.max(0.001, e).toFixed(4) + ')', 0], origin: '0 50%' },
+  // Врезается с перебором масштаба и гаснущей дрожью, как от удара.
+  jolt: { d: 0.65, ease: out4, move: (e, i, p) => {
+    const k = (1 - p) * (1 - p);
+    return ['translate(' + (Math.sin(p * 46 + i) * k * 16).toFixed(2) + 'px,' + (Math.cos(p * 39 + i) * k * 9).toFixed(2) + 'px) scale('
+      + (1.35 - 0.35 * e).toFixed(4) + ') rotate(' + (Math.sin(p * 31 + i) * k * 4).toFixed(3) + 'deg)', k * 6];
+  } },
+  // Настоящие 3D-входы. Перспектива стоит в трансформации на каждом кадре, и после входа тоже:
+  // элемент трёхмерен всегда, поэтому растеризация не меняется посреди сцены.
+  // Масштаба в них нет: слой с трёхмерной трансформацией, чей масштаб меняется, Chromium растрирует
+  // с запасом от прошлых кадров, и кадр, снятый первым, разошёлся бы с тем же кадром подряд.
+  flip3d: { d: 1.0, ease: out4, origin: '50% 100%', three: true,
+    move: (e) => ['perspective(1400px) rotateX(' + ((1 - e) * -88).toFixed(2) + 'deg)', (1 - e) * 4] },
+  tilt3d: { d: 1.1, ease: out4, three: true,
+    move: (e) => ['perspective(1600px) rotateY(' + ((1 - e) * -38).toFixed(2) + 'deg) rotateX(' + ((1 - e) * 16).toFixed(2) + 'deg)', (1 - e) * 5] },
+  // Строка выезжает снизу из-под своей маски: край маски — нижний край строки.
+  mask: { d: 0.8, ease: out4, still: true, mask: true, move: () => ['', 0] },
 };
+
+// Кривые входов по имени (\`ease\`): кубические Безье из систем движения и затухающие пружины.
+const bez = (x1, y1, x2, y2) => (p) => {
+  let u = p;
+  for (let k = 0; k < 8; k++) {
+    const x = 3 * (1 - u) ** 2 * u * x1 + 3 * (1 - u) * u * u * x2 + u ** 3 - p;
+    const dx = 3 * (1 - u) ** 2 * x1 + 6 * (1 - u) * u * (x2 - x1) + 3 * u * u * (1 - x2);
+    if (Math.abs(dx) < 1e-6) break;
+    u = clamp(u - x / dx);
+  }
+  return 3 * (1 - u) ** 2 * u * y1 + 3 * (1 - u) * u * u * y2 + u ** 3;
+};
+const EASES = {
+  standard: bez(0.2, 0, 0, 1),
+  emphasized: bez(0.05, 0.7, 0.1, 1),
+  expressive: bez(0.16, 1, 0.3, 1),
+  spring: (p) => (p >= 1 ? 1 : 1 - Math.exp(-6 * p) * Math.cos(10 * p)),
+  bouncy: (p) => (p >= 1 ? 1 : 1 - Math.exp(-4.5 * p) * Math.cos(14 * p)),
+};
+// Длина входа по размеру элемента: крупное движется дольше мелкого, как предмет с массой.
+const sized = new WeakMap();
+const sizeK = (el) => {
+  if (!sized.has(el)) {
+    const r = el.getBoundingClientRect();
+    sized.set(el, Math.max(0.8, Math.min(1.4, 0.75 + 0.9 * Math.sqrt(r.width * r.height / (innerWidth * innerHeight)))));
+  }
+  return sized.get(el);
+};
+
+// Хореография (\`wave\`, \`stagger\`): моменты пунктов одной группы остаются теми, что назначила речь,
+// но раздаются пунктам в другом порядке — из центра, с краёв, вразброс — или с заданным шагом.
+let choreoDone = false;
+function choreo() {
+  if (choreoDone) return;
+  choreoDone = true;
+  const wave = document.body.dataset.wave, step = Number(document.body.dataset.stagger || 0);
+  if (!wave && !step) return;
+  const groups = new Map();
+  for (const el of document.querySelectorAll('.el:not(.w)')) {
+    if (!groups.has(el.parentElement)) groups.set(el.parentElement, []);
+    groups.get(el.parentElement).push(el);
+  }
+  for (const list of groups.values()) {
+    if (list.length < 3) continue;
+    let times = list.map(start).sort((a, b) => a - b);
+    if (step) times = times.map((_, k) => times[0] + k * step);
+    const n = list.length, mid = (n - 1) / 2, idx = list.map((_, k) => k);
+    const rank = wave === 'center' ? idx.map((k) => Math.abs(k - mid)) : wave === 'edges' ? idx.map((k) => -Math.abs(k - mid))
+      : wave === 'random' ? idx.map((k) => ((Math.sin(k * 91.7 + n) * 43758.5453) % 1 + 1) % 1) : idx;
+    idx.slice().sort((a, b) => rank[a] - rank[b] || a - b).forEach((k, j) => {
+      list[k].dataset.at = String(times[j]);
+      list[k].dataset.delay = '0';
+    });
+  }
+}
+
+// Жизнь элемента после входа (\`alive\`): покачивание, парение или дрожь «кипящей линии» —
+// двенадцать смен в секунду, как у рисованной анимации. Без поля — еле заметное дыхание.
+const hash = (a, b) => ((Math.sin(a * 12.9898 + b * 78.233) * 43758.5453) % 1 + 1) % 1 - 0.5;
+function life(t, i, m) {
+  const mode = document.body.dataset.alive;
+  if (mode === 'wiggle') return ' rotate(' + (Math.sin(t * 2.1 + i * 1.3) * 1.8 * m).toFixed(3) + 'deg) translateY(' + (Math.sin(t * 1.4 + i) * 3 * m).toFixed(2) + 'px)';
+  if (mode === 'float') return ' translateY(' + (Math.sin(t * 0.9 + i * 0.8) * 9 * m).toFixed(2) + 'px) rotate(' + (Math.sin(t * 0.6 + i * 1.9) * 0.6 * m).toFixed(3) + 'deg)';
+  if (mode === 'jitter') {
+    const f = Math.floor(t * 12) + i * 17;
+    return ' translate(' + (hash(f, 1) * 3 * m).toFixed(2) + 'px,' + (hash(f, 2) * 3 * m).toFixed(2) + 'px) rotate(' + (hash(f, 3) * 1.2 * m).toFixed(3) + 'deg)';
+  }
+  const float = Math.sin(t * 0.8 + i * 0.7) * 1.5 * m;
+  return float ? ' translateY(' + float.toFixed(2) + 'px)' : '';
+}
 const OPACITY_IN = 0.4;
 const spacing = new WeakMap();
 let els = null, counts = null, codes = null, kb = null, ambMode = null, ambInit = false;
@@ -566,19 +667,26 @@ const start = (el) => Number(el.dataset.at || 0) + Number(el.dataset.delay || 0)
 
 function enter(t) {
   els = els || [...document.querySelectorAll('.el')];
+  choreo();
+  const named = EASES[document.body.dataset.ease];
   els.forEach((el, i) => {
     const cfg = ENTER[el.dataset.enter] || ENTER.rise;
     const t0 = start(el);
-    const p = clamp((t - t0) / cfg.d);
-    const e = cfg.ease(p);
+    const p = clamp((t - t0) / (named ? cfg.d * sizeK(el) : cfg.d));
+    const e = (named || cfg.ease)(p);
     const o = cfg.still ? 1 : inOut(clamp((t - t0) / OPACITY_IN));
     el.style.opacity = o.toFixed(3);
     const [tf, blur] = cfg.move(e, i, p);
     if (cfg.origin) el.style.transformOrigin = cfg.origin;
-    // Появившийся элемент еле заметно дышит: полторы точки не читаются как
-    // движение элемента, но не дают кадру застыть. Фаза сдвинута по номеру.
-    const float = cfg.still ? 0 : Math.sin(t * 0.8 + i * 0.7) * 1.5 * Math.min(1, e);
-    el.style.transform = (tf + (float ? ' translateY(' + float.toFixed(2) + 'px)' : '')).trim() || 'none';
+    // Появившийся элемент живёт: по умолчанию еле заметно дышит — полторы точки не читаются как
+    // движение, но не дают кадру застыть; поле \`alive\` даёт ему заметную жизнь. Фаза — по номеру.
+    const alive = cfg.still ? '' : life(t, i, Math.min(1, e));
+    el.style.transform = (tf + alive).trim() || 'none';
+    if (cfg.mask) {
+      const inner = el.firstElementChild;
+      el.style.clipPath = p >= 1 ? 'none' : 'inset(-0.2em -4% 0 -4%)';
+      if (inner) inner.style.transform = p >= 1 ? 'none' : 'translateY(' + ((1 - e) * 115).toFixed(2) + '%)';
+    }
     el.style.filter = blur > 0.05 ? 'blur(' + blur.toFixed(2) + 'px)' : 'none';
     if (cfg.clip) el.style.clipPath = p >= 1 ? 'none' : cfg.clip(e);
     if (cfg.spacing) {
@@ -589,7 +697,9 @@ function enter(t) {
       const sp = spacing.get(el);
       sp.node.style.letterSpacing = (sp.base + (1 - e) * 0.5).toFixed(4) + 'em';
     }
-    el.style.setProperty('--p', Math.min(1, e).toFixed(4));
+    // Внутри трёхмерного входа содержимое не меняется: перерисованная на повороте часть слоя
+    // осталась бы растрированной с масштабом поворота, и кадр подряд разошёлся бы с кадром с нуля.
+    el.style.setProperty('--p', cfg.three ? '1' : Math.min(1, e).toFixed(4));
   });
 }
 
@@ -745,6 +855,22 @@ function parallax(t) {
   }
 }
 
+// Разобранный вид: слои расходятся по глубине, пока камера наклонена, и сходятся к концу сцены.
+function layers(t) {
+  for (const f of document.querySelectorAll('.lay-frame')) {
+    const a = out3(clamp((t - start(f)) / 1.4)) * (1 - inOut(clamp((t - (dur() - 1.8)) / 1.4)));
+    const rz = -22 * a + Math.sin(t * 0.3) * 4 * a;
+    // Наклонённая стопка растёт вверх по кадру: рамка уходит вниз и уменьшается, чтобы поднятые
+    // слои не наезжали на заголовок.
+    f.style.transform = 'perspective(2200px) translateY(' + (10 * a).toFixed(3) + '%) rotateX(' + (0.01 + 48 * a).toFixed(3) + 'deg) rotateZ(' + rz.toFixed(3) + 'deg)';
+    [...f.querySelectorAll('.lay-panel')].forEach((p, i) => {
+      const d = Number(p.dataset.depth);
+      p.style.transform = 'translateZ(' + ((30 + 220 * d) * a + i * 0.5).toFixed(2) + 'px)';
+      p.style.boxShadow = '0 ' + (4 + 40 * d * a).toFixed(1) + 'px ' + (10 + 60 * d * a).toFixed(1) + 'px color-mix(in srgb,var(--shadow-color) ' + (40 + 40 * d * a).toFixed(1) + '%,transparent)';
+    });
+  }
+}
+
 // Экран в перспективе на WebGL. Плоскость экрана и отражение под ней — два
 // четырёхугольника с перспективной проекцией; угол облёта — функция времени, блик —
 // полоса по экрану, отражение — зеркальный низ экрана, гаснущий книзу. Пометка
@@ -876,6 +1002,31 @@ function move(t) {
       for (const back of sec.querySelectorAll(':scope>.hero-img')) back.style.translate = (-tx * 0.4).toFixed(2) + 'px ' + (-ty * 0.4).toFixed(2) + 'px';
     } else if (mode === 'push') {
       kin.style.transform = 'scale(' + (1 + 0.06 * inOut(clamp(t / dur()))).toFixed(5) + ')';
+    } else if (mode === 'dolly') {
+      // Наезд с рампой скорости: камера трогается медленно, разгоняется в середине и мягко встаёт.
+      // Фон едет медленнее переднего плана — отсюда глубина.
+      const p = clamp(t / dur()), e = p < 0.5 ? 16 * p ** 5 : 1 - (-2 * p + 2) ** 5 / 2;
+      kin.style.transform = 'scale(' + (1 + 0.16 * e).toFixed(5) + ')';
+      if (amb) amb.style.transform = 'scale(' + (1.03 + 0.05 * e).toFixed(5) + ')';
+    } else if (mode === 'pan') {
+      // Проводка: кадр едет вбок через всю сцену, фон — вдвое медленнее.
+      const e = inOut(clamp(t / dur())), x = (0.5 - e) * innerWidth * 0.06;
+      kin.style.transform = 'translateX(' + x.toFixed(2) + 'px) scale(1.02)';
+      if (amb) amb.style.transform = 'translateX(' + (x * 0.5).toFixed(2) + 'px) scale(1.08)';
+    } else if (mode === 'orbit3d') {
+      // Облёт в объёме: кадр наклонён и медленно поворачивается вокруг вертикали. Трёхмерен на
+      // каждом кадре — иначе растеризация Chromium меняется на стыке плоского и объёмного.
+      const e = inOut(clamp(t / dur()));
+      const ry = -9 + 18 * e + Math.sin(t * 0.7) * 1.2, rx = 5 + Math.cos(t * 0.45) * 2.5;
+      kin.style.transform = 'rotateX(' + rx.toFixed(3) + 'deg) rotateY(' + ry.toFixed(3) + 'deg) scale(0.94)';
+      if (amb) amb.style.transform = 'translateX(' + (-ry * innerWidth * 0.0012).toFixed(2) + 'px) scale(1.06)';
+    } else if (mode === 'handheld') {
+      // Ручная камера: сумма синусов несоизмеримых частот — дрожь без повтора, с редкими толчками.
+      const u = u0 => Math.sin(t * u0) + Math.sin(t * u0 * 2.37 + 1.3) * 0.5 + Math.sin(t * u0 * 5.11 + 4.1) * 0.22;
+      const k = innerHeight / 1080;
+      const tx = u(1.7) * 5 * k, ty = u(2.3) * 4 * k, rot = u(1.1) * 0.35;
+      kin.style.transform = 'translate(' + tx.toFixed(2) + 'px,' + ty.toFixed(2) + 'px) rotate(' + rot.toFixed(4) + 'deg) scale(1.025)';
+      if (amb) amb.style.transform = 'translate(' + (tx * 0.4).toFixed(2) + 'px,' + (ty * 0.4).toFixed(2) + 'px) scale(1.05)';
     } else kin.style.transform = 'none';
   }
   for (const f of document.querySelectorAll('.shot-float')) {
@@ -1136,7 +1287,19 @@ function stack(t) {
       }
       c.style.zIndex = String(100 - i);
     });
+    tilt(stk, t);
   }
+}
+
+// Наклон в объёме у стопки, сетки фич и бенто: слой наклонён к зрителю и медленно поворачивается на
+// каждом кадре. Наклоняется контейнер, а не карточки: карточки со своими входами и масштабом
+// рисуются в его слое плоско, и растеризация не зависит от того, какие кадры шли до этого.
+function tilt(el, t) {
+  const base = el.classList.contains('el') ? (el.style.transform === 'none' ? '' : el.style.transform) + ' ' : '';
+  el.style.transform = base + 'perspective(1400px) rotateX(' + (6 + Math.sin(t * 0.5) * 2).toFixed(3) + 'deg) rotateY(' + (Math.sin(t * 0.4) * 6).toFixed(3) + 'deg)';
+}
+function depth(t) {
+  for (const g of document.querySelectorAll('.feats,.bento')) tilt(g, t);
 }
 
 // Орбита: пункты кружат вокруг центра; внутренняя орбита — 16° в секунду, внешняя — навстречу, 10°.
@@ -1404,14 +1567,23 @@ window.__refit = () => {
 // Набор заголовка и тела (\`data-type\`) ведёт слой композиции: он раскладывает
 // текст целиком и скрывает ненабранное на своих местах, поэтому переносы
 // не прыгают.
+// Свечение по рамке (\`glow: border\`): блик обходит рамку карточки за четыре секунды.
+function glow(t) {
+  if (document.body.dataset.glow !== 'border') return;
+  document.body.style.setProperty('--glow-a', ((t * 90) % 360).toFixed(2) + 'deg');
+}
+
 window.renderAt = (t) => {
   enter(t);
+  glow(t);
   count(t);
   type(t);
   progressLines(t);
   chart(t);
   beforeAfter(t);
   parallax(t);
+  layers(t);
+  depth(t);
   perspective(t);
   kenBurns(t);
   move(t);

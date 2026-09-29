@@ -179,6 +179,12 @@ agentic-screencast schema <kind> prints a kind's fields.
                 e.style.opacity = Math.min(1, Math.max(0, (t - e.dataset.at) / 0.4));
             };</script>
           A new voice or pace moves every element with its words.
+          data-draw on an SVG shape (or on an svg holding shapes) draws its
+          stroke like a pen from its data-at over the named seconds
+          (data-draw="1.5"; empty — 1.2 s): a diagram line, an arrow, a
+          signature. data-morph="M… (the second shape)" on an SVG path
+          flows it into that shape over 0.9 s from its data-at; draw both
+          shapes with the same commands and number of points.
   video   file: clip; from/to cut a piece (seconds or @marks, and every
           clip second of the scene then counts from from); fit: contain
           (default: whole clip, bars of the theme's letterbox colour) or
@@ -379,7 +385,8 @@ seconds go stale; lint places it by an estimate, the build by the measured
 speech. On a take, "@mark" names a moment of the recording.
 
 Pointer points are ordered by at; x/y are fractions of the final
-frame from 0 to 1. The pointer eases between points. click:true draws a
+frame from 0 to 1. The pointer eases between points along a slight arc, as
+a hand moves a mouse, the arc bending to alternate sides. click:true draws a
 0.65-second ripple at that point; it does not click the underlying UI.
 For real UI actions, use agentic-screencast help capture instead. A manual
 pointer on imported footage is only a graphic annotation, not synchronized
@@ -536,7 +543,8 @@ at its anchor and lets it die out over length (default 0.35 s, strength 0.85
 of full light); shake jolts the frame in two directions and settles over
 length (default 0.35 s; strength 1 moves it 1.5% of the frame width), zooming
 in just enough that no edge shows. Anchors are the scene's: b2, b2.end+0.3,
-40%, 1.5s. Both are drawn in one pass over the joined film, so they look the
+40%, 1.5s — or a music beat of the film, m16, when the header's music has a
+tempo, so the hit lands in the rhythm rather than in the speech. Both are drawn in one pass over the joined film, so they look the
 same on a slide and on captured footage; the build report lists them under
 hits. Put a sound on the same anchor (sfx) — a hit without one reads as a
 glitch.`;
@@ -626,6 +634,9 @@ Hand-drawn marks, glints and bursts ride with the subject under the camera:
   "toasts":[{"at":1,"icon":"✅","title":"Build finished","body":"film.mp4 is
     ready","hold":4}] — notifications slide into the top-right corner; older
     ones step back and shrink, three stay visible
+  "ease":"spring" — the entrance curve of the scene's titles, lower thirds,
+    callouts, stickers and toasts: standard | emphasized | expressive |
+    spring | bouncy (default: a strong ease-out); exits always accelerate
   "bursts":[{"at":6,"kind":"confetti","target":"#done","seed":3},
             {"at":6,"kind":"sparks","point":[0.5,0.4]}]
     confetti fly up, spin and fall; sparks streak out and fade within a
@@ -690,7 +701,26 @@ build falls back to ffmpeg xfade and says so in its report
 turning faces and the fill between them come from the theme of the incoming
 scene; ffmpeg cannot light in a theme colour, so without WebGL flash falls
 back to a plain dissolve. sound plays an accent just before the cut; snap
-"music" lengthens the outgoing scene so the cut lands on a music beat.
+"music" lengthens the outgoing scene so the cut lands on a music beat: the
+middle of the transition, where the eye sees the change, is placed two frames
+before the beat, which reads as on the beat (a pre-hit).
+
+push and whip take a direction — where the outgoing scene goes: left
+(default), right, up or down: transition: push 0.6 up, or
+{"kind":"whip","direction":"right"}. Keep one axis through a sequence: the
+viewer reads it as one camera travelling. zoom flies the camera into a point
+of the outgoing scene and lands in the next one: {"kind":"zoom","at":"0.7 0.3"}
+(fractions of the frame) or {"kind":"zoom","element":".feat:nth-child(2)"} —
+the centre of that element at the end of a drawn scene, found by the build.
+
+flow: auto in the film header gives every seam without its own transition a
+connected one instead of two fades, so the film runs as one stream: the
+next scene pushes the previous one along one axis (sideways in a wide
+frame, up in a tall one, like a feed), a new part whips on the same axis,
+the camera flies (zoom) into a chapter or the outro, and a trailer card or
+title card slams in on a hard cut. Pieces of one take joined edge to edge stay a plain join, and a
+scene's own transition always wins — name morph where two scenes share an
+element.
 
 Kinds:
 ${Object.entries(TRANSITIONS).map(([name, k]) => `  ${name.padEnd(10)} ${k.about}`).join("\n")}
@@ -698,7 +728,7 @@ ${Object.entries(TRANSITIONS).map(([name, k]) => `  ${name.padEnd(10)} ${k.about
 A shared element moves between two drawn scenes (slides or pages):
 transition: {"kind":"morph","element":"#total","duration":1}
 The element — present in both scenes under the same selector — travels in one
-piece from its place in the first scene to its place in the second and
+piece on a slight arc, blurred in flight, from its place in the first scene to its place in the second and
 takes the second look halfway through, so different text layouts do not
 double while the background dissolves under it. Exactly one visible match
 is selected in each scene, even when a hidden view repeats its selector;
@@ -973,6 +1003,11 @@ Living kinds keep moving while the voice speaks:
   globe     items: Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | … — a WebGL
             globe of dots; arcs fly from the first city to the others in
             turn and ping where they land, the city's name beside it
+  layers    image: screen.png, panels: 0.1 0.2 0.4 0.3 @ 1 | … — an exploded
+            view: the panels lift off the screenshot to their depth while
+            the camera tilts round the stack, and settle back flat by the end
+  bento     items: 🚀 Title :: text | … — a bento grid, the first cell large
+            and the last ones wide so the grid closes, each tilting in from depth
 A title may rotate a word: title: Built for {teams|agents|you} — each word
 holds 2.2 s, the next rises from below, and the line stops on the last.
 When to use each: docs/motion-design.md, "Effect vocabulary".
@@ -983,8 +1018,23 @@ text: the phrase style of the headline and body — ${KINETIC.join(" | ")}
 every unit already in its final place, so lines never re-wrap. Titles and a
 card's reveal take the same styles (help text).
 enter: how the items come in — rise | lift | word | left | right | pop | wipe |
-flip | track | line | tilt | zoom | fade | spin | fly | drop | swing | unfold
-(each kind has its own default).
+flip | track | line | tilt | zoom | fade | spin | fly | drop | swing | unfold |
+jolt | flip3d | tilt3d | mask (each kind has its own default); several
+names, enter: pop flip rise, are handed to the items in turn. jolt slams in
+with overshoot and a dying tremor; flip3d and tilt3d are real 3D turns from
+depth; mask raises a line from under its own lower edge.
+Choreography and life of the items, on any kind:
+  wave: start | center | edges | random — the order the items come in; their
+        moments stay the speech's, only who takes each one changes
+  stagger: 0.12 — seconds between items, from the first item's moment
+  ease: standard | emphasized | expressive | spring | bouncy — the curve of
+        every entrance; with it, larger elements also take longer, as mass does
+  alive: wiggle | float | jitter — motion after the entrance: a small
+        rocking, a slow float, or a hand-drawn boil (12 changes a second);
+        without it an item only breathes by a point and a half
+  glow: border — a light runs round the border of cards (features, stack,
+        bento, chips) every four seconds
+Feature cards and the stack stand in 3D and turn slowly towards the light.
 A slide fits its content between the top of the frame, the subtitle band and
 the part label, shrinking it down to 72%; what still does not fit is named
 in the build report (the scene's "overflow", in grid points) and on stderr:
@@ -993,8 +1043,12 @@ align: top | center | bottom | fill places the content by height: under
 the head, in the middle between the head and the rule, just above the rule,
 or spread over the whole height. A vertical or square frame centres by
 default, so a short slide leaves no empty third above the subtitles.
-move: drift | push | still sets the whole-frame camera (drift is a slow 3D
-orbit with the background moving less than the foreground). count: off
+move: drift | push | still | dolly | pan | orbit3d | handheld sets the
+whole-frame camera: drift is a slow orbit with the background moving less
+than the foreground; dolly a strong push-in that starts slow, rushes and
+settles; pan a sideways travel across the scene; orbit3d a real 3D tilt
+that swings round the frame; handheld a living hand-held camera (layered
+tremor without repetition). Shakes on a hit are the scene's shake. count: off
 keeps a number from rolling. background: grid | aurora | mesh | waves |
 particles | bokeh | none overrides the theme's live background; WebGL
 backgrounds fall back to grid and mark the page when WebGL is missing.

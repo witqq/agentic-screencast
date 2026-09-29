@@ -51,7 +51,7 @@ import { parseOverlay, type SceneOverlay } from "./overlay.js";
 import { resolveTheme, SCHEMES, type Scheme, type ThemeInput } from "./theme.js";
 import { parseSpeed, type SpeedStep } from "./speed.js";
 import { msg, useLang } from "./msg.js";
-import { parseTransition, type Transition } from "./transition.js";
+import { CUT, parseTransition, ZOOM, type Transition } from "./transition.js";
 import { anchorSeconds, estimateBeats, parseSpotlight, type Spotlight } from "./spotlight.js";
 import { parseStills, type Still } from "./stills.js";
 import { isMarkReference, marksOf, resolveMarks, trimMarks, type AutoZoom, type Trim } from "./marks.js";
@@ -220,6 +220,8 @@ export interface Source {
   loudness?: number;
   /** false — ролик без звуковой дорожки (немой ролик под свою музыку или субтитры) */
   audio?: boolean;
+  /** `auto` — стыки без своего перехода получают переход по смыслу: ролик течёт, а не мигает затемнениями */
+  flow?: "auto";
   /** размытие движения камеры: подкадров на кадр и доля выдержки */
   motionBlur?: { samples: number; shutter: number };
   /** вид плёнки: грейд, виньетка, зерно, каше */
@@ -283,7 +285,17 @@ export interface Slide {
   /** где содержимое слайда стоит по высоте: сверху, посередине, снизу или разложено на всю высоту */
   align?: "top" | "center" | "bottom" | "fill";
   /** движение кадра целиком: медленный облёт, наезд или неподвижность */
-  move?: "drift" | "push" | "still";
+  move?: "drift" | "push" | "still" | "dolly" | "pan" | "orbit3d" | "handheld";
+  /** жизнь элементов после входа: покачивание, парение или дрожь */
+  alive?: "wiggle" | "float" | "jitter";
+  /** свечение, бегущее по рамке карточек */
+  glow?: "border";
+  /** кривая входов: стандартная, выразительная, пружина */
+  ease?: "standard" | "emphasized" | "expressive" | "spring" | "bouncy";
+  /** порядок входа пунктов: с начала, из центра, с краёв или вразброс */
+  wave?: "start" | "center" | "edges" | "random";
+  /** шаг между входами пунктов, секунды */
+  stagger?: number;
   /** крутить ли числа при появлении */
   count?: boolean;
   /** сколько тактов речи у сцены: от этого зависят умолчания моментов */
@@ -508,7 +520,7 @@ export function beatOfAnchor(a: string): number | null {
 
 /** Поля шапки ролика: по ним подсказывается ближайшее к опечатке. */
 export const FILM_FIELDS = ["voice", "tail", "providers", "frame", "encode", "theme", "scheme", "pronounce", "lang", "captions",
-  "pip", "progress", "music", "sfx", "loudness", "audio", "motionBlur", "format", "zone", "look", "emoji"];
+  "pip", "progress", "music", "sfx", "loudness", "audio", "flow", "motionBlur", "format", "zone", "look", "emoji"];
 
 /**
  * Расстояние правки с перестановкой соседей: сколько знаков вставить, убрать,
@@ -1101,6 +1113,9 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         } else if (key === "audio") {
           if (value!.trim() !== "false" && value!.trim() !== "true") err(n, msg("source.audio"));
           out.audio = value!.trim() !== "false";
+        } else if (key === "flow") {
+          if (value!.trim() !== "auto") err(n, msg("source.flow"));
+          else out.flow = "auto";
         } else if (key === "motionBlur") {
           const raw = value!.trim();
           if (raw === "true") out.motionBlur = { samples: 6, shutter: 0.5 };
@@ -1250,6 +1265,31 @@ const overlayAnchored = (raw: string): boolean => /"at"\s*:\s*"(?!@)/.test(raw);
  * своими полями — `zoom`, `spotFrom`, `focus`, — но выбирать умолчание
  * ядру не приходится.
  */
+/**
+ * Поток (`flow: auto`): каждый стык без своего перехода получает переход по смыслу, а не
+ * затемнение. Внутри главы следующая сцена толкает прежнюю по одной оси — вбок в широком кадре
+ * и вверх в высоком, как лента; на границе главы кадр хлёстом уходит в ту же сторону; в
+ * заставку главы и финал камера влетает; карта и титул трейлера врезаются склейкой. Куски одного дубля встык остаются склейкой без
+ * перехода: это одна съёмка. Переход, названный сценой, — решение автора, и поток его не трогает.
+ */
+function flowSeams(src: Source, scenes: PitchScene[]): void {
+  const frame = frameOf(src.format, src.frame) ?? { width: 1920, height: 1080 };
+  const axis = Number(frame.height) > Number(frame.width) ? "up" as const : "left" as const;
+  for (let i = 1; i < scenes.length; i++) {
+    const prev = scenes[i - 1]!, cur = scenes[i]!;
+    if (src.scenes[i]!.fields.transition) continue;
+    const joined = prev.video && cur.video && prev.page === cur.page && prev.trim?.to !== undefined && cur.trim
+      && Math.abs(prev.trim.to - cur.trim.from) <= 0.05;
+    if (joined) continue;
+    const newPart = Boolean(src.scenes[i]!.fields.part) || (cur.chapter !== undefined && cur.chapter !== prev.chapter);
+    const spec = specOf(src.scenes[i]!, src.providers ?? {});
+    // Карта и титул трейлера врезаются склейкой: удар вспышки и тряски не должен тонуть в пролёте.
+    cur.transition = spec.trailer ? { kind: CUT, duration: 0 } : spec.arrival ? { kind: ZOOM, duration: 0.7 }
+      : newPart ? { kind: "whip", duration: 0.5, direction: axis }
+      : { kind: "push", duration: 0.6, direction: axis };
+  }
+}
+
 export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
   // Части ролика: явные `part:` берут верх. Если автор назвал части сам, заставки глав и титры
   // (виды с `chapterFrom`) новых частей не открывают — иначе обзор с пятнадцатью частями получал в
@@ -1329,6 +1369,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
     if (!src.scenes[i - 1]!.fields.fade) fadeOf(prev).out = 0;
     if (!src.scenes[i]!.fields.fade) fadeOf(cur).in = 0;
   }
+  if (src.flow === "auto") flowSeams(src, scenes);
   const pitch: Pitch = { scenes };
   if (explicitParts) pitch.authoredParts = src.scenes.flatMap((s) => s.fields.part ? [s.fields.part] : []);
   if (src.tail !== undefined) pitch.tail = src.tail;

@@ -19,7 +19,7 @@ const still = {
   fade: { in: 0.3, out: 0.3 },
 };
 
-const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align"];
+const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger"];
 /** Новые виды держат кадр в движении целиком: облёт, наезд или покой. */
 const staged = [...common, "move"];
 
@@ -52,6 +52,7 @@ export const KINDS: Record<string, KindSpec> = {
     required: [["title"], ["body"]],
     silentOk: true,
     chapterFrom: ["kicker", "title"],
+    arrival: true,
     // Заставка набирает заголовок с 0,7 с и текст с 2,4 с (Slide.tsx), если у неё не задан
     // кинетический текст (`text`).
     typing: [{ field: "title", from: 0.7, cps: 22, unless: "text" }, { field: "body", from: 2.4, cps: 34, unless: "text" }],
@@ -239,6 +240,23 @@ export const KINDS: Record<string, KindSpec> = {
     effects: still,
     check,
   },
+  layers: {
+    about: "an exploded view of a screenshot: its panels («x y w h @ depth | …») lift off in 3D, the camera tilts round the stack, and they settle back flat by the end",
+    fields: [...staged, "image", "panels"],
+    required: [["image"], ["panels"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  bento: {
+    about: "a bento grid: cells of different sizes, the first one large and the last ones wide so the grid closes, each tilting in from depth: «🚀 Title :: text | …» — what matters most gets the most room",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
   // Кегль карты подбирается под ширину кадра, а не задаётся: пороги текста у неё свои.
   card: {
     about: "a trailer card: one to three words across the whole frame that slam in with a flash, a shake, a sheen over metal letters and rising sparks",
@@ -264,6 +282,7 @@ export const KINDS: Record<string, KindSpec> = {
     fields: [...staged, "body", "cta", "url", "image"],
     required: [["title"]],
     silentOk: true,
+    arrival: true,
     effects: { ...still, fade: { in: 0.5, out: 0.9 } },
     check,
   },

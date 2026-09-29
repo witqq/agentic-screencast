@@ -66,8 +66,10 @@ board" into a living thing [10]. Keep it off tables and code, where the tone mus
 (`b2`, `b2+0.3`, `b3.end`), seconds or percentages (`help slides`). Write moments so groups start
 together (`b2 b2 b2+0.07`) and so the key item lands last. Without `at:` items arrive one per beat or
 at an even step over the first 60 % of the speech. On a page you write, `data-at` gives each element
-its moment and `window.renderAt(t)` draws from it (`help video`, `page`). The tool has no grouped
-wave or stagger field yet; on your own page a wave is one line of arithmetic over `data-at`.
+its moment and `window.renderAt(t)` draws from it (`help video`, `page`). `wave: center | edges |
+random` hands the same moments to the items in another order — a wave from the middle, from both
+edges, or scattered — and `stagger: 0.07` spaces them by a fixed step from the first item's moment
+(`help slides`).
 
 ## Timing and curves
 
@@ -123,11 +125,14 @@ before a caption goes [24], about 1.2 s after a click before a zoom returns [25]
 `tilt`, `drop`, `swing` and more, `help slides`) each carry their own curve and duration: `lift`,
 `word`, `tilt` and `zoom` decelerate strongly, `pop` overshoots, `rise` and `fade` are the gentle
 ones. Overlay cards take `motion: rise | pop | glide | fly` and `enter`/`exit` durations 0.2–2.5 s
-(`help overlay`); the camera takes `style: gentle | snappy` or explicit `move` and `return`. The tool
-has no curve or spring field yet: every overlay primitive enters and leaves on one ease-in-out, and
-one spring serves `bounce`, `slam` and the sticker pop. On your own page use CSS `cubic-bezier`
-values from the table above and the spring numbers above — CSS animations and Web Animations there
-run on the scene's clock.
+(`help overlay`); the camera takes `style: gentle | snappy` or explicit `move` and `return`.
+`ease:` on a slide replaces the curve of every entrance: `standard` (`0.2, 0, 0, 1`), `emphasized`
+(`0.05, 0.7, 0.1, 1`), `expressive` (`0.16, 1, 0.3, 1`), `spring` (damped, barely overshooting) and
+`bouncy` (visibly springy) — and with a named curve, larger elements take up to 40 % longer and small
+ones 20 % less, as the duration table asks. `overlay.ease` names the same curves for a scene's
+titles, lower thirds, callouts, stickers and toasts; their exits always accelerate. On
+your own page use CSS `cubic-bezier` values from the table above and the spring numbers above — CSS
+animations and Web Animations there run on the scene's clock.
 
 ## Transitions
 
@@ -135,9 +140,9 @@ Choose the transition by what connects the two scenes [7][11]:
 
 | The scenes | The transition | Here |
 |---|---|---|
-| Share an object (a number, a title, a card) | the object carries across | `transition: {"kind":"morph","element":".huge"}` |
-| Are steps of one process | a slide along one axis | `push` (always leftward today) |
-| Go from an overview to a detail | a zoom into the detail | `zoom-blur` (into the centre today) |
+| Share an object (a number, a title, a card) | the object carries across on an arc, blurred in flight | `transition: {"kind":"morph","element":".huge"}` |
+| Are steps of one process | a slide along one axis | `push 0.6 left` (or `right`, `up`, `down`) |
+| Go from an overview to a detail | a zoom into the detail | `{"kind":"zoom","element":".feat:nth-child(2)"}` or `"at":"0.7 0.3"` |
 | Are unrelated topics | a fade through, or a hard cut | a scene's own fade, or `cut` |
 | Land on a beat, change the act | a hard cut or a dip | `cut`, `dip 0.6 black` |
 
@@ -147,6 +152,18 @@ fast, vertical and music-led films [26]. A match cut rhymes a shape in the same 
 and needs a reason [27]. A mask transition should come from an object of the frame — a button
 opening into a screen — not be a decorative shutter [15]. Two near-identical states cross-fade better
 with a 2 px blur during the fade [18].
+
+**A continuous film, not a row of clips.** Separate clips fade out and in at every seam: the frame
+goes dark, the background dies, and each scene starts from nothing. A film that flows keeps the
+camera travelling: the next scene pushes the last one out along one axis, a new part whips along the
+same axis, the camera flies into a chapter card, and a shared object carries across. Keep the axis
+through a sequence — changing direction reads as a new camera — and let a scene's own motion
+continue into the seam: a slide whose camera is still drifting or pushing when the transition starts
+hands its motion to the next one. *In the tool:* `flow: auto` in the header gives every seam without
+its own transition such a connected one (push inside a part, whip at a new part, zoom into a chapter
+or the outro, a hard cut into a trailer card or title card; up instead of left in a tall frame); name
+`morph` yourself where two scenes share an object, and `cut` where a beat must land hard
+(`help transitions`).
 
 ## Kinetic type
 
@@ -162,8 +179,8 @@ never less than about 5/6 s per event [24].
 `spin`, `fly`, `slide`, `zoom`, `bounce`, `shuffle`, `drop`, `wave`, `scramble`, `split`, `flip`,
 `blur`, `swirl` (`help text`). Overlay titles take `style: rise | slam | type | split` or any of the
 same styles; cards take `reveal`. `slides.counter` and `slides.number` roll their numbers; karaoke
-captions light each word as it is spoken. A line mask and word rotation are not built in; see the
-effect vocabulary below for how to write them on a page.
+captions light each word as it is spoken. `enter: mask` raises each item from under its own lower
+edge — the line mask — and a title rotates a word with `{a|b|c}`.
 
 ## Depth and camera
 
@@ -175,7 +192,17 @@ useful zoom for a 1440p source [25]. **Zoom in** reads as "deeper into detail", 
 overview" [11]. Large zooms and orbits should stay slow and keep a still reference in the frame [33]
 [30].
 
-**How to write it here.** `move: drift | push | still` on full-frame slides (`help slides`);
+**Camera moves that give energy.** A **dolly** pushes in hard with a speed ramp — slow start, rush,
+soft landing — and says "look closer". A **pan** travels sideways across a wide subject. An **orbit
+in 3D** tilts the whole frame and swings round it, the most "produced" of the moves; use it once or
+twice a film. A **hand-held** camera trembles with layered noise that never repeats and makes a calm
+frame feel present and urgent. A **shake** is a single jolt on an impact, with a hit sound on the same
+frame. Real 3D reads only when it is continuous: the tool keeps a 3D element 3D on every frame, and
+stack cards, feature cards, bento cells and `flip3d`/`tilt3d` entrances stand in perspective
+throughout.
+
+**How to write it here.** `move: drift | push | still | dolly | pan | orbit3d | handheld` on
+full-frame slides (`help slides`); `shake` on a scene for a jolt (scene or music anchors);
 `spotlight` and `overlay.camera` for push-ins with a hold, `pan` along a wide subject, `autoZoom` on
 takes (`help overlay`, `help capture`); `slides.parallax` and `slides.perspective` for depth;
 `motionBlur` in the header blurs camera moves.
@@ -188,10 +215,10 @@ and 120 BPM) [35]. Snap into the hit pose rather than easing into it [35]. A who
 pass, a riser before a reveal, a click under every shown click — each once, not on every seam [36]
 [37]. Change the pace: fast runs, then a pause, then the hit [38].
 
-**How to write it here.** `transition.snap: "music"` lands a cut on the beat; `sfx` in the header
-takes music anchors (`m16`); `flash` and `shake` take scene anchors; `speechAt` lets a hit come
-before the voice (`help sound`, `help transitions`, `help overlay`). The tool does not yet move a hit
-ahead of the beat.
+**How to write it here.** `transition.snap: "music"` places the middle of a transition two frames
+before a beat (the pre-hit); `sfx`, `flash` and `shake` take music anchors (`m16`) as well as scene
+anchors; `speechAt` lets a hit come before the voice (`help sound`, `help transitions`, `help
+overlay`).
 
 ## A living frame
 
@@ -219,26 +246,39 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 - **Spring pop** — "here is something new". Scale from about 0.95 with opacity 0 to 1 on a spring;
   Magic UI's animated list uses stiffness 350, damping 40 [40]. *In the tool:* `enter: pop`, card
   `motion: "pop"`.
-\1*In the tool:* `overlay.boops` — `pop`, `shake`, `jelly` or `nod` on a selector at the event's moment.
+- **Boop** — an object that is already there jumps, twists or swells for an instant and springs back
+  when something happens to it: a click, a new message, a changed number. It ties cause to effect
+  [41][42]. *In the tool:* `overlay.boops` — `pop`, `shake`, `jelly` or `nod` on a selector at the
+  event's moment.
 - **Pulse and ping** — "active, listening, here". Tailwind's pulse fades to 0.5 over a 2 s cycle; its
   ping grows to 2× and fades within 1 s [43]. Keep below three flashes a second (film craft 66).
   *In the tool:* `overlay.pings` on a target, area or point; `click: true` on the pointer draws a ripple.
-- **Float** — a faint idle drift keeps a held object alive. *In the tool:* items and held cards
-  breathe by default.
+- **Float, wiggle, boil** — an idle motion keeps a held object alive: a slow float, a small rocking,
+  or the hand-drawn "boiling line" that changes about twelve times a second. *In the tool:* items
+  breathe by default; `alive: float | wiggle | jitter` on a slide gives them a visible life.
+- **Jolt** — an object slams in with overshoot and a dying tremor: an impact, an alarm, "this
+  broke". *In the tool:* `enter: jolt`; the whole frame trembles with the scene's `shake`.
 
 ### Carousels and streams
 
-\1*In the tool:* `slides.marquee` with `rows: 2` and `speed:`.
-\1*In the tool:* `slides.carousel` turns a real 3D ring to each card on its moment.
-\1*In the tool:* `slides.stack`.
+- **Logo marquee** — "many use it and the list goes on". Repeat the row, move it linearly and fade
+  the edges; cycles in libraries run 20–80 s, which a 5–8 s scene must speed up [44][45][46]. *In the
+  tool:* `slides.marquee` with `rows: 2` and `speed:`.
+- **Card carousel** — "several options, one at a time"; step the row by one card per beat [47][48].
+  *In the tool:* `slides.carousel` turns a real 3D ring to each card on its moment.
+- **Card stack** — "there are several, this one matters now". Each card behind is 10 px higher and
+  6 % smaller; Sonner's toasts shrink 5 % per step [49][50]. *In the tool:* `slides.stack`, standing
+  in 3D.
 - **Scrolling a long screen** — "there is a lot here". *In the tool:* a tall `slides.shot` scrolls.
 
 ### Assembly and layout
 
 - **Bento grid assembling** — "many capabilities, one whole"; cells of different sizes arrive in a
-  wave by grid [5][51]. *In the tool:* `slides.features` (equal cells). *On a page:* unequal cells.
+  wave by grid [5][51]. *In the tool:* `slides.bento` (a large first cell, the last ones wide so the grid closes; add `wave:
+  center` for the wave), `slides.features` for equal cells.
 - **Exploded view** — "what it is made of"; layers part along depth and come back [52]. *In the
-  tool:* `slides.parallax` hangs cut-out panels at depths.
+  tool:* `slides.layers` lifts cut-out panels of a snapshot to their depths while the camera tilts
+  and settles them back; `slides.parallax` hangs them at depths without the tilt.
 - **Layout change** — the same objects rearranged keep their identity (list → grid, a card opening)
   [53][54]. *In the tool:* the `morph` transition carries one object between scenes.
 
@@ -253,23 +293,29 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 
 - **Line draw** — a path, a link, an order; animate `stroke-dashoffset` from the path's length to 0
   [56][57][58]. *In the tool:* timeline lines and `slides.chain` arrows draw themselves; overlay
-  `marks` draw circles, arrows and underlines by hand. *On a page:* any SVG path.
+  `marks` draw circles, arrows and underlines by hand. *On a page:* `data-draw` on any SVG shape draws
+  its stroke from its `data-at`.
 - **Animated beam** — pulses of light run along links from source to target: "data flows from here to
   there"; a 3 s cycle, curvature ±75 [59]. *On a page.*
-\1*In the tool:* `slides.orbit`.
-- **Icon morph** — a change of state of one object [61]. *On a page* with SVG paths of equal point
-  counts.
-\1*In the tool:* `slides.globe` (WebGL).
+- **Orbiting icons** — "everything turns around the product": integrations. Radius 160 px, a 20 s
+  cycle, no more than two orbits [60]. *In the tool:* `slides.orbit`.
+- **Icon morph** — a change of state of one object [61]. *On a page:* `data-morph` on an SVG path
+  flows it into a second shape with the same commands and point count.
+- **Globe with arcs** — "used worldwide"; arcs fly about 2.5 s and a ping marks the landing [62][63].
+  *In the tool:* `slides.globe` (WebGL).
 
 ### Interface
 
 - **Typing in a field** — a prompt or a query; about 100 ms a character, uneven rather than
   mechanical [14][64]. *In the tool:* card `reveal: "type"`, `slides.code`, `data-type` on your page.
-\1*In the tool:* `overlay.toasts`.
-\1*In the tool:* `slides.chat`.
-\1*In the tool:* `slides.chat` shows typing dots before each answer.
+- **Toast stack** — "the system is alive, events arrive": a new toast slides in over 400 ms, three
+  visible, each one behind 5 % smaller, 14 px apart [50][65]. *In the tool:* `overlay.toasts`.
+- **Chat bubbles** — the most recognisable frame of an AI product: bubbles pop in turn, typing dots
+  before the answer [66][67]. *In the tool:* `slides.chat`.
+- **"AI is thinking"** — a sheen across "Thinking…" or three jumping dots for one or two seconds
+  before the answer [43][68][66]. *In the tool:* `slides.chat` shows typing dots before each answer.
 - **Cursor as an actor** — it arrives on an arc, presses with a ripple, drags [4][25]. *In the tool:*
-  `overlay.pointer` with `click` (straight moves) and the live take's cursor (curved moves).
+  `overlay.pointer` with `click` (moves on a slight arc) and the live take's cursor.
 - **Toggles, tabs, menus** — the shortest way to show a setting; the thumb slides in about 300 ms
   [54]. *On a page.*
 - **Code focus** — dim everything but the working lines [69]. *In the tool:* `slides.code` with
@@ -280,12 +326,14 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 - **Device in 3D, turning** — "this is a real product in hand" [70]. *In the tool:* `slides.shot`
   with `device:`, `slides.perspective`, `device:` on a video scene.
 - **Into the screen** — the camera enters the device's screen and the work begins [71]. *In the
-  tool:* a `shot` scene followed by the recording, joined with `zoom-blur` or a hard cut.
+  tool:* a `shot` scene followed by the recording, joined with `{"kind":"zoom","element":".shot-img"}`
+  or a hard cut.
 
 ### Text
 
 - **A word across the frame** — the claim on a hit. *In the tool:* `slides.card`.
-\1*In the tool:* `title: Built for {teams|agents|you}`.
+- **Rotating word** — "Built for teams / agents / you": one word swaps every 2.5–3 s [72][73]. *In
+  the tool:* `title: Built for {teams|agents|you}`.
 - **Words from blur** — a thought being born; 0.2 s between words for a solemn line [74]. *In the
   tool:* `text: blur`.
 - **Marker under a word, strike-through** — the key word, or "the old way"; drawn over about 800 ms
@@ -296,8 +344,9 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 
 ### Transitions
 
-*In the tool:* `dissolve`, `zoom-blur`, `whip`, `wipe`, `iris`, `cube`, `flip`, `glitch`, `flash`,
-`ripple`, `dip`, `push`, `morph`, `cut` (`help transitions`). Choose by the table in "Transitions"
+*In the tool:* `dissolve`, `zoom-blur`, `whip`, `zoom`, `wipe`, `iris`, `cube`, `flip`, `glitch`,
+`flash`, `ripple`, `dip`, `push`, `morph`, `cut`, and `flow: auto` for a whole film
+(`help transitions`). Choose by the table in "Transitions"
 above. Libraries add liquid and pixel dissolves and light leaks laid over a cut [78][79]; none of
 them states a relation between scenes, so keep them for a genre that wants them.
 
@@ -309,7 +358,8 @@ them states a relation between scenes, so keep them for a genre that wants them.
 - **Sheen across a card** — "new, premium", once after it lands [68]. *In the tool:*
   `overlay.glints`.
 - **Light running along a border** — "this card is recommended": a short beam around the frame over a
-  2–6 s cycle [84][85]. *On a page.*
+  2–6 s cycle [84][85]. *In the tool:* `glow: border` on a slide (feature, stack and bento cards,
+  chips; a four-second cycle).
 
 ## Too much, and safety
 

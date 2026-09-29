@@ -64,11 +64,17 @@ export function tone(col: Column | undefined, dflt: NonNullable<Column["tone"]>)
  * Как именно двигать, решает скрипт страницы; разметка только называет вход.
  */
 export const ENTERS = ["rise", "lift", "word", "left", "right", "pop", "wipe", "flip", "track", "line", "tilt", "zoom", "fade",
-  "spin", "fly", "drop", "swing", "unfold"] as const;
+  "spin", "fly", "drop", "swing", "unfold", "jolt", "flip3d", "tilt3d", "mask"] as const;
 export type Enter = (typeof ENTERS)[number];
 
-/** Вход пунктов: названный сценой (`enter`) или умолчание вида. */
-const enterOf = (s: Slide, dflt: Enter): Enter => (s.enter as Enter | undefined) ?? dflt;
+/**
+ * Вход пункта: названный сценой (`enter`) или умолчание вида. Список входов через пробел
+ * (`enter: pop flip rise`) раздаётся пунктам по порядку и идёт по кругу.
+ */
+const enterOf = (s: Slide, dflt: Enter, i = 0): Enter => {
+  const list = s.enter?.split(/\s+/).filter(Boolean);
+  return (list?.length ? list[i % list.length] : undefined) as Enter | undefined ?? dflt;
+};
 
 /**
  * Смена слова в строке: «Built for {teams|agents|you}» — слово в скобках сменяется другими по очереди
@@ -230,8 +236,8 @@ function Compare({ s, w }: Props): JSX.Element {
     <>
       <Head s={s} kicker={s.kicker ?? w.compare} title={s.title} />
       <div className="cols">
-        <Reveal at={at(s, 0, n)} enter={enterOf(s, "left")}><ColumnCard col={s.left!} dflt="bad" /></Reveal>
-        <Reveal at={at(s, 1, n)} enter={enterOf(s, "right")}><ColumnCard col={s.right!} dflt="good" /></Reveal>
+        <Reveal at={at(s, 0, n)} enter={enterOf(s, "left", 0)}><ColumnCard col={s.left!} dflt="bad" /></Reveal>
+        <Reveal at={at(s, 1, n)} enter={enterOf(s, "right", 1)}><ColumnCard col={s.right!} dflt="good" /></Reveal>
       </div>
       <Note at={at(s, 2, n)} text={s.note} />
     </>
@@ -247,7 +253,7 @@ function Chain({ s, w }: Props): JSX.Element {
       <Head s={s} kicker={s.kicker ?? w.chain} title={s.title} />
       <div className="chain" data-n={nodes.length}>
         {nodes.map((n, i) => (
-          <Reveal at={at(s, i, total)} enter={enterOf(s, "pop")} key={`${n.label}-${i}`}>
+          <Reveal at={at(s, i, total)} enter={enterOf(s, "pop", i)} key={`${n.label}-${i}`}>
             <span className="pairwrap">
               {/* Стрелка идёт ПЕРЕД узлом: при переносе строка начинается
                   стрелкой, а не заканчивается указывающей в пустоту. */}
@@ -275,7 +281,7 @@ function Quote({ s, w }: Props): JSX.Element {
     <>
       <Head s={s} kicker={s.kicker ?? w.quote} title={s.title} />
       {parts.map((q, i) => (
-        <Reveal at={at(s, i, n)} enter={enterOf(s, "wipe")} key={`${q.label}-${i}`}>
+        <Reveal at={at(s, i, n)} enter={enterOf(s, "wipe", i)} key={`${q.label}-${i}`}>
           <div className="quote">
             <span className="qlabel">{q.label}</span>
             <pre>{q.text}</pre>
@@ -305,7 +311,7 @@ function Magnitude({ s, w }: Props): JSX.Element {
       <Head s={s} kicker={s.kicker ?? w.number} title={s.title} />
       <div className="pair">
         {values.map((v, i) => (
-          <Reveal at={at(s, i, n)} enter={enterOf(s, "pop")} key={`${v.value}-${i}`}>
+          <Reveal at={at(s, i, n)} enter={enterOf(s, "pop", i)} key={`${v.value}-${i}`}>
             <div>
               <div className="huge"><Value s={s} v={v.value} t={at(s, i, n)} /></div>
               <div className="huge-sub">{v.label}</div>
@@ -401,7 +407,7 @@ function Steps({ s }: Props): JSX.Element {
         <span className="steps-rail"><span className="steps-fill" /></span>
         {items.map((it, i) => (
           <li key={i}>
-            <Reveal at={item(s, i, items.length)} enter={enterOf(s, "left")} className="step">
+            <Reveal at={item(s, i, items.length)} enter={enterOf(s, "left", i)} className="step">
               <span className="step-n">{it.icon ?? i + 1}</span>
               <div><h3>{it.title}</h3>{it.text ? <p>{it.text}</p> : null}</div>
             </Reveal>
@@ -419,7 +425,7 @@ function Features({ s }: Props): JSX.Element {
       <KHead s={s} />
       <div className="feats" data-n={items.length}>
         {items.map((it, i) => (
-          <Reveal at={item(s, i, items.length)} enter={enterOf(s, "flip")} className="feat" key={i}>
+          <Reveal at={item(s, i, items.length)} enter={enterOf(s, "flip", i)} className="feat" key={i}>
             {/* Без значка карточка без знака: номера 01, 02, 03 — синоним значков-эмодзи (docs/visual-design.md). */}
             {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
             <h3>{it.title}</h3>
@@ -440,7 +446,7 @@ function Timeline({ s }: Props): JSX.Element {
         <span className="tl-rail"><span className="tl-fill" /></span>
         <div className="tl-items">
           {items.map((it, i) => (
-            <Reveal at={item(s, i, items.length)} enter={enterOf(s, "pop")} className="tl-item" key={i}>
+            <Reveal at={item(s, i, items.length)} enter={enterOf(s, "pop", i)} className="tl-item" key={i}>
               <span className="tl-dot" />
               <b className="tl-when">{it.icon ? `${it.icon} ` : ""}{it.title}</b>
               {it.text ? <p>{it.text}</p> : null}
@@ -464,7 +470,7 @@ function Counter({ s }: Props): JSX.Element {
           // Доля — кольцом: «98%» замыкает круг почти целиком.
           const share = parts && /%\s*$/.test(v.value) ? Math.min(1, parts.to / Math.pow(10, parts.dec) / 100) : null;
           return (
-            <Reveal at={item(s, i, values.length)} enter={enterOf(s, "pop")} className="ctr" key={i}>
+            <Reveal at={item(s, i, values.length)} enter={enterOf(s, "pop", i)} className="ctr" key={i}>
               {share !== null ? (
                 <svg className="ring" viewBox="0 0 100 100" aria-hidden="true">
                   <circle className="ring-bg" cx="50" cy="50" r={R} />
@@ -767,7 +773,7 @@ function Stack({ s }: Props): JSX.Element {
   return (
     <Stage s={s} cls="k-stk" move="drift">
       <KHead s={s} />
-      <Reveal at={item(s, 0, items.length)} enter="pop" className="stk">
+      <Reveal at={item(s, 0, items.length)} enter="rise" className="stk">
         {items.map((it, i) => (
           <div className="stk-card" key={i} data-at={item(s, i, items.length)}>
             {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
@@ -938,6 +944,56 @@ function TitleCard({ s }: Props): JSX.Element {
   );
 }
 
+/**
+ * Разобранный вид: снимок и его панели лежат стопкой слоёв. Камера наклоняется, слои расходятся
+ * по глубине, каждый на свою (`@ глубина`), и к концу сцены собираются обратно в плоский снимок.
+ * Рамка трёхмерна на каждом кадре — и плоская в начале, и разобранная в середине.
+ */
+function Layers({ s }: Props): JSX.Element {
+  const img = s.image!;
+  return (
+    <Stage s={s} cls="k-lay" move="still">
+      <KHead s={s} />
+      <Reveal at={moment(s, 0, "0.1s")} enter="zoom" className="lay">
+        <div className="lay-frame" style={{ aspectRatio: `${img.width} / ${img.height}` }} data-at={moment(s, 1, "0.6s")}>
+          <div className="lay-base" style={{ backgroundImage: `url(${img.src})` }} />
+          {(s.panels ?? []).map((p, i) => (
+            <div className="lay-panel" key={i} data-depth={p.depth}
+              style={{ left: `${p.x * 100}%`, top: `${p.y * 100}%`, width: `${p.w * 100}%`, height: `${p.h * 100}%`,
+                backgroundImage: `url(${img.src})`, backgroundSize: `${100 / p.w}% ${100 / p.h}%`,
+                backgroundPosition: `${p.w < 1 ? (p.x / (1 - p.w)) * 100 : 0}% ${p.h < 1 ? (p.y / (1 - p.h)) * 100 : 0}%` }} />
+          ))}
+        </div>
+      </Reveal>
+    </Stage>
+  );
+}
+
+/**
+ * Бенто: ячейки разного размера в одной сетке — первая крупная, последние вытянуты по ширине. Разный размер
+ * говорит, что главное, лучше одинаковых карточек фич.
+ */
+function Bento({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  // Крупная первая ячейка занимает четыре клетки, остальные по одной; последние пункты вытягиваются
+  // вдвое, пока сетка в четыре колонки не закроется без дыр.
+  const wide = (4 - ((items.length + 3) % 4)) % 4;
+  return (
+    <Stage s={s} cls="k-bento" move="drift">
+      <KHead s={s} />
+      <div className="bento" data-n={items.length}>
+        {items.map((it, i) => (
+          <Reveal at={item(s, i, items.length)} enter={enterOf(s, "tilt3d", i)} className={`bento-cell${i === 0 ? " big" : i >= items.length - wide ? " wide" : ""}`} key={i}>
+            {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
+            <h3>{it.title}</h3>
+            {it.text ? <p>{it.text}</p> : null}
+          </Reveal>
+        ))}
+      </div>
+    </Stage>
+  );
+}
+
 const BODIES: Record<string, (p: Props) => JSX.Element> = {
   chapter: Chapter,
   compare: Compare,
@@ -965,6 +1021,8 @@ const BODIES: Record<string, (p: Props) => JSX.Element> = {
   chat: Chat,
   carousel: Ring,
   globe: Globe,
+  layers: Layers,
+  bento: Bento,
 };
 
 /** Тело слайда по его виду. Незнакомый вид — ошибка, а не пустая страница. */

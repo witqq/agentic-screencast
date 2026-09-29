@@ -89,6 +89,15 @@ function column(v: string, id: string): Column {
  * Строки CSV: запятая разделяет поля, кавычки защищают запятую внутри подписи.
  * Первая строка — заголовок, если её второе поле не число.
  */
+/** Движения камеры по кадру слайда (`move`). */
+export const MOVES = ["drift", "push", "still", "dolly", "pan", "orbit3d", "handheld"];
+/** Жизнь элементов после входа (`alive`). */
+export const ALIVE = ["wiggle", "float", "jitter"];
+/** Кривые входов (`ease`). */
+export const EASES = ["standard", "emphasized", "expressive", "spring", "bouncy"];
+/** Порядок входа пунктов (`wave`). */
+export const WAVES = ["start", "center", "edges", "random"];
+
 export function csvRows(text: string): string[][] {
   const rows: string[][] = [];
   for (const line of text.split(/\r?\n/u)) {
@@ -160,9 +169,24 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.align = a as Slide["align"];
   }
   if (f.move) {
-    if (!["drift", "push", "still"].includes(f.move.trim()))
-      throw new SourceError(msg("slides.options", { id: s.id, field: "move", options: "drift | push | still" }));
+    if (!MOVES.includes(f.move.trim()))
+      throw new SourceError(msg("slides.options", { id: s.id, field: "move", options: MOVES.join(" | ") }));
     slide.move = f.move.trim() as Slide["move"];
+  }
+  const choice = <K extends "alive" | "glow" | "ease" | "wave">(k: K, options: readonly string[]): void => {
+    if (!f[k]) return;
+    const v = f[k]!.trim();
+    if (!options.includes(v)) throw new SourceError(msg("slides.options", { id: s.id, field: k, options: options.join(" | ") }));
+    slide[k] = v as Slide[K];
+  };
+  choice("alive", ALIVE);
+  choice("glow", ["border"]);
+  choice("ease", EASES);
+  choice("wave", WAVES);
+  if (f.stagger) {
+    const v = Number(f.stagger.trim().replace(/s$/i, ""));
+    if (!Number.isFinite(v) || v < 0.03 || v > 1.5) throw new SourceError(msg("slides.stagger", { id: s.id }));
+    slide.stagger = v;
   }
   if (f.count) {
     if (!["on", "off"].includes(f.count.trim()))
@@ -179,9 +203,11 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.text = { ...(title ? { title } : {}), ...(body ? { body } : {}) };
   }
   if (f.enter) {
-    if (!(ENTERS as readonly string[]).includes(f.enter.trim()))
+    // Несколько входов через пробел раздаются пунктам по порядку.
+    const list = f.enter.trim().split(/\s+/);
+    if (list.some((e) => !(ENTERS as readonly string[]).includes(e)))
       throw new SourceError(msg("slides.options", { id: s.id, field: "enter", options: ENTERS.join(" | ") }));
-    slide.enter = f.enter.trim();
+    slide.enter = list.join(" ");
   }
   if (f.items) slide.items = items(f.items);
   if (s.kind === "globe" && slide.items) {

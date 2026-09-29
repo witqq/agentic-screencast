@@ -516,8 +516,9 @@ export function clicheSigns(file: string): Sign[] {
   const sparkleCount = scenes.reduce((n, { s }) => n + (s.overlay?.bursts?.length ?? 0) + (s.overlay?.glints?.length ?? 0), 0);
   if (sparkleCount > 2) sign("many-sparkles", sparkles.map(({ s }) => s.id), msg("lint.clicheSparkles", { count: sparkleCount }));
   const kinds = new Map<string, string[]>();
-  for (const { s } of scenes) {
-    const k = (s.transition as { kind?: string } | undefined)?.kind;
+  for (const { s, f } of scenes) {
+    // Переходы потока (`flow: auto`) — одна система по смыслу стыка, а не три вкуса: считаются одним видом.
+    const k = src.flow === "auto" && !f.transition && s.transition ? "flow" : (s.transition as { kind?: string } | undefined)?.kind;
     if (k) kinds.set(k, [...(kinds.get(k) ?? []), s.id]);
   }
   if (kinds.size > 2) sign("transition-kinds", [...kinds.values()].flat(), msg("lint.clicheTransitions",

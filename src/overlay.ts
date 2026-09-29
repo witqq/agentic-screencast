@@ -218,6 +218,8 @@ export interface OverlayLoupe extends OverlayAnchor {
 }
 
 export interface SceneOverlay {
+  /** кривая входа титров, плашек, выносок, наклеек и уведомлений сцены */
+  ease?: (typeof OVERLAY_EASES)[number];
   pointer?: OverlayPoint[];
   cards?: OverlayCard[];
   camera?: OverlayCamera[];
@@ -293,14 +295,22 @@ export function parseOverlay(json: string, moment?: (anchor: string) => number):
   try { return parseOverlayBody(json); } finally { momentOf = undefined; }
 }
 
+/** Кривые входа примитивов накладки (`overlay.ease`) — те же имена, что у входов слайда. */
+export const OVERLAY_EASES = ["standard", "emphasized", "expressive", "spring", "bouncy"] as const;
+
 function parseOverlayBody(json: string): SceneOverlay {
   let value: unknown;
   try { value = JSON.parse(json); }
   catch { throw new Error(msg("source.jsonObject", { field: "overlay" })); }
   if (!object(value)) throw new Error(msg("source.jsonObject", { field: "overlay" }));
   keys(value, ["pointer", "cards", "camera", "titles", "lower", "callouts", "stickers", "marks", "glints", "bursts", "loupe",
-    "boops", "pings", "toasts"], "overlay");
+    "boops", "pings", "toasts", "ease"], "overlay");
   const overlay: SceneOverlay = {};
+  if (value.ease !== undefined) {
+    if (!(OVERLAY_EASES as readonly unknown[]).includes(value.ease))
+      throw new Error(msg("overlay.ease", { options: OVERLAY_EASES.join(" | ") }));
+    overlay.ease = value.ease as SceneOverlay["ease"];
+  }
   if (value.pointer !== undefined) {
     if (!Array.isArray(value.pointer)) throw new Error(msg("overlay.array", { where: "overlay.pointer" }));
     let last = -1;

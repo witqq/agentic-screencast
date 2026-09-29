@@ -69,7 +69,7 @@ export async function assembleVideo(opts: {
       const morph = s.morph;
       // Тема входящей сцены — часть ключа: свет и просветы перехода рисуются её цветами.
       const key = md5(JSON.stringify({ a: segHash[i - 1], b: segHash[i], kind: s.transition!.kind, k: kIn, enc, self: opts.self,
-        theme: s.theme ?? null, color: s.transition!.color ?? null,
+        theme: s.theme ?? null, color: s.transition!.color ?? null, direction: s.transition!.direction ?? null, at: s.transition!.at ?? null,
         morph: morph ? { ...morph, files: [morph.aBg, morph.bBg, morph.aFull, morph.bFull].map((f) => md5(readFileSync(f))) } : null }));
       const clip = resolve(cache, `transition-${key}.mp4`);
       const meta = `${clip}.json`;
@@ -83,7 +83,8 @@ export async function assembleVideo(opts: {
           const a = framesOf(prev.seg, prev.frames - kIn, kIn, resolve(work, "a"));
           const b = framesOf(s.seg, 0, kIn, resolve(work, "b"));
           got = await renderTransition({ kind: s.transition!.kind, a, b, width: enc.width, height: enc.height,
-            out: resolve(work, "t"), ...(s.theme ? { theme: s.theme } : {}), ...(s.transition!.color ? { color: s.transition!.color } : {}) });
+            out: resolve(work, "t"), ...(s.theme ? { theme: s.theme } : {}), ...(s.transition!.color ? { color: s.transition!.color } : {}),
+            ...(s.transition!.direction ? { direction: s.transition!.direction } : {}), ...(s.transition!.at ? { at: s.transition!.at } : {}) });
         }
         renderer = got.renderer;
         execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-framerate", String(enc.fps),

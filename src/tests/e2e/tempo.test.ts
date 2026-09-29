@@ -58,7 +58,7 @@ transition: {"kind":"dissolve","duration":0.4,"snap":"music"}
 
 The second scene starts on a beat of the music.
 `;
-  const build = (music: string): { tempo: { bpm: number; offset: number; detected: boolean }; transitions: Array<{ at: number }> } => {
+  const build = (music: string): { tempo: { bpm: number; offset: number; detected: boolean }; transitions: Array<{ at: number; duration: number }> } => {
     writeFileSync(join(dir, "story.md"), film(music));
     const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "f.mp4"], { cwd: dir, encoding: "utf8",
       env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
@@ -68,12 +68,14 @@ The second scene starts on a beat of the music.
   const found = build('{"file":"m.wav","level":-20}');
   assert.equal(found.tempo.detected, true);
   assert.ok(Math.abs(found.tempo.bpm - 128) <= 1 && Math.abs(found.tempo.offset - 0.12) <= 0.03, JSON.stringify(found.tempo));
-  // Склейка встаёт на долю сетки 128 ударов с первой долей 0,12 с — с точностью до кадра.
-  const period = 60 / 128, at = found.transitions[0]!.at;
+  // Склейка встаёт на долю сетки 128 ударов с первой долей 0,12 с — с точностью до кадра: на долю
+  // приходится середина перехода с упреждением в два кадра (pre-hit).
+  const hitOf = (t: { at: number; duration: number }): number => t.at + t.duration / 2 + 2 / 25;
+  const period = 60 / 128, at = hitOf(found.transitions[0]!);
   const k = (at - 0.12) / period;
   assert.ok(Math.abs(k - Math.round(k)) * period < 0.04 + 1e-9, `the cut at ${at}s is on a beat (${k.toFixed(3)} beats in)`);
   const named = build('{"file":"m.wav","level":-20,"bpm":90,"offset":0}');
   assert.deepEqual(named.tempo, { bpm: 90, offset: 0, detected: false }, "a bpm in the header is used as written");
-  const k2 = named.transitions[0]!.at / (60 / 90);
+  const k2 = hitOf(named.transitions[0]!) / (60 / 90);
   assert.ok(Math.abs(k2 - Math.round(k2)) * (60 / 90) < 0.04 + 1e-9, `with bpm 90 the cut lands on its grid (${k2.toFixed(3)})`);
 });

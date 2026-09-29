@@ -33,7 +33,7 @@ import { assembleVideo, timeline, transitionFrames } from "./assemble.js";
 import { mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
 import { ensureEncodedPeak, EncodedPeakError } from "./encoded-audio.js";
 import { auditFilm } from "./film-audit.js";
-import { MORPH, type MorphInput, type Transition } from "./transition.js";
+import { MORPH, ZOOM, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
 import { autoBand, bandShare } from "./capband.js";
@@ -613,10 +613,13 @@ async function main() {
       s.overlay ? overlayEnd(s.overlay) + 0.25 : 0) * opts.fps);
     // Переход «в долю»: сцена продлевается до ближайшей доли музыки, чтобы
     // склейка пришлась на ритм. Сцена только растёт — речь не обрезается.
+    // Глаз ловит смену кадра на середине перехода, а ухо слышит долю на пару кадров позже, чем
+    // она звучит: поэтому на долю ставится середина перехода с упреждением в два кадра (pre-hit).
     if (into?.snap && pitch.music?.bpm && !only) {
-      const start = clock + frames / opts.fps - transitionFrames(into, opts.fps) / opts.fps;
-      const beat = nextMusicBeat(start, pitch.music.bpm, pitch.music.offset ?? 0);
-      frames += Math.round((beat - start) * opts.fps);
+      const half = transitionFrames(into, opts.fps) / opts.fps / 2, lead = 2 / opts.fps;
+      const middle = clock + frames / opts.fps - 2 * half + half;
+      const beat = nextMusicBeat(middle + lead, pitch.music.bpm, pitch.music.offset ?? 0);
+      frames += Math.round((beat - lead - middle) * opts.fps);
     }
     s.duration = frames / opts.fps;
     s.__spoken = spoken;
@@ -1284,10 +1287,20 @@ async function main() {
   // Вспышки и тряска — в секундах ролика; цвет вспышки — из темы своей сцены.
   const flashes: FilmHit[] = [], shakes: FilmHit[] = [];
   taken.forEach((s, i) => {
-    const at = (h: Hit): number => tl.starts[i]! + anchorSeconds(h.at.replace(/s$/i, ""), s.__starts ?? [], s.duration, speechEnds(s));
+    // Якорь `m16` — доля музыки номер 16 в секундах ролика: удар ложится в ритм, а не в речь.
+    const at = (h: Hit): number => {
+      const m = /^m(\d+(?:\.\d+)?)$/.exec(h.at);
+      if (!m) return tl.starts[i]! + anchorSeconds(h.at.replace(/s$/i, ""), s.__starts ?? [], s.duration, speechEnds(s));
+      if (!pitch.music?.bpm) {
+        console.error(msg("build.sfxTempo", { at: h.at }));
+        process.exit(2);
+      }
+      return musicBeat(Number(m[1]), pitch.music.bpm, pitch.music.offset ?? 0);
+    };
     const colour = ffmpegColour(((s.theme ?? pitch.theme) as Record<string, string>)["--tr-flash"]!);
-    for (const h of s.flash ?? []) flashes.push({ at: at(h), length: h.length ?? FLASH_DEFAULT.length, strength: h.strength ?? FLASH_DEFAULT.strength, colour });
-    for (const h of s.shake ?? []) shakes.push({ at: at(h), length: h.length ?? SHAKE_DEFAULT.length, strength: h.strength ?? SHAKE_DEFAULT.strength });
+    const inFilm = (h: Hit): boolean => !only || !h.at.startsWith("m");
+    for (const h of (s.flash ?? []).filter(inFilm)) flashes.push({ at: at(h), length: h.length ?? FLASH_DEFAULT.length, strength: h.strength ?? FLASH_DEFAULT.strength, colour });
+    for (const h of (s.shake ?? []).filter(inFilm)) shakes.push({ at: at(h), length: h.length ?? SHAKE_DEFAULT.length, strength: h.strength ?? SHAKE_DEFAULT.strength });
   });
   const hits = flashes.length + shakes.length > 0;
   // Звук ролика сводится и нормируется всегда, когда он есть: ролик только с голосом прежде
@@ -1334,6 +1347,25 @@ async function main() {
           morphs.set(s.id, { aBg: aBg.file, bBg: bBg.file, aFull: aFull.file, bFull: bFull.file, ra: aFull.rect, rb: bFull.rect });
         } catch (e) {
           console.error(msg("build.morphElement", { id: s.id, element: t.element!, why: (e as Error).message.split("\n")[0]! }));
+          process.exit(2);
+        }
+      }
+      // Пролёт в предмет: точка пролёта — центр предмета в последнем кадре первой сцены.
+      for (let i = 1; i < taken.length; i++) {
+        const s = taken[i]!, prev = taken[i - 1]!, t = s.transition;
+        if (t?.kind !== ZOOM || !t.element || t.at) continue;
+        if (!prev.__render) {
+          console.error(msg("build.morphVideo", { id: s.id }));
+          process.exit(2);
+        }
+        const at = (sceneFrames(prev) - transitionFrames(t, opts.fps)) / opts.fps;
+        try {
+          const r = await renderScene(prev.__render, { ...opts, at, morphTarget: t.element, probes: [{ t: at, anchor: { target: t.element } }] });
+          const box = r.rects[0]!;
+          const clamp = (v: number): number => Math.min(1, Math.max(0, v));
+          s.transition = { ...t, at: [clamp((box.left + box.width / 2) / opts.width), clamp((box.top + box.height / 2) / opts.height)] };
+        } catch (e) {
+          console.error(msg("build.zoomElement", { id: s.id, element: t.element, why: (e as Error).message.split("\n")[0]! }));
           process.exit(2);
         }
       }

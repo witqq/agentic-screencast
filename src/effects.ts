@@ -12,7 +12,8 @@ export interface Hit { at: string; length?: number; strength?: number }
 /** Удар во времени ролика; у вспышки — цвет темы сцены (`--tr-flash`), в виде ffmpeg `0xRRGGBB`. */
 export interface FilmHit { at: number; length: number; strength: number; colour?: string }
 
-const ANCHOR = /^(b\d+(\.end)?(\s*[+-]\s*[\d.]+)?|[\d.]+\s*%|[\d.]+s?)$/;
+// `m16` — доля музыки ролика: удар в ритм, а не в речь сцены.
+const ANCHOR = /^(b\d+(\.end)?(\s*[+-]\s*[\d.]+)?|[\d.]+\s*%|[\d.]+s?|m\d+(\.\d+)?)$/;
 
 /**
  * Поле `flash` или `shake`: якоря через `|` (`b2 | b4+0.3`) или JSON-список

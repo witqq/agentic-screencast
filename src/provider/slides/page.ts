@@ -33,7 +33,7 @@ const esc = (s: string): string =>
  */
 const CONTENT = ".chain .node, .cols .col, .huge, .quote, .chapter-title, .chapter-body, .hero-title, .step, "
   + ".feat, .tl-item, .ctr, .code, .photo, .shot-img, .outro-title, .chart-bar, .chart-path, .ba-frame, .px-panel, .pv-cv, .pv-src, "
-  + ".card-word, .tc-name";
+  + ".card-word, .tc-name, .lay-panel, .bento-cell";
 
 /**
  * Фон страницы: слои тихой сетки и холст живого фона. Какой из них виден,
@@ -43,9 +43,9 @@ const AMBIENT = `<div class="amb"><span class="amb-glow"></span><span class="amb
   + `<canvas class="amb-cv"></canvas></div>`;
 
 const page = (title: string, body: string, elements: number, theme: string,
-  lang: string, bg: string | undefined, align: string | undefined): string => `<!DOCTYPE html>
+  lang: string, bg: string | undefined, align: string | undefined, motion: Record<string, string | undefined>): string => `<!DOCTYPE html>
 <html data-sc-page lang="${esc(lang)}"><head><meta charset="utf-8"><title>${esc(title)}</title>
-<style>${CSS}${DEVICE_CSS}${theme}</style></head><body data-slidecast-elements="${elements}" data-slidecast-content="${CONTENT}"${bg ? ` data-bg="${esc(bg)}"` : ""}${align ? ` data-align="${esc(align)}"` : ""}>${AMBIENT}${body}<div class="rule"></div><script>${RUNTIME}</script></body></html>
+<style>${CSS}${DEVICE_CSS}${theme}</style></head><body data-slidecast-elements="${elements}" data-slidecast-content="${CONTENT}"${bg ? ` data-bg="${esc(bg)}"` : ""}${align ? ` data-align="${esc(align)}"` : ""}${Object.entries(motion).map(([k, v]) => v === undefined ? "" : ` data-${k}="${esc(v)}"`).join("")}>${AMBIENT}${body}<div class="rule"></div><script>${RUNTIME}</script></body></html>
 `;
 
 /**
@@ -134,7 +134,10 @@ export function buildSlide(scene: Slide, outDir: string, film?: Film): string {
   // и «ru» навсегда было бы решением инструмента за автора.
   // Сетка идёт ПЕРЕД темой: тема вправе перебить и её.
   const html = page(scene.title ?? "", body, elements,
-    gridCss(grid) + themeCss(film), film?.lang ?? "en", scene.background, scene.align);
+    gridCss(grid) + themeCss(film), film?.lang ?? "en", scene.background, scene.align,
+    // Хореография и жизнь элементов — свойства страницы: их читает её скрипт.
+    { alive: scene.alive, glow: scene.glow, ease: scene.ease, wave: scene.wave,
+      stagger: scene.stagger === undefined ? undefined : String(scene.stagger) });
   mkdirSync(outDir, { recursive: true });
   const file = `${outDir}/${scene.id}.html`;
   writeFileSync(file, html);
