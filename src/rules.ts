@@ -38,6 +38,7 @@ export const RULES: Record<string, `FC-${number}` | `VA-${number}`> = {
   "flashing": "FC-66",
   "silent-action": "FC-25",
   "still-in-fade": "FC-37",
+  "still-note": "FC-57",
   "loop-start": "FC-64",
   "legibility": "FC-58",
   "small": "FC-58",

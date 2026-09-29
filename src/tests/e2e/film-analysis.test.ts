@@ -73,3 +73,13 @@ test("a feed film opens on its first scene without a fade from black; an authore
   const dark = build(dir, feed + "fade: 0.5\n");
   assert.deepEqual(ids(dark.warnings, "loop-start"), ["a:FC-64"]);
 });
+
+test("a still whose note quotes text missing from the frame is named; a quote on screen is not", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-stillnote-"));
+  writeFileSync(join(dir, "p.html"), `<!doctype html><html><body style="margin:0;background:#fff"><h1 style="font:40px sans-serif">Revenue grew</h1></body></html>`);
+  const { warnings } = build(dir, `${HEAD}## p · page\npage: p.html\nduration: 3\nstills: 50% :: the headline «Revenue grew» | 60% :: shows «Churn fell»\n\nThe page states the result.\n`);
+  const notes = warnings.filter((x) => x.id === "still-note") as Array<{ scene: string; id: string; rule: string; message?: string }>;
+  assert.equal(notes.length, 1, JSON.stringify(notes));
+  assert.equal(notes[0]!.rule, "FC-57");
+  assert.match(String((notes[0] as { message?: string }).message), /Churn fell/u);
+});

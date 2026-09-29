@@ -158,6 +158,8 @@ interface BuiltScene {
   __autoZoom?: number;
   /** чем рисуется сцена-страница: нужно переходу общим элементом, чтобы снять её кадр без предмета */
   __render?: RenderScene;
+  /** слой видеосцены без клипа: по нему сборка читает надписи кадра для сверки заметок */
+  __layer?: RenderScene;
   [key: string]: unknown;
 }
 
@@ -697,6 +699,7 @@ async function main() {
     // Нарисованная сцена помнит, чем её рисовать: переход общим элементом снимает с неё
     // кадр без предмета уже после того, как сегмент готов (или взят из кэша).
     if (!s.video) s.__render = { ...s, stills: undefined, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme } as RenderScene;
+    else s.__layer = { ...s, stills: undefined, ...stage, __overlayOnly: true, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme } as RenderScene;
     // В ключ сегмента входят строки синтеза ВСЕХ тактов и их начала:
     // от первых зависит звук, от вторых — расписание картинки, и оба
     // обязаны пересобирать кадр.
@@ -1491,6 +1494,21 @@ async function main() {
       if ((fin > 0 && local < fin) || (fout > 0 && local > dur - fout)) {
         warn(st.scene, "still-in-fade", msg("build.stillInFade", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
       }
+    }
+    // Заметка контрольного кадра, цитирующая текст в «кавычках», сверяется с текстом, видимым в
+    // кадре в этот момент (страница и слой). Агент принимал кадр по своей заметке, не глядя на
+    // картинку (замер базы); цитата — та часть заметки, которую можно проверить машиной.
+    for (const st of stills) {
+      const quotes = [...(st.note ?? "").matchAll(/«([^»]+)»|“([^”]+)”|"([^"]+)"/gu)].map((m) => (m[1] ?? m[2] ?? m[3])!.trim()).filter(Boolean);
+      if (!quotes.length) continue;
+      const i = taken.findIndex((x) => x.id === st.scene);
+      const s = taken[i]!, scene = s.__render ?? s.__layer;
+      if (!scene) continue;
+      const local = Math.max(0, st.time - tl.starts[i]!);
+      const { text = "" } = await renderScene(scene, { ...opts, at: local, readText: local });
+      const norm = (x: string): string => x.toLowerCase().replace(/\s+/gu, " ").trim();
+      const missing = quotes.filter((q) => !norm(text).includes(norm(q)));
+      if (missing.length) warn(st.scene, "still-note", msg("build.stillNote", { id: st.scene, moment: st.moment, quote: missing.join("», «") }));
     }
     // Лента: первый кадр — превью и начало петли, тёмный кадр там выглядит мёртвым.
     if ((pitch as { feed?: boolean }).feed) {

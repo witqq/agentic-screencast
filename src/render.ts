@@ -92,6 +92,8 @@ export interface RenderOpts {
   small?: { t: number; min: number };
   /** моменты и безопасная зона ленты (в точках готового кадра), за которую не должен заходить текст */
   unsafe?: { times: number[]; safe: { top: number; bottom: number; left: number; right: number } };
+  /** момент, в который снять видимый текст кадра (страница и слой) */
+  readText?: number;
   /** Селектор, который на кадрах не рисуется: так переход общим элементом получает фон без предмета. */
   hide?: string;
   /** Видимый экземпляр общего элемента перехода, если селектор встречается в скрытых видах страницы. */
@@ -126,7 +128,7 @@ export const DEFAULTS: RenderOpts = { fps: 25, width: 1920, height: 1080, scale:
 export async function renderScene(
   scene: RenderScene,
   opts: Partial<RenderOpts> = {},
-): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts; rects: Array<{ left: number; top: number; width: number; height: number }>; floor: number; renderer?: string; overflow?: number; legible?: Array<{ t: number; target: string; px: number | null }>; cuts?: Array<{ t: number; target: string; text: string[] }>; small?: Array<{ text: string; px: number }>; captionLines?: { lines: number; text: string }; outside?: Array<{ t: number; text: string; side: string }> }> {
+): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts; rects: Array<{ left: number; top: number; width: number; height: number }>; floor: number; renderer?: string; overflow?: number; legible?: Array<{ t: number; target: string; px: number | null }>; cuts?: Array<{ t: number; target: string; text: string[] }>; small?: Array<{ text: string; px: number }>; captionLines?: { lines: number; text: string }; outside?: Array<{ t: number; text: string; side: string }>; text?: string }> {
   const o = { ...DEFAULTS, ...opts };
   const frames = Math.ceil(scene.duration * o.fps);
   const browser = await chromium.launch();
@@ -258,6 +260,11 @@ export async function renderScene(
       small = (await page.evaluate((m) => window.__stage.smallText(m), o.small.min / o.scale))
         .map((x) => ({ ...x, px: Number((x.px * o.scale).toFixed(1)) }));
     }
+    let text: string | undefined;
+    if (o.readText !== undefined) {
+      await page.evaluate((tt) => window.__clock.seek(tt), o.readText);
+      text = await page.evaluate(() => window.__stage.visibleText());
+    }
     // Текст за безопасной зоной ленты — в каждый названный момент, с наездом камеры.
     const outside: Array<{ t: number; text: string; side: string }> = [];
     for (const t of o.unsafe?.times ?? []) {
@@ -278,7 +285,7 @@ export async function renderScene(
     const overflow = scene.__overlayOnly ? undefined
       : await page.evaluate(() => Number(document.body?.dataset.overflow) || undefined).catch(() => undefined);
     const captionLines = await page.evaluate(() => window.__stage.captionLines()).catch(() => ({ lines: 0, text: "" }));
-    return { frames, shots, opts: o, rects, floor, ...(captionLines.lines ? { captionLines } : {}), ...(outside.length ? { outside } : {}), ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
+    return { frames, shots, opts: o, rects, floor, ...(text !== undefined ? { text } : {}), ...(captionLines.lines ? { captionLines } : {}), ...(outside.length ? { outside } : {}), ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
   } catch (e) {
     throw stageError(e);
   } finally {

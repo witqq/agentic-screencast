@@ -2130,6 +2130,34 @@ window.__stage = (() => {
     return [...found].map(([e, side]) => ({ text: (e.textContent ?? "").trim().replace(/\s+/g, " ").slice(0, 60), side }));
   }
 
+  /**
+   * Текст, который видно в кадре сейчас: страница и слой (субтитры, подпись, карточки, титры).
+   * Элемент прозрачный, скрытый или за краем кадра не в счёт. Сборка сверяет с ним цитаты из
+   * заметок контрольных кадров.
+   */
+  function visibleText(): string {
+    const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const shown = (e: Element | null): boolean => {
+      for (let x = e; x && x !== document.documentElement; x = x.parentElement) {
+        const cs = getComputedStyle(x);
+        if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) < 0.05) return false;
+      }
+      return true;
+    };
+    const parts: string[] = [];
+    const walk = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+    for (let n = walk.nextNode(); n; n = walk.nextNode()) {
+      const text = n.textContent?.trim();
+      const host = n.parentElement;
+      if (!text || !host || host.closest("script,style,head") || !shown(host)) continue;
+      const range = document.createRange();
+      range.selectNodeContents(n);
+      if ([...range.getClientRects()].some((r) => r.width > 0 && r.right * lz > 0 && r.left * lz < innerWidth * lz
+        && r.bottom * lz > 0 && r.top * lz < innerHeight * lz)) parts.push(text);
+    }
+    return parts.join(" ");
+  }
+
   function smallText(min: number): Array<{ text: string; px: number }> {
     const body = document.body;
     if (!body) return [];
@@ -2236,5 +2264,5 @@ window.__stage = (() => {
   }
 
   return { mount, renderAt, targetRect, moving, focusX: () => focusPoint, rectOf, fontPx, cutText, smallText, floor,
-    captionLines: () => captionMost, outsideSafe, get scene() { return scene; } };
+    captionLines: () => captionMost, outsideSafe, visibleText, get scene() { return scene; } };
 })();

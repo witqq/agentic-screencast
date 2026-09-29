@@ -23,6 +23,8 @@ interface Window {
     captionLines(): { lines: number; text: string };
     /** текст страницы за безопасной зоной ленты в кадре как есть */
     outsideSafe(safe: { top: number; bottom: number; left: number; right: number }): Array<{ text: string; side: string }>;
+    /** текст, видимый в кадре сейчас: страница и слой */
+    visibleText(): string;
     floor(): number;
     readonly scene: { target?: string; mustRead?: string; duration?: number } | null;
   };

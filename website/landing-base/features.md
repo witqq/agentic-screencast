@@ -191,7 +191,7 @@ build.
 | A contact sheet of a raw clip or the finished film, a frame a second | `sheet` | picking a piece of a take | no |
 | Control frames of the finished film with notes | `stills:` (`every 1s`) | the stills folder | no |
 | Readability of built pages (body text 4.5:1, title-sized 3:1), element order, reproducibility of the render core | `check`, `order`, `verify` | — | text |
-| Build report checks: `overflow`, `cut`, `legibility`, `small`, `pushes`, `loupes`, `captionPlaces`, caption-lines, safe-zone, empty-area, still-stretch, flashing, silent-action, still-in-fade, loop-start | automatic | the report naming a cut line | no |
+| Build report checks: `overflow`, `cut`, `legibility`, `small`, `pushes`, `loupes`, `captionPlaces`, caption-lines, safe-zone, empty-area, still-stretch, flashing, silent-action, still-in-fade, still-note, loop-start | automatic | the report naming a cut line | no |
 | Commands print their help (`<command> --help`) | automatic | — | no |
 | Scenario inspection | `scenes`, `script`, `schema`, `paths`, `version` | — | no |
 

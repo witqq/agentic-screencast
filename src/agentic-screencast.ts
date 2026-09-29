@@ -1049,7 +1049,11 @@ Helpers that save a full build:
       control frames of the finished film: a moment named like the rest of
       the scenario — a beat (b2, b2+0.3, b2.end-0.5), a share of the scene
       (80%), seconds (1.5) or a take's mark (@done) — and after :: what to
-      check there (a note cannot contain |). bN.end is the end of that
+      check there (a note cannot contain |). Text a note quotes in «…» or
+      "…" must be visible in that frame — on the page, in the subtitles,
+      cards or titles; the build reads the frame and names a still whose
+      quote is missing (still-note). A video scene's own picture is not
+      read, only the layer over it. bN.end is the end of that
       beat's speech; a share counts the whole scene, its outgoing transition
       included. every 1s (0.25–10 s) samples the scene at that step from its
       start, for what happens between named moments — a page change in the

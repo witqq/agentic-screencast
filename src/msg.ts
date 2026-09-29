@@ -479,6 +479,8 @@ const en: Dict = {
   "hint.faststart": "Rebuild; if it repeats, report it: every step of the build writes the index first.",
   "lint.uncredited": "sound file {file} has no line in assets/CREDITS.md: its title, author, source and licence are unknown, and a CC BY file needs its author credited",
   "hint.uncredited": "Add a line for the file to assets/CREDITS.md beside the scenario: title, author, source URL, licence, whether credit is required.",
+  "build.stillNote": "scene {id}: the still {moment} quotes «{quote}», but that text is not visible in the frame",
+  "hint.still-note": "Open the still: fix the scene so the quoted text shows at that moment, or correct the note.",
 };
 
 const ru: Dict = {
@@ -944,6 +946,8 @@ const ru: Dict = {
   "hint.faststart": "Пересоберите; если повторяется — сообщите: каждый шаг сборки пишет индекс первым.",
   "lint.uncredited": "у звукового файла {file} нет строки в assets/CREDITS.md: название, автор, источник и лицензия неизвестны, а файл под CC BY требует указать автора",
   "hint.uncredited": "Добавьте строку о файле в assets/CREDITS.md рядом со сценарием: название, автор, ссылка на источник, лицензия, нужно ли указывать автора.",
+  "build.stillNote": "сцена {id}: заметка кадра {moment} цитирует «{quote}», а в кадре этого текста не видно",
+  "hint.still-note": "Откройте кадр: поправьте сцену, чтобы цитата была видна в этот момент, или исправьте заметку.",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };
