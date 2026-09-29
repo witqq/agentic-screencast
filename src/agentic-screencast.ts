@@ -45,6 +45,7 @@ import { brandTheme, dominantColors, parseHex } from "./brand.js";
 import { parseFormat } from "./format.js";
 import { THEME_GROUPS } from "./theme.js";
 import { craft, TOPICS } from "./craft.js";
+import { handover } from "./handover.js";
 
 /** Токены группы строками по ширине справки. */
 const wrapTokens = (keys: readonly string[]): string => {
@@ -99,10 +100,17 @@ Usage:
   agentic-screencast voices [--voice-json '{...}']
   agentic-screencast voice-check [command]
   agentic-screencast provider-check <command>
+  agentic-screencast handover [story.md] [--film draft.mp4]
   agentic-screencast craft [<topic>] [--json]
   agentic-screencast paths
   agentic-screencast version
 A command that reads a scenario also takes its path first: lint story.md.
+
+handover is the gate before the film goes to the owner: lint of the scenario,
+the film's report (built after the scenario's last edit, no audit issue, no
+warning), its stills on disk and checklist.md without an open box. It prints
+{verdict: "pass"|"fail", checks: [{name, passed, findings}]} and exits 1 on
+fail; --film names the film, otherwise the newest report beside the scenario.
 
 craft <topic> prints the 3–7 film-craft rules for the decision at hand — a scene
 kind (slides, page, video, report, trailer), a technique (spotlight, speed,
@@ -1345,6 +1353,15 @@ switch (cmd) {
     else if (topic === "web") console.log(WEB_HELP);
     else if (!topic) console.log(HELP);
     else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
+    break;
+  }
+  case "handover": {
+    // Одни ворота перед сдачей: lint, отчёт последней сборки, контрольные кадры и чеклист.
+    try {
+      const result = handover(sourceArg(), arg("film"));
+      console.log(JSON.stringify(result, null, 1));
+      process.exit(result.verdict === "pass" ? 0 : 1);
+    } catch (e) { console.error((e as Error).message); process.exit(2); }
     break;
   }
   case "craft": {

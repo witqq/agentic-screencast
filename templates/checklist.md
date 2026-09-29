@@ -51,8 +51,9 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 8. Handoff
 
-- [ ] The MP4 (and `web` output for a page) is with the owner, with the credits the licences ask for and
-      the decisions taken without the owner named.
+- [ ] `agentic-screencast handover` passed (or each failing check is named to the owner), and the MP4
+      (and `web` output for a page) is with the owner, with the credits the licences ask for and the
+      decisions taken without the owner named.
 
 ## Techniques — the menu, pick what serves the film
 

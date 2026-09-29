@@ -553,6 +553,8 @@ npx agentic-screencast craft spotlight          # film-craft rules for a decisio
 npm test                                     # the product's test suite
 ```
 
+`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, reads the film's report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail.
+
 `schema` prints a machine-readable description of a scene, `scenes` prints the scenes
 of the parsed scenario in the same form. Together they give another agent
 a check before building: get the schema, get the scenes, run one through

@@ -484,6 +484,10 @@ const en: Dict = {
   "craft.unknown": "no craft topic «{topic}»; topics: {topics}, or a finding's id such as still-scene",
   "craft.noDoc": "the knowledge base is missing: {path}",
   "craft.topics": "craft topics: {topics}\nor a finding's id (still-scene, overloaded-line…). agentic-screencast craft <topic>",
+  "handover.noReport": "no build report beside the scenario in {dir}: build the film first",
+  "handover.stale": "{report} is older than the scenario: build again after the last edit",
+  "handover.stillMissing": "still {file} is missing",
+  "handover.noChecklist": "no {file}: agentic-screencast new writes it beside the scenario",
 };
 
 const ru: Dict = {
@@ -954,6 +958,10 @@ const ru: Dict = {
   "craft.unknown": "нет темы «{topic}»; темы: {topics} или id находки, например still-scene",
   "craft.noDoc": "нет базы знаний: {path}",
   "craft.topics": "темы craft: {topics}\nили id находки (still-scene, overloaded-line…). agentic-screencast craft <тема>",
+  "handover.noReport": "рядом со сценарием в {dir} нет отчёта сборки: сначала соберите ролик",
+  "handover.stale": "{report} старше сценария: пересоберите после последней правки",
+  "handover.stillMissing": "нет контрольного кадра {file}",
+  "handover.noChecklist": "нет {file}: его пишет agentic-screencast new рядом со сценарием",
 };
 
 export const DICTS: Record<Lang, Dict> = { en, ru };

@@ -212,4 +212,5 @@ build.
 | Genre skeletons: pitch, product-demo, trailer, explainer, release, reel | `new <genre> [--lang] [--format]` | a skeleton built in one command | yes |
 | A film checklist with evidence per item | `checklist.md` from `new` | the ticked checklist | no |
 | The film-craft rules for the decision at hand: a scene kind, a technique, a genre or a finding | `craft <topic>` | the rules for spotlight printed beside the scene being written | no |
+| One gate before the handover: lint, the report built after the last edit, stills and the checklist in one verdict | `handover` | the verdict JSON beside the finished film | no |
 | A knowledge base: directing rules, genre playbook, vertical video, visual assets, sound — with sources | `docs/` | see `knowledge.md` | no |
