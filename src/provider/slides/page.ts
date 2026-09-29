@@ -44,7 +44,7 @@ const AMBIENT = `<div class="amb"><span class="amb-glow"></span><span class="amb
 
 const page = (title: string, body: string, elements: number, theme: string,
   lang: string, bg: string | undefined, align: string | undefined): string => `<!DOCTYPE html>
-<html lang="${esc(lang)}"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<html data-sc-page lang="${esc(lang)}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <style>${CSS}${DEVICE_CSS}${theme}</style></head><body data-slidecast-elements="${elements}" data-slidecast-content="${CONTENT}"${bg ? ` data-bg="${esc(bg)}"` : ""}${align ? ` data-align="${esc(align)}"` : ""}>${AMBIENT}${body}<div class="rule"></div><script>${RUNTIME}</script></body></html>
 `;
 

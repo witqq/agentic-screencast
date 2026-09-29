@@ -513,6 +513,9 @@ a refusal is a non-zero exit code and the reason in words on the error stream.
   and there is nothing to generate. This is how `page` and `video` work.
 - The page must be a **pure function of time**: the moments elements appear
   are written in `data-at` as anchors, and the compositing layer resolves them.
+  The layer reads `data-at`, `data-type` and `data-kinetic` only on a page
+  marked `<html data-sc-page>`; another tool's page keeps its own meaning of
+  those names.
 - The page declares **the number of its schedule elements** with the
   `data-slidecast-elements` attribute on the body. By it the order check tells
   "the page did not render completely" from "this is intended"; a page

@@ -296,9 +296,16 @@ test("a page that animates itself does not count as a still scene; a static one 
     "<canvas></canvas><script>requestAnimationFrame(function f(){requestAnimationFrame(f)})</script>",
     // Движение по времени сцены: слой вызывает renderAt на каждом кадре и переводит data-at в секунды.
     "<div id=strip></div><script>window.renderAt = (t) => { strip.style.transform = `translateX(${-t * 90}px)`; };</script>",
-    "<h1 data-kinetic=\"fly\" data-at=\"b1\">Title</h1>"]) {
+    "<html data-sc-page><h1 data-kinetic=\"fly\" data-at=\"b1\">Title</h1></html>"]) {
     assert.ok(!lint(withPage(html)).some((f) => f.rule === "still-scene"), `animated: ${html.slice(0, 40)}`);
   }
+  // Атрибуты слоя действуют только на странице, отданной ему меткой: без неё фраза стоит, и lint
+  // называет страницу, чтобы автор поставил метку.
+  const unmarked = lint(withPage("<html><h1 data-kinetic=\"fly\" data-at=\"b1\">Title</h1></html>"));
+  assert.ok(unmarked.some((f) => f.rule === "still-scene"), "an unmarked page's kinetic phrase does not move");
+  assert.ok(unmarked.some((f) => f.rule === "page-unmarked"), "lint names the missing mark");
+  assert.ok(!lint(withPage("<html data-sc-page><h1 data-kinetic=\"fly\">Title</h1></html>")).some((f) => f.rule === "page-unmarked"));
+  assert.ok(!lint(withPage("<html><h1>Plain</h1></html>")).some((f) => f.rule === "page-unmarked"), "a page without layer attributes needs no mark");
 });
 
 test("still-scene follows local scripts linked by a page without treating a remote script as local movement", () => {

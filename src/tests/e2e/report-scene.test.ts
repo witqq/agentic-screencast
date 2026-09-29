@@ -1,6 +1,6 @@
 // Сцена report: страницу собирает agentic-report из своего Markdown, а слой композиции не путает
-// её атрибуты со своими. У agentic-report `data-type="body"` — роль блока; прежде слой принимал её
-// за набор текста, заголовки разделов пропадали, а тело набиралось по буквам.
+// её атрибуты со своими. У agentic-report `data-type="body"` — роль блока; слой читает атрибуты
+// только у страницы с меткой `data-sc-page`, и страница отчёта её не несёт.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
@@ -47,7 +47,7 @@ test("a report scene renders its sections whole, not typed by the stage", { skip
   const out = join(dir, "slides");
   const page = reportProvider.page!({ id: "r", provider: "report", kind: "report", fields: { report: "report.md" } } as never,
     out, { dir } as never);
-  assert.match(readFileSync(page, "utf8"), /<html data-sc-foreign/u, "the page is marked as another compiler's");
+  assert.doesNotMatch(readFileSync(page, "utf8"), /<html\b[^>]*data-sc-page/u, "the page is not handed to the layer");
   const browser = await chromium.launch();
   try {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 720 } });

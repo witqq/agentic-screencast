@@ -142,12 +142,17 @@ agentic-screencast schema <kind> prints a kind's fields.
           Animations and requestAnimationFrame loops run on the scene's
           clock — the build seeks them to every frame's time — so a page you
           write is the way to an effect the tool lacks, and lint does not
-          call such a page still. To draw by the narration, define
+          call such a page still. The layer reads data-at, data-type and
+          data-kinetic only on a page marked <html data-sc-page>; another
+          tool's page keeps its own meaning of those names, and lint names an
+          unmarked page that uses them (page-unmarked). To draw by the
+          narration, define
           window.renderAt(t) in the page: the build calls it with the
           scene's second before every frame. data-at on any element names
           its moment in the anchors of the speech (b2, b2+0.3, b3.end); the
           layer turns it into seconds when the scene mounts, so renderAt
           reads plain numbers:
+            <html data-sc-page> …
             <li data-at="b2">Voice</li><li data-at="b3+0.4">Frames</li>
             <script>window.renderAt = (t) => {
               for (const e of document.querySelectorAll("[data-at]"))
@@ -1083,7 +1088,9 @@ Helpers that save a full build:
       JSON it prints: a card
       while the caption runs (two-text-layers), a beat longer than two
       subtitle lines (overloaded-line), a page that stands still
-      (still-scene), a scene over 25 s (long-scene), a top title over an
+      (still-scene), a page using the layer's attributes without the
+      <html data-sc-page> mark (page-unmarked), a scene over 25 s
+      (long-scene), a top title over an
       interface (title-over-interface), a transition on the first scene
       (first-transition), focuses whose camera moves collide, estimated
       from the beats (spotlight-collision), a focus held over a still clip

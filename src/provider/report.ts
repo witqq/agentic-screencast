@@ -11,13 +11,11 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { KindSpec, Provider } from "./types.js";
 import type { Film, RawScene } from "../source.js";
 import { SourceError } from "../source.js";
 import { msg } from "../msg.js";
-
-const HERE = dirname(fileURLToPath(import.meta.url));
+import { PRODUCT_ROOT } from "../self-hash.js";
 
 /**
  * Поля наезда и подсветки — те же, что у готовой страницы: отчёт в кадре — плотный экран, и
@@ -54,7 +52,7 @@ const report: KindSpec = {
  * `node_modules`, а вход — по полю `exports` его манифеста.
  */
 function compilerEntry(filmDir: string): { entry: string; version: string } {
-  for (const start of [resolve(filmDir), resolve(HERE, "..", "..")]) {
+  for (const start of [resolve(filmDir), PRODUCT_ROOT]) {
     for (let dir = start; ; dir = dirname(dir)) {
       const manifest = join(dir, "node_modules", "agentic-report", "package.json");
       if (existsSync(manifest)) {
@@ -112,10 +110,6 @@ export const reportProvider: Provider = {
     if (r.status !== 0 || !existsSync(output)) {
       throw new SourceError(msg("report.buildFailed", { id: scene.id, why: (r.stderr || r.stdout || "").trim().split("\n")[0] ?? "" }));
     }
-    // Пометка для слоя композиции: атрибуты этой страницы — договор agentic-report, а не наш
-    // (`data-type="body"` у него — роль блока, у нас — набор текста).
-    const html = readFileSync(output, "utf8");
-    writeFileSync(output, html.replace(/<html\b/iu, "<html data-sc-foreign"));
     return output;
   },
 };

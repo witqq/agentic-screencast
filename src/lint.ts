@@ -106,20 +106,40 @@ export interface Finding { scene: string; index: number; rule: string; message: 
 /** Сцена длиннее — это уже не кадр, а несколько кадров под одной подписью. */
 const LONG = 25;
 
-const PAGE_MOTION = /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=|\bdata-(?:type|kinetic)\s*=/u;
+const PAGE_MOTION = /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=/u;
+/** Набор и кинетика слоя по атрибутам страницы: движение только на странице, отданной слою меткой. */
+const LAYER_MOTION = /\bdata-(?:type|kinetic)\s*=/u;
+/** Атрибуты страницы, которые читает слой композиции. */
+const LAYER_ATTRS = /\bdata-(?:type|kinetic|at)\s*=|dataset\.(?:type|kinetic|at)\b/u;
+/** Метка страницы, отданной слою: `<html data-sc-page>`. */
+const MARKED = /<html\b[^>]*\sdata-sc-page\b/iu;
 
-/** Анимация в странице или в её локальных скриптах; внешняя сеть не подтверждает движение. */
-function pageMoves(file: string): boolean {
-  if (!existsSync(file)) return false;
+/** Текст страницы и её локальных скриптов; внешняя сеть не в счёт. */
+function pageTexts(file: string): { html: string; scripts: string[] } {
   const html = readFileSync(file, "utf8");
-  if (PAGE_MOTION.test(html)) return true;
+  const scripts: string[] = [];
   for (const match of html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/giu)) {
     const ref = match[1] ?? match[2] ?? match[3] ?? "";
     if (!ref || ref.startsWith("/") || /^[a-z][a-z\d+.-]*:/iu.test(ref)) continue;
     const local = resolve(dirname(file), ref.split(/[?#]/u, 1)[0]!);
-    if (existsSync(local) && PAGE_MOTION.test(readFileSync(local, "utf8"))) return true;
+    if (existsSync(local)) scripts.push(readFileSync(local, "utf8"));
   }
-  return false;
+  return { html, scripts };
+}
+
+/** Анимация в странице или в её локальных скриптах; набор и кинетика слоя — только у помеченной. */
+function pageMoves(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const { html, scripts } = pageTexts(file);
+  const marked = MARKED.test(html);
+  return [html, ...scripts].some((t) => PAGE_MOTION.test(t) || (marked && LAYER_MOTION.test(t)));
+}
+
+/** Страница пользуется атрибутами слоя, но не отдана ему меткой: слой их не прочтёт. */
+function pageUnmarked(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const { html, scripts } = pageTexts(file);
+  return !MARKED.test(html) && [html, ...scripts].some((t) => LAYER_ATTRS.test(t));
 }
 
 /** Ошибки компиляции фокуса приходят из общего движка; для lint сохраняем их числа и язык запуска. */
@@ -359,7 +379,7 @@ export function lint(file: string): Finding[] {
       || s.overlay?.glints?.length || s.overlay?.bursts?.length || s.overlay?.loupe?.length);
     const zoom = (s.effects?.zoom as { scale?: number } | undefined)?.scale ?? 1;
     // Страница, которая движется сама — CSS-анимацией, Web Animations, своим циклом кадров или по
-    // времени сцены (`window.renderAt`, набор `data-type`, кинетика `data-kinetic`), — не стоит: её
+    // времени сцены (`window.renderAt`, набор `data-type`, кинетика `data-kinetic` на странице с меткой `data-sc-page`), — не стоит: её
     // движение идёт по времени сцены так же, как слой композиции. Один `data-at` ничего не двигает:
     // слой лишь переводит якорь в секунды.
     const pageFile = !s.video ? resolve(src.dir, String(s.page)) : "";
@@ -367,6 +387,8 @@ export function lint(file: string): Finding[] {
     if (!spec.moving && duration > 5 && !moves && zoom <= 1 && !animated) {
       add("still-scene", msg("lint.stillPage", { duration: duration.toFixed(1) }));
     }
+    // Своя страница автора с атрибутами слоя, но без метки: набор, кинетика и якоря не сработают.
+    if (s.provider === "page" && pageFile && pageUnmarked(pageFile)) add("page-unmarked", msg("lint.pageUnmarked"));
     if (s.video && s.freezeAt !== undefined && !s.overlay?.camera?.length && !spotlit) {
       add("still-scene", msg("lint.stillVideo"));
     }

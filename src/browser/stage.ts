@@ -352,7 +352,7 @@ window.__stage = (() => {
   /** Детерминированный шум по номеру: одно и то же у каждого прогона. */
   const hash = (i: number, k = 0): number => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
   let pageKinetic: HTMLElement[] = [];
-  let foreign = false;
+  let own = false;
   const kineticUnits = new WeakMap<HTMLElement, { units: HTMLElement[]; style: string; letters: boolean;
     plain: Node[]; split: Node[]; showing: "plain" | "split" }>();
 
@@ -495,7 +495,11 @@ window.__stage = (() => {
     // их эта библиотека: страница остаётся чистой функцией времени
     // и о тактах речи ничего не знает. Разрешаются они ОДИН РАЗ, здесь,
     // и дальше в разметке лежат обычные секунды.
-    for (const node of document.documentElement.hasAttribute("data-sc-foreign") ? [] : document.querySelectorAll<HTMLElement>("[data-at]")) {
+    // Атрибуты страницы (`data-at`, `data-type`, `data-kinetic`) слой читает только на странице,
+    // явно отданной ему меткой `data-sc-page` на корне: у чужой вёрстки те же имена значат своё
+    // (у agentic-report `data-type="body"` — роль блока), и без метки слой её не трогает.
+    own = document.documentElement.hasAttribute("data-sc-page");
+    for (const node of own ? document.querySelectorAll<HTMLElement>("[data-at]") : []) {
       node.dataset.at = String(at(node.dataset.at, 0));
     }
     // Шрифты темы из поставляемого набора: правила @font-face с вшитыми файлами приходят со сценой.
@@ -540,12 +544,7 @@ window.__stage = (() => {
       }
     }
 
-    // Страница чужого компилятора (поставщик report) помечена `data-sc-foreign`: её атрибуты
-    // `data-type`, `data-kinetic` и `data-at` значат своё (у agentic-report `data-type="body"` —
-    // роль блока), и слой не набирает и не собирает её текст — движение у неё своё.
-    foreign = document.documentElement.hasAttribute("data-sc-foreign");
-    // Фразы страницы, которые собираются кинетически, разбиваются один раз.
-    pageKinetic = foreign ? [] : [...document.querySelectorAll<HTMLElement>("[data-kinetic]")].filter((n) => n.dataset.kinetic);
+    pageKinetic = own ? [...document.querySelectorAll<HTMLElement>("[data-kinetic]")].filter((n) => n.dataset.kinetic) : [];
     for (const node of pageKinetic) kineticMount(node, node.dataset.kinetic!);
 
     // Увеличивается САМО ТЕЛО документа, а не обёртка над его содержимым.
@@ -1934,7 +1933,7 @@ window.__stage = (() => {
     // Набор обязан кончиться до конца сцены: длинный текст в короткой сцене набирается быстрее,
     // а не обрывается на середине (последние 0,6 с текст стоит целиком). Прежде подзаголовок
     // заставки в пятисекундной сцене уходил в переход недописанным.
-    for (const node of foreign ? [] : document.querySelectorAll<HTMLElement>("[data-type]")) {
+    for (const node of own ? document.querySelectorAll<HTMLElement>("[data-type]") : []) {
       const from = Number(node.dataset.at) || 0;
       const base = Number(node.dataset.typeSpeed) || (node.dataset.type === "title" ? 22 : 34);
       const room = scene ? scene.duration - TYPE_HOLD - from : Infinity;
