@@ -103,6 +103,8 @@ duration: 4
   assert.equal(r.status, 0, r.stderr.slice(-400));
   const report = JSON.parse(r.stdout) as { chapters: Array<{ name: string; start: number; end: number }>; chaptersFile: string; duration: number };
   const w = encodeForWeb(join(dir, "film.mp4"), { out: join(dir, "web"), formats: ["h264"], thumbs: 1 });
+  assert.equal((JSON.parse(readFileSync(w.manifest, "utf8")) as { chapters?: string }).chapters, basename(w.chapters!),
+    "the manifest names the chapter track");
   // Главы: реплики начинаются в моменты глав из отчёта сборки.
   const vtt = readFileSync(w.chapters!, "utf8");
   const stamp = (s: string): number => { const [h, m, x] = s.split(":"); return Number(h) * 3600 + Number(m) * 60 + Number(x); };
@@ -136,4 +138,31 @@ duration: 4
   const html = readFileSync(w.html, "utf8");
   assert.match(html, /<track kind="chapters" src="film\.chapters\.vtt"/u);
   assert.match(html, /<track kind="metadata" src="film\.thumbs\.vtt"/u);
+});
+
+test("the web manifest names every file a page needs, relative to itself and in the order of preference", () => {
+  const film = clip();
+  const out = join(film, "..", "web");
+  const r = encodeForWeb(film, { out, formats: ["h264", "vp9"], thumbs: 1, lang: "ru" });
+  assert.equal(r.manifest, join(out, "film.web.json"));
+  const m = JSON.parse(readFileSync(r.manifest, "utf8")) as { version: number; film: string; audio: boolean; lang: string;
+    duration: number; width: number; height: number; poster: { jpg: string; webp: string };
+    sources: Array<{ src: string; type: string; format: string; bytes: number }>; thumbnails: { sprite: string; vtt: string }; chapters?: string };
+  assert.equal(m.version, 1);
+  assert.equal(m.film, "film");
+  assert.equal(m.lang, "ru");
+  assert.equal(m.audio, true);
+  assert.deepEqual([m.width, m.height], [640, 360]);
+  assert.ok(Math.abs(m.duration - 3) < 0.1);
+  // Порядок предпочтения, а не порядок заказа: VP9 раньше H.264, как в сниппете <video>.
+  assert.deepEqual(m.sources.map((s) => s.format), ["vp9", "h264"]);
+  for (const s of m.sources) {
+    const o = r.outputs.find((x) => x.format === s.format)!;
+    assert.equal(s.type, o.type);
+    assert.equal(s.bytes, o.bytes);
+    assert.equal(s.src, basename(s.src), "paths are relative to the manifest");
+    assert.ok(existsSync(join(out, s.src)));
+  }
+  for (const p of [m.poster.jpg, m.poster.webp, m.thumbnails.sprite, m.thumbnails.vtt]) assert.ok(existsSync(join(out, p)), p);
+  assert.equal(m.chapters, undefined, "a film without chapters names none");
 });

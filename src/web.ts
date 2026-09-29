@@ -72,6 +72,29 @@ export interface WebReport {
   /** зацикленный GIF ролика или его куска: для README, задачи, чата, где видео не играет */
   gif?: { file: string; from: number; to: number; width: number; height: number; fps: number; bytes: number };
   html: string;
+  /** манифест выпуска `<ролик>.web.json`: всё, что нужно странице, путями от каталога выпуска */
+  manifest: string;
+}
+
+/**
+ * Манифест выпуска для страницы. Страница (например `::video{from=…}` у agentic-report) берёт из
+ * него источники в порядке предпочтения, постер, главы и миниатюры, не разбирая имена файлов.
+ * Пути — относительно каталога выпуска, чтобы каталог можно было переносить целиком.
+ */
+export interface WebManifest {
+  version: 1;
+  film: string;
+  width: number;
+  height: number;
+  duration: number;
+  audio: boolean;
+  lang?: string;
+  poster: { jpg: string; webp: string };
+  /** в порядке предпочтения: браузер берёт первый, который умеет играть; H.264 — последним */
+  sources: Array<{ src: string; type: string; format: WebFormat; width: number; height: number; bytes: number }>;
+  chapters?: string;
+  thumbnails?: { sprite: string; vtt: string };
+  gif?: string;
 }
 
 interface Probe { width: number; height: number; fps: number; duration: number; audio: boolean; codec: string; level?: number }
@@ -81,7 +104,7 @@ function probe(file: string): Probe {
   const j = JSON.parse(execFileSync(FFPROBE, ["-v", "error", "-show_streams", "-show_format", "-of", "json", file],
     { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] })) as { streams: Array<Record<string, unknown>>; format: { duration?: string } };
   const v = j.streams.find((s) => s.codec_type === "video");
-  if (!v) throw new Error(`${file}: no video stream`);
+  if (!v) throw new Error(msg("web.noVideo", { file }));
   const [n, d] = String(v.avg_frame_rate ?? v.r_frame_rate ?? "30/1").split("/").map(Number);
   return { width: Number(v.width), height: Number(v.height), fps: d ? n! / d : n!, codec: String(v.codec_name),
     duration: Number(v.duration ?? j.format.duration), audio: j.streams.some((s) => s.codec_type === "audio"),
@@ -142,7 +165,7 @@ export function encodeForWeb(input: string, opts: {
   gif?: { from?: number; to?: number; width?: number; fps?: number };
 } = {}): WebReport {
   const source = resolve(input);
-  if (!existsSync(source)) throw new Error(`${input}: file not found`);
+  if (!existsSync(source)) throw new Error(msg("web.notFound", { file: input }));
   const src = probe(source);
   const quality = opts.quality ?? "high";
   const formats = opts.formats ?? WEB_FORMATS;
@@ -155,7 +178,7 @@ export function encodeForWeb(input: string, opts: {
   const scale = width === src.width ? [] : ["-vf", `scale=${width}:${height}:flags=lanczos`];
   const audio = src.audio && !opts.mute;
   const have = encoders();
-  const report: WebReport = { source, sourceBytes: statSync(source).size, outputs: [], skipped: [], posters: [], html: "" };
+  const report: WebReport = { source, sourceBytes: statSync(source).size, outputs: [], skipped: [], posters: [], html: "", manifest: "" };
 
   for (const format of formats) {
     const crf = String(CRF[format][quality]);
@@ -188,18 +211,18 @@ export function encodeForWeb(input: string, opts: {
     const got = probe(file);
     if (format === "h264") type = `video/mp4; codecs="${avc1(got.level)}${audio ? ", mp4a.40.2" : ""}"`;
     const expected = { av1: "av1", vp9: "vp9", h264: "h264" }[format];
-    if (got.codec !== expected) throw new Error(`${file}: codec ${got.codec}, expected ${expected}`);
-    if (got.width !== width || got.height !== height) throw new Error(`${file}: ${got.width}×${got.height}, expected ${width}×${height}`);
+    if (got.codec !== expected) throw new Error(msg("web.codec", { file, codec: got.codec, expected }));
+    if (got.width !== width || got.height !== height) throw new Error(msg("web.size", { file, size: `${got.width}×${got.height}`, expected: `${width}×${height}` }));
     // Длительность — с точностью до кадра: контейнеры округляют по-своему.
     if (Math.abs(got.duration - src.duration) > 1.5 / src.fps + 0.05) {
-      throw new Error(`${file}: ${got.duration.toFixed(3)}s long, the film is ${src.duration.toFixed(3)}s`);
+      throw new Error(msg("web.duration", { file, got: got.duration.toFixed(3), film: src.duration.toFixed(3) }));
     }
     const out: WebOutput = { format, file, bytes: statSync(file).size, codec: got.codec, encoder, type,
       width, height, duration: got.duration, ssim: ssim(file, source, width, height) };
     if (file.endsWith(".mp4")) {
       const atoms = topAtoms(file);
       out.faststart = atoms.indexOf("moov") >= 0 && atoms.indexOf("moov") < atoms.indexOf("mdat");
-      if (!out.faststart) throw new Error(`${file}: the index is not at the start of the file (${atoms.join(" ")})`);
+      if (!out.faststart) throw new Error(msg("web.faststart", { file, atoms: atoms.join(" ") }));
     }
     report.outputs.push(out);
   }
@@ -219,7 +242,7 @@ export function encodeForWeb(input: string, opts: {
   if (existsSync(chaptersSrc)) {
     report.chapters = join(outDir, `${name}.chapters.vtt`);
     if (resolve(chaptersSrc) !== report.chapters) copyFileSync(chaptersSrc, report.chapters);
-  } else if (opts.chapters) throw new Error(`--chapters: ${opts.chapters} not found`);
+  } else if (opts.chapters) throw new Error(msg("web.chapters", { file: opts.chapters }));
 
   // Миниатюры для перемотки: один спрайт-сетка и дорожка, где каждая реплика указывает
   // свою клетку спрайта (`#xywh`). Плееры страниц показывают её над шкалой при наведении.
@@ -255,7 +278,7 @@ export function encodeForWeb(input: string, opts: {
   // до шести секунд, 640 точек в ширину и 12 кадров в секунду.
   if (opts.gif) {
     const from = Math.max(0, opts.gif.from ?? 0), to = Math.min(src.duration, opts.gif.to ?? Math.min(src.duration, from + 6));
-    if (!(to > from)) throw new Error("--gif: the piece must end after it starts");
+    if (!(to > from)) throw new Error(msg("web.gifOrder"));
     const gw = Math.min(src.width, opts.gif.width ?? 640) - (Math.min(src.width, opts.gif.width ?? 640) % 2);
     const gh = Math.round((src.height * gw) / src.width / 2) * 2, fps = opts.gif.fps ?? 12;
     const file = join(outDir, `${name}.gif`);
@@ -266,6 +289,15 @@ export function encodeForWeb(input: string, opts: {
   }
   report.html = join(outDir, `${name}.html`);
   writeFileSync(report.html, html);
+  const manifest: WebManifest = { version: 1, film: name, width, height, duration: Number(src.duration.toFixed(3)), audio,
+    ...(opts.lang ? { lang: opts.lang } : {}),
+    poster: { jpg: rel(report.posters[0]!), webp: rel(report.posters[1]!) },
+    sources: order.map((o) => ({ src: rel(o.file), type: o.type, format: o.format, width: o.width, height: o.height, bytes: o.bytes })),
+    ...(report.chapters ? { chapters: rel(report.chapters) } : {}),
+    ...(report.thumbnails ? { thumbnails: { sprite: rel(report.thumbnails.sprite), vtt: rel(report.thumbnails.vtt) } } : {}),
+    ...(report.gif ? { gif: rel(report.gif.file) } : {}) };
+  report.manifest = join(outDir, `${name}.web.json`);
+  writeFileSync(report.manifest, JSON.stringify(manifest, null, 1) + "\n");
   return report;
 }
 
@@ -278,19 +310,19 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("web.js")) {
   if (!input || input.startsWith("--")) { console.error(usage); process.exit(2); }
   try {
     const formats = arg("formats")?.split(",").map((f) => f.trim()) as WebFormat[] | undefined;
-    for (const f of formats ?? []) if (!WEB_FORMATS.includes(f)) throw new Error(`--formats: unknown «${f}»; available: ${WEB_FORMATS.join(", ")}`);
+    for (const f of formats ?? []) if (!WEB_FORMATS.includes(f)) throw new Error(msg("web.formats", { format: f, available: WEB_FORMATS.join(", ") }));
     const quality = arg("quality") as WebQuality | undefined;
-    if (quality && !WEB_QUALITIES.includes(quality)) throw new Error(`--quality: expected ${WEB_QUALITIES.join(" | ")}`);
+    if (quality && !WEB_QUALITIES.includes(quality)) throw new Error(msg("web.quality", { available: WEB_QUALITIES.join(" | ") }));
     const width = arg("width") ? Number(arg("width")) : undefined;
-    if (width !== undefined && !(width >= 16)) throw new Error("--width: expected a number of pixels");
+    if (width !== undefined && !(width >= 16)) throw new Error(msg("web.width"));
     const poster = arg("poster") ? Number.parseFloat(arg("poster")!) : undefined;
     const thumbs = arg("thumbs") !== undefined ? Number(arg("thumbs")) : undefined;
-    if (thumbs !== undefined && !(thumbs >= 0)) throw new Error("--thumbs: seconds between thumbnails, or 0 for none");
+    if (thumbs !== undefined && !(thumbs >= 0)) throw new Error(msg("web.thumbs"));
     const gifArg = args.includes("--gif") ? (arg("gif") && !arg("gif")!.startsWith("--") ? arg("gif")! : "") : undefined;
     let gif: { from?: number; to?: number; width?: number } | undefined;
     if (gifArg !== undefined) {
       const m = /^(?:([\d.]+)-([\d.]+))?$/.exec(gifArg);
-      if (!m) throw new Error("--gif: expected a piece in seconds, e.g. --gif 2-8, or nothing for the first six seconds");
+      if (!m) throw new Error(msg("web.gif"));
       gif = { ...(m[1] ? { from: Number(m[1]), to: Number(m[2]) } : {}), ...(arg("gif-width") ? { width: Number(arg("gif-width")) } : {}) };
     }
     const report = encodeForWeb(input, { ...(arg("out") ? { out: arg("out") } : {}), ...(formats ? { formats } : {}), ...(gif ? { gif } : {}),
