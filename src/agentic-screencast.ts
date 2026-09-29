@@ -810,15 +810,30 @@ Shipped themes:
                Tektur titles, Fira Sans text, Martian Mono code
   synthwave    genre: games and music only — violet night, neon magenta and
                cyan, capital kickers; Unbounded titles, Exo 2 text, JetBrains Mono
+  terminal     a developer console: graphite, one green prompt, amber labels
+               and marks, sharp corners; Martian Mono titles, JetBrains Mono
+               text and code, Onest subtitles
   blockbuster  genre: a parody action trailer only — black, chrome titles in
                Roman capitals, gold and fire, sparks; Forum titles (in the
                spirit of Trajan, the poster font), Oswald text, Fira Sans
                subtitles, JetBrains Mono code
 
+Every theme but blockbuster has a light and a dark scheme: scheme: light or
+scheme: dark in the header picks it for every named theme of the film (a
+scene can name its own with theme: {"preset":"noir","scheme":"dark"}, and a
+live take with recordTake's theme: {"preset":…,"scheme":…}). Without it each
+theme wears its default: neutral, frost, calm-paper and daylight are light,
+the others dark; blockbuster is dark only, and scheme: light with it is a parse
+error. The role colours of both schemes (background, surfaces, text, borders,
+the accents, the statuses) come from one palette file shared with
+agentic-report (assets/palettes/shared-palettes.json, docs/theme-tokens.md), so
+a film and a report page in the same theme and scheme wear the same colours.
+
 Every theme but the two genre ones has one accent: plates, card edges and the
 lower-third bar are that one colour, and the second colour is a quiet one for
 kickers and labels. The genre themes keep their two neon or metal colours on
-purpose, for the film whose genre they are.
+purpose, for the film whose genre they are; blueprint (blue and signal yellow)
+and terminal (green prompt, amber labels) are two-colour by design.
 
 Which theme, background and film look suit a film, and which of them read as
 generated clichés: docs/visual-design.md.

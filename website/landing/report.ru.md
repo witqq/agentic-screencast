@@ -77,7 +77,7 @@ language: ru
 ::::::
 
 ::::::section{title="Облик принадлежит ролику" id="look" nav="Облик"}
-Одиннадцать тем оформляют слайды и всё, что нарисовано поверх них: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, synthwave и blockbuster. Тема neutral по умолчанию оставляет материал главным. Логотип может дать фирменные цвета, а трейлер — получить свою тему, не меняя весь фильм.
+Двенадцать тем оформляют слайды и всё, что нарисовано поверх них: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, synthwave, terminal и blockbuster; у каждой, кроме blockbuster, есть светлая и тёмная схема с теми же цветами, что у agentic-report. Тема neutral по умолчанию оставляет материал главным. Логотип может дать фирменные цвета, а трейлер — получить свою тему, не меняя весь фильм.
 
 [Руководство по визуальному дизайну](https://github.com/witqq/agentic-screencast/blob/main/docs/visual-design.md) объясняет выбор шрифта, цвета и композиции; проверка сценария до сборки считает признаки шаблонного ролика.
 ::::::

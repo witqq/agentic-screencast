@@ -3,11 +3,11 @@
 // у neutral по умолчанию — слово давало 3,2–4,0:1 (замер базы, правило 62).
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { THEMES, resolveTheme } from "../../theme.js";
+import { resolveTheme, themeVariants } from "../../theme.js";
 import { karaokeRestContrast } from "../../brand.js";
 
 test("every shipped theme keeps an unspoken karaoke word at 4.5:1 or more on the subtitle plate", () => {
-  const low = Object.keys(THEMES).map((name) => [name, karaokeRestContrast(resolveTheme(name))] as const)
+  const low = themeVariants().map(({ name, scheme, vars }) => [`${name} ${scheme}`, karaokeRestContrast(vars)] as const)
     .filter(([, c]) => c === null || c < 4.5);
   assert.deepEqual(low, []);
 });

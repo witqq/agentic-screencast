@@ -7,11 +7,12 @@
 // вторым акцентом и градиентной плашкой, daylight на индиго Tailwind.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { THEMES, THEME_NAMES, type ThemeVars } from "../../theme.js";
+import { THEMES, THEME_NAMES, themeVariants, type ThemeVars } from "../../theme.js";
 
 type RGB = [number, number, number];
 const GENRE = new Set(["synthwave", "blockbuster"]);
-const TWO_COLOUR = new Set([...GENRE, "blueprint"]);
+// Две краски по замыслу: чертёж (синий и жёлтый) и консоль (зелёная подсказка и янтарные метки).
+const TWO_COLOUR = new Set([...GENRE, "blueprint", "terminal"]);
 
 const lin = (v: number): number => { const s = v / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; };
 const lum = (c: RGB): number => 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]);
@@ -74,8 +75,11 @@ export function themeFaults(name: string, t: ThemeVars): string[] {
 }
 
 test("every shipped theme keeps the look's numeric norms; the genre themes keep only the type and contrast ones", () => {
-  assert.equal(THEME_NAMES.length, 11);
-  const faults = THEME_NAMES.flatMap((n) => themeFaults(n, THEMES[n]!).map((f) => `${n}: ${f}`));
+  assert.equal(THEME_NAMES.length, 12);
+  // Каждая тема в каждой своей схеме: 11 общих тем по две и blockbuster одной тёмной.
+  const variants = themeVariants();
+  assert.equal(variants.length, 23);
+  const faults = variants.flatMap(({ name, scheme, vars }) => themeFaults(name, vars).map((f) => `${name} ${scheme}: ${f}`));
   assert.deepEqual(faults, []);
 });
 

@@ -48,7 +48,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { providerFor, type KindSpec } from "./provider/index.js";
 import { parseOverlay, type SceneOverlay } from "./overlay.js";
-import { resolveTheme, type ThemeInput } from "./theme.js";
+import { resolveTheme, SCHEMES, type Scheme, type ThemeInput } from "./theme.js";
 import { parseSpeed, type SpeedStep } from "./speed.js";
 import { msg, useLang } from "./msg.js";
 import { parseTransition, type Transition } from "./transition.js";
@@ -204,6 +204,8 @@ export interface Source {
   frame?: Frame;
   encode?: Encode;
   theme?: Theme;
+  /** схема тем ролика: светлая или тёмная; без неё — схема темы по умолчанию */
+  scheme?: Scheme;
   pronounce?: unknown;
   lang?: string;
   captions?: Captions;
@@ -502,7 +504,7 @@ export function beatOfAnchor(a: string): number | null {
 }
 
 /** Поля шапки ролика: по ним подсказывается ближайшее к опечатке. */
-export const FILM_FIELDS = ["voice", "tail", "providers", "frame", "encode", "theme", "pronounce", "lang", "captions",
+export const FILM_FIELDS = ["voice", "tail", "providers", "frame", "encode", "theme", "scheme", "pronounce", "lang", "captions",
   "pip", "progress", "music", "sfx", "loudness", "audio", "motionBlur", "format", "zone", "look", "emoji"];
 
 /**
@@ -739,6 +741,8 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
   const text = readFileSync(file, "utf8");
   const lines = text.split("\n");
   const out: Source = { title: "", voice: null, scenes: [], dir: dirname(resolve(file)) };
+  let themeWritten: { line: number; input: ThemeInput } | undefined;
+  let schemeLine: number | undefined;
   let lookLine = 1;
   const spec = (sc: { provider: string; kind: string }): KindSpec => specOf(sc, out.providers ?? {});
   let scene: RawScene | null = null;
@@ -952,7 +956,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       } catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.theme) {
-      try { sceneTheme(s.fields.theme, out.theme); }
+      try { sceneTheme(s.fields.theme, out.theme, out.scheme); }
       catch (e) { err(s.__line ?? 0, msg("source.sceneThemeReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.device) {
@@ -1057,12 +1061,16 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         // она СРАЗУ: дальше по течению тема — всегда плоский набор, и ни
         // страница слайдов, ни слой композиции о поставляемых наборах
         // не знают.
+        // Тема разрешается после шапки: схема (`scheme: dark`) может стоять и ниже неё.
         else if (key === "theme") {
           const raw = value!.trim();
-          const written: ThemeInput = raw.startsWith("{")
-            ? (objectOf(raw, "theme") as ThemeInput) : raw;
-          try { out.theme = resolveTheme(written); }
-          catch (e) { err(n, String((e as Error).message)); }
+          themeWritten = { line: n, input: raw.startsWith("{") ? (objectOf(raw, "theme") as ThemeInput) : raw };
+        }
+        else if (key === "scheme") {
+          const v = value!.trim();
+          if (SCHEMES.includes(v as Scheme)) out.scheme = v as Scheme;
+          else err(n, msg("theme.scheme", { scheme: v, available: SCHEMES.join(", ") }));
+          schemeLine = n;
         }
         // Правила чтения и язык — свойства РОЛИКА. Прежде правила
         // выбирались по имени движка голоса, то есть инструмент решал
@@ -1189,8 +1197,10 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
     }
   }
   if (!out.scenes.length) err(1, msg("source.noScenes"));
-  // Ролик без темы носит ночную тему из таблицы тем: запасных значений в коде рисования больше нет.
-  out.theme ??= resolveTheme(undefined);
+  // Ролик без темы носит тему по умолчанию из таблицы тем: запасных значений в коде рисования нет.
+  // Схема шапки выбирает светлый или тёмный набор названной темы.
+  try { out.theme = resolveTheme(themeWritten?.input, undefined, out.scheme); }
+  catch (e) { err(themeWritten?.line ?? schemeLine ?? 1, String((e as Error).message)); }
   return out;
 }
 
@@ -1207,11 +1217,12 @@ export const SLIDES_DIR = "slides";
  * переменных без имени ложится поверх темы ролика — чтобы сменить акцент одной сцены, не
  * переписывая тему.
  */
-export function sceneTheme(raw: string, film: Theme | undefined): Theme {
+export function sceneTheme(raw: string, film: Theme | undefined, scheme?: Scheme): Theme {
   const text = raw.trim();
   const written = (text.startsWith("{") ? objectOf(text, "theme") : text) as ThemeInput;
-  if (typeof written === "string" || written.preset !== undefined) return resolveTheme(written);
-  return resolveTheme(written, film ?? resolveTheme(undefined));
+  // Названная тема сцены носит схему ролика, если сцена не назвала свою (`{"preset","scheme"}`).
+  if (typeof written === "string" || written.preset !== undefined) return resolveTheme(written, undefined, scheme);
+  return resolveTheme(written, film ?? resolveTheme(undefined, undefined, scheme));
 }
 
 /**
@@ -1290,7 +1301,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       ...(f.transition ? { transition: parseTransition(f.transition) } : {}),
       ...(f.autoZoom ? { autoZoom: parseAutoZoom(f.autoZoom) } : {}),
       ...(f.device ? { device: parseDevice(f.device) } : {}),
-      ...(f.theme ? { theme: sceneTheme(f.theme, src.theme) } : {}),
+      ...(f.theme ? { theme: sceneTheme(f.theme, src.theme, src.scheme) } : {}),
       ...(f.spotlight ? { spotlight: parseSpotlight(f.spotlight) } : {}),
       ...(f.stills ? { stills: parseStills(f.stills, `scene ${s.id} stills`) } : {}),
       ...(f.sfx ? { sfx: parseSfx(f.sfx, src.dir, `scene ${s.id} sfx`, /./) } : {}),

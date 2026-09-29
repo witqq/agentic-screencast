@@ -35,7 +35,7 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/embed-theme.mjs && vite build && node -e \"require('fs').cpSync('src/rules','dist/rules',{recursive:true})\" && node -e \"require('fs').chmodSync('dist/agentic-screencast.js', 0o755)\"",
+    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.json && node -e \"require('fs').cpSync('assets/palettes','dist/palettes',{recursive:true})\" && tsc -p tsconfig.browser.json && node scripts/embed-theme.mjs && vite build && node -e \"require('fs').cpSync('src/rules','dist/rules',{recursive:true})\" && node -e \"require('fs').chmodSync('dist/agentic-screencast.js', 0o755)\"",
     "prepare": "npm run build",
     "types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
     "lint": "oxlint src scripts --deny-warnings",

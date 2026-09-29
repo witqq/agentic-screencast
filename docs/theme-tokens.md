@@ -10,11 +10,12 @@ agentic-report's is `THEME_TOKENS` in its `src/authoring/theme-tokens.ts` (`sche
 
 ## Themes
 
-Ten themes share their names and intent: `neutral` (the default in both), `frost`, `midnight`,
-`calm-paper`, `daylight`, `noir`, `aurora`, `ember`, `blueprint` and `synthwave`. Agentic Screencast also
-ships `blockbuster` (a trailer's genre theme); agentic-report ships `terminal`. A film and a page that
-name the same theme look like one product; a brand theme built from the same colours
-(`agentic-screencast theme --colors …`, `agentic-report theme --colors …`) does the same for a brand.
+Eleven themes share their names and intent: `neutral` (the default in both), `frost`, `midnight`,
+`calm-paper`, `daylight`, `noir`, `aurora`, `ember`, `blueprint`, `synthwave` and `terminal`, each with a
+light and a dark scheme. Agentic Screencast also ships `blockbuster` (a trailer's genre theme, dark
+only). A film and a page that name the same theme and scheme look like one product; a brand theme built
+from the same colours (`agentic-screencast theme --colors …`, `agentic-report theme --colors …`) does
+the same for a brand.
 
 ## Colour roles
 
@@ -30,7 +31,7 @@ name the same theme look like one product; a brand theme built from the same col
 | strong border: our node outline; their control frames, rules, quote and timeline bars | `--node-line` | `--color-border-strong` |
 | the one accent | `--acc` | `--color-accent` |
 | second accent | `--acc2` | `--color-accent-2` |
-| soft accent: a highlight wash | `--sc-accent-soft` | `--color-accent-soft` |
+| soft accent: our click wave, translucent over any material; their opaque section background | `--sc-accent-soft` (from the file's `_film`) | `--color-accent-soft` |
 | good / done | `--good` | `--status-done` |
 | bad / returned | `--bad` | `--status-returned` |
 
@@ -60,13 +61,22 @@ drawn over a take, marks and effects, the progress bar and the live backgrounds 
 page has no film equivalent for chart series (`--visual-1…6`), code highlighting (`--shiki-*`), the
 review status (`--status-review`), a muted surface (`--color-surface-muted`), a strong accent
 (`--color-accent-strong`), the focus ring (`--color-focus`), spacing, width, controls, elevation, motion and
-ornaments; if a film gains such a role, its pair is ready. A shared core, when both tools adopt one, is the
-three tables above.
+ornaments; if a film gains such a role, its pair is ready. The colour roles are shared through the
+palette file below; type and shape stay mapped by the tables, each product keeping its own values.
 
 ## Values of same-named themes
 
-The names match; the values have not been aligned. Whether one side is the reference is the owner's
-decision. If they are aligned, it is to one contrast threshold — agentic-report checks its text and
-background pairs at build, Agentic Screencast checks its themes with the theme test and `check` — not by
-copying one side's colours into the other. The values are in `src/theme.ts` here and in `BUILT_IN_THEMES`
-of agentic-report's `src/authoring/themes.ts`, for its light and dark schemes separately.
+The colour of every role above, for all eleven shared themes in both schemes, lives in one file both
+products keep byte for byte: `assets/palettes/shared-palettes.json` here, its copy in agentic-report.
+The two soft accents differ on purpose, so the file gives the page's opaque `accent-soft` in the role
+and our translucent click wave separately in `_film.sc-accent-soft`; `_pageExtra` carries colours only
+the page has (chart series, code) and, where it gives code or marker colours, the film takes them too.
+A unit test (`shared-palettes`) checks the file's agreed sha256 and that every theme and scheme repeats
+its roles with 0 divergence; agentic-report runs the same check against its copy. The file changes only
+by agreement of both, with the new sum written in both products at once.
+
+The colours that are not roles — subtitles, cards, cursor, code, transitions — are Agentic
+Screencast's own. A theme's default scheme keeps its hand-written set, recoloured onto the file's
+roles; its other scheme is built from a theme of that scheme (`neutral` for light, `noir` for dark)
+recoloured onto the theme's roles, with the theme's own fonts, shapes and stroke colours
+(`THEME_SCHEMES` in `src/theme.ts`).

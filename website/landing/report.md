@@ -87,7 +87,7 @@ The same scenario language can make a short trailer: one-to-three-word cards, a 
 ::::::
 
 ::::::section{title="A look that belongs to the film" id="look" nav="Look"}
-Eleven themes style the slides and everything drawn over them: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, synthwave and blockbuster. The default neutral theme keeps the material in front. A logo can supply brand colours, and a trailer can use a different theme without restyling the whole film.
+Twelve themes style the slides and everything drawn over them: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, synthwave, terminal and blockbuster; every one but blockbuster has a light and a dark scheme with the same colours as agentic-report. The default neutral theme keeps the material in front. A logo can supply brand colours, and a trailer can use a different theme without restyling the whole film.
 
 The [visual-design guide](https://github.com/witqq/agentic-screencast/blob/main/docs/visual-design.md) explains the type, colour and composition choices; the scenario linter counts signs of a template film before a build.
 ::::::

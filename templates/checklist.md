@@ -24,7 +24,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 4. Material
 
-- [ ] Takes recorded with `recordTake` in their scene's theme, each with its `.marks.json` and its
+- [ ] Takes recorded with `recordTake` in their scene's theme and scheme, each with its `.marks.json` and its
       frame budget, by a script that still runs from its folder (the build re-runs it for a sharp
       push-in); downloaded files credited.
 
@@ -78,7 +78,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, a scene's own fades — `transition`, `fade`, `help transitions`
 - Captions: bottom plate, subtitles or karaoke, outline or plate look, size, `.srt`, at the top or in the middle where the lower frame carries the subject — `captions` (header and scene), `help text`
 - Progress bar with parts, presenter in a circle — `progress`, `pip`, `help text`
-- Theme with its fonts, a scene in another theme, brand theme, film look — `theme`, `theme --from`, `look`, `help themes`
+- Theme with its fonts and its light or dark scheme, a scene in another theme, brand theme, film look — `theme`, `scheme`, `theme --from`, `look`, `help themes`
 - Music, a track per part or a music stop, accents (a hit before the voice: `speechAt`), loudness, a film without sound — `music` (header and scene), `sfx`, `loudness`, `audio: false`, `help sound`
 - Voice agreed with the owner (or settled by the request): an engine built into the tool, the owner's own voice, or silent; drafts on `stub`; a system voice (`say`) only with the owner's explicit permission — `voice`, `agentic-screencast record`, `help voice`, skill section Voice
 - Vertical and square films: choose margins for where the film is watched; reflow a `page` with `pageVertical` or use `pan` along a wide subject, then inspect the final phone frame for key UI at 48 px or more and subtitles clear of it (`legibility` in the build report) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`

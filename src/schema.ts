@@ -22,7 +22,7 @@ import { realpathSync } from "node:fs";
 import { COMMON } from "./source.js";
 import { BUILTIN, providerFor, type KindSpec } from "./provider/index.js";
 import { BACKGROUNDS } from "./provider/slides/index.js";
-import { THEME_NAMES } from "./theme.js";
+import { DEFAULT_SCHEME, SCHEMES, THEME_NAMES } from "./theme.js";
 import { LOOKS, GRADES } from "./look.js";
 import { DEVICE_KINDS } from "./device.js";
 import { LOUPE_PLACES } from "./overlay.js";
@@ -175,7 +175,8 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
     // имена оформления агенту нужны до сборки. Они берутся из тех же списков,
     // по которым разбор отвергает незнакомое имя.
     "x-film": {
-      theme: { names: THEME_NAMES, note: "theme: <name> or {\"preset\":<name>,\"--var\":…}; agentic-screencast theme --from logo.png builds one from brand colours" },
+      theme: { names: THEME_NAMES, note: "theme: <name> or {\"preset\":<name>,\"scheme\":\"light\"|\"dark\",\"--var\":…}; agentic-screencast theme --from logo.png builds one from brand colours" },
+      scheme: { names: SCHEMES, defaults: DEFAULT_SCHEME, note: "scheme: light | dark in the header picks that scheme of every named theme in the film; without it each theme wears its default scheme; blockbuster has only dark" },
       background: { names: BACKGROUNDS, note: "slide field background, or the theme variable --bg-motion" },
       look: { names: Object.keys(LOOKS), grades: GRADES, note: "look: <name> or {\"grade\",\"grain\",\"vignette\",\"bars\"}" },
       device: { names: DEVICE_KINDS, note: "device: browser [url] | phone | frame — on video and slides.shot scenes" },
@@ -232,7 +233,7 @@ export const FIELD_FORMATS: Record<string, string> = {
   shake: "anchors «b2 | 1.5s» or [{\"at\",\"length\",\"strength\"}]: the frame jolts and settles  (help overlay)",
   music: "stop [anchor] or {\"file\",\"at\",\"from\",\"level\",\"duck\",\"fadeIn\",\"fadeOut\"}: a new bed or a music stop from this scene  (help sound)",
   sfx: "[{\"at\":\"b2\",\"file\":\"click.wav\",\"gain\":-6,\"from\":0.2,\"length\":1,\"fadeOut\":0.2,\"duck\":12,\"duckAll\":false}]  (help sound)", spotlight: "selector @ b2 [.. b2.end] | … or JSON with area, card, slow, scale (1: no push-in), ring, dim  (help overlay)",
-  theme: "name or {\"preset\":name,\"--var\":value}", stills: "b2+0.3 :: what to check | 80% | @done",
+  theme: "name or {\"preset\":name,\"scheme\":\"light|dark\",\"--var\":value}", stills: "b2+0.3 :: what to check | 80% | @done",
 };
 
 /** Запись полей шапки ролика. */
@@ -240,6 +241,7 @@ export const FILM_FORMATS: Record<string, string> = {
   voice: "{\"engine\":\"stub|say|recorded|…\",\"name\":…,\"cps\":15}", tail: "seconds after each scene's speech",
   providers: "{\"name\":\"./provider.js\"}", frame: "{\"width\":1920,\"height\":1080,\"fps\":30,\"scale\":1}",
   encode: "{\"crf\":18,\"preset\":\"medium\",\"pix\":\"yuv420p\",\"audio\":\"192k\"}", theme: "name or {\"preset\":name,\"--var\":value}",
+  scheme: "light | dark — the scheme of every named theme in the film (default: each theme's own)",
   pronounce: "rules name", lang: "ru | en | …", captions: "{\"style\":\"bar|subtitle|karaoke\",\"everywhere\":true,\"srt\":true,\"size\":1.25,\"look\":\"outline|plate\",\"position\":\"bottom|top|middle|auto\"}",
   pip: "{\"file\":\"me.mp4\",\"corner\":…,\"size\":…,\"from\":…,\"to\":…}", progress: "{\"position\":\"top|bottom\",\"parts\":true,\"label\":\"edge|zone\"}",
   music: "{\"file\":\"bed.mp3\",\"level\":…,\"duck\":…,\"bpm\":…,\"offset\":…}", sfx: "[{\"at\":\"12.5s\"|\"m16\",\"file\":\"hit.wav\"}]", loudness: "LUFS target, -30…-8",

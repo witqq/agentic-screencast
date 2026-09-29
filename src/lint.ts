@@ -14,7 +14,7 @@ import { foldLines, parseSource, SourceError, specOf, toPitch, type PitchScene }
 import { providerFor } from "./provider/index.js";
 import { SHOWN_COMMON } from "./visible.js";
 import { cameraEnd, cardHold } from "./overlay.js";
-import { THEMES, themeFingerprint, wholeThemeFingerprint, type ThemeVars } from "./theme.js";
+import { THEMES, themeFingerprint, themeLabel, wholeThemeFingerprint, type Scheme, type ThemeVars } from "./theme.js";
 import { fitScale } from "./camera.js";
 import { loupeLayout } from "./loupe.js";
 import { FORMATS } from "./format.js";
@@ -363,18 +363,20 @@ export function lint(file: string): Finding[] {
     // этого не исправит: переснять нужно сам дубль.
     const marksFile = s.video ? resolve(src.dir, `${s.page}.marks.json`) : "";
     if (marksFile && existsSync(marksFile)) {
-      const recorded = (JSON.parse(readFileSync(marksFile, "utf8")) as { theme?: { id: string; name?: string; of?: string } }).theme;
+      const recorded = (JSON.parse(readFileSync(marksFile, "utf8")) as { theme?: { id: string; name?: string; scheme?: Scheme; of?: string } }).theme;
       const vars = s.theme ?? pitch.theme ?? {};
       const want = themeFingerprint(vars);
+      const wanted = want.name ? themeLabel(want.name, want.scheme) : undefined;
       // Дубль, снятый до отпечатка по впекаемой части, помнит отпечаток всей темы.
       const same = recorded && (recorded.of === "baked" ? recorded.id === want.id
         : recorded.id === wholeThemeFingerprint(vars) || (recorded.name !== undefined && recorded.name === want.name));
       if (!recorded) {
-        add("take-theme", msg("lint.takeThemeOld", { file: String(s.page), wanted: want.name ?? msg("lint.themeUnnamed"),
-          hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
+        add("take-theme", msg("lint.takeThemeOld", { file: String(s.page), wanted: wanted?.label ?? msg("lint.themeUnnamed"),
+          hint: wanted?.input ?? msg("lint.themeUnnamed") }));
       } else if (!same) {
-        add("take-theme", msg("lint.takeThemeMismatch", { file: String(s.page), recorded: recorded.name ?? msg("lint.themeOther"),
-          wanted: want.name ?? msg("lint.themeOther"), hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
+        add("take-theme", msg("lint.takeThemeMismatch", { file: String(s.page),
+          recorded: recorded.name ? themeLabel(recorded.name, recorded.scheme).label : msg("lint.themeOther"),
+          wanted: wanted?.label ?? msg("lint.themeOther"), hint: wanted?.input ?? msg("lint.themeUnnamed") }));
       }
     }
 

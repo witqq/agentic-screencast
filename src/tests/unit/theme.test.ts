@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { THEMES, THEME_KEYS, THEME_NAMES, resolveTheme } from "../../theme.js";
+import { THEMES, THEME_KEYS, resolveTheme, themeVariants } from "../../theme.js";
 import { parseSource } from "../../source.js";
 
 const source = (theme: string): string => {
@@ -25,11 +25,10 @@ const source = (theme: string): string => {
   return file;
 };
 
-test("every shipped theme names every variable of the contract", () => {
-  for (const name of THEME_NAMES) {
-    const vars = THEMES[name]!;
+test("every shipped theme names every variable of the contract in each of its schemes", () => {
+  for (const { name, scheme, vars } of themeVariants()) {
     for (const key of THEME_KEYS) {
-      assert.ok(vars[key], `theme ${name} is missing ${key}`);
+      assert.ok(vars[key], `theme ${name} (${scheme}) is missing ${key}`);
     }
   }
 });

@@ -121,7 +121,7 @@ await check("сцену рисует посторонний поставщик, 
       'const arg = (k) => rest[rest.indexOf(`--${k}`) + 1];',
       'if (cmd === "kinds") {',
       '  console.log(JSON.stringify({ card: { about: "карточка чужого поставщика",',
-      '    fields: ["heading", "at"], required: [["heading"]],',
+      '    fields: ["cardline", "at"], required: [["cardline"]],',
       '    effects: { fade: { in: 0.2, out: 0.2 } } } }));',
       '} else if (cmd === "page") {',
       '  const scene = JSON.parse(arg("scene-json"));',
@@ -131,7 +131,7 @@ await check("сцену рисует посторонний поставщик, 
       '  const file = path.join(out, `${scene.id}.html`);',
       '  fs.writeFileSync(file, `<!doctype html><html data-sc-page lang="ru"><head><meta charset="utf-8">`',
       '    + `<title>карточка</title></head><body data-at="b1">`',
-      '    + `<h1 class="el" data-at="b1">${scene.fields.heading}</h1></body></html>`);',
+      '    + `<h1 class="el" data-at="b1">${scene.fields.cardline}</h1></body></html>`);',
       '  console.log(JSON.stringify({ file }));',
       '} else { process.exit(2); }',
     ].join("\n"));
@@ -142,7 +142,7 @@ await check("сцену рисует посторонний поставщик, 
       `voice: {"engine":"stub","name":"nullvoice","cps":18}`,
       `providers: {"my": "${process.execPath} ${prov}"}`, "",
       "## c1 · my.card",
-      "heading: Карточка чужого поставщика", "",
+      "cardline: Карточка чужого поставщика", "",
       "Такт речи чужой сцены.", "",
     ].join("\n"));
 
@@ -151,7 +151,7 @@ await check("сцену рисует посторонний поставщик, 
     if (schema.status !== 0) return `schema → код ${schema.status}: ${schema.stderr.slice(0, 160)}`;
     const doc = JSON.parse(schema.stdout) as { $defs: Record<string, { properties: Record<string, unknown> }> };
     if (!doc.$defs["my.card"]) return `схема не знает вида чужого поставщика: ${Object.keys(doc.$defs).join(", ")}`;
-    if (!Object.hasOwn(doc.$defs["my.card"].properties, "heading")) {
+    if (!Object.hasOwn(doc.$defs["my.card"].properties, "cardline")) {
       return "схема не назвала поле, объявленное поставщиком";
     }
 
@@ -170,17 +170,18 @@ await check("сцену рисует посторонний поставщик, 
 
     // 3. Опечатка в поле отвергается — правилами ПОСТАВЩИКА, а не ядра.
     const typo = join(dir, "typo.md");
-    writeFileSync(typo, readFileSync(story, "utf8").replace("heading:", "headnig:"));
+    writeFileSync(typo, readFileSync(story, "utf8").replace("cardline:", "cardlnie:"));
     const bad = run("node", [ENTRY, "scenes", "--source", typo], { cwd: dir });
     if (bad.status === 0) return "поле, которого поставщик не объявлял, принято молча";
 
-    // 4. Имени чужого вида нет в исходниках инструмента: если бы ядро
-    // его знало, весь этот путь ничего не доказывал бы.
+    // 4. Имени чужого вида нет в исходниках инструмента: если бы ядро его знало, весь этот путь
+    // ничего не доказывал бы. Поле названо словом, которого нет ни в одном словаре инструмента
+    // («heading» — роль общего файла палитр).
     // Каталог проверок исключён намеренно: имя чужого вида написано
     // прямо здесь, и без исключения наблюдение краснело бы на самом себе.
     const mine = sourceFiles().filter((f) => !f.startsWith("tests/"))
       .map((f) => readFileSync(resolve(SOURCE_ROOT, f), "utf8")).join("\n");
-    if (mine.includes("my.card") || mine.includes("heading")) {
+    if (mine.includes("my.card") || mine.includes("cardline")) {
       return "имя чужого вида найдено в исходниках инструмента";
     }
     return true;

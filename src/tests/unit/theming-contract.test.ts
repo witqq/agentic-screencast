@@ -123,7 +123,9 @@ function themeBlocks(): Map<string, string> {
 
 test("each theme is stored as its own complete object, not borrowed from another", () => {
   const blocks = themeBlocks();
-  assert.equal(blocks.size, THEME_NAMES.length, `the theme table stores ${blocks.size} theme objects for ${THEME_NAMES.length} names`);
+  // У terminal набора руками нет: обе его схемы строятся из общего файла палитр.
+  const hand = THEME_NAMES.filter((n) => n !== "terminal");
+  assert.equal(blocks.size, hand.length, `the theme table stores ${blocks.size} theme objects for ${hand.length} hand-written themes`);
   for (const [name, body] of blocks) {
     assert.ok(!/\.\.\.|Object\.assign/.test(body), `${name} inherits another theme's set`);
     const entries = new Map([...body.matchAll(/^\s*"(--[\w-]+)":\s*(.+?),?\s*$/gm)].map((m) => [m[1]!, m[2]!]));

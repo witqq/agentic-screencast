@@ -55,6 +55,7 @@ const required = [
   "example/kinetic-video.md",
   "example/live-capture.mjs",
   "skills/agentic-screencast/SKILL.md",
+  "assets/palettes/shared-palettes.json",
 ];
 for (const path of required) {
   if (!paths.includes(path)) throw new Error(`package candidate is missing ${path}`);

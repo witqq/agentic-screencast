@@ -438,13 +438,17 @@ theme: calm-paper
 | `frame` | frame width and height, frames per second, `scale` | 1920×1080, 25, 1 |
 | `encode` | video quality and audio bitrate | crf 18, veryfast, yuv420p, 192k |
 | `theme` | the name of a shipped theme or styling variables: they go to the page root and to the overlay | `neutral` |
+| `scheme` | `light` or `dark`: the scheme of every named theme in the film; its role colours come from the palette file shared with agentic-report | each theme's own |
 | `format` | format preset: `landscape`, `vertical` (1080×1920, 30 frames, with the platforms' safe zone), `square` | — |
 | `look` | film look: grade, vignette, grain, letterbox — by name or as JSON | — |
 
 The list of themes with their fonts, the theme contract variables and the rules of partial
 overrides (`theme: {"preset":"noir","--acc":"#7aa2ff"}`) are printed by `agentic-screencast
 help themes`. An unknown theme name and an object without `preset` that lacks a
-variable are parse errors that name what is available and what is missing.
+variable are parse errors that name what is available and what is missing. Every theme but
+`blockbuster` has a light and a dark scheme; a scene names its own with
+`theme: {"preset":"noir","scheme":"dark"}`, and an unknown scheme or one a theme lacks is a
+parse error that lists the schemes it has.
 
 **Vertical and square in one line.** The header `format: vertical` sets a
 1080×1920 frame, 30 frames per second and the platforms' safe zone; `format: square` sets

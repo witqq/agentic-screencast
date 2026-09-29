@@ -10,6 +10,9 @@
 // Тема — это ПЕРЕМЕННЫЕ, а не правила: их толкует тот, кто рисует, —
 // страница слайдов и слой композиции. Поэтому добавление темы не трогает
 // ни разметку, ни рендер.
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { msg } from "./msg.js";
 
 /** Переменные оформления: имя без ведущих дефисов допускается. */
@@ -2277,8 +2280,12 @@ const BLUEPRINT: ThemeVars = {
   "--tr-shade": ".55",
 };
 
-/** Поставляемые темы: имя → полный набор переменных. */
-export const THEMES: Record<string, ThemeVars> = {
+/**
+ * Наборы, написанные руками: у каждой темы — её родная схема (светлая или тёмная), со своим
+ * характером во всех производных цветах. Цвета ролей в них — прежние; действующие роли и вторая
+ * схема берутся из общего файла палитр ниже.
+ */
+const HAND: Record<string, ThemeVars> = {
   neutral: NEUTRAL,
   frost: FROST,
   midnight: MIDNIGHT,
@@ -2292,13 +2299,238 @@ export const THEMES: Record<string, ThemeVars> = {
   blockbuster: BLOCKBUSTER,
 };
 
+/**
+ * Консоль разработчика (`terminal`, как у agentic-report): Martian Mono в заголовках, JetBrains Mono
+ * в тексте и коде, острые углы. Своего набора цветов руками у неё нет: обе схемы
+ * строятся из общего файла палитр по образцу той же схемы.
+ */
+const TERMINAL_TYPE: Readonly<ThemeVars> = {
+  "--sans": '"JetBrains Mono", ui-monospace, monospace',
+  "--mono": '"JetBrains Mono", ui-monospace, monospace',
+  "--display": '"Martian Mono", ui-monospace, monospace',
+  "--display-weight": "600",
+  "--display-tracking": "0em",
+  "--display-case": "none",
+  "--kicker-case": "none",
+  "--kicker-tracking": ".02em",
+  // Субтитры — гротеском: моноширинная строка вдвое шире и дробит реплику на лишние куски.
+  "--sub-font": '"Onest", system-ui, sans-serif',
+  "--sub-weight": "600",
+  "--radius-sm": "2px",
+  "--radius-md": "3px",
+  "--radius-lg": "4px",
+  "--radius-xl": "5px",
+  "--sc-card-radius": "calc(var(--u)*.12)",
+  "--sc-radius": "calc(var(--u)*.1)",
+  "--sc-sub-radius": "calc(var(--u)*.08)",
+  "--sc-keys-radius": "4px",
+};
+
+export type Scheme = "light" | "dark";
+export const SCHEMES: readonly Scheme[] = ["light", "dark"];
+
+/**
+ * Роли общего файла палитр и наши токены — таблица «Colour roles» из docs/theme-tokens.md. Роль
+ * `accent-soft` страницы — непрозрачный фон секции, у ролика ему пары нет; волна клика ролика
+ * (`--sc-accent-soft`) лежит в файле отдельно, в `_film`.
+ */
+export const PALETTE_ROLES: ReadonlyArray<readonly [string, string]> = [
+  ["bg", "--bg"], ["surface", "--card"], ["surface-raised", "--node"], ["heading", "--ink"], ["text", "--body"],
+  ["text-muted", "--mut"], ["border", "--line"], ["border-strong", "--node-line"], ["accent", "--acc"],
+  ["accent-2", "--acc2"], ["status-done", "--good"], ["status-returned", "--bad"],
+];
+
+export type SchemePalette = Record<string, string> & { _film: { "sc-accent-soft": string }; _pageExtra?: Record<string, string> };
+
+/** Цвета кода и пометки страницы из `_pageExtra` общего файла — там, где он их даёт, — и наши токены. */
+const PAGE_CODE: ReadonlyArray<readonly [string, string]> = [
+  ["codeBackground", "--code-bg"], ["codeText", "--code-ink"], ["codeKeyword", "--code-kw"], ["codeString", "--code-str"],
+  ["codeNumber", "--code-num"], ["codeFunction", "--code-fn"], ["codeType", "--code-type"], ["codeComment", "--code-com"],
+  ["codePunctuation", "--code-pun"], ["marker", "--sc-mark"],
+];
+
+/**
+ * Общий файл палитр agentic-report и agentic-screencast: у каждой общей темы светлая и тёмная
+ * схема. Файл один на оба продукта и лежит у обоих байт в байт (`assets/palettes`); тест сверяет
+ * с ним каждую схему. Сборка кладёт копию рядом с кодом (`dist/palettes`): таблица тем читает её
+ * от своего каталога и не зависит от того, где лежит корень продукта.
+ */
+export const PALETTE_FILE = resolve(dirname(fileURLToPath(import.meta.url)), "palettes", "shared-palettes.json");
+export const SHARED_PALETTES = (JSON.parse(readFileSync(PALETTE_FILE, "utf8")) as {
+  themes: Record<string, Record<Scheme, SchemePalette>> }).themes;
+
+const luminance = (hex: string): number => {
+  const n = Number.parseInt(hex.slice(1, 7), 16);
+  const c = [n >> 16, (n >> 8) & 255, n & 255].map((v) => { const x = v / 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4; });
+  return 0.2126 * c[0]! + 0.7152 * c[1]! + 0.0722 * c[2]!;
+};
+
+/** Родная схема набора — по яркости его фона. */
+const schemeOf = (vars: ThemeVars): Scheme => (luminance(vars["--bg"]!) > 0.4 ? "light" : "dark");
+
+const COLOUR_LITERAL = /#([0-9a-f]{6})([0-9a-f]{2})?(?![0-9a-f])|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)/giu;
+const hexOf = (r: number, g: number, b: number): string => `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`;
+
+/**
+ * Перекраска набора: каждый цвет, записанный в значении (`#rrggbb`, `#rrggbbaa`, `rgb()`, `rgba()`),
+ * который есть в карте, заменяется новым с той же прозрачностью. Один проход по литералам, а не
+ * цепочка замен: цвет, ставший новым, второй раз не перекрашивается. Нецветовые токены не трогаются.
+ */
+function recolour(vars: ThemeVars, map: ReadonlyMap<string, string>): ThemeVars {
+  const out: ThemeVars = {};
+  for (const [key, value] of Object.entries(vars)) {
+    out[key] = NON_COLOUR_TOKENS.includes(key) ? value : value.replace(COLOUR_LITERAL, (all, hex?: string, alpha?: string,
+        r?: string, g?: string, b?: string, a?: string) => {
+      const from = hex ? `#${hex.toLowerCase()}` : hexOf(Number(r), Number(g), Number(b));
+      const to = map.get(from);
+      if (!to) return all;
+      if (hex) return `${to}${alpha ?? ""}`;
+      const n = Number.parseInt(to.slice(1), 16);
+      const rgb = `${n >> 16},${(n >> 8) & 255},${n & 255}`;
+      return a !== undefined ? `rgba(${rgb},${a})` : `rgb(${rgb})`;
+    });
+  }
+  return out;
+}
+
+/**
+ * Карта перекраски «старый цвет роли → новый». Роли по порядку таблицы: если два старых цвета
+ * совпадают, побеждает первая роль. Чистые белый и чёрный не перекрашиваются никогда: ими
+ * написаны блик, курсор и обводка, а не роль.
+ */
+function roleMap(pairs: ReadonlyArray<readonly [string | undefined, string | undefined]>): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [from, to] of pairs) {
+    if (!from || !to || !/^#[0-9a-f]{6}$/iu.test(from)) continue;
+    const key = from.toLowerCase();
+    if (key === "#ffffff" || key === "#000000" || map.has(key)) continue;
+    map.set(key, to.toLowerCase());
+  }
+  return map;
+}
+
+/** Роли схемы из общего файла и волна клика ролика — поверх набора. */
+function withRoles(vars: ThemeVars, palette: SchemePalette): ThemeVars {
+  const out = { ...vars };
+  for (const [role, token] of PALETTE_ROLES) out[token] = palette[role]!;
+  out["--sc-accent-soft"] = palette._film["sc-accent-soft"];
+  return out;
+}
+
+/**
+ * Нецветовые токены, которые зависят от схемы, а не от темы: режим наложения блика (на тёмном —
+ * `screen` белым, на светлом — обычный цветом акцента) и затемнение подложки параллакса. Их схема
+ * берёт у образца.
+ */
+const SCHEME_TOKENS: readonly string[] = ["--sc-glint-blend", "--px-dim"];
+
+/** Роли-краски (не фон и не текст) и токены-линии, которые переносят выбор темы во вторую схему. */
+const ACCENT_ROLES: readonly string[] = ["accent", "accent-2", "status-done", "status-returned"];
+const STROKE_TOKENS: readonly string[] = ["--sc-mark", "--sc-spot", "--sc-loupe-ring", "--sc-ripple-ring", "--sc-progress",
+  "--sc-pip-ring", "--sc-cap-bar", "--sc-lower-bar", "--sc-card-accent", "--sc-card-accent-solid", "--sc-spark", "--sc-spark-2", "--ba-line"];
+
+/** Образец схемы для темы, у которой этой схемы руками нет: нейтральная светлая и нуар тёмный. */
+const PROTOTYPE: Record<Scheme, string> = { light: "neutral", dark: "noir" };
+
+/** Родная схема темы: её набор, перекрашенный со старых ролей на роли общего файла. */
+function nativeScheme(name: string): ThemeVars {
+  const hand = HAND[name]!;
+  const shared = SHARED_PALETTES[name]?.[schemeOf(hand)];
+  if (!shared) return { ...hand };
+  return withRoles(recolour(hand, roleMap(PALETTE_ROLES.map(([role, token]) => [hand[token], shared[role]]))), shared);
+}
+
+/**
+ * Схема, которой у темы руками нет: набор образца той же схемы, перекрашенный с ролей образца на
+ * роли темы (обе схемы: у светлой темы есть цвета из тёмной, например акцент субтитра на тёмной
+ * обводке), и нецветовые токены самой темы — шрифты, формы, живой фон.
+ */
+function builtScheme(type: ThemeVars, name: string, scheme: Scheme): ThemeVars {
+  const proto = PROTOTYPE[scheme];
+  const palette = SHARED_PALETTES[name]![scheme];
+  const pairs = [scheme, scheme === "light" ? "dark" : "light"].flatMap((s) => PALETTE_ROLES.map(([role]) =>
+    [SHARED_PALETTES[proto]![s as Scheme][role], SHARED_PALETTES[name]![s as Scheme][role]] as const));
+  const vars = recolour(nativeScheme(proto), roleMap(pairs));
+  for (const key of NON_COLOUR_TOKENS) if (type[key] !== undefined && !SCHEME_TOKENS.includes(key)) vars[key] = type[key]!;
+  // Решения самой темы: линия, пометка или кольцо, написанные в её родном наборе акцентом, вторым
+  // цветом или цветом статуса, и в другой схеме берут ту же роль, с той же прозрачностью. Только
+  // линии: у подложек под текстом контраст подобран под образец, и чужая роль его ломает.
+  const hand = HAND[name];
+  if (hand) {
+    const roleOf = new Map<string, string>();
+    for (const [role, token] of PALETTE_ROLES) {
+      if (ACCENT_ROLES.includes(role) && hand[token] && !roleOf.has(hand[token]!.toLowerCase())) roleOf.set(hand[token]!.toLowerCase(), role);
+    }
+    for (const key of STROKE_TOKENS) {
+      const m = /^\s*(?:#([0-9a-f]{6})([0-9a-f]{2})?|rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\))\s*$/iu.exec(hand[key] ?? "");
+      if (!m) continue;
+      const role = roleOf.get(m[1] ? `#${m[1].toLowerCase()}` : hexOf(Number(m[3]), Number(m[4]), Number(m[5])));
+      if (role) vars[key] = recolour({ [key]: hand[key]! }, new Map([[m[1] ? `#${m[1].toLowerCase()}` : hexOf(Number(m[3]), Number(m[4]), Number(m[5])), palette[role]!.toLowerCase()]]))[key]!;
+    }
+  }
+  // Цвета кода и пометки, которые общий файл даёт для схемы, — его.
+  for (const [extra, token] of PAGE_CODE) if (palette._pageExtra?.[extra]) vars[token] = palette._pageExtra[extra]!;
+  return withRoles(vars, palette);
+}
+
+/** Схемы каждой темы: у общих — обе, у `blockbuster` — только родная тёмная. */
+export const THEME_SCHEMES: Record<string, Partial<Record<Scheme, ThemeVars>>> = Object.fromEntries(
+  [...Object.keys(HAND), "terminal"].map((name) => {
+    const type = name === "terminal" ? { ...HAND.neutral!, ...TERMINAL_TYPE } : HAND[name]!;
+    const native = name === "terminal" ? "dark" : schemeOf(HAND[name]!);
+    const schemes: Partial<Record<Scheme, ThemeVars>> = {};
+    for (const scheme of SCHEMES) {
+      if (!SHARED_PALETTES[name]) { if (scheme === native) schemes[scheme] = nativeScheme(name); continue; }
+      schemes[scheme] = scheme === native && HAND[name] ? nativeScheme(name) : builtScheme(type, name, scheme);
+    }
+    return [name, schemes];
+  }));
+
+/** Схема темы по умолчанию — та, в которой её набор написан (у `terminal` — тёмная, как у agentic-report). */
+export const DEFAULT_SCHEME: Record<string, Scheme> = Object.fromEntries(Object.keys(THEME_SCHEMES).map((name) =>
+  [name, name === "terminal" ? "dark" : schemeOf(HAND[name]!)]));
+
+/** Поставляемые темы в схеме по умолчанию: имя → полный набор переменных. */
+export const THEMES: Record<string, ThemeVars> = Object.fromEntries(Object.entries(THEME_SCHEMES).map(([name, schemes]) =>
+  [name, schemes[DEFAULT_SCHEME[name]!]!]));
+
 export const THEME_NAMES: string[] = Object.keys(THEMES);
+
+/**
+ * Расхождения тем с общим файлом палитр: у каждой общей темы есть обе схемы, и каждая роль таблицы
+ * и волна клика совпадают с файлом. Пустой список — 0 расхождений; так же сверяет свою копию
+ * файла agentic-report.
+ */
+export function paletteDrift(schemes: Record<string, Partial<Record<Scheme, ThemeVars>>> = THEME_SCHEMES,
+    palettes: Record<string, Record<Scheme, SchemePalette>> = SHARED_PALETTES): string[] {
+  const out: string[] = [];
+  for (const [name, both] of Object.entries(palettes)) {
+    for (const scheme of SCHEMES) {
+      const vars = schemes[name]?.[scheme];
+      if (!vars) { out.push(`${name} ${scheme}: no such scheme`); continue; }
+      const want = both[scheme];
+      for (const [role, token] of PALETTE_ROLES) {
+        if (vars[token]?.toLowerCase() !== want[role]?.toLowerCase()) out.push(`${name} ${scheme} ${role} (${token}): ${vars[token]} ≠ ${want[role]}`);
+      }
+      if (vars["--sc-accent-soft"] !== want._film["sc-accent-soft"]) {
+        out.push(`${name} ${scheme} _film.sc-accent-soft (--sc-accent-soft): ${vars["--sc-accent-soft"]} ≠ ${want._film["sc-accent-soft"]}`);
+      }
+    }
+  }
+  return out;
+}
+
+/** Все поставляемые наборы: каждая тема в каждой своей схеме — то, что сверяют тесты тем. */
+export function themeVariants(): Array<{ name: string; scheme: Scheme; vars: ThemeVars }> {
+  return Object.entries(THEME_SCHEMES).flatMap(([name, schemes]) =>
+    SCHEMES.filter((s) => schemes[s]).map((scheme) => ({ name, scheme, vars: schemes[scheme]! })));
+}
 
 /**
  * Тема ролика в том виде, в каком её пишут в шапке источника: имя темы,
  * свой набор переменных или имя вместе с точечными правками.
  */
-export type ThemeInput = string | (ThemeVars & { preset?: string });
+export type ThemeInput = string | (ThemeVars & { preset?: string; scheme?: string });
 
 export class ThemeError extends Error {}
 
@@ -2312,13 +2544,13 @@ const dashed = (key: string): string => (key.startsWith("--") ? key : `--${key}`
  * точечная правка одного цвета не должна означать, что автор обязан
  * переписать всю тему руками.
  */
-export function resolveTheme(input: ThemeInput | undefined, over?: ThemeVars): ThemeVars {
-  if (input === undefined) return checked({ ...(over ?? THEMES.neutral!) });
-  if (typeof input === "string") return preset(input);
-  const { preset: name, ...own } = input;
+export function resolveTheme(input: ThemeInput | undefined, over?: ThemeVars, scheme?: string): ThemeVars {
+  if (input === undefined) return checked({ ...(over ?? preset("neutral", scheme)) });
+  if (typeof input === "string") return preset(input, scheme);
+  const { preset: name, scheme: own_scheme, ...own } = input;
   // Основа: названная тема, иначе тема, поверх которой ложатся правки (тема ролика для сцены).
   // Без того и другого набор обязан быть полным: дыру в нём заполнить нечем, кроме догадки.
-  const base = name !== undefined ? preset(name) : over ? { ...over } : {};
+  const base = name !== undefined ? preset(name, own_scheme ?? scheme) : over ? { ...over } : {};
   const vars: ThemeVars = { ...base };
   for (const [key, value] of Object.entries(own)) vars[dashed(key)] = value;
   if (name === undefined && !over) {
@@ -2342,10 +2574,19 @@ function checked(vars: ThemeVars): ThemeVars {
   return vars;
 }
 
-function preset(name: string): ThemeVars {
-  const found = THEMES[name.trim()];
-  if (!found) {
+/** Тема по имени в названной схеме; без схемы — в схеме темы по умолчанию. */
+function preset(name: string, scheme?: string): ThemeVars {
+  const schemes = THEME_SCHEMES[name.trim()];
+  if (!schemes) {
     throw new ThemeError(msg("theme.unknown", { name: String(name), available: THEME_NAMES.join(", ") }));
+  }
+  if (scheme !== undefined && !SCHEMES.includes(scheme as Scheme)) {
+    throw new ThemeError(msg("theme.scheme", { scheme, available: SCHEMES.join(", ") }));
+  }
+  const found = schemes[(scheme as Scheme | undefined) ?? DEFAULT_SCHEME[name.trim()]!];
+  if (!found) {
+    throw new ThemeError(msg("theme.noScheme", { name: name.trim(), scheme: String(scheme),
+      available: SCHEMES.filter((s) => schemes[s]).join(", ") }));
   }
   return { ...found };
 }
@@ -2384,10 +2625,19 @@ const fnv = (text: string): string => {
  * Считается только по впекаемой части: правка субтитров или слайдов в шапке дубль чужим не
  * делает — его пиксели от неё не меняются. Имя — тема, чья впекаемая часть та же.
  */
-export function themeFingerprint(vars: ThemeVars): { id: string; name?: string; of: "baked" } {
+export function themeFingerprint(vars: ThemeVars): { id: string; name?: string; scheme?: Scheme; of: "baked" } {
   const part = JSON.stringify(bakedPart(vars));
-  const name = THEME_NAMES.find((n) => JSON.stringify(bakedPart(THEMES[n]!)) === part);
-  return { id: fnv(part), ...(name ? { name } : {}), of: "baked" };
+  const found = themeVariants().find((v) => JSON.stringify(bakedPart(v.vars)) === part);
+  return { id: fnv(part), ...(found ? { name: found.name, scheme: found.scheme } : {}), of: "baked" };
+}
+
+/**
+ * Как назвать поставляемую тему в сообщении и в подсказке `theme:` для съёмки: имя, а в схеме не
+ * по умолчанию — имя со схемой и объект `{"preset","scheme"}`.
+ */
+export function themeLabel(name: string, scheme?: Scheme): { label: string; input: string } {
+  if (!scheme || scheme === DEFAULT_SCHEME[name]) return { label: name, input: JSON.stringify(name) };
+  return { label: `${name} (${scheme})`, input: JSON.stringify({ preset: name, scheme }) };
 }
 
 /** Прежний отпечаток — по всей теме; им записаны дубли, снятые до `of: "baked"`. */
