@@ -23,6 +23,7 @@ import { estimateBeats, spotlightOverlay } from "./spotlight.js";
 import { stepEnd } from "./speed.js";
 import { marksOf } from "./marks.js";
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
 import { finding, type Finding as RuleFinding } from "./rules.js";
@@ -160,7 +161,11 @@ function spotlightFinding(why: string): string {
   return why;
 }
 
-export function lint(file: string): Finding[] {
+/**
+ * Находки сценария. `info.seconds` получает оценку длины ролика: сумма сцен по оценке речи минус
+ * перекрытия переходов — длину сверяют с брифом до первой сборки.
+ */
+export function lint(file: string, info?: { seconds?: number }): Finding[] {
   const src = parseSource(file);
   const raw = readFileSync(file, "utf8").split("\n");
   // Поля сцены проверяет её поставщик: опечатка в значении — ошибка сценария, как при сборке.
@@ -209,12 +214,19 @@ export function lint(file: string): Finding[] {
       }
     }
   }
+  // Правило 51: субтитры — слова для тех, кто смотрит без звука. Сцена с речью без них — нарисованная
+  // (слайд, страница) без captions.everywhere: у видео подпись речи есть всегда. Явное
+  // `everywhere: false` — решение автора, его lint не оспаривает.
+  const unsubtitled: string[] = [];
+  let estimate = 0;
   pitch.scenes.forEach((s: PitchScene, i: number) => {
     const n = i + 1;
     const add = (id: string, message: string): void => { out.push({ scene: s.id, index: n, ...finding(id, message) }); };
     const spec = specOf(s, src.providers ?? {});
     const spoken = (s.beats.length ? s.speechAt ?? 0 : 0) + s.beats.reduce((t, b) => t + Math.max(0.6, (b.speech ?? b.text).length / cps), 0);
     const duration = Math.max(s.duration ?? 0, spoken + (s.tail ?? pitch.tail ?? 0.4));
+    const tr = s.transition as { kind?: string; duration?: number } | undefined;
+    estimate += duration - (i > 0 && tr && tr.kind !== "cut" && tr.kind !== "leak" ? tr.duration ?? 0.6 : 0);
 
     // Правило 5: ширина двух строк берётся из той же зоны и темы, что у рендера.
     const frame = { width: Number(src.frame?.width ?? FORMATS.landscape.width), height: Number(src.frame?.height ?? FORMATS.landscape.height) };
@@ -223,6 +235,9 @@ export function lint(file: string): Finding[] {
       if (b.text.length > line * 2) {
         add("overloaded-line", msg("lint.overloadedLine", { beat: k + 1, chars: b.text.length, limit: line * 2 }));
       }
+      // Слово длиннее строки субтитра (путь, имя переменной, адрес) переносится посреди себя.
+      const long = b.text.split(/\s+/u).find((w) => w.length > Math.floor(line / 2));
+      if (long) add("long-word", msg("lint.longWord", { beat: k + 1, word: long, limit: Math.floor(line / 2) }));
     });
 
     // Правило 5: подпись и карточка не бывают на экране одновременно. Плашка
@@ -232,6 +247,7 @@ export function lint(file: string): Finding[] {
     const captionFrom = (spec.effects?.caption as { from?: unknown } | undefined)?.from;
     const captionShown = s.beats.length > 0 && (src.captions?.everywhere
       || (captionFrom !== undefined && Number.parseFloat(String(captionFrom)) < 9999));
+    if (s.beats.length && !captionShown && src.captions?.everywhere !== false) unsubtitled.push(s.id);
     const camera = (s.overlay?.camera ?? []).map((c) => [c.at, cameraEnd(c)] as const);
     const spotlit = (s.spotlight ?? []).length > 0;
     for (const card of s.overlay?.cards ?? []) {
@@ -417,6 +433,13 @@ export function lint(file: string): Finding[] {
     }
     // Своя страница автора с атрибутами слоя, но без метки: набор, кинетика и якоря не сработают.
     if (s.provider === "page" && pageFile && pageUnmarked(pageFile)) add("page-unmarked", msg("lint.pageUnmarked"));
+    // Кинетика страницы по слитому имени рисовалась бы молча другим стилем: имя замены — в находке.
+    if (s.provider === "page" && pageFile && existsSync(pageFile)) {
+      for (const m of pageTexts(pageFile).html.matchAll(/data-kinetic\s*=\s*["']([\w-]+)["']/gu)) {
+        const use = retiredAs("text", m[1]!);
+        if (use) add("page-retired", msg("retired", { field: "data-kinetic", value: m[1]!, use }));
+      }
+    }
     if (s.video && s.freezeAt !== undefined && !s.overlay?.camera?.length && !spotlit) {
       add("still-scene", msg("lint.stillVideo"));
     }
@@ -500,13 +523,31 @@ export function lint(file: string): Finding[] {
       if (c !== null && c < 4.5) add("karaoke-contrast", msg("lint.karaokeContrast", { ratio: c.toFixed(2) }));
     }
   });
+  if (info) info.seconds = Number(estimate.toFixed(1));
+  // Правило 63: удар кадра — удар трейлера со звуком на том же якоре; без звука он читается как
+  // сбой. Сцена с ударами, где звучать нечему — ни акцента сцены, ни звука перехода, ни музыки, —
+  // названа. Речь ударом не звучит.
+  const filmMusic = Boolean((pitch as { music?: unknown }).music);
+  const silentHits = pitch.scenes.filter((s) => {
+    const x = s as { flash?: unknown[]; shake?: unknown[]; rgb?: unknown[]; music?: unknown; sfx?: unknown[] };
+    const hits = (x.flash?.length ?? 0) + (x.shake?.length ?? 0) + (x.rgb?.length ?? 0);
+    const sound = filmMusic || Boolean(x.music) || (x.sfx?.length ?? 0) > 0 || Boolean((s.transition as { sound?: string } | undefined)?.sound);
+    return hits > 0 && !sound;
+  });
+  if (silentHits.length) {
+    out.push({ scene: "(film)", index: 0, ...finding("silent-hits", msg("lint.silentHits", { scenes: silentHits.slice(0, 4).map((s) => s.id).join(", ") })) });
+  }
+  // Немой ролик без речи (audio: false) субтитров и не ждёт: он читается картинкой и карточками.
+  if (unsubtitled.length && src.audio !== false) {
+    out.push({ scene: "(film)", index: 0, ...finding("no-subtitles", msg("lint.noSubtitles", { count: unsubtitled.length, scenes: unsubtitled.slice(0, 4).join(", ") })) });
+  }
   return out;
 }
 
 /** Признак клише облика: приём, взятый без причины (docs/visual-design.md). */
 export interface Sign { id: string; scenes: string[]; message: string }
 
-const DECORATIVE = new Set(["aurora", "mesh", "bokeh", "particles", "rays", "lamp", "meteors", "flicker", "beams", "warp", "vortex", "spotlight"]);
+const DECORATIVE = new Set(["aurora", "bokeh", "particles", "rays", "lamp", "meteors", "flicker", "beams", "warp", "vortex"]);
 const PLACEHOLDER_URL = /^(?:$|https?:\/\/)?(?:$|(?:www\.)?(?:example\.(?:com|org)|localhost|127\.0\.0\.1|your[-\w]*\.\w+|app\.com|placeholder|acme\.\w+))/iu;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -567,7 +608,8 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   const file = process.argv[2] ?? "story.md";
   // Ошибка сценария — словами, как у остальных команд, а не дампом стека.
   let findings: Finding[];
-  try { findings = lint(file); } catch (e) {
+  const info: { seconds?: number } = {};
+  try { findings = lint(file, info); } catch (e) {
     const err = e as { sourceError?: boolean; code?: string; message?: string };
     if (!err.sourceError && err.code !== "ENOENT") throw e;
     console.error(err.code === "ENOENT" ? msg("source.notFound", { path: file })
@@ -578,6 +620,6 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   const cliches = { count: signs.length, signs,
     ...(signs.length >= 4 ? { verdict: msg("lint.clicheVerdict") } : {}) };
   // Признаки клише не валят проверку: каждый бывает решением, их число — предупреждение.
-  console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches }, null, 1));
+  console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches, estimated: { seconds: info.seconds } }, null, 1));
   process.exit(findings.length ? 1 : 0);
 }

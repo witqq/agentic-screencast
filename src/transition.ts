@@ -21,6 +21,7 @@ import { createRequire } from "node:module";
 import { chromium } from "playwright";
 import { resolveTheme, type ThemeVars } from "./theme.js";
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -59,30 +60,6 @@ const float PI = 3.14159265;
 `;
 
 export const KINDS: Record<string, Kind> = {
-  dissolve: {
-    about: "the next scene grows through the first in soft blocks of noise",
-    xfade: "dissolve", geometric: true,
-    glsl: `void main() {
-      float n = rand(floor(uv * vec2(ratio, 1.0) * 90.0));
-      float e = smoothstep(n - 0.06, n + 0.06, progress * 1.12 - 0.06);
-      color = mix(A(uv), B(uv), e);
-    }`,
-  },
-  "zoom-blur": {
-    about: "the first scene rushes into the lens with radial blur, the next one settles out of it",
-    xfade: "zoomin", geometric: false,
-    glsl: `vec4 blur(sampler2D t, vec2 p, float k) {
-      vec4 acc = vec4(0.0); vec2 c = vec2(0.5);
-      for (int i = 0; i < 16; i++) { float f = 1.0 - k * float(i) / 15.0 * 0.35; acc += texture(t, c + (p - c) * f); }
-      return acc / 16.0;
-    }
-    void main() {
-      float s = sin(progress * PI);
-      vec2 pa = 0.5 + (uv - 0.5) / (1.0 + progress * 1.4);
-      vec2 pb = 0.5 + (uv - 0.5) * (1.0 + (1.0 - progress) * 0.6);
-      color = mix(blur(from, pa, s), blur(to, pb, s), smoothstep(0.35, 0.65, progress));
-    }`,
-  },
   whip: {
     about: "a whip pan: the frame streaks along its direction (left by default) and lands on the next scene",
     xfade: "slideleft", geometric: true,
@@ -128,18 +105,6 @@ export const KINDS: Record<string, Kind> = {
       float e = smoothstep(p - 0.03, p + 0.03, d);
       float seam = exp(-pow((d - p) / 0.02, 2.0)) * sin(progress * PI);
       color = mix(B(uv), A(uv), e) + vec4(SEAM * seam, 0.0);
-    }`,
-  },
-  iris: {
-    about: "the next scene opens from the centre in a glowing circle",
-    xfade: "circleopen", geometric: true,
-    glsl: `void main() {
-      vec2 q = (uv - 0.5) * vec2(ratio, 1.0);
-      float r = progress * length(vec2(ratio, 1.0)) * 0.55;
-      float d = length(q);
-      float e = smoothstep(r - 0.01, r + 0.01, d);
-      float ring = exp(-pow((d - r) / 0.012, 2.0)) * sin(progress * PI);
-      color = mix(B(uv), A(uv), e) + vec4(IRIS * ring, 0.0);
     }`,
   },
   cube: {
@@ -189,32 +154,6 @@ export const KINDS: Record<string, Kind> = {
       vec4 g = toB ? B(p) : A(p);
       vec4 b = toB ? B(p - vec2(split, 0.0)) : A(p - vec2(split, 0.0));
       color = vec4(r.r, g.g, b.b, 1.0);
-    }`,
-  },
-  flash: {
-    about: "a warm flash of light burns out the first scene and reveals the next",
-    // Запасной путь без WebGL — наплыв: свет вспышки ffmpeg дал бы только белым, а не цветом темы.
-    xfade: "fade", geometric: false,
-    glsl: `void main() {
-      float glow = exp(-pow((progress - 0.5) / 0.16, 2.0));
-      vec2 q = (uv - vec2(0.3, 0.35)) * vec2(ratio, 1.0);
-      float leak = exp(-dot(q, q) * 3.0);
-      vec4 base = mix(A(uv), B(uv), smoothstep(0.42, 0.58, progress));
-      float light = glow * (0.55 + 0.6 * leak);
-      color = base + vec4(FLASH * light, 0.0);
-    }`,
-  },
-  ripple: {
-    about: "a ripple spreads from the centre and carries the next scene in",
-    xfade: "radial", geometric: false,
-    glsl: `void main() {
-      vec2 q = (uv - 0.5) * vec2(ratio, 1.0);
-      float d = length(q);
-      float s = sin(progress * PI);
-      vec2 off = normalize(q + 1e-5) * sin(d * 60.0 - progress * 30.0) * 0.02 * s;
-      vec2 p = uv + off / vec2(ratio, 1.0);
-      float e = smoothstep(progress * 1.3 - 0.15, progress * 1.3, d);
-      color = mix(B(p), A(p), e);
     }`,
   },
   dip: {
@@ -346,9 +285,21 @@ export const KINDS: Record<string, Kind> = {
     }`,
   },
   mask: {
-    about: "an element of the first scene (element, or at) opens like a window and the next scene grows out of it to fill the frame",
+    about: "an element of the first scene (element) opens like a window and the next scene grows out of it to fill the frame; without an element a glowing circle opens from a point (at, the centre by default)",
     xfade: "circleopen", geometric: true,
     glsl: `void main() {
+      // Без предмета (ширина области 0) — круг с горящим кольцом из точки AREA.xy.
+      if (AREA.z <= 0.0) {
+        vec2 q0 = (uv - AREA.xy) * vec2(ratio, 1.0);
+        float far = length(max(AREA.xy, 1.0 - AREA.xy) * vec2(ratio, 1.0));
+        float r0 = smoothstep(0.0, 1.0, progress) * far * 1.02;
+        float d0 = length(q0);
+        float e0 = smoothstep(r0 - 0.008, r0 + 0.008, d0);
+        float ring = exp(-pow((d0 - r0) / 0.012, 2.0)) * sin(progress * PI);
+        vec4 c0 = mix(B(uv), A(uv), e0) + vec4(IRIS * ring, 0.0);
+        color = c0;
+        return;
+      }
       float p = smoothstep(0.0, 1.0, progress);
       float g = p * p;
       vec4 r = mix(AREA, vec4(-0.02, -0.02, 1.04, 1.04), g);
@@ -393,7 +344,7 @@ export const KINDS: Record<string, Kind> = {
 export const KIND_NAMES = Object.keys(KINDS);
 
 /** Переход на стыке без перекрытия сцен: ролик с ним не короче суммы сцен. */
-export const isJoint = (kind: string): boolean => KINDS[kind]?.joint === true;
+export const isJoint = (kind: string): boolean => Object.hasOwn(KINDS, kind) && KINDS[kind]!.joint === true;
 
 /**
  * Переход общим элементом: предмет, который есть в обеих сценах (карточка, число,
@@ -441,10 +392,10 @@ export const ZOOM = "zoom";
 export const MASK = "mask";
 /** Виды, которым нужна точка или предмет первой сцены. */
 export const AIMED = [ZOOM, MASK];
-/** Предмет маски без названного: окно растёт из пятой части кадра вокруг точки (или середины). */
+/** Маска без предмета: круг из точки (или середины) — нулевая ширина области говорит шейдеру рисовать круг. */
 export const areaAround = (at: [number, number] | undefined): [number, number, number, number] => {
   const [x, y] = at ?? [0.5, 0.5];
-  return [Math.max(0, x - 0.08), Math.max(0, y - 0.08), 0.16, 0.16];
+  return [x, y, 0, 0];
 };
 /** Вектор направления в координатах кадра (y вниз): так его читает шейдер. */
 export const dirVector = (d: Direction | undefined): [number, number] =>
@@ -469,7 +420,9 @@ export function parseTransition(raw: string): Transition {
   for (const k of Object.keys(value)) if (!["kind", "duration", "sound", "snap", "element", "color", "direction", "at"].includes(k))
     throw new Error(msg("source.unknownProperty", { field: "transition", key: k }));
   const kind = String(value.kind ?? "");
-  if (!KINDS[kind] && kind !== MORPH && kind !== CUT)
+  const use = retiredAs("transition", kind);
+  if (use) throw new Error(msg("retired", { field: "transition", value: kind, use }));
+  if (!Object.hasOwn(KINDS, kind) && kind !== MORPH && kind !== CUT)
     throw new Error(msg("transition.unknownKind", { kind, available: [...KIND_NAMES, MORPH, CUT].join(", ") }));
   if (value.color !== undefined && kind !== "dip") throw new Error(msg("transition.dipColor"));
   const color = value.color === undefined ? undefined : dipColour(String(value.color));

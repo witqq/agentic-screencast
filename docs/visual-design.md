@@ -103,13 +103,13 @@ the subject [3].
 - **Numbers that count up everywhere; "10 000+".** Cure: one new number counts, the rest stand [3].
 - **Chromatic aberration, a glowing monolith, bloom as a filter, "PLAY REEL".** Costume, not
   content [1].
-- **Cube, whip and zoom-blur cuts, confetti at success, a film grain on everything.** Cure: a cut
+- **Cube, whip and zoom cuts, confetti at success, a film grain on everything.** Cure: a cut
   means a change of place or topic (film craft 52); success is shown by the result itself [3].
 - **A constant pulse.** Cure: one constant motion, slow and quiet, that never crosses text [3].
 
 ### Backgrounds
 
-- **Particles, a "plexus" graph, aurora, mesh, bokeh behind the title "for depth".** The AI-startup
+- **Particles, a "plexus" graph, aurora, a mesh gradient, bokeh behind the title "for depth".** The AI-startup
   look [1]. Cure: an even surface or a faint grid; a WebGL background only where motion is the
   subject.
 - **Grain over an empty gradient.** Cure: grain only over footage or a large fill beside real
@@ -155,7 +155,7 @@ The same mechanisms produce film-specific clichés. Each is a field an agent rea
 - emoji icons in `slides.features`, a release built as a grid of emoji cards;
 - a screenshot floating in 3D inside a browser frame with traffic-light buttons (`slides.shot`,
   `slides.perspective`, `device: browser`) with a placeholder address;
-- a live background as "depth": aurora, mesh, bokeh, particles, rays, lamp, meteors, flicker, beams, warp, vortex, spotlight;
+- a live background as "depth": aurora, bokeh, particles, rays, lamp, meteors, flicker, beams, warp, vortex;
 - a "cinematic" look in one line (`look: cinematic` — teal-orange grade, grain, vignette) on a product
   demo;
 - creator-style subtitles: capitals, a yellow word, a pop on every word;

@@ -105,6 +105,58 @@ The first beat is spoken while the camera holds.
   assert.deepEqual(held, []);
 });
 
+test("lint names narrated scenes without subtitles, and a word longer than a subtitle line", () => {
+  const plain = story(`${HEAD}\n## p · page\npage: p.html\n\nA spoken line on a drawn page.\n`);
+  assert.ok(lint(plain).some((f) => f.id === "no-subtitles" && f.rule === "FC-51"), "a narrated page without captions.everywhere is named");
+  const covered = story(`${HEAD}captions: {"style":"subtitle","everywhere":true}\n\n## p · page\npage: p.html\n\nA spoken line on a drawn page.\n`);
+  assert.ok(!lint(covered).some((f) => f.id === "no-subtitles"), "captions everywhere cover it");
+  const word = story(`${HEAD}captions: {"style":"subtitle","everywhere":true}\n\n## p · page\npage: p.html\n\nSet AGENTIC_SCREENCAST_NO_LIVE_CAMERA_AND_EVERYTHING_ELSE_TOO=1 first.\n`);
+  assert.ok(lint(word).some((f) => f.id === "long-word" && f.rule === "FC-35"), "a variable longer than a line is named");
+});
+
+test("lint estimates the film's length from the narration and the scenes' durations, less transition overlaps", () => {
+  const info: { seconds?: number } = {};
+  lint(story(`${HEAD}\n## a · page\npage: p.html\nduration: 4\n\n## b · page\npage: p.html\nduration: 5\ntransition: dots 1\n`), info);
+  assert.equal(info.seconds, 8);
+});
+
+test("lint names hits in a scene with nothing to sound them, even when the scene is narrated", () => {
+  const cap = `captions: {"style":"subtitle","everywhere":true}\n\n`;
+  const found = lint(story(`${HEAD}${cap}## a · page\npage: p.html\nshake: 0.5s\nduration: 3\n\nThe narration is not a hit.\n`));
+  assert.ok(found.some((f) => f.id === "silent-hits" && f.rule === "FC-63"), found.map((f) => f.id).join(", "));
+  const ffmpeg = createRequire(import.meta.url)("ffmpeg-static") as string;
+  const withSfx = story(`${HEAD}${cap}## a · page\npage: p.html\nshake: 0.5s\nsfx: [{"at":"0.5s","file":"hit.wav"}]\nduration: 3\n`);
+  execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "anullsrc=r=48000:cl=mono", "-t", "0.3", join(dirname(withSfx), "hit.wav")]);
+  const sounded = lint(withSfx);
+  assert.ok(!sounded.some((f) => f.id === "silent-hits"), "a hit with its sfx is not named");
+});
+
+test("a name that is only a property of every object (constructor) is refused, not taken as a theme, look, format, kind or transition", () => {
+  const head = (line: string): string => story(`${HEAD}${line}\n\n## a · slides.hero\ntitle: T\nduration: 3\n\nSpoken.\n`);
+  for (const line of ["theme: constructor", "look: constructor", "format: toString"]) {
+    assert.throws(() => lint(head(line)), (e: Error) => /constructor|toString/u.test(e.message) && !/undefined|native code/u.test(e.message), line);
+  }
+  assert.throws(() => lint(story(`${HEAD}\n## a · slides.constructor\ntitle: T\nduration: 3\n\nSpoken.\n`)), /constructor/u);
+  assert.throws(() => lint(story(`${HEAD}\n## a · slides.hero\ntitle: T\nduration: 3\n\nOne.\n\n## b · slides.hero\ntitle: T\ntransition: constructor\nduration: 3\n\nTwo.\n`)), /constructor/u);
+});
+
+test("a merged name is refused with the one to write wherever it is written", () => {
+  const scene = (body: string): string => story(`${HEAD}\n${body}duration: 3\n\nSpoken.\n`);
+  const refused = (file: string, re: RegExp): void => { assert.throws(() => lint(file), re); };
+  refused(scene("## a · slides.hero\ntitle: T\nenter: lift\n"), /«lift» was merged into «rise»/u);
+  refused(scene("## a · slides.hero\ntitle: T\ntext: scramble\n"), /«scramble» was merged into «flap»/u);
+  refused(scene("## a · slides.hero\ntitle: T\nbackground: mesh\n"), /«mesh» was merged into «aurora»/u);
+  refused(scene(`## a · page\npage: p.html\noverlay: {"cards":[{"at":0.3,"title":"A","reveal":"shuffle","hold":2.5}]}\n`), /«shuffle» was merged into «fly»/u);
+  refused(scene(`## a · page\npage: p.html\noverlay: {"titles":[{"at":0.3,"text":"A","style":"scramble","hold":2.5}]}\n`), /«scramble» was merged into «flap»/u);
+  refused(story(`${HEAD}theme: {"preset":"neutral","--bg-motion":"spotlight"}\n\n## a · slides.hero\ntitle: T\nduration: 3\n\nSpoken.\n`), /«spotlight» was merged into «lamp»/u);
+  // Имя, совпадающее со свойством объекта, — не слитое имя, а просто неизвестное.
+  assert.throws(() => lint(scene("## a · slides.hero\ntitle: T\ntransition: constructor\n")), (e: Error) => !/merged/u.test(e.message));
+  const page = scene("## a · page\npage: p.html\n");
+  writeFileSync(join(dirname(page), "p.html"), `<!doctype html><html data-sc-page><body><h1 data-kinetic="scramble">Hi</h1></body></html>`);
+  const found = lint(page).find((f) => f.id === "page-retired");
+  assert.match(String(found?.message), /«scramble» was merged into «flap»/u);
+});
+
 test("overloaded-line uses the effective portrait subtitle width, including --format", () => {
   const beat = "A readable sentence with enough words to need several subtitle lines in a narrow portrait frame.";
   const file = story(`${HEAD}\n## p · page\npage: p.html\n\n${beat}\n`);
@@ -114,9 +166,9 @@ test("overloaded-line uses the effective portrait subtitle width, including --fo
   try {
     const finding = lint(file).find((f) => f.id === "overloaded-line");
     assert.ok(finding, "the portrait cut uses its narrower subtitle band");
-    assert.match(finding.message, /more than two subtitle lines/);
+    assert.match(finding.message, /more than two subtitle screens of two lines each/);
     const russian = story(`# Ролик\nlang: ru\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n## p · page\npage: p.html\n\n${"Очень длинная реплика о том, как человек работает с интерфейсом и почему ему нужен читаемый вертикальный кадр."}\n`);
-    assert.match(lint(russian).find((f) => f.id === "overloaded-line")!.message, /такт 1 содержит .* знаков — больше двух строк субтитров/);
+    assert.match(lint(russian).find((f) => f.id === "overloaded-line")!.message, /такт 1 содержит .* знаков — больше двух экранов субтитров по две строки/);
   } finally {
     if (previous === undefined) delete process.env.AGENTIC_SCREENCAST_FILM_FORMAT;
     else process.env.AGENTIC_SCREENCAST_FILM_FORMAT = previous;

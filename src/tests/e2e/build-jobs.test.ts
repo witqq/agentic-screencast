@@ -44,7 +44,7 @@ A card and a mark on a page.
 
 ## d · slides.hero
 title: The end
-transition: dissolve 0.5
+transition: dots 0.5
 
 The last scene closes the film.
 `);

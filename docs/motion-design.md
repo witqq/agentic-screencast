@@ -122,10 +122,10 @@ that opened it, a dialog from the centre [18].
 **Hold.** After a key element lands, let the frame stand: about half a second after the words stop
 before a caption goes [24], about 1.2 s after a click before a zoom returns [25].
 
-**How to write it here.** The entrances of slide items (`enter:` — `rise`, `lift`, `pop`, `word`,
-`tilt`, `drop`, `swing` and more, `help slides`) each carry their own curve and duration: `lift`,
-`word`, `tilt` and `zoom` decelerate strongly, `pop` overshoots, `rise` and `fade` are the gentle
-ones. Overlay cards take `motion: rise | pop | glide | fly` and `enter`/`exit` durations 0.2–2.5 s
+**How to write it here.** The entrances of slide items (`enter:` — `rise`, `pop`, `word`,
+`tilt`, `bounce`, `swing` and more, `help slides`) each carry their own curve and duration: `rise`,
+`word`, `tilt` and `zoom` decelerate strongly, `pop` overshoots, `fade` is the gentle
+one. Overlay cards take `motion: rise | pop | glide | fly` and `enter`/`exit` durations 0.2–2.5 s
 (`help overlay`); the camera takes `style: gentle | snappy` or explicit `move` and `return`.
 `ease:` on a slide replaces the curve of every entrance: `standard` (`0.2, 0, 0, 1`), `emphasized`
 (`0.05, 0.7, 0.1, 1`), `expressive` (`0.16, 1, 0.3, 1`), `spring` (damped, barely overshooting) and
@@ -147,6 +147,7 @@ Choose the transition by what connects the two scenes [7][11]:
 | Are unrelated topics | a fade through, or a hard cut | a scene's own fade, or `cut` |
 | Land on a beat, change the act | a hard cut or a dip | `cut`, `dip 0.6 black` |
 | An element of the first opens into the second (a button into its screen) | a mask growing out of that element | `{"kind":"mask","element":"#open"}` |
+| A reveal from one point, with no element to grow from | a glowing circle opening from that point | `{"kind":"mask","at":"0.5 0.5"}` |
 | Change the act on music without losing a second | a light leak over the cut | `leak 0.8` (no overlap, the film keeps its length) |
 
 A hard cut is "the most basic and possibly the most useful" transition [12]; a film whose every seam
@@ -179,9 +180,10 @@ in a title [28]. **Scramble** decodes a short technical title, a **typewriter** 
 never less than about 5/6 s per event [24].
 
 **How to write it here.** `text:` on a slide sets a kinetic style for the title and body: `rise`,
-`spin`, `fly`, `slide`, `zoom`, `bounce`, `shuffle`, `glitch`, `beat`, `aurora`, `sparkle`,
-`swarm`, `drop`, `wave`, `scramble`, `split`, `flip`, `blur`, `swirl`, `flap`, `arc` (`help
-slides` says what each does). Overlay titles take `style: rise | slam | type | split` or any of the
+`spin`, `fly`, `slide`, `zoom`, `bounce`, `glitch`, `beat`, `aurora`, `sparkle`,
+`swarm`, `drop`, `wave`, `split`, `flip`, `blur`, `swirl`, `flap`, `arc` (`help
+slides` says what each does); the fast ones smear along their path as a shutter would, and settle
+sharp; a merged name is refused with the one to write (`help slides`). Overlay titles take `style: rise | slam | type | split` or any of the
 same styles; cards take `reveal`. `slides.counter` and `slides.number` roll their numbers; karaoke
 captions light each word as it is spoken. `enter: mask` raises each item from under its own lower
 edge — the line mask — and a title rotates a word with `{a|b|c}` (`swap: morph` makes the words
@@ -241,9 +243,9 @@ background [39]. A drifting gradient, a slow grid, a sheen that crosses a card o
 `help themes`) — note that the default `neutral` and `frost` themes have no live background, on
 purpose (visual design, "The tool's own defaults"). The quiet one is `grid`; `waves` is calm; the
 others say something and belong where that is the point: `rays` and `lamp` — a solemn reveal of a
-title; `spotlight` — a beam finds the headline; `meteors` — depth and energy at night; `flicker` —
+title; `meteors` — depth and energy at night; `flicker` —
 technical and alive; `beams` — flow, data, AI; `warp` — speed, a breakthrough; `vortex` — a pull
-into the middle, a call to action; `aurora`, `mesh`, `particles`, `bokeh` — atmosphere. `lint`
+into the middle, a call to action; `aurora`, `particles`, `bokeh` — atmosphere. `lint`
 counts every one of them but `grid` and `waves` as a decorative background. `overlay.glints` for a
 sheen, `overlay.bursts` for confetti and sparks, `look: {"grain": …}` for grain.
 
@@ -380,8 +382,8 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 - **Marker under a word, strike-through** — the key word, or "the old way"; drawn over about 800 ms
   [75]. *In the tool:* in a slide's title `==word==` (marker), `((word))` (a circle by hand) and
   `~~word~~` (strike-through); overlay `marks` (underline, circle, arrow) on any target.
-- **Scramble** — decoding, search [76]. *In the tool:* `text: scramble`.
-- **Split-flap** — an update, a departure [77]. *In the tool:* `text: flap`.
+- **Scramble and split-flap** — decoding, search [76], an update, a departure [77]. *In the tool:*
+  `text: flap` — each letter runs through characters and stops on its own.
 - **Text on a curve** — a badge, a seal, a playful claim. *In the tool:* `text: arc`.
 - **Glitch** — a failure, a hack, a hard edit; channels split and slices jump [90]. *In the tool:*
   `text: glitch` on a phrase, `rgb` on a scene for the whole frame, the `glitch` transition.
@@ -397,9 +399,8 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 
 ### Transitions
 
-*In the tool:* `dissolve`, `zoom-blur`, `whip`, `zoom`, `wipe`, `iris`, `cube`, `flip`, `glitch`,
-`flash`, `ripple`, `dip`, `push`, `melt`, `leak`, `clock`, `curl`, `tiles`, `blur`, `mask`, `dots`,
-`pixelate`, `morph`, `cut`, and `flow: auto` for a whole film (`help transitions`). Choose by the
+*In the tool:* `whip`, `zoom`, `wipe`, `cube`, `flip`, `glitch`, `dip`, `push`, `melt`, `leak`, `clock`,
+`curl`, `tiles`, `blur`, `mask`, `dots`, `pixelate`, `morph`, `cut`, and `flow: auto` for a whole film (`help transitions`). Choose by the
 table in "Transitions" above. Two of the new ones state a relation: `mask` grows the next scene out
 of an element of the first, and `curl` turns a page — the next item of a list, a new version.
 `leak` is a light over the cut that keeps the film's length. The rest — liquid `melt`, `tiles`,
@@ -409,14 +410,14 @@ film.
 
 ### Background and light
 
-- **Drifting colour** — atmosphere without meaning [80][81]. *In the tool:* `aurora`, `mesh`.
+- **Drifting colour** — atmosphere without meaning [80][81]. *In the tool:* `aurora`.
 - **Grid with running light** — "technical, precise" [82][67]. *In the tool:* `grid`; `flicker`
   for a grid of cells that light up in their own rhythms [91].
 - **Particles** — depth, data, AI [83]. *In the tool:* `particles`, `bokeh`, `overlay.bursts`;
   `vortex` draws them into the middle [90]; `warp` flies through them [92].
 - **Light from above** — a solemn reveal: rays from the top [93], a lamp that lights a cone over the
-  title [89], a slanted spotlight that finds the headline [90]. *In the tool:* `rays`, `lamp`,
-  `spotlight`.
+  title [89], a slanted spotlight that finds the headline [90]. *In the tool:* `rays` and `lamp`; the
+  slanted spotlight was merged into `lamp`, which does the same job.
 - **Meteors** — depth and energy [94]. *In the tool:* `meteors`.
 - **Sheen across a card** — "new, premium", once after it lands [68]. *In the tool:*
   `overlay.glints`.
@@ -440,14 +441,16 @@ its letters with `fill`; `move: dolly` so the frame pushes in once; over an `ima
 `text: blur` or `text: swarm` (a filled headline keeps its own entrance) — or, without a phrase
 style, one marked word in the title (`==word==`), since a phrase style shows the words without their
 marks; `flow: auto` so the scene hands its push to the next one.
-A `lamp` or `spotlight` background replaces the image only in a launch or a trailer.
+A `lamp` or `rays` background replaces the image only in a launch or a trailer.
 
 **When and why.** The first three seconds decide (film craft 64): the eye lands on the product,
 the push says "come closer", the phrase assembling gives the claim its moment, and the marker names
 the one word that matters. Everything moves in one direction — in.
 
 **Not when** the film opens on a live take (the take is the opening), or in a support how-to, where
-a claim delays the answer.
+a claim delays the answer. A screen that is mostly text — a terminal, a log, a document — does not go
+behind a headline: two texts over each other read as one mess. Open on the running `slides.shell`,
+or on `slides.shot` with the headline beside the screen.
 
 ### 2. "The assistant answers" (an AI product)
 
@@ -503,7 +506,7 @@ kinds per film.
 ### 6. The developer product at work
 
 **Together:** `slides.shell` (commands type, a spinner turns, output lands), then `slides.code`
-with `highlight:` on the lines that matter; `flicker` or `grid` behind; `text: scramble` or `flap`
+with `highlight:` on the lines that matter; `flicker` or `grid` behind; `text: flap`
 on a chapter title; `pixelate` or `glitch` as the one transition kind, or a hard `cut`.
 
 **When and why.** Developers trust what runs: a command and its real output are the evidence, the

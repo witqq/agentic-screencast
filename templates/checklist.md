@@ -73,13 +73,13 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Impacts: a flash of light, a camera shake, the colour channels splitting — `flash`, `shake`, `rgb`, `help overlay`
 - Cards (corner, near the focus, flying in) — `overlay.cards`, spotlight `card`, `help overlay`
 - Titles, lower thirds, callouts, stickers (emoji, image, GIF, badge) — `overlay.titles`, `lower`, `callouts`, `stickers`, `help text`
-- Kinetic text on slides and titles (glitch, beat, aurora, sparkle, swarm, split-flap, arc and more), a word marked, circled or struck out in a title, a liquid word swap, a picture in the letters — `text:`, `style`, `reveal`, `==word==`, `swap`, `fill`, `help slides`
+- Kinetic text on slides and titles (glitch, beat, aurora, sparkle, swarm, split-flap, arc and more; fast styles smear along their path), a word marked, circled or struck out in a title, a liquid word swap, a picture in the letters — `text:`, `style`, `reveal`, `==word==`, `swap`, `fill`, `help slides`
 - Slide kinds: chapter, compare, chain, number, quote, hero, steps, features, timeline, counter, chart, beforeafter, parallax, perspective, code, photo, shot, outro, card, titlecard, wall, cloud, shell — `slides.<kind>`, `agentic-screencast schema <kind>`
 - Item entrances, content placement by height, camera drift, live backgrounds — `enter`, `align`, `move`, `background`, `help slides`
 - Live capture: clicks (and their effect), typing, keys, ranges, drags, cards, focus during the take, clicks through a layer — `recordTake`, `take.*`, `help capture`
 - Zoom to actions and follow the cursor, device frame — `autoZoom` with `follow` (`help capture`), `device` (`help slides`)
 - Saved pages and interface snapshots — `page`, `agentic-screencast snapshot`, `help video`
-- Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, push or whip with a direction, zoom into an element, a mask out of an element, a page curl, a light leak that keeps the length, a scene's own fades — `transition`, `fade`, `help transitions`
+- Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, push or whip with a direction, zoom into an element, a mask out of an element or a glowing circle from a point, a page curl, a light leak that keeps the length, a scene's own fades — `transition`, `fade`, `help transitions`
 - A continuous film: every seam connected instead of fades — `flow: auto`, `help transitions`, docs/motion-design.md "A continuous film"
 - Camera and life on slides: dolly, pan, 3D orbit, hand-held camera; living, jolting, bouncing, fanning and 3D entrances with motion blur; waves, stagger, curves and the scene's pace; a light on the border; hits on music beats — `move`, `alive`, `enter`, `wave`, `stagger`, `ease`, `pace`, `glow`, `flash`/`shake`/`rgb` with `m16`, `help slides`
 - Captions: bottom plate, subtitles or karaoke, outline or plate look, size, `.srt`, at the top or in the middle where the lower frame carries the subject — `captions` (header and scene), `help text`

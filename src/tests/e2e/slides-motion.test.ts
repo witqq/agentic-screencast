@@ -133,7 +133,7 @@ test("every new kind and every live background keeps moving after everything has
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
   try {
-    for (const b of ["aurora", "mesh", "waves"]) {
+    for (const b of ["aurora", "rays", "waves"]) {
       const s = backs.find((x) => x.id === `bg-${b}`)!;
       const page = await browser.newPage();
       await page.goto(`file://${join(String(s.__src), String(s.page))}`);

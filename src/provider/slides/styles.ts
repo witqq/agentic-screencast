@@ -17,9 +17,9 @@ export const CSS = `
 .amb-glow{width:1100px;height:1100px;left:52%;top:-42%;border-radius:50%;
   background:radial-gradient(circle,color-mix(in srgb,var(--acc) 26%,transparent) 0%,transparent 62%)}
 .amb-grid{inset:-10%;background-image:
-  linear-gradient(color-mix(in srgb,var(--line) 62%,transparent) 1px,transparent 1px),
-  linear-gradient(90deg,color-mix(in srgb,var(--line) 62%,transparent) 1px,transparent 1px);
-  background-size:96px 96px;opacity:.5;
+  linear-gradient(color-mix(in srgb,var(--line) 70%,var(--acc) 30%) 1px,transparent 1px),
+  linear-gradient(90deg,color-mix(in srgb,var(--line) 70%,var(--acc) 30%) 1px,transparent 1px);
+  background-size:96px 96px;opacity:.75;
   mask-image:radial-gradient(circle at 60% 40%,black 10%,transparent 78%)}
 .amb-sheen{top:-25%;bottom:-25%;width:260px;left:-320px;transform:skewX(-18deg);
   background:linear-gradient(90deg,transparent,color-mix(in srgb,var(--acc2) 13%,transparent),transparent)}
@@ -97,10 +97,14 @@ font-variant-numeric:tabular-nums;white-space:nowrap}
 .tag{background:var(--node);border:var(--hairline) solid var(--line);border-radius:var(--radius-pill);padding:var(--space-s) var(--space-l);
 font-size:28px;color:var(--body)}
 .foot{position:absolute;left:72px;bottom:40px;color:var(--mut);font-size:20px}
-.quote{background:var(--card);border:var(--hairline) solid var(--line);border-radius:var(--radius-lg);
-padding:var(--space-m) var(--space-l);margin-bottom:14px}
-.qlabel{display:block;color:var(--acc2);font-size:28px;font-weight:700;margin-bottom:10px}
-.quote pre{font:400 30px/1.4 var(--mono);color:var(--ink);white-space:pre-wrap}
+/* Цитата настоящего ответа: крупная кавычка акцента, подпись — источник, текст набирается
+   неровным темпом, как печатает сам отвечающий. */
+.quote{position:relative;background:var(--card);border:var(--hairline) solid var(--line);border-radius:var(--radius-lg);
+padding:var(--space-l) var(--space-xl) var(--space-l) calc(var(--space-3xl) + var(--space-3xl));margin-bottom:18px;overflow:hidden}
+.quote::before{content:"“";position:absolute;left:calc(var(--space-m) + var(--rule-size));top:var(--space-s);font:700 104px/1 var(--display,var(--sans));color:var(--acc)}
+.quote::after{content:"";position:absolute;left:0;top:0;bottom:0;width:var(--rule-size);background:var(--acc)}
+.qlabel{display:block;color:var(--acc2);font-size:26px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;margin-bottom:12px}
+.quote pre{font:400 36px/1.4 var(--mono);color:var(--ink);white-space:pre-wrap}
 .pair{display:flex;gap:40px;align-items:flex-end}
 .pair .huge{font-size:150px}
 /* Заставка главы целиком собрана из переменных темы. Прежде её фон,
@@ -214,12 +218,17 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
 .wall-copy{position:relative;z-index:2}
 .wall-title{font-size:88px}
 /* Облако на сфере: пункты стоят по центру и разъезжаются по проекции сферы. */
-.cloud{position:relative;flex:1;min-height:0;width:100%}
+.cloud{position:relative;flex:1;min-height:420px;width:100%}
+.cloud .chip{font-size:34px;padding:var(--space-m) var(--space-xl)}.cloud .chip-ic{font-size:40px}
 .cloud-pos{position:absolute;left:50%;top:50%;width:0;height:0;display:flex;align-items:center;justify-content:center}
 .cloud-pos>.el{flex:none}
-/* Терминал: окно кода, лента строк прокручивается вверх, когда не помещается. */
-.term-win{align-self:stretch}
-.term{height:520px;overflow:hidden;padding:var(--space-m) var(--space-l);font:400 26px/1.55 var(--mono);color:var(--code-ink)}
+/* Терминал: окно кода, лента строк прокручивается вверх, когда не помещается. Окно уступает
+   высоту, когда под слайдом стоят субтитры или над ним надзаголовок: лента всё равно показывает
+   последние строки, а слайд не вылезает за свою область. */
+.k-term .k-in{min-height:0}
+.code-win.term-win{align-self:stretch;display:flex;flex-direction:column;flex:0 1 auto;min-height:0}
+.term{height:520px;flex:0 1 auto;min-height:0;overflow:hidden;padding:var(--space-m) var(--space-l);font:400 26px/1.55 var(--mono);color:var(--code-ink);
+  font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
 .term-feed{display:flex;flex-direction:column}
 .term-ps{color:var(--acc)}
 .term-spin{margin-left:12px;color:var(--mut)}
@@ -335,8 +344,10 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
   border-bottom:var(--hairline) solid var(--code-line)}
 .code-bar i{width:13px;height:13px;border-radius:50%;background:var(--sc-traffic-1)}
 .code-bar i:nth-child(2){background:var(--sc-traffic-2)}.code-bar i:nth-child(3){background:var(--sc-traffic-3)}
-.code-bar span{margin-left:14px;font:500 20px/1 var(--mono);color:var(--code-name)}
-.code{font:400 24px/1.55 var(--mono);color:var(--code-ink);padding:var(--space-m) 0 var(--space-l);white-space:pre;overflow:hidden}
+/* Имя вкладки — того же кегля, что и код: в вертикальном ролике мельче телефон его не прочтёт. */
+.code-bar span{margin-left:14px;font:500 24px/1 var(--mono);color:var(--code-name)}
+.code{font:400 24px/1.55 var(--mono);color:var(--code-ink);padding:var(--space-m) 0 var(--space-l);white-space:pre;overflow:hidden;
+  font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
 .code i{font-style:normal}
 .code i.cur{box-shadow:var(--code-caret)}
 .ln{display:block;padding-right:var(--space-xl)}
@@ -364,7 +375,7 @@ padding:var(--space-m) var(--space-l);margin-bottom:14px}
 
 .k-outro .k-in{align-items:center;text-align:center}
 .outro-copy{position:relative;max-width:1060px;display:flex;flex-direction:column;align-items:center}
-.outro-title{font-size:86px;line-height:1.04;letter-spacing:max(-.025em,calc(-.02em + var(--display-tracking,0em)));margin:14px 0 22px;text-wrap:balance}
+.outro-title{font-size:86px;line-height:1.1;letter-spacing:max(-.025em,calc(-.02em + var(--display-tracking,0em)));margin:14px 0 22px;text-wrap:balance}
 .outro-body{font-size:32px;line-height:1.36;color:var(--body);max-width:880px;text-wrap:balance}
 .outro-cta{margin-top:40px}
 .outro-cta span{position:relative;overflow:hidden;display:inline-block;padding:var(--space-m) var(--space-3xl);border-radius:var(--radius-pill);
@@ -434,7 +445,8 @@ body[data-align="bottom"]>.rule{margin-top:var(--space-l)}
 .ring3{flex:1;min-height:0;position:relative;perspective:1400px;display:flex;align-items:center;justify-content:center}
 .ring3-rot{position:relative;width:420px;height:300px;transform-style:preserve-3d}
 .ring3-card{position:absolute;inset:0;padding:var(--space-xl);border-radius:var(--radius-xl);background:var(--card);border:var(--hairline) solid var(--line);
-  backface-visibility:hidden;box-shadow:var(--shadow-3)}
+  backface-visibility:hidden;box-shadow:var(--shadow-3);
+  border-color:color-mix(in srgb,var(--acc) calc(var(--ring-light,0) * 70%),var(--line))}
 .ring3-card h3{font-size:34px;line-height:1.15;color:var(--ink);font-weight:700;margin-bottom:8px}
 .ring3-card p{font-size:26px;line-height:1.35;color:var(--body)}
 .globe{flex:1;min-height:0;position:relative}
@@ -558,6 +570,10 @@ body[data-align="fill"] .k-in{justify-content:space-evenly}
   .outro-cta{margin-top:auto}
   .outro-cta span{font-size:36px;padding:var(--space-xl) var(--space-3xl);white-space:nowrap}
   .outro-url{margin-top:40px;font-size:24px;white-space:nowrap}
+  /* В высоком кадре слова финала стоят над серединой снимка, куда тень снизу не доходит: они
+     ложатся на плотную подложку фона, иначе заголовок читался поверх пёстрого экрана. */
+  .k-outro.over .outro-copy{background:color-mix(in srgb,var(--bg) 88%,transparent);border-radius:var(--radius-lg);
+    padding:var(--space-xl);backdrop-filter:blur(6px)}
   .photo-cap h1{font-size:60px}
   /* Код в узком кадре переносится по пробелам, продолжение строки — с отступом номера. */
   .code{white-space:pre-wrap;overflow-wrap:anywhere}
@@ -572,8 +588,8 @@ body[data-align="fill"] .k-in{justify-content:space-evenly}
  * из инструмента не импортирует.
  */
 /** Живые фоны слайдов: имена, которые принимают поле `background` и переменная темы `--bg-motion`. */
-export const BACKGROUNDS = ["grid", "aurora", "mesh", "waves", "particles", "bokeh", "rays", "lamp", "meteors", "flicker", "beams", "warp",
-  "vortex", "spotlight", "none"];
+export const BACKGROUNDS = ["grid", "aurora", "waves", "particles", "bokeh", "rays", "lamp", "meteors", "flicker", "beams", "warp",
+  "vortex", "none"];
 
 export const RUNTIME = `
 (() => {
@@ -603,15 +619,14 @@ const turn = (e, side) => {
 // становился видимым раньше предыдущего, и порядок чтения нарушался.
 // Различается движение: откуда элемент приходит и как садится на место.
 const ENTER = {
-  rise: { d: 0.45, ease: inOut, move: (e) => ['translateY(' + ((1 - e) * 18).toFixed(2) + 'px)', 0] },
-  lift: { d: 0.75, ease: out3, move: (e) => ['translateY(' + ((1 - e) * 38).toFixed(2) + 'px)', (1 - e) * 10] },
+  // Встаёт снизу из лёгкой дымки и тормозит, как всё, что входит в кадр (прежние rise и lift — один вход).
+  rise: { d: 0.65, ease: out3, move: (e) => ['translateY(' + ((1 - e) * 30).toFixed(2) + 'px)', (1 - e) * 8] },
   word: { d: 0.8, ease: out4, move: (e) => ['translateY(' + ((1 - e) * 0.55).toFixed(3) + 'em) scaleY(' + Math.cos((1 - e) * 1.25).toFixed(4) + ')', (1 - e) * 9] },
   left: { d: 0.85, ease: out4, move: (e) => turn(e, -1) },
   right: { d: 0.85, ease: out4, move: (e) => turn(e, 1) },
   pop: { d: 0.7, ease: back, move: (e) => ['scale(' + (0.7 + 0.3 * e).toFixed(4) + ')', Math.max(0, 1 - e) * 7] },
   wipe: { d: 0.9, ease: out3, clip: (e) => 'inset(0 ' + ((1 - e) * 100).toFixed(2) + '% 0 0 round var(--radius-lg))',
     move: (e) => ['translateX(' + ((1 - e) * -36).toFixed(2) + 'px)', 0] },
-  flip: { d: 0.9, ease: out3, move: (e) => ['translateY(' + ((1 - e) * 44).toFixed(2) + 'px) scaleY(' + Math.cos((1 - e) * 1.35).toFixed(4) + ')', (1 - e) * 5] },
   track: { d: 1.0, ease: out3, move: (e) => ['translateX(' + ((1 - e) * -22).toFixed(2) + 'px)', (1 - e) * 4], spacing: true },
   line: { d: 1.0, ease: out3, still: true, move: () => ['', 0] },
   tilt: { d: 1.2, ease: out4, move: (e) => ['translateY(' + ((1 - e) * 80).toFixed(2) + 'px) scale(' + (0.88 + 0.12 * e).toFixed(4) + ') scaleY(' + Math.cos((1 - e) * 0.5).toFixed(4) + ')', (1 - e) * 9] },
@@ -624,13 +639,8 @@ const ENTER = {
     const a = (Math.sin(i * 127.1) * 43758.5453 % 1 + 1) % 1 * Math.PI * 2;
     return ['translate(' + (Math.cos(a) * (1 - e) * 520).toFixed(2) + 'px,' + (Math.sin(a) * (1 - e) * 320).toFixed(2) + 'px) rotate(' + ((1 - e) * (i % 2 ? 24 : -24)).toFixed(2) + 'deg)', (1 - e) * 5];
   } },
-  // Падает сверху и отскакивает.
-  drop: { d: 0.9, ease: (p) => p < 0.62 ? Math.pow(p / 0.62, 2) : 1 - Math.sin((p - 0.62) / 0.38 * Math.PI) * 0.1 * (1 - p),
-    move: (e) => ['translateY(' + ((1 - e) * -260).toFixed(2) + 'px)', 0] },
   // Качается на верхнем углу, как вывеска.
   swing: { d: 1.1, ease: out3, move: (e, i, p) => ['rotate(' + (Math.sin(p * Math.PI * 2.5) * 16 * (1 - p)).toFixed(2) + 'deg) translateY(' + ((1 - e) * 30).toFixed(2) + 'px)', 0], origin: '0 0' },
-  // Разворачивается слева направо.
-  unfold: { d: 0.8, ease: out3, move: (e) => ['scaleX(' + Math.max(0.001, e).toFixed(4) + ')', 0], origin: '0 50%' },
   // Врезается с перебором масштаба и гаснущей дрожью, как от удара.
   jolt: { d: 0.65, ease: out4, move: (e, i, p) => {
     const k = (1 - p) * (1 - p);
@@ -874,10 +884,17 @@ function type(t) {
   codes = codes || [...document.querySelectorAll('pre.code')].map((pre) => ({ pre, chars: [...pre.querySelectorAll('.src i')],
     lines: [...pre.querySelectorAll('.ln')] }));
   for (const { pre, chars, lines } of codes) {
-    // Скорость «auto»: набор укладывается в первые две трети сцены, сколько бы
-    // знаков ни было, — не быстрее девяноста и не медленнее восемнадцати в секунду.
+    // Скорость «auto»: набор укладывается в первые две трети сцены, а у сцены из нескольких тактов —
+    // до начала второго: там голос обычно называет строку, и подсветка не должна встать на ещё не
+    // набранную. Не медленнее восемнадцати знаков в секунду и не быстрее девяноста — кроме случая,
+    // когда иначе код не успел бы ко второму такту: тогда до двухсот сорока.
+    // Срок — начало первого такта, который наступает после начала набора (с запасом в секунду): код,
+    // встающий на втором такте, срок берёт у третьего, а без следующего такта набор идёт как прежде.
+    const sc = window.__stage && window.__stage.scene;
+    const later = sc && sc.starts ? sc.starts.find((b) => b > start(pre) + 1) : undefined;
+    const second = later !== undefined ? later - 0.3 : Infinity;
     const cps = pre.dataset.cps === 'auto'
-      ? Math.max(18, Math.min(90, chars.length / Math.max(0.8, dur() * 0.68 - start(pre))))
+      ? Math.max(18, Math.min(second < Infinity ? 240 : 90, chars.length / Math.max(0.8, Math.min(dur() * 0.68, second) - start(pre))))
       : Number(pre.dataset.cps) || 42;
     const n = Math.max(0, Math.floor((t - start(pre)) * cps));
     chars.forEach((ch, i) => {
@@ -1179,6 +1196,38 @@ function kenBurns(t) {
   }
 }
 
+// Кадр в точках вёрстки: innerWidth и прямоугольники Chromium — в точках кадра, с увеличением zoom
+// на корне, а длины в стилях — в точках вёрстки. Доля кадра в сдвиге считается от этих размеров.
+function frameCss() {
+  const z = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  return { w: innerWidth / z, h: innerHeight / z };
+}
+
+// Сколько места у наезда: середина содержимого секции и наибольший масштаб, при котором содержимое
+// остаётся внутри кадра с половиной поля страницы. Меряется раскладка (offset*), а не экранные
+// прямоугольники: у пункта на въезде (fly, bounce, fan) они раздуты его трансформацией, и наезд
+// дёргался, пока пункты входили.
+function dollyRoom(kin) {
+  const prev = kin.style.transform;
+  kin.style.transform = 'none';
+  const box = kin.getBoundingClientRect();
+  kin.style.transform = prev;
+  const z = parseFloat(getComputedStyle(document.documentElement).zoom) || 1, frame = frameCss();
+  let l = Infinity, tp = Infinity, r = -Infinity, b = -Infinity;
+  for (const c of kin.children) {
+    if (c.offsetWidth < 1 || c.offsetHeight < 1) continue;
+    l = Math.min(l, c.offsetLeft); tp = Math.min(tp, c.offsetTop);
+    r = Math.max(r, c.offsetLeft + c.offsetWidth); b = Math.max(b, c.offsetTop + c.offsetHeight);
+  }
+  if (!(r > l && b > tp)) return { origin: '50% 50%', k: 1.16 };
+  // Всё — в точках вёрстки: край секции в кадре, середина содержимого и поле.
+  const x0 = box.left / z, y0 = box.top / z, cx = x0 + (l + r) / 2, cy = y0 + (tp + b) / 2;
+  const m = (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--pad-l')) || 72) * 0.5;
+  const fit = (room, half) => half > 0 ? room / half : Infinity;
+  const kk = Math.min(fit(cx - m, cx - (x0 + l)), fit(frame.w - m - cx, x0 + r - cx), fit(cy - m, cy - (y0 + tp)), fit(frame.h - m - cy, y0 + b - cy));
+  return { origin: ((l + r) / 2 / Math.max(1, kin.offsetWidth) * 100).toFixed(2) + '% ' + ((tp + b) / 2 / Math.max(1, kin.offsetHeight) * 100).toFixed(2) + '%', k: Math.max(1, kk) };
+}
+
 // Кадр целиком: облёт камеры (передний план смещается сильнее фона, отсюда
 // глубина) или медленный наезд к концу сцены.
 function move(t) {
@@ -1206,12 +1255,16 @@ function move(t) {
     } else if (mode === 'dolly') {
       // Наезд с рампой скорости: камера трогается медленно, разгоняется в середине и мягко встаёт.
       // Фон едет медленнее переднего плана — отсюда глубина.
+      // Наезд идёт к середине содержимого и не дальше того, что вмещает кадр: у заголовка по левому
+      // краю наезд от середины секции выносил надзаголовок за край кадра.
       const p = clamp(t / dur()), e = p < 0.5 ? 16 * p ** 5 : 1 - (-2 * p + 2) ** 5 / 2;
-      kin.style.transform = 'scale(' + (1 + 0.16 * e).toFixed(5) + ')';
+      const room = dollyRoom(kin);
+      kin.style.transformOrigin = room.origin;
+      kin.style.transform = 'scale(' + (1 + Math.min(0.16, room.k - 1) * e).toFixed(5) + ')';
       if (amb) amb.style.transform = 'scale(' + (1.03 + 0.05 * e).toFixed(5) + ')';
     } else if (mode === 'pan') {
       // Проводка: кадр едет вбок через всю сцену, фон — вдвое медленнее.
-      const e = inOut(clamp(t / dur())), x = (0.5 - e) * innerWidth * 0.06;
+      const e = inOut(clamp(t / dur())), x = (0.5 - e) * frameCss().w * 0.06;
       kin.style.transform = 'translateX(' + x.toFixed(2) + 'px) scale(1.02)';
       if (amb) amb.style.transform = 'translateX(' + (x * 0.5).toFixed(2) + 'px) scale(1.08)';
     } else if (mode === 'orbit3d') {
@@ -1220,11 +1273,11 @@ function move(t) {
       const e = inOut(clamp(t / dur()));
       const ry = -9 + 18 * e + Math.sin(t * 0.7) * 1.2, rx = 5 + Math.cos(t * 0.45) * 2.5;
       kin.style.transform = 'rotateX(' + rx.toFixed(3) + 'deg) rotateY(' + ry.toFixed(3) + 'deg) scale(0.94)';
-      if (amb) amb.style.transform = 'translateX(' + (-ry * innerWidth * 0.0012).toFixed(2) + 'px) scale(1.06)';
+      if (amb) amb.style.transform = 'translateX(' + (-ry * frameCss().w * 0.0012).toFixed(2) + 'px) scale(1.06)';
     } else if (mode === 'handheld') {
       // Ручная камера: сумма синусов несоизмеримых частот — дрожь без повтора, с редкими толчками.
       const u = u0 => Math.sin(t * u0) + Math.sin(t * u0 * 2.37 + 1.3) * 0.5 + Math.sin(t * u0 * 5.11 + 4.1) * 0.22;
-      const k = innerHeight / 1080;
+      const k = frameCss().h / 1080;
       const tx = u(1.7) * 5 * k, ty = u(2.3) * 4 * k, rot = u(1.1) * 0.35;
       kin.style.transform = 'translate(' + tx.toFixed(2) + 'px,' + ty.toFixed(2) + 'px) rotate(' + rot.toFixed(4) + 'deg) scale(1.025)';
       if (amb) amb.style.transform = 'translate(' + (tx * 0.4).toFixed(2) + 'px,' + (ty * 0.4).toFixed(2) + 'px) scale(1.05)';
@@ -1263,13 +1316,6 @@ const SHADERS = {
     + 'float veil=smoothstep(0.3,0.0,-d)*exp(-max(d,0.0)*12.0);'
     + 'vec3 c=i==0?A:(i==1?B:mix(A,B,0.5));'
     + 'col=mix(col,c,clamp((band*0.85+veil*0.22)*rays*K,0.0,0.85));}'
-    + 'gl_FragColor=vec4(col,1.0);}',
-  mesh: 'void main(){vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y;vec2 p=vec2(uv.x*asp,uv.y);float t=T*0.05;'
-    + 'vec2 w=vec2(fbm(p*1.3+vec2(t,0.0)),fbm(p*1.3+vec2(4.1,t)));p+=(w-0.5)*0.35;vec3 col=BG;'
-    + 'vec2 c1=vec2(asp*(0.25+0.15*sin(t*2.1)),0.3+0.2*cos(t*1.7));vec2 c2=vec2(asp*(0.75+0.12*cos(t*1.3)),0.65+0.18*sin(t*1.9));'
-    + 'vec2 c3=vec2(asp*(0.55+0.2*sin(t*1.1+2.0)),0.15+0.12*cos(t*2.3));vec2 c4=vec2(asp*(0.1+0.1*cos(t*1.6+1.0)),0.85+0.1*sin(t*1.2));'
-    + 'col=mix(col,A,exp(-dot(p-c1,p-c1)*5.0)*K);col=mix(col,B,exp(-dot(p-c2,p-c2)*4.0)*K);'
-    + 'col=mix(col,G,clamp(exp(-dot(p-c3,p-c3)*6.0)*K*1.2,0.0,1.0));col=mix(col,mix(A,B,0.5),exp(-dot(p-c4,p-c4)*7.0)*K*0.8);'
     + 'gl_FragColor=vec4(col,1.0);}',
   waves: 'void main(){vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y;float t=T*0.35;vec3 col=mix(BG,G,uv.y*0.8);'
     + 'for(int i=0;i<9;i++){float fi=float(i);'
@@ -1322,12 +1368,6 @@ const SHADERS = {
     + 'float n1=n(q*38.0+vec2(T*0.6,0.0));float dots=smoothstep(0.78,0.95,n1)*smoothstep(0.02,0.25,r)*exp(-r*1.2);'
     + 'float arms=0.5+0.5*sin(sw*3.0-log(r)*4.0);'
     + 'vec3 col=mix(BG,G,exp(-r*3.0)*0.7);col=mix(col,mix(A,B,arms),clamp((dots*1.4+arms*0.12*exp(-r*2.0))*K,0.0,0.95));'
-    + 'gl_FragColor=vec4(col,1.0);}',
-  // Прожектор: косой луч из верхнего левого угла проходит по кадру за первые 3 с и остаётся на заголовке.
-  spotlight: 'void main(){vec2 uv=gl_FragCoord.xy/R;float asp=R.x/R.y;vec2 o=vec2(-0.15*asp,1.25);vec2 p=vec2(uv.x*asp,uv.y)-o;'
-    + 'float sweep=mix(-1.25,-0.62,smoothstep(0.0,3.0,T))+0.03*sin(T*0.6);float a=atan(p.x,-p.y)+sweep;'
-    + 'float cone=exp(-a*a*28.0)*smoothstep(2.4,0.2,length(p));float core=exp(-a*a*140.0)*0.5;'
-    + 'vec3 col=mix(BG,G,0.25);col=mix(col,mix(A,B,0.3),clamp((cone*0.75+core)*K*1.3,0.0,0.9));'
     + 'gl_FragColor=vec4(col,1.0);}',
 };
 const MODES = ${JSON.stringify(BACKGROUNDS)};
@@ -1630,19 +1670,21 @@ function wall(t) {
   }
 }
 
-// Облако на сфере: пункты на сфере Фибоначчи, сфера поворачивается на 14° в секунду с наклоном;
+// Облако на сфере: пункты на сфере Фибоначчи, сфера поворачивается на 26° в секунду с наклоном —
+// медленнее она читается как стоящий кадр; сфера занимает всё свободное место под заголовком;
 // ближние крупнее и ярче, дальние — меньше и тусклее и уходят назад по порядку наложения.
 function cloud(t) {
   for (const c of document.querySelectorAll('.cloud')) {
-    const pos = [...c.querySelectorAll('.cloud-pos')], n = pos.length, R = Math.min(c.clientWidth, c.clientHeight) * 0.42;
-    const yaw = t * 0.25, tilt = 0.35, cy = Math.cos(yaw), sy = Math.sin(yaw), cx = Math.cos(tilt), sx = Math.sin(tilt);
+    const pos = [...c.querySelectorAll('.cloud-pos')], n = pos.length, R = Math.min(c.clientWidth * 0.34, c.clientHeight * 0.5);
+    const yaw = t * 0.45, tilt = 0.35, cy = Math.cos(yaw), sy = Math.sin(yaw), cx = Math.cos(tilt), sx = Math.sin(tilt);
     pos.forEach((p, i) => {
       const y0 = 1 - (i + 0.5) / n * 2, r = Math.sqrt(1 - y0 * y0), a = i * 2.39996323;
       const x0 = Math.cos(a) * r, z0 = Math.sin(a) * r;
       const x = x0 * cy + z0 * sy, z1 = -x0 * sy + z0 * cy, y = y0 * cx - z1 * sx, z = y0 * sx + z1 * cx;
       const near = (z + 1) / 2;
-      p.style.transform = 'translate(' + (x * R * 1.3).toFixed(1) + 'px,' + (-y * R).toFixed(1) + 'px) scale(' + (0.55 + 0.55 * near).toFixed(3) + ')';
-      p.style.opacity = (0.3 + 0.7 * near).toFixed(3);
+      p.style.transform = 'translate(' + (x * R * 1.4).toFixed(1) + 'px,' + (-y * R).toFixed(1) + 'px) scale(' + (0.5 + 0.75 * near).toFixed(3) + ')';
+      p.style.opacity = (0.2 + 0.8 * near * near).toFixed(3);
+      p.style.filter = near < 0.45 ? 'blur(' + ((0.45 - near) * 4).toFixed(2) + 'px)' : 'none';
       p.style.zIndex = String(Math.round(near * 100));
     });
   }
@@ -1659,7 +1701,12 @@ function terminal(t) {
       const t0 = start(b), next = blocks[i + 1] ? start(blocks[i + 1]) : Infinity;
       b.style.display = t >= t0 ? '' : 'none';
       const inp = b.querySelector('.term-in'), spin = b.querySelector('.term-spin'), late = b.querySelector('.term-late');
-      const typed = inp ? t0 + [...inp.textContent].length / 24 : t0;
+      // Команду набирает слой (browser/stage.ts) темпом руки, но так, чтобы она стояла целиком за
+      // data-type-hold секунд до следующей команды или конца сцены: этого хватает, чтобы она поработала
+      // и её вывод прочли. Тот же счёт здесь ставит спиннер и вывод на конец набора.
+      const hold = inp ? Number(inp.dataset.typeHold) || 0.6 : 0, chars = inp ? [...inp.textContent].length : 0;
+      const room = Math.min(dur(), next) - hold - t0;
+      const typed = inp ? t0 + (room > 0.2 ? chars / Math.max(Number(inp.dataset.typeSpeed) || 24, chars / room) : 0) : t0;
       const done = Math.min(typed + 0.6, next - 0.05);
       if (spin) {
         const on = t >= typed && t < done;
@@ -1725,6 +1772,12 @@ function ring(t) {
     // Кольцо ещё и чуть плывёт, чтобы кадр жил на удержании.
     const drift = Math.sin(t * 0.5) * 3;
     rot.style.transform = 'translateZ(' + (-tz).toFixed(1) + 'px) rotateX(-6deg) rotateY(' + (-turn * step + drift).toFixed(3) + 'deg)';
+    // Передняя карточка — ярче и в полной силе, боковые уходят в тень: кольцо читается как глубина.
+    cards.forEach((c, i) => {
+      const a = (i - turn) * step * Math.PI / 180, facing = Math.max(0, Math.cos(a));
+      c.style.opacity = (0.25 + 0.75 * Math.pow(facing, 1.5)).toFixed(3);
+      c.style.setProperty('--ring-light', facing.toFixed(3));
+    });
   }
 }
 

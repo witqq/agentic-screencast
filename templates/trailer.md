@@ -11,8 +11,6 @@ duration: 3.5
 ## card-1 · slides.card
 title: <TWO WORDS>
 transition: cut
-flash: 0.1s
-shake: 0.1s
 duration: 1.6
 
 ## show-1 · page
@@ -24,8 +22,6 @@ duration: 4
 title: <THREE MORE WORDS>
 fill: pages/result.svg
 transition: cut
-rgb: 0.1s
-shake: 0.1s
 duration: 1.6
 
 ## show-2 · page
@@ -37,7 +33,6 @@ duration: 4
 page: pages/live-shot.html
 transition: dip 0.4 white
 spotlight: [{"target":".card b","at":"1s","style":"snappy","ring":false,"dim":0}]
-rgb: 2.4s
 duration: 5
 
 ## title · slides.titlecard

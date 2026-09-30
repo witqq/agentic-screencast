@@ -462,7 +462,7 @@ export function specOf(scene: { provider: string; kind: string },
   providers: Record<string, string> = {}): KindSpec {
   const p = providerFor(scene.provider, providers);
   const kinds = p.kinds();
-  const spec = kinds[scene.kind];
+  const spec = Object.hasOwn(kinds, scene.kind) ? kinds[scene.kind] : undefined;
   if (!spec) {
     throw new SourceError(msg("provider.unknownKind", {
       provider: scene.provider, kind: scene.kind,

@@ -34,7 +34,9 @@ const rgb = (file: string): Buffer => execFileSync(ffmpeg, ["-loglevel", "error"
 
 test("the transition field accepts a name, a name with length, or an object, and refuses the rest", () => {
   assert.deepEqual(parseTransition("cube"), { kind: "cube", duration: 0.8 });
-  assert.deepEqual(parseTransition("iris 1.2"), { kind: "iris", duration: 1.2 });
+  assert.deepEqual(parseTransition("mask 1.2"), { kind: "mask", duration: 1.2 });
+  // Слитое имя отвергается с названием замены.
+  assert.throws(() => parseTransition("iris 1.2"), /iris.*mask/u);
   assert.equal(parseTransition('{"kind":"whip","duration":0.5,"snap":"music"}').snap, "music");
   assert.throws(() => parseTransition("crossfade"), /unknown kind/);
   assert.throws(() => parseTransition("cube 5"), /0.2–2 seconds/);
@@ -114,7 +116,7 @@ test("the webgl mark comes only from the WebGL branch", async () => {
 
 test("the timeline overlaps scenes by their transitions", () => {
   const t = timeline([{ frames: 60 }, { frames: 50, transition: { kind: "cube", duration: 0.8 } },
-    { frames: 40, transition: { kind: "iris", duration: 0.5 } }], 20);
+    { frames: 40, transition: { kind: "mask", duration: 0.5 } }], 20);
   assert.deepEqual(t.starts, [0, 60 / 20 - 16 / 20, (60 - 16 + 50 - 10) / 20]);
   assert.equal(t.total, (60 + 50 + 40 - 16 - 10) / 20);
 });
@@ -162,7 +164,7 @@ A page follows on a cube.
 
 ## three · video
 file: clip.mp4
-transition: iris 0.6
+transition: mask 0.6
 duration: 3
 
 ${line}

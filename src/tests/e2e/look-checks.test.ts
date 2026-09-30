@@ -45,7 +45,7 @@ The second beat.
 title: Next
 body: What comes next.
 enter: rise
-transition: zoom-blur
+transition: zoom
 
 The third beat.
 `, `${HEAD}look: {"grade":"teal-orange","grain":0.3}\n`);

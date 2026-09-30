@@ -259,7 +259,7 @@ The tool brings three providers with it:
 | `slides.compare` | "without / with" comparison in two columns | `left`, `right` |
 | `slides.chain` | diagram with arrows and a return-arrow caption | `nodes` |
 | `slides.number` | a large quantity with a caption | `values` or `value` |
-| `slides.quote` | a verbatim quote of someone else's answer | `parts` |
+| `slides.quote` | a verbatim quote of someone else's answer: a large quote mark, the source as a label, the words typing in | `parts` |
 | `slides.hero` | opening statement: the title rises word by word, an image may serve as background or be poured into the letters (`fill`) | `title` |
 | `slides.steps` | steps lighting up one by one following the speech | `items` |
 | `slides.features` | a grid of two to six capabilities with icons | `items` |
@@ -364,7 +364,7 @@ and they mean their own thing in each field — here are all of them:
 | `parts` | `caption :: text` pairs separated by `\|`; the quote text goes as is | `answer :: step accepted` |
 | `tags` | a plain list separated by `\|` | `what it is \| why \| how to start` |
 | `back` | one line: the caption of the return arrow | `nobody holds the frame` |
-| `note` | one line: a note below the content | `a rendering of the answer, not a capture` |
+| `note` | one line below the content: compare, chain and quote; on number, counter and chart the source of the figures; other kinds refuse it | `a rendering of the answer, not a capture` |
 
 `at` gives the moments elements appear, as **anchors**:
 

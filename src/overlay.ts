@@ -1,5 +1,6 @@
 /** Timed annotations shared by rendered pages and imported video clips. */
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 export interface OverlayPoint {
   at: number;
   /** Position as a fraction of the final frame, not source-video pixels. */
@@ -68,15 +69,15 @@ export interface OverlayThinking extends OverlayAnchor {
  *   по словам:  rise — всплывают из размытия; spin — вкручиваются из точки;
  *               fly — влетают с разных сторон, крутясь; slide — выезжают слева
  *               с наклоном; zoom — оседают из крупного плана; bounce —
- *               выпрыгивают с пружиной; shuffle — у каждого слова свой вход;
+ *               выпрыгивают с пружиной;
  *               glitch — входят сбоем с расслоением цвета и сбоят снова каждые
  *               2,6 с; beat — слово за словом бьют в доли музыки, и фраза
  *               вздрагивает на каждой следующей доле; aurora — всплывают, и по
  *               буквам течёт живой градиент двух акцентов темы; sparkle —
  *               всплывают, вокруг фразы вспыхивают и гаснут искры; swarm —
  *               тысячи точек слетаются из хаоса в буквы, и фраза проступает
- *   по буквам:  drop — падают с отскоком; wave — пробегают волной; scramble —
- *               проявляются из перебора знаков; split — сходятся от краёв;
+ *   по буквам:  drop — падают с отскоком; wave — пробегают волной;
+ *               split — сходятся от краёв;
  *               flip — раскрываются снизу; blur — проступают из размытия;
  *               swirl — слетаются по спирали; flap — перещёлкиваются, как табло
  *               вокзала; arc — встают на дугу и так на ней и стоят
@@ -94,8 +95,8 @@ export const CAMERA_STYLES: Record<string, { move: number; return: number }> = {
   snappy: { move: 0.45, return: 0.5 },
 };
 
-export const KINETIC = ["rise", "spin", "fly", "slide", "zoom", "bounce", "shuffle", "glitch", "beat", "aurora", "sparkle", "swarm",
-  "drop", "wave", "scramble", "split", "flip", "blur", "swirl", "flap", "arc"] as const;
+export const KINETIC = ["rise", "spin", "fly", "slide", "zoom", "bounce", "glitch", "beat", "aurora", "sparkle", "swarm",
+  "drop", "wave", "split", "flip", "blur", "swirl", "flap", "arc"] as const;
 export type Kinetic = (typeof KINETIC)[number];
 
 export interface OverlayCard {
@@ -419,6 +420,8 @@ function parseOverlayBody(json: string): SceneOverlay {
         throw new Error(msg("overlay.bodyLength", { where: `overlay.cards[${i}].body` }));
       if (raw.position !== undefined && !["top-left", "top-right", "bottom-left", "bottom-right", "center", "near-focus"].includes(String(raw.position)))
         throw new Error(msg("overlay.unknownPosition", { where: `overlay.cards[${i}].position` }));
+      const revealUse = typeof raw.reveal === "string" ? retiredAs("text", raw.reveal) : undefined;
+      if (revealUse) throw new Error(msg("retired", { field: `overlay.cards[${i}].reveal`, value: String(raw.reveal), use: revealUse }));
       if (raw.reveal !== undefined && !["fade", "type", ...KINETIC].includes(String(raw.reveal)))
         throw new Error(msg("overlay.options", { where: `overlay.cards[${i}].reveal`, options: `fade | type | ${KINETIC.join(" | ")}` }));
       if (raw.motion !== undefined && !["rise", "pop", "glide", "fly"].includes(String(raw.motion)))
@@ -535,6 +538,8 @@ function parseOverlayBody(json: string): SceneOverlay {
   const oneOf = <T extends string>(raw: Record<string, unknown>, key: string, allowed: readonly T[], where: string): T | undefined => {
     const v = raw[key];
     if (v === undefined) return undefined;
+    const use = (key === "style" || key === "reveal") && typeof v === "string" ? retiredAs("text", v) : undefined;
+    if (use) throw new Error(msg("retired", { field: `${where}.${key}`, value: String(v), use }));
     if (!allowed.includes(v as T)) throw new Error(msg("overlay.options", { where: `${where}.${key}`, options: allowed.join(" | ") }));
     return v as T;
   };

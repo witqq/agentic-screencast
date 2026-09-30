@@ -36,3 +36,28 @@ test("frames draws a spotlight's push-in the way the build does", () => {
   const plain = (200 * 120) / (960 * 540), during = shot("90%", "during.png");
   assert.ok(during > plain * 1.6, `the red box grows under the spotlight (${plain.toFixed(3)} of the frame → ${during.toFixed(3)})`);
 });
+
+test("frames draws a video scene's camera push-in the way the build does", () => {
+  // Наезд над видео делает сборка фильтром кадра; превью прежде показывало клип без наезда.
+  const dir = mkdtempSync(join(tmpdir(), "sc-frames-vcam-"));
+  execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=white:s=960x540:r=10:d=4", "-vf",
+    "drawbox=x=60:y=60:w=200:h=120:color=0xee3333:t=fill", "-pix_fmt", "yuv420p", join(dir, "clip.mp4")]);
+  writeFileSync(join(dir, "story.md"), `# F\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":960,"height":540,"fps":10,"scale":1}\n\n`
+    + `## v · video\nfile: clip.mp4\nduration: 4\noverlay: {"camera":[{"at":0.3,"move":0.5,"hold":3,"area":[0.05,0.08,0.3,0.3],"scale":2,"keep":true}]}\n`);
+  const r = spawnSync("node", [ENTRY, "frames", "story.md", "--scene", "v", "--at", "2.5s", "--out", "v.png"], { cwd: dir, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr.slice(-300));
+  const plain = (200 * 120) / (960 * 540), got = redShare(join(dir, "v.png"));
+  assert.ok(got > plain * 2.5, `the red box grows under the video camera (${plain.toFixed(3)} of the frame → ${got.toFixed(3)})`);
+});
+
+test("frames draws a video scene inside its device frame, as the build does", () => {
+  // Предпросмотр клипа в рамке показывал клип во весь кадр: где встанут субтитры, было видно только в сборке.
+  const dir = mkdtempSync(join(tmpdir(), "sc-frames-dev-"));
+  execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=0xee3333:s=540x960:r=10:d=3", "-pix_fmt", "yuv420p", join(dir, "clip.mp4")]);
+  writeFileSync(join(dir, "story.md"), `# F\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":960,"height":540,"fps":10,"scale":1}\n\n`
+    + `## v · video\nfile: clip.mp4\nduration: 3\ndevice: phone\n`);
+  const r = spawnSync("node", [ENTRY, "frames", "story.md", "--scene", "v", "--at", "50%", "--out", "v.png"], { cwd: dir, encoding: "utf8" });
+  assert.equal(r.status, 0, r.stderr.slice(-300));
+  const share = redShare(join(dir, "v.png"));
+  assert.ok(share > 0.05 && share < 0.3, `the red clip fills only the phone's screen (${share.toFixed(3)} of the frame)`);
+});

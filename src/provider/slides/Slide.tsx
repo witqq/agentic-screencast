@@ -64,8 +64,8 @@ export function tone(col: Column | undefined, dflt: NonNullable<Column["tone"]>)
  * цепочки выпрыгивают, цитата проявляется шторкой, заголовок встаёт по словам.
  * Как именно двигать, решает скрипт страницы; разметка только называет вход.
  */
-export const ENTERS = ["rise", "lift", "word", "left", "right", "pop", "wipe", "flip", "track", "line", "tilt", "zoom", "fade",
-  "spin", "fly", "drop", "swing", "unfold", "jolt", "flip3d", "tilt3d", "mask", "bounce", "fan"] as const;
+export const ENTERS = ["rise", "word", "left", "right", "pop", "wipe", "track", "line", "tilt", "zoom", "fade",
+  "spin", "fly", "swing", "jolt", "flip3d", "tilt3d", "mask", "bounce", "fan"] as const;
 export type Enter = (typeof ENTERS)[number];
 
 /**
@@ -106,7 +106,7 @@ function Title({ s, t, cls, text }: { s: Slide; t: string; cls?: string; text?: 
   const fill = s.fill ? { className: cls ? `${cls} filled` : "filled", style: { backgroundImage: `url(${s.fill.src})` } } : { className: cls };
   return k
     ? <Reveal at={t} enter="fade"><h1 {...fill} data-kinetic={k} data-at={t}>{plainTitle(text ?? s.title ?? "")}</h1></Reveal>
-    : <Reveal at={t} enter="lift"><h1 {...fill} {...(s.swap === "morph" ? { "data-swap": "morph" } : {})}>{rich(text ?? s.title ?? "")}</h1>
+    : <Reveal at={t} enter="rise"><h1 {...fill} {...(s.swap === "morph" ? { "data-swap": "morph" } : {})}>{rich(text ?? s.title ?? "")}</h1>
       {s.swap === "morph" ? <Goo /> : null}</Reveal>;
 }
 
@@ -125,7 +125,7 @@ function Body({ s, t, cls }: { s: Slide; t: string; cls: string }): JSX.Element 
   const k = s.text?.body;
   return k
     ? <Reveal at={t} enter="fade"><p className={cls} data-kinetic={k} data-at={t}>{s.body}</p></Reveal>
-    : <Reveal at={t} enter="lift"><p className={cls}>{s.body}</p></Reveal>;
+    : <Reveal at={t} enter="rise"><p className={cls}>{s.body}</p></Reveal>;
 }
 
 /** Обёртка появления: несёт якорь момента, в который элемент проступает, и способ входа. */
@@ -180,7 +180,7 @@ function Head({ s, kicker, title }: { s: Slide; kicker: string; title?: string }
 
 function Note({ at: t, text }: { at: string; text?: string }): JSX.Element | null {
   if (!text) return null;
-  return <Reveal at={t} enter="lift"><p className="back">{text}</p></Reveal>;
+  return <Reveal at={t} enter="rise"><p className="back">{text}</p></Reveal>;
 }
 
 function ColumnCard({ col, dflt }: { col: Column; dflt: NonNullable<Column["tone"]> }): JSX.Element {
@@ -287,7 +287,7 @@ function Chain({ s, w }: Props): JSX.Element {
         ))}
       </div>
       {s.back ? (
-        <Reveal at={at(s, nodes.length, total)} enter="lift">
+        <Reveal at={at(s, nodes.length, total)} enter="rise">
           <p className="back">↩ <b>{s.back}</b></p>
         </Reveal>
       ) : null}
@@ -307,7 +307,7 @@ function Quote({ s, w }: Props): JSX.Element {
         <Reveal at={at(s, i, n)} enter={enterOf(s, "wipe", i)} key={`${q.label}-${i}`}>
           <div className="quote">
             <span className="qlabel">{q.label}</span>
-            <pre>{q.text}</pre>
+            <pre data-type="body" data-at={at(s, i, n)}>{q.text}</pre>
           </div>
         </Reveal>
       ))}
@@ -328,7 +328,7 @@ function Value({ s, v, t }: { s: Slide; v: string; t: string }): JSX.Element {
 /** Крупная величина с подписями. */
 function Magnitude({ s, w }: Props): JSX.Element {
   const values = s.values ?? [];
-  const n = values.length + (s.tags ? 1 : 0);
+  const n = values.length + (s.tags ? 1 : 0) + (s.note ? 1 : 0);
   return (
     <>
       <Head s={s} kicker={s.kicker ?? w.number} title={s.title} />
@@ -347,6 +347,7 @@ function Magnitude({ s, w }: Props): JSX.Element {
           <div className="tags">{s.tags.map((x) => <span className="tag" key={x}>{x}</span>)}</div>
         </Reveal>
       ) : null}
+      <Note at={at(s, n - 1, n)} text={s.note} />
     </>
   );
 }
@@ -367,6 +368,11 @@ const item = (s: Slide, i: number, n: number): string => at(s, i, n);
 
 /** Моменты по умолчанию для вида с заданным порядком частей: секунды, если автор их не назвал. */
 const moment = (s: Slide, i: number, dflt: string): string => s.at?.[i] !== undefined ? String(s.at[i]) : dflt;
+
+/** Откуда цифры: приписка `note` под графиком и счётчиком встаёт вместе с последним значением. */
+function Source({ s, t }: { s: Slide; t: string }): JSX.Element | null {
+  return s.note ? <Reveal at={t} enter="rise"><p className="back k-src">{s.note}</p></Reveal> : null;
+}
 
 /**
  * Секция вида. Фон вида (картинка под заголовком, фото) лежит ВНЕ облетаемого
@@ -448,7 +454,7 @@ function Features({ s }: Props): JSX.Element {
       <KHead s={s} />
       <div className="feats" data-n={items.length}>
         {items.map((it, i) => (
-          <Reveal at={item(s, i, items.length)} enter={enterOf(s, "flip", i)} className="feat" key={i}>
+          <Reveal at={item(s, i, items.length)} enter={enterOf(s, "flip3d", i)} className="feat" key={i}>
             {/* Без значка карточка без знака: номера 01, 02, 03 — синоним значков-эмодзи (docs/visual-design.md). */}
             {it.icon ? <span className="feat-ic">{it.icon}</span> : null}
             <h3>{it.title}</h3>
@@ -521,6 +527,7 @@ function Counter({ s }: Props): JSX.Element {
           );
         })}
       </div>
+      <Source s={s} t={item(s, Math.max(0, values.length - 1), values.length)} />
     </Stage>
   );
 }
@@ -622,6 +629,7 @@ function Chart({ s }: Props): JSX.Element {
             <span className="race-period">{r.periods.at(-1)}</span>
           </div>
         </Reveal>
+        <Source s={s} t={t} />
       </Stage>
     );
   }
@@ -647,6 +655,7 @@ function Chart({ s }: Props): JSX.Element {
           </div>
           <div className="chart-labels">{c.rows.map((r, i) => <span className={`chart-l${cls(i)}`} key={i}>{r.label}</span>)}</div>
         </Reveal>
+        <Source s={s} t={t} />
       </Stage>
     );
   }
@@ -666,6 +675,7 @@ function Chart({ s }: Props): JSX.Element {
         </div>
         <div className="chart-labels">{c.rows.map((r, i) => <span className={`chart-l${cls(i)}`} key={i}>{r.label}</span>)}</div>
       </Reveal>
+      <Source s={s} t={t} />
     </Stage>
   );
 }
@@ -781,7 +791,7 @@ function Outro({ s }: Props): JSX.Element {
         <Words s={s} text={s.title ?? ""} t={moment(s, 0, "0.3s")} cls="outro-title" />
         {s.body ? <Body s={s} t={moment(s, 1, "1.3s")} cls="outro-body" /> : null}
         {s.cta ? <Reveal at={moment(s, 2, "1.9s")} enter="pop" className="outro-cta"><span>{s.cta}</span></Reveal> : null}
-        {s.url ? <Reveal at={moment(s, 3, "2.3s")} enter="lift"><p className="outro-url">{s.url}</p></Reveal> : null}
+        {s.url ? <Reveal at={moment(s, 3, "2.3s")} enter="rise"><p className="outro-url">{s.url}</p></Reveal> : null}
       </div>
     </Stage>
   );
@@ -986,7 +996,7 @@ function Terminal({ s }: Props): JSX.Element {
                 <div className="term-block" key={i} data-at={t}>
                   {cmd
                     ? <div className="term-cmd"><span className="term-ps">$</span>{" "}
-                      <span className="term-in" data-type="term" data-at={t} data-type-speed="24">{line.replace(/^\$\s*/u, "")}</span>
+                      <span className="term-in" data-type="term" data-at={t} data-type-speed="24" data-type-hold="1.1">{line.replace(/^\$\s*/u, "")}</span>
                       <span className="term-spin" /></div>
                     : <div className={outKind(line)}>{line}</div>}
                   {it.text ? <div className={`${outKind(it.text)} term-late`}>{it.text}</div> : null}

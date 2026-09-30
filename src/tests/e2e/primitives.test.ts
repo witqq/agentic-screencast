@@ -255,6 +255,39 @@ test("subtitles live only in the screen half of a video layer, never in the zoom
   }
 });
 
+test("an answer under \"thinking\" is absent before the skeleton comes and appears as it leaves", async () => {
+  const shown = (p: Page): Promise<boolean> => p.evaluate(() => getComputedStyle(document.querySelector("#ui")!).visibility !== "hidden");
+  await withStage({ overlay: parseOverlay('{"thinking":[{"at":1,"hold":1.5,"target":"#ui"}]}') }, async (p) => {
+    await seek(p, 0.4);
+    assert.equal(await shown(p), false, "before the skeleton the answer is not there yet");
+    await seek(p, 1.8);
+    assert.equal(await shown(p), false, "under the standing skeleton the answer is hidden");
+    await seek(p, 3.5);
+    assert.equal(await shown(p), true, "after the skeleton the answer stands in its place");
+  });
+});
+
+test("every primitive of a video layer is drawn in exactly one half, so a push-in never doubles it", async () => {
+  // Кадр показывает примитив по его времени; если это вернёт его и в чужую половину, под наездом их два.
+  const overlay = parseOverlay(JSON.stringify({ camera: [{ at: 3, hold: 1, area: [0.2, 0.2, 0.3, 0.3] }],
+    titles: [{ at: 0.5, text: "A title" }], lower: [{ at: 0.5, title: "Ada" }], toasts: [{ at: 0.5, title: "Done" }],
+    callouts: [{ at: 0.5, text: "Here", point: [0.5, 0.5] }], stickers: [{ at: 0.5, text: "NEW", point: [0.3, 0.3] }],
+    pings: [{ at: 0.5, point: [0.6, 0.6] }] }));
+  const screen = ["title", "lower", "toast"], scene = ["callout", "sticker", "ping"];
+  for (const part of ["scene", "screen"] as const) {
+    await withStage({ __overlayOnly: true, __layerPart: part, __videoCamera: true, overlay }, async (p) => {
+      await seek(p, 1.5);
+      const shown = await p.evaluate(() => Object.fromEntries(Object.entries({
+        title: ".__title", lower: ".__lower", toast: ".__toast", callout: ".__callout", sticker: ".__sticker", ping: ".__ping",
+      }).map(([k, sel]) => [k, [...document.querySelectorAll(sel)].some((n) => getComputedStyle(n).display !== "none")])));
+      for (const k of [...screen, ...scene]) {
+        const want = (part === "screen") === screen.includes(k);
+        assert.equal(shown[k], want, `${part} half ${want ? "draws" : "leaves out"} the ${k}`);
+      }
+    });
+  }
+});
+
 test("subtitles stay on through a spotlight and give way only to a card laid over them", async () => {
   const text = "The words of this beat stay readable while the camera holds the subject for the viewer";
   const opacity = (p: Page): Promise<number> =>

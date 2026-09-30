@@ -60,7 +60,9 @@ test("the new slide fields refuse what they do not know", () => {
   assert.match(lint("move: fly"), /dolly/u);
   assert.match(lint("stagger: 9"), /0.03 to 1.5/u);
   assert.match(lint("enter: pop wobble"), /flip3d/u);
-  assert.equal(lint("flash: m16"), "", "a music anchor is a valid hit moment");
+  // Якорь музыки разбирается; удар без звука lint называет находкой (выход 1), а не ошибкой разбора (2).
+  writeFileSync(join(dir, "story.md"), `# Bad\n${HEAD}\n## s · slides.features\nitems: A :: a | B :: b\nflash: m16\n\nSome words here.\n`);
+  assert.notEqual(spawnSync("node", [ENTRY, "lint", "story.md"], { cwd: dir, encoding: "utf8" }).status, 2, "a music anchor is a valid hit moment");
   writeFileSync(join(dir, "story.md"), `# Bad\n${HEAD}flow: always\n\n## s · slides.chapter\ntitle: A\nbody: B\nduration: 2\n`);
   const r = spawnSync("node", [ENTRY, "lint", "story.md"], { cwd: dir, encoding: "utf8" });
   assert.match(r.stdout + r.stderr, /only value is auto/u);

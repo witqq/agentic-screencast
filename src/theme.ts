@@ -14,6 +14,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 
 /** Переменные оформления: имя без ведущих дефисов допускается. */
 export type ThemeVars = Record<string, string>;
@@ -2565,6 +2566,10 @@ export function resolveTheme(input: ThemeInput | undefined, over?: ThemeVars, sc
 
 /** Токены прохода ffmpeg и шейдеров — только `#rrggbb` или `#rrggbbaa` (список — через запятую). */
 function checked(vars: ThemeVars): ThemeVars {
+  // Живой фон, слитый с другим, — ошибка с именем замены, как в поле сцены, а не молчаливая сетка.
+  const bg = vars["--bg-motion"]?.trim();
+  const use = bg ? retiredAs("background", bg) : undefined;
+  if (bg && use) throw new ThemeError(msg("retired", { field: "--bg-motion", value: bg, use }));
   for (const key of HEX_TOKENS) {
     const v = vars[key];
     if (v !== undefined && !v.split(",").every((c) => /^#[0-9a-f]{6}(?:[0-9a-f]{2})?$/i.test(c.trim()))) {
@@ -2576,7 +2581,7 @@ function checked(vars: ThemeVars): ThemeVars {
 
 /** Тема по имени в названной схеме; без схемы — в схеме темы по умолчанию. */
 function preset(name: string, scheme?: string): ThemeVars {
-  const schemes = THEME_SCHEMES[name.trim()];
+  const schemes = Object.hasOwn(THEME_SCHEMES, name.trim()) ? THEME_SCHEMES[name.trim()] : undefined;
   if (!schemes) {
     throw new ThemeError(msg("theme.unknown", { name: String(name), available: THEME_NAMES.join(", ") }));
   }

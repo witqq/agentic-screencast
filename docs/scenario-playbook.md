@@ -307,6 +307,14 @@ before it — hard cuts inside an act and one other transition kind (`dip`, `lea
 `slides.wall`, `warp` and a card with the product in its letters (`fill`) are the trailer's own
 spectacle; they read as a joke in any other genre.
 
+**Without music.** Recipe 7's hits need a sound — a flash or a shake without one reads as a glitch —
+so find a free track first: [the sound guide](sound.md) lists the sources whose licences allow it.
+A trailer that must stay silent keeps its rhythm in the cut and the type: hard `cut`s on the
+narration's stresses, scenes of two to three seconds in the climax, a kinetic title on the claim,
+the product in every card — and no hits (`lint` names hits with nothing to sound them, `silent-hits`).
+`slides.card` slams in with a flash of its own, so a silent trailer sets its words on
+`slides.hero` with a kinetic title instead. The button card holds longer, since no sting ends it.
+
 ### The action trailer and its parody
 
 A film trailer in the Hollywood action manner, and the comic trailer that borrows it — a grand
@@ -438,7 +446,7 @@ instead of benefits [10]; a smooth exposition that never names the misconception
 introduction [14].
 
 **In the tool.** Name the terms on a `slides.chain` before the demonstration; state the
-misconception on a `slides.compare` with `tone: bad` and refute it on the next beat; move the
+misconception on a `slides.compare` whose column is marked bad (`left: The belief (bad) :: …`) and refute it on the next beat; move the
 focus with the narration so signalling and temporal contiguity come for free.
 Skeleton: [`templates/explainer.md`](../templates/explainer.md).
 
@@ -446,7 +454,10 @@ Skeleton: [`templates/explainer.md`](../templates/explainer.md).
 whose pulse runs from node to node shows the mechanism flowing; the misconception struck out
 (`~~…~~`) and the correct idea marked (`==…==`) in the titles; `spotlight` moving with the words;
 `flow: auto` with pushes along one axis for the steps. No decorative background and no hits —
-"busy editing with extra transitions" is the genre's named mistake [10].
+"busy editing with extra transitions" is the genre's named mistake [10]. The recipes: 6 when the
+subject is a developer tool (its real command and output, then the lines the narration names), 4
+for the number that proves a point, and 1 for an opening on the problem with the product's screen —
+read its "Not when" for a screen that is mostly text.
 
 ## Release, changelog, "what's new"
 
@@ -496,6 +507,43 @@ Skeleton: [`templates/release.md`](../templates/release.md).
 that shows it working (recipe 3). One launch, one energy: a dense stream of changes for experts may
 run at `pace: brisk`; a single promise stays calm.
 
+**A launch teaser.** "Teaser" names a trailer, "launch" a release; choose by the film's job. When it
+must make people want the thing in under 45 seconds, take the trailer's shape — cold open,
+escalation, title, button — with its cards and hits. When it must say what changed and where to get
+it, take the release's. A mix is a trailer whose escalation shots are the release's changes, each
+shown working, with narration that names what is new in the product's words. A "before" claim needs
+the old version as its evidence: a commit message describes a change in the code, not what users
+saw (film craft 2 and 56).
+
+**A film about the effects themselves.** When the product is a visual tool and the film shows its
+effects — a showreel, a release of motion features — each effect is the subject of its own shot, not
+decoration: one effect per scene, named on screen (a kicker with the line that makes it), large, and
+still one lead movement per frame. The limits that keep other films calm — one or two transition
+kinds, one living kind, no decorative background — are about devices used as decoration and give
+way here; `lint` still counts each as a cliché sign, so name in the handoff which counted signs are
+the film's subject.
+
+## Vertical short (reel)
+
+A 15–35 second film for a feed — Reels, Shorts, TikTok — or for colleagues on a phone. Its hook
+types, structure (hook → value → proof → payoff), length by purpose, pace and loop are in the
+vertical-video guide, "Story shape of a short", and what a phone can read in its sections on safe
+zones and text; read them in full. Skeleton: [`templates/reel.md`](../templates/reel.md); its
+`pages/result.svg` stands in for the product's result — a portrait capture (1080×1920) fills the
+frame, a landscape one is cropped round its centre, so keep its subject there.
+
+**Motion.** The hook is recipe 1 in its vertical form: the result first, filling the frame, with the
+claim as an overlay title — larger than the subtitles and not a copy of the narration. A result that
+is mostly text (a report, a warning, a terminal) goes full frame as itself, with the claim as a title
+above it, not as a picture behind a headline (recipe 1's "Not when"). The body takes
+the recipe of its subject — 6 for a developer tool, 3 for an interface, 4 for a number — one idea
+per scene, as short as its narration allows (one beat of two to four seconds; a scene that needs two
+phone-paced beats runs five to seven), `flow: auto` pushing up between scenes, one camera move per
+scene. With a track faster than 120 BPM the claim lands on its beat (recipe 7's `text: beat`, hits
+with sound); without one, hard cuts on the narration's stresses. The last frame leads back into the
+first. Leave out living kinds whose labels turn small at phone width (`cloud`, `marquee`) unless a
+push-in holds them.
+
 ## Summary
 
 | Genre | Length (range) | Hook window | Frame | Close |
@@ -505,6 +553,7 @@ run at `pace: brisk`; a single promise stays calm.
 | Trailer | ≤90 s [25]; teaser <1 min [2]; 6 s micro [29] | <10 s, muted [29]; 1–5 shots [27] | cold open → intro → escalation → climax → title → button [24][32]; Tell-Show-Repeat [26] | one CTA title [27] |
 | Explainer | <30 s overview [13] … 1–2 min, <250 words [1]; learning ≤6 min [43] | problem in ~20 s [1] | Wistia's four beats [1]; via misconception [41]; names first [40] | where to go next [1] |
 | Release | 45–90 s, vertical 15–30 s [6]; a trifle: 15 s clip [44] | promise in 8 s [6] | what changed / why / who / what to do [7][44] | action and where to find it [7][44] |
+| Vertical short | 7–15 s reach, 20–35 s demo (vertical-video guide) | the result in 1–3 s (vertical-video guide) | hook → value → proof → payoff (vertical-video guide) | where to get it; the last frame leads into the first |
 
 ## Sources
 

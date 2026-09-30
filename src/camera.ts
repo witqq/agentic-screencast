@@ -142,10 +142,11 @@ export function cameraLegs(cues: readonly OverlayCamera[], path: CursorPath = []
  * туда-обратно на точку-две (замер: 8–23 возврата края за 3,3 с); `perspective` берёт отсчёты
  * между точками кубической интерполяцией, и движение плавное, как у наезда в браузере.
  */
-export function cameraPerspective(cues: readonly OverlayCamera[], fps: number, path: CursorPath = []): string | null {
+export function cameraPerspective(cues: readonly OverlayCamera[], fps: number, path: CursorPath = [], moment?: number): string | null {
   const legs = cameraLegs(cues, path);
   if (!legs.length) return null;
-  const time = `(on/${fps})`;
+  // Названный момент (превью одного кадра) ставит камеру в её положение в этот момент сцены.
+  const time = moment === undefined ? `(on/${fps})` : `(${moment.toFixed(3)})`;
   const s = (l: Leg): string => (l.linear ? clip : (v: string): string => smooth(clip(v)))(`(${time}-${l.t0})/${Math.max(1e-3, l.t1 - l.t0)}`);
   const sum = (base: string, pick: (l: Leg) => number): string =>
     legs.filter((l) => pick(l) !== 0).map((l) => `(${pick(l)})*(${s(l)})`).reduce((a, b) => `${a}+${b}`, base);

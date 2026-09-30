@@ -155,6 +155,23 @@ export function deviceMarkup(l: DeviceLayout, o: { inner?: string; surround?: { 
  * Оформление рамки — из переменных темы, как и всё прочее: корпус из цвета
  * карточек, линия из цвета линий. Правила общие для слайда и слоя композиции.
  */
+/**
+ * Клип сцены в рамке устройства: раскладка рамки в кадре W×H, накладка сцены, чьи области камеры
+ * переведены из долей клипа в доли кадра, и разметка корпуса для слоя. Одна раскладка у сборки и
+ * у предпросмотра кадров.
+ */
+export function deviceScene<O extends { camera?: Array<{ area?: [number, number, number, number] }> }>(
+  device: Device, aspect: number | undefined, W: number, H: number, overlay?: O,
+): { layout: DeviceLayout; overlay?: O; html: string } {
+  const box = H > W ? { x: W * 0.05, y: H * 0.1, w: W * 0.9, h: H * 0.8 } : { x: W * 0.07, y: H * 0.08, w: W * 0.86, h: H * 0.84 };
+  const layout = deviceLayout(device, box, aspect);
+  const sc = layout.screen;
+  const map = (a: [number, number, number, number]): [number, number, number, number] =>
+    [(sc.x + a[0] * sc.w) / W, (sc.y + a[1] * sc.h) / H, (a[2] * sc.w) / W, (a[3] * sc.h) / H];
+  const moved = overlay ? { ...overlay, camera: overlay.camera?.map((c) => (c.area ? { ...c, area: map(c.area) } : c)) } : undefined;
+  return { layout, ...(moved ? { overlay: moved } : {}), html: deviceMarkup(layout, { surround: { width: W, height: H } }) };
+}
+
 export const DEVICE_CSS = `
 .dv{position:absolute;box-sizing:border-box;overflow:hidden}
 .dv-browser{overflow:visible;box-shadow:var(--dv-browser-shadow)}

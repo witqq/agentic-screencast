@@ -1,6 +1,7 @@
 # What's new: <release name>
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
+captions: {"style":"subtitle","look":"plate","everywhere":true}
 flow: auto
 
 ## promise · slides.hero

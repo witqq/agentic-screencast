@@ -136,6 +136,7 @@ interface StageApi {
   /** кегль самого мелкого видимого текста цели в точках экрана; null — цели нет или в ней нет текста */
   fontPx(sel: string): number | null;
   cutText(sel: string): string[];
+  shown(sel: string): boolean;
   smallText(min: number): Array<{ text: string; px: number }>;
   /** самый длинный кусок субтитра в строках, как он лёг в кадре */
   captionLines(): { lines: number; text: string };

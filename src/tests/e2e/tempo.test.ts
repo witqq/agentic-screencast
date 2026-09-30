@@ -54,7 +54,7 @@ The first beat of the narration runs for a while here.
 ## b · slides.chapter
 title: Second
 body: The second scene.
-transition: {"kind":"dissolve","duration":0.4,"snap":"music"}
+transition: {"kind":"dots","duration":0.4,"snap":"music"}
 
 The second scene starts on a beat of the music.
 `;

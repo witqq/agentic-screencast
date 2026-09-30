@@ -128,7 +128,7 @@ test("цитата отдаёт подпись и дословный текст,
   } as Slide;
   const html = markup(s);
   assert.match(html, /class="qlabel">ответ</);
-  assert.match(html, /<pre>первая строка\nвторая<\/pre>/);
+  assert.match(html, /<pre[^>]*>первая строка\nвторая<\/pre>/);
   assert.doesNotMatch(html, /класс|disclaimer|интерфейс/);
 
   const withNote = markup({ ...s, note: "приписка от автора сцены" });

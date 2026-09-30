@@ -15,7 +15,8 @@ test("handover passes a clean film and fails an open checklist box or a scenario
   const dir = mkdtempSync(join(tmpdir(), "sc-handover-"));
   writeFileSync(join(dir, "p.html"), `<!doctype html><html><body style="margin:0;background:#f4f4f4;font:28px sans-serif">
 <style>@keyframes s{from{transform:translateX(0)}to{transform:translateX(60px)}} div{animation:s 4s linear infinite}</style><div>${rows}</div></body></html>`);
-  writeFileSync(join(dir, "story.md"), `# H\nlang: en\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":640,"height":360,"fps":10,"scale":1}\n\n`
+  writeFileSync(join(dir, "story.md"), `# H\nlang: en\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":640,"height":360,"fps":10,"scale":1}\n`
+    + `captions: {"style":"subtitle","everywhere":true}\n\n`
     + `## p · page\npage: p.html\nstills: 50%\n\nThe page shows the quarter row by row.\n`);
   writeFileSync(join(dir, "checklist.md"), "- [x] brief\n- [x] story\n");
   const env = { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") };

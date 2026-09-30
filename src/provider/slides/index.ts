@@ -19,7 +19,9 @@ const still = {
   fade: { in: 0.3, out: 0.3 },
 };
 
-const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger", "swap", "pace"];
+// `note` (приписка под слайдом) рисуют сравнение, цепочка, цитата и виды с цифрами (источник
+// цифр) — у остальных видов поле отвергается разбором, а не пропадает молча.
+const common = ["kicker", "title", "at", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger", "swap", "pace"];
 /** Новые виды держат кадр в движении целиком: облёт, наезд или покой. */
 const staged = [...common, "move"];
 
@@ -61,21 +63,21 @@ export const KINDS: Record<string, KindSpec> = {
   },
   compare: {
     about: "a comparison in two columns: without and with, «Title (bad|good|plain) :: text | item»",
-    fields: [...common, "left", "right"],
+    fields: [...common, "note", "left", "right"],
     required: [["left"], ["right"]],
     effects: still,
     check,
   },
   chain: {
     about: "a chain of nodes joined by arrows, with a line about what goes back",
-    fields: [...common, "nodes", "back"],
+    fields: [...common, "note", "nodes", "back"],
     required: [["nodes"]],
     effects: still,
     check,
   },
   number: {
     about: "a large number with its label; several side by side, tags below",
-    fields: [...common, "value", "label", "values", "tags", "count"],
+    fields: [...common, "note", "value", "label", "values", "tags", "count"],
     required: [["values", "value"]],
     numbers: true,
     effects: still,
@@ -83,7 +85,7 @@ export const KINDS: Record<string, KindSpec> = {
   },
   quote: {
     about: "a verbatim quote of a real answer, in parts «label :: text»",
-    fields: [...common, "parts"],
+    fields: [...common, "note", "parts"],
     required: [["parts"]],
     effects: still,
     check,
@@ -121,7 +123,7 @@ export const KINDS: Record<string, KindSpec> = {
   },
   counter: {
     about: "figures that roll up like an odometer, a ring for percentages: «1200+ :: label | 98% :: label»",
-    fields: [...staged, "values", "value", "count", "spark"],
+    fields: [...staged, "note", "values", "value", "count", "spark"],
     required: [["values", "value"]],
     numbers: true,
     effects: still,
@@ -153,7 +155,7 @@ export const KINDS: Record<string, KindSpec> = {
   },
   chart: {
     about: "a bar or line chart drawn from a CSV «label,value» beside the scenario: bars grow, a line draws itself, the peak lights up; type: race runs a bar chart race over the periods of a CSV «name,2020,2021,…»",
-    fields: [...staged, "data", "type", "peak"],
+    fields: [...staged, "note", "data", "type", "peak"],
     required: [["data"]],
     numbers: true,
     silentOk: true,
@@ -323,7 +325,7 @@ const SHOWN = ["title", "kicker", "body", "note", "items", "left", "right", "nod
   "values", "value", "label", "tags", "cta", "data", "labels"];
 const STAGING = ["align", "at", "background", "code", "count", "cps", "device", "enter", "file", "highlight", "image",
   "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels", "rows", "speed",
-  "images", "fill", "swap", "map", "pace"];
+  "images", "fill", "swap", "map", "pace", "alive", "glow", "ease", "wave", "stagger", "spark"];
 for (const spec of Object.values(KINDS)) {
   spec.shown = spec.fields.filter((f) => SHOWN.includes(f));
   spec.staging = spec.fields.filter((f) => STAGING.includes(f));

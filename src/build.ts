@@ -33,13 +33,13 @@ import { assembleVideo, overlapFrames, timeline, transitionFrames } from "./asse
 import { beatsWithin, mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
 import { ensureEncodedPeak, EncodedPeakError } from "./encoded-audio.js";
 import { auditFilm } from "./film-audit.js";
-import { AIMED, MASK, MORPH, type MorphInput, type Transition } from "./transition.js";
+import { AIMED, MASK, MORPH, isJoint, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
 import { autoBand, bandShare } from "./capband.js";
 import { liveCamera } from "./live-camera.js";
 import { actionZoomCues, autoZoomCues, marksOf, trimMarks, type AutoZoom, type Trim } from "./marks.js";
-import { DEVICE_CSS, deviceLayout, deviceMarkup, type Device, type DeviceLayout } from "./device.js";
+import { DEVICE_CSS, deviceMarkup, deviceScene, type Device, type DeviceLayout } from "./device.js";
 import type { Look } from "./look.js";
 import type { Safe } from "./format.js";
 import { ffmpegColour, resolveTheme } from "./theme.js";
@@ -49,7 +49,9 @@ import { specOf } from "./source.js";
 import { topAtoms } from "./web.js";
 
 /** Порог читаемости текста в кадре — доля короткой стороны: 48 точек на кадре 1080 (docs/vertical-video.md). */
-const LEGIBLE_SHARE = 48 / 1080;
+// Порог читаемости цели фокуса — доля короткой стороны кадра. Ленту смотрят с телефона: 48 точек на
+// 1080. Широкий кадр смотрят на экране, и ему хватает порога основного текста слайда: 28 на 1080.
+const LEGIBLE_SHARE = 48 / 1080, LEGIBLE_SHARE_WIDE = 28 / 1080;
 // Нижняя граница читаемого второстепенного текста в вертикальном кадре (docs/vertical-video.md,
 // «Text»): 36 точек на 1080. Мельче неё сборка называет строки встроенного слайда.
 const SMALL_SHARE = 36 / 1080;
@@ -369,8 +371,14 @@ async function main() {
     const wav = `${CACHE}/${key}.wav`;
     if (!existsSync(wav)) {
       try {
-        const said = await engineFor(base).synth(speech, base, wav);
-        writeFileSync(`${wav}.json`, JSON.stringify(said));
+        // Запись идёт во временный файл и встаёт на место переименованием: сборки вариантов идут
+        // параллельно в одном кэше, и соседняя читала недописанный файл («Invalid data»).
+        const part = `${CACHE}/${key}.${process.pid}-${Date.now()}.part.wav`;
+        try {
+          const said = await engineFor(base).synth(speech, base, part);
+          writeFileSync(`${wav}.json`, JSON.stringify({ ...said, file: wav }));
+          renameSync(part, wav);
+        } finally { rmSync(part, { force: true }); }
       } catch (e) {
         if ((e as { engineError?: boolean }).engineError) {
           console.error(String((e as Error).message));
@@ -384,8 +392,12 @@ async function main() {
     const f = 2 ** (pitch / 12);
     const shifted = `${CACHE}/${key}.pitch${pitch}.wav`;
     if (!existsSync(shifted)) {
-      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", wav, "-af",
-        `asetrate=${Math.round(48000 * f)},aresample=48000,atempo=${(1 / f).toFixed(6)}`, "-ar", "48000", "-ac", "1", shifted]);
+      const part = `${CACHE}/${key}.pitch${pitch}.${process.pid}-${Date.now()}.part.wav`;
+      try {
+        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", wav, "-af",
+          `asetrate=${Math.round(48000 * f)},aresample=48000,atempo=${(1 / f).toFixed(6)}`, "-ar", "48000", "-ac", "1", part]);
+        renameSync(part, shifted);
+      } finally { rmSync(part, { force: true }); }
     }
     // Кто озвучил такт — тот же движок, что записал исходник: без этой пометки у сдвинутой записи
     // отчёт ключей говорил «неизвестно».
@@ -478,14 +490,7 @@ async function main() {
     const said = execFileSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
       "-of", "csv=p=0:s=x", src], { encoding: "utf8" }).trim();
     const [cw, ch] = said.split("x").map(Number);
-    const W = opts.width, H = opts.height;
-    const box = H > W ? { x: W * 0.05, y: H * 0.1, w: W * 0.9, h: H * 0.8 } : { x: W * 0.07, y: H * 0.08, w: W * 0.86, h: H * 0.84 };
-    const layout = deviceLayout(s.device, box, cw && ch ? cw / ch : undefined);
-    const sc = layout.screen;
-    const map = (a: [number, number, number, number]): [number, number, number, number] =>
-      [(sc.x + a[0] * sc.w) / W, (sc.y + a[1] * sc.h) / H, (a[2] * sc.w) / W, (a[3] * sc.h) / H];
-    const overlay = s.overlay ? { ...s.overlay, camera: s.overlay.camera?.map((c) => (c.area ? { ...c, area: map(c.area) } : c)) } : undefined;
-    return { layout, overlay, html: deviceMarkup(layout, { surround: { width: W, height: H } }) };
+    return deviceScene(s.device, cw && ch ? cw / ch : undefined, opts.width, opts.height, s.overlay);
   }
 
   // Время ролика, с которого начинается очередная сцена: переход сдвигает
@@ -784,9 +789,15 @@ async function main() {
     // готового кадра. Порог — доля короткой стороны кадра (LEGIBLE_SHARE): 48 точек на 1080.
     const legibleProbes = (s.overlay?.camera ?? []).filter((c) => c.target)
       .map((c) => ({ t: Number((c.at + (c.move ?? 0.9) + c.hold / 2).toFixed(3)), target: c.target! }));
-    const legibleMin = Math.round(Math.min(opts.width, opts.height) * LEGIBLE_SHARE);
+    const wide = opts.width > opts.height;
+    const legibleMin = Math.round(Math.min(opts.width, opts.height) * (wide ? LEGIBLE_SHARE_WIDE : LEGIBLE_SHARE));
     let legibleGot: Array<{ t: number; target: string; px: number | null }> = [];
     let cutsGot: Array<{ t: number; target: string; text: string[] }> = [];
+    // Цель фокуса обязана быть на экране, когда камера к ней приходит: пункт слайда до своего
+    // момента скрыт, и камера шла к пустому месту.
+    const unseenProbes = (s.overlay?.camera ?? []).filter((c) => c.target)
+      .map((c) => ({ t: Number((c.at + (c.move ?? 0.9)).toFixed(3)), target: c.target! }));
+    let unseenGot: Array<{ t: number; target: string }> = [];
     // Мелкий текст в вертикальном кадре — вся страница, когда элементы вошли: у встроенного слайда
     // строки от 36 точек на 1080, у своей страницы автора — от 48, как любой текст, который читают
     // на телефоне (у слайда вёрстка своя и разреженная, у страницы — чужая и плотная).
@@ -819,9 +830,10 @@ async function main() {
       });
       const legibility = legibleGot.filter((l) => l.px !== null).map((l) => ({ at: l.t, target: l.target, px: l.px!, min: legibleMin }));
       const cut = cutsGot.map((c) => ({ at: c.t, target: c.target, text: c.text }));
+      const unseenAt = unseenGot.map((u) => ({ at: u.t, target: u.target }));
       const small = smallGot.length ? { at: smallProbe!.t, min: smallProbe!.min, lines: smallGot.slice(0, 5) } : undefined;
       const out = { ...(linesGot.lines > 2 ? { captionLines: linesGot } : {}), ...(outsideGot.length ? { outside: outsideGot } : {}), ...(lens.length ? { loupes: lens } : {}), ...(push.length ? { pushes: push } : {}),
-        ...(legibility.length ? { legibility } : {}), ...(cut.length ? { cut } : {}), ...(small ? { small } : {}) };
+        ...(legibility.length ? { legibility } : {}), ...(cut.length ? { cut } : {}), ...(unseenAt.length ? { unseen: unseenAt } : {}), ...(small ? { small } : {}) };
       writeFileSync(`${seg}.geometry.json`, JSON.stringify(out));
       return out;
     };
@@ -851,9 +863,10 @@ async function main() {
         mkdirSync(screenDir, { recursive: true });
         const scale = (opts.height / src.height) * (opts.scale ?? 1);
         const a = await draw({ ...material, __layerPart: "scene" },
-          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes });
+          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
         legibleGot = a.legible ?? [];
         cutsGot = a.cuts ?? [];
+        unseenGot = a.unseen ?? [];
         a.shots.forEach((shot, i) => writeFileSync(`${sceneDir}/${String(i).padStart(5, "0")}.png`, shot.buf));
         // Предмет лупы — в координатах окна: его прямоугольник на исходном кадре минус левый край
         // окна в момент лупы, в точках нового кадра.
@@ -1127,12 +1140,13 @@ async function main() {
         if (reframe) {
           notes = await reframePage({ ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme });
         } else {
-          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, small } = await draw(
+          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, unseen, small } = await draw(
             { ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
-            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, ...(smallProbe ? { small: smallProbe } : {}),
+            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes, ...(smallProbe ? { small: smallProbe } : {}),
               ...(unsafeProbe ? { unsafe: unsafeProbe } : {}) });
           legibleGot = legible ?? [];
           cutsGot = cuts ?? [];
+          unseenGot = unseen ?? [];
           smallGot = small ?? [];
           const items = loupes.map((loupe, li) => ({ loupe, rect: rects[li]!, floor }));
           await encode(shots, part, opts, withLoupes([], items, opts, sceneTheme));
@@ -1200,7 +1214,10 @@ async function main() {
       warn(String(e.id), "push-crop", msg("build.pushCrop", { id: String(e.id), at: c.at, scale: c.scale, fit: c.fits }));
     }
     for (const o of (e.outside as Array<{ t: number; text: string; side: string }> | undefined) ?? []) {
-      warn(String(e.id), "safe-zone", msg("build.safeZone", { id: String(e.id), at: o.t, text: o.text, side: o.side }));
+      // У каше (только в широком кадре) зону задают его полосы: текст уходит под них, а не под
+      // кнопки площадки.
+      const key = pitch.look?.bars ? "build.safeZoneBars" : "build.safeZone";
+      warn(String(e.id), "safe-zone", msg(key, { id: String(e.id), at: o.t, text: o.text, side: o.side }));
     }
     const lines = e.captionLines as { lines: number; text: string } | undefined;
     if (lines) warn(String(e.id), "caption-lines", msg("build.captionLines", { id: String(e.id), lines: lines.lines, text: lines.text }));
@@ -1208,12 +1225,15 @@ async function main() {
       warn(String(e.id), "loupe-scale", msg("build.loupeScale", { id: String(e.id), at: l.at, asked: l.asked, actual: l.scale }));
     }
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
-      if (l.px < l.min) warn(String(e.id), "legibility", msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }));
+      if (l.px < l.min) warn(String(e.id), "legibility", msg(opts.width > opts.height ? "build.legibleWide" : "build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }));
     }
     const small = e.small as { at: number; min: number; lines: Array<{ text: string; px: number }> } | undefined;
     if (small) {
       warn(String(e.id), "small", msg("build.small", { id: String(e.id), min: small.min,
         lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }));
+    }
+    for (const u of (e.unseen as Array<{ at: number; target: string }> | undefined) ?? []) {
+      warn(String(e.id), "focus-unseen", msg("build.focusUnseen", { id: String(e.id), target: u.target, at: u.at }));
     }
     for (const c of (e.cut as Array<{ at: number; target: string; text: string[] }> | undefined) ?? []) {
       warn(String(e.id), "cut", msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
@@ -1558,6 +1578,18 @@ async function main() {
       const fin = f?.in ?? 0.3, fout = f?.out ?? 0.3;
       if ((fin > 0 && local < fin) || (fout > 0 && local > dur - fout)) {
         warn(st.scene, "still-in-fade", msg("build.stillInFade", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
+        continue;
+      }
+      // Переход на стыке тоже прячет то, ради чего кадр назван: сцены смешаны или залиты светом.
+      // Перекрытие — на всю длину перехода; переход на стыке берёт свою часть кадров у каждой сцены.
+      const edge = (t: Transition | undefined, side: "in" | "out"): number => {
+        if (!useTransitions || !t) return 0;
+        const k = transitionFrames(t, opts.fps);
+        return (isJoint(t.kind) ? (side === "out" ? k - Math.floor(k / 2) : Math.floor(k / 2)) : k) / opts.fps;
+      };
+      const tin = i > 0 ? edge(s.transition, "in") : 0, tout = edge(taken[i + 1]?.transition, "out");
+      if ((tin > 0 && local < tin) || (tout > 0 && local > dur - tout)) {
+        warn(st.scene, "still-in-fade", msg("build.stillInTransition", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
       }
     }
     // Заметка контрольного кадра, цитирующая текст в «кавычках», сверяется с текстом, видимым в
@@ -1571,7 +1603,9 @@ async function main() {
       if (!scene) continue;
       const local = Math.max(0, st.time - tl.starts[i]!);
       const { text = "" } = await renderScene(scene, { ...opts, at: local, readText: local });
-      const norm = (x: string): string => x.toLowerCase().replace(/\s+/gu, " ").trim();
+      // Пробелы не сравниваются: буквы, которые въезжают по одной, лежат в отдельных узлах, и
+      // прочитанный кадр разбивает слово на буквы через пробел.
+      const norm = (x: string): string => x.toLowerCase().replace(/\s+/gu, "");
       const missing = quotes.filter((q) => !norm(text).includes(norm(q)));
       if (missing.length) warn(st.scene, "still-note", msg("build.stillNote", { id: st.scene, moment: st.moment, quote: missing.join("», «") }));
     }

@@ -1,6 +1,7 @@
 # A video tool for agents
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
+captions: {"style":"subtitle","everywhere":true}
 frame: {"width":1280,"height":720,"fps":15,"scale":1}
 
 ## purpose · slides.compare

@@ -191,7 +191,7 @@ ${lines[0]}
 ## b · slides.chapter
 title: Quiet
 body: The second take.
-transition: {"kind":"dissolve","duration":0.4,"snap":"music"}
+transition: {"kind":"dots","duration":0.4,"snap":"music"}
 
 ${lines[1]}
 `);

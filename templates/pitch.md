@@ -1,6 +1,7 @@
 # Pitch: <company in one sentence>
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
+captions: {"style":"subtitle","look":"plate","everywhere":true}
 flow: auto
 
 ## purpose · slides.hero

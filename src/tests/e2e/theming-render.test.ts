@@ -462,16 +462,19 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
       assert.equal(got.renderer, "webgl");
       return decode(readFileSync(got.frames[4]!), TW).px; // прогресс 4,5/8 ≈ 0,56
     };
-    // Вспышка: в пятне утечки света (0,3; 0,35) к смеси сцен прибавлен свет темы.
-    const flash = await run("flash");
-    const p = 4.5 / 8, glow = Math.exp(-(((p - 0.5) / 0.16) ** 2)), s = Math.min(1, Math.max(0, (p - 0.42) / 0.16)), mixK = s * s * (3 - 2 * s);
-    const base = [0, 1, 2].map((k) => A[k]! * (1 - mixK) + B[k]! * mixK) as RGB;
-    check(name, "flash light", "--tr-flash", { got: flash(TW * 0.3, TH * 0.35), want: clampAdd(base, hexRgb(theme["--tr-flash"]!), glow * 1.15) }, 12);
-    // Шов шторки и кольцо диафрагмы: самая светлая точка строки — середина смеси плюс свет темы.
-    for (const [kind, token, amp] of [["wipe", "--tr-seam", Math.sin(Math.PI * p)], ["iris", "--tr-iris", Math.sin(Math.PI * p)]] as const) {
+    // Засветка: в середине пятна (оно идёт слева направо, на прогрессе p — в точке mix(-0.25, 1.25, p))
+    // к кадру прибавлен свет темы экраном: A + свет · (1 − A), свет — вспышка темы и немного кольца.
+    const leak = await run("leak");
+    const p = 4.5 / 8, g = Math.exp(-(((p - 0.5) / 0.26) ** 2)), cx = -0.25 + 1.5 * p;
+    const spot = 1 + 0.6 * Math.exp(-(0.45 ** 2 + 0.35 ** 2) * 5);
+    const fl = hexRgb(theme["--tr-flash"]!), ir = hexRgb(theme["--tr-iris"]!);
+    const lit = [0, 1, 2].map((k) => Math.round(A[k]! + ((fl[k]! / 255) * spot * 0.8 + (ir[k]! / 255) * 0.15) * g * (255 - A[k]!))) as RGB;
+    check(name, "leak light", "--tr-flash", { got: leak(TW * cx, TH * 0.3), want: lit.map((v) => Math.min(255, v)) as RGB }, 14);
+    // Шов шторки и кольцо круглой маски: самая светлая точка полосы вокруг середины — середина смеси плюс свет темы.
+    for (const [kind, token, amp] of [["wipe", "--tr-seam", Math.sin(Math.PI * p)], ["mask", "--tr-iris", Math.sin(Math.PI * p)]] as const) {
       const px = await run(kind);
       let best: RGB = [0, 0, 0];
-      for (let x = 0; x < TW; x++) { const c = px(x, TH / 2); if (c[0] + c[1] + c[2] > best[0] + best[1] + best[2]) best = c; }
+      for (let y = TH / 2 - 20; y < TH / 2 + 20; y++) for (let x = 0; x < TW; x++) { const c = px(x, y); if (c[0] + c[1] + c[2] > best[0] + best[1] + best[2]) best = c; }
       check(name, `${kind} light`, token, { got: best, want: clampAdd(mid, hexRgb(theme[token]!), amp) }, 16);
     }
     // Просветы между гранями: у куба над поворачивающейся гранью — заливка темы, а не чёрный.
@@ -479,7 +482,7 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
     check(name, "cube gap", "--tr-fill", { got: cube(TW * 0.05, 1), want: hexRgb(theme["--tr-fill"]!) }, 6);
   }
   // Переходы без своего цвета: каждая точка середины — в пределах цветов двух сцен по каждому каналу.
-  for (const kind of ["dissolve", "zoom-blur", "ripple", "glitch", "whip"]) {
+  for (const kind of ["dots", "zoom", "pixelate", "glitch", "whip"]) {
     const got = await renderTransition({ kind, a, b, width: TW, height: TH, out: join(dir, `plain-${kind}`), theme: THEMES.synthwave! });
     const px = decode(readFileSync(got.frames[4]!), TW).px;
     for (let y = 0; y < TH; y += 7) for (let x = 0; x < TW; x += 7) {
@@ -487,7 +490,7 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
       for (let k = 0; k < 3; k++) assert.ok(c[k]! >= Math.min(A[k]!, B[k]!) - 4 && c[k]! <= Math.max(A[k]!, B[k]!) + 4, `${kind} adds no colour of its own (${c} at ${x},${y})`);
     }
   }
-  for (const [n, token] of [["flash light", "--tr-flash"], ["cube gap", "--tr-fill"]] as const) contrast(n, token);
+  for (const [n, token] of [["leak light", "--tr-flash"], ["cube gap", "--tr-fill"]] as const) contrast(n, token);
 });
 
 test("the perspective screen's glint and the live backgrounds wear their theme in every theme", async () => {

@@ -48,6 +48,10 @@ window.__stage = (() => {
   .__card-title{font-size:calc(var(--u)*2.03);line-height:1.17;font-weight:var(--display-weight,680);letter-spacing:max(-.025em,calc(-.02em + var(--display-tracking,0em)));font-family:var(--display)}
   .__card-body{margin-top:calc(var(--u)*.78);font-size:calc(var(--u)*1.33);line-height:1.42;color:var(--sc-card-body);font-weight:470}
   /* Набор: каретка нарисована поверх последнего знака и раскладку не трогает. */
+  /* Набираемый текст — побуквенные узлы, а Chromium строит лигатуры и через их границы: у
+     моноширинного шрифта «--» — один знак, и когда видимость букв менялась, один дефис пары
+     оставался ненарисованным (« -format» в набранной команде). Набор — буквальный текст. */
+  .__g{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
   .__g.__caret{position:relative}
   .__g.__caret::after{content:"";position:absolute;right:-.06em;top:.1em;bottom:.08em;width:.07em;
     border-radius:var(--radius-pill);background:var(--sc-card-accent-solid)}
@@ -60,6 +64,7 @@ window.__stage = (() => {
      иначе тонет в его подписях. У светлой темы подложка светлая, а титр тёмный. */
   #__scrim{position:absolute;inset:0;opacity:0;background:var(--sc-scrim)}
   #__arrows{position:fixed;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+  [data-off-layer]{display:none!important}
   .__title{position:absolute;left:50%;width:calc(var(--u)*86);text-align:center;text-wrap:balance;
     font-family:var(--display);font-weight:var(--display-weight,680);text-transform:var(--display-case,none);font-size:calc(var(--u)*5.6);line-height:1.04;letter-spacing:max(-.025em,calc(-.02em + var(--display-tracking,0em)));
     color:var(--sc-title-ink);text-shadow:var(--sc-title-shadow)}
@@ -101,7 +106,9 @@ window.__stage = (() => {
   #__st[data-cappos="middle"] #__sub,#__st[data-cappos="middle"] #__cap{top:calc(var(--st) + var(--sh) / 2);bottom:auto;translate:0 -50%}
   #__sub .__line{display:inline;padding:var(--sc-sub-pad-y) var(--sc-pad-x);border-radius:var(--sc-sub-radius);
     background:var(--sc-sub-bg);box-decoration-break:clone;-webkit-box-decoration-break:clone}
-  #__sub .__word{display:inline-block;white-space:pre;border-radius:var(--sc-sub-radius)}
+  /* Слово — отдельный блок (караоке подсвечивает его целиком); слово длиннее строки (путь, имя
+     переменной) переносится внутри себя, а не уходит за край кадра. */
+  #__sub .__word{display:inline-block;white-space:pre-wrap;overflow-wrap:anywhere;max-width:100%;border-radius:var(--sc-sub-radius)}
   /* Пометки от руки, блик и всплески — предметная половина слоя. */
   .__mark{fill:none;stroke:var(--sc-mark);stroke-linecap:round;stroke-linejoin:round}
   .__glint{position:absolute;overflow:hidden;pointer-events:none;mix-blend-mode:var(--sc-glint-blend);border-radius:var(--sc-card-radius)}
@@ -147,9 +154,11 @@ window.__stage = (() => {
      а кегли — телефонные: подпись и субтитры 50–60 точек, титр около ста. */
   #__st[data-format]{--cap-size:calc(var(--u)*2.5);--sub-size:calc(var(--u)*3.5*var(--sc-sub-scale,1))}
   #__st[data-format] #__cap{left:50%;width:calc(var(--cw) - var(--sc-edge) * 2)}
-  /* Подложка строки и тень текущего слова выходят за рамку блока на четверть единицы:
-     блок уже зоны на столько же, чтобы и они лежали внутри неё. */
-  #__st[data-format] #__sub{left:50%;width:calc(var(--cw) - var(--sc-edge) * 2 - var(--sc-pad-x) * 2)}
+  /* Блок субтитров — полоса зоны без шага от края. Поля плашки (--sc-pad-x) лежат ВНУТРИ строки
+     (box-decoration-break: clone), поэтому тексту плашки остаётся полоса без двух полей — ровно
+     то, на что считает строку subtitleMax (film.ts). Сужать сам блок ещё и на поля значило вычесть
+     их дважды: двухстрочный кусок у плашки ломался на три строки. */
+  #__st[data-format] #__sub{left:50%;width:calc(var(--cw) - var(--sc-edge) * 2)}
   #__st[data-format] .__card{width:min(calc(var(--u)*34),calc(var(--sw) - var(--sc-edge) * 2))}
   #__st[data-format="portrait"] .__card{width:calc(var(--sw) - var(--sc-edge) * 2)}
   #__st[data-format] .__card[data-pos="center"],#__st[data-format] .__card[data-pos="near-focus"]{width:calc(var(--cw) - var(--sc-edge) * 2)}
@@ -397,13 +406,12 @@ window.__stage = (() => {
   // с середины переставал совпадать с кадром сквозного прогона.
   //
   // Имена стилей и их смысл — в описании накладки (`overlay.ts`, KINETIC).
-  const LETTER_STYLES = ["drop", "wave", "scramble", "split", "flip", "blur", "swirl", "flap", "arc"];
-  // Остальные стили — по словам: rise, spin, fly, slide, zoom, bounce, shuffle, glitch, beat.
+  const LETTER_STYLES = ["drop", "wave", "split", "flip", "blur", "swirl", "flap", "arc"];
+  // Остальные стили — по словам: rise, spin, fly, slide, zoom, bounce, glitch, beat.
   /** Стили, у которых и собранная фраза остаётся единицами: дуга стоит изогнутой, сбой и доля повторяются. */
   const LASTING = ["arc", "glitch", "beat", "aurora", "sparkle"];
   /** Частицы фразы `swarm`: куда каждая летит (точки букв) и холст, на котором они рисуются. */
   const swarms = new WeakMap<HTMLElement, { cv: HTMLCanvasElement; pts: number[] | null; pad: [number, number] }>();
-  const SHUFFLE = ["rise", "spin", "fly", "zoom", "bounce", "slide"];
   const NOISE = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%&*+=?@";
   /** Детерминированный шум по номеру: одно и то же у каждого прогона. */
   const hash = (i: number, k = 0): number => { const x = Math.sin(i * 127.1 + k * 311.7) * 43758.5453; return x - Math.floor(x); };
@@ -440,7 +448,7 @@ window.__stage = (() => {
           u.style.display = "inline-block";
           const picture = emojiImage(ch);
           if (picture) u.appendChild(picture); else u.textContent = ch;
-          if ((style === "scramble" || style === "flap") && !picture) {
+          if (style === "flap" && !picture) {
             // Шум рисуется поверх настоящей буквы, а сама буква держит место.
             u.style.position = "relative";
             const noise = document.createElement("b");
@@ -490,6 +498,7 @@ window.__stage = (() => {
     // Фраза собирается не дольше секунды с небольшим, сколько бы в ней ни было единиц.
     const step = Math.min(k.letters ? 0.03 : 0.08, 1.1 / Math.max(1, n));
     const dur = k.style === "flap" ? 0.95 : k.style === "beat" ? 0.3 : k.letters ? 0.55 : 0.7;
+    const em = parseFloat(getComputedStyle(node).fontSize) || 16;
     // Слова «beat» выходят на доли музыки, пришедшие со сценой (секунды сцены); без музыки — ровно
     // по 120 ударов в минуту от начала фразы.
     const beats = k.style === "beat" ? (scene?.musicBeats ?? []).filter((b) => b >= at - 0.02) : [];
@@ -503,7 +512,7 @@ window.__stage = (() => {
       const p = clamp((t - startOf(i)) / dur);
       done = Math.min(done, p);
       const e = 1 - Math.pow(1 - p, 3);
-      const style = k.style === "shuffle" ? SHUFFLE[Math.floor(hash(i, 3) * SHUFFLE.length)]! : k.style;
+      const style = k.style;
       let tf = "", blur = 0, o = clamp(p * 3);
       switch (style) {
         case "rise": tf = `translateY(${((1 - e) * 0.7).toFixed(3)}em)`; blur = (1 - e) * 8; break;
@@ -575,7 +584,8 @@ window.__stage = (() => {
           tf = `translateY(${((1 - e) * 0.5).toFixed(3)}em)`;
           blur = (1 - e) * 6;
           const base = u.offsetParent === node ? 0 : node.offsetLeft, w = Math.max(1, node.offsetWidth);
-          u.style.backgroundImage = "linear-gradient(100deg,var(--acc),var(--acc2),var(--acc),var(--acc2),var(--acc))";
+          // Светлая полоса текста темы между акцентами: градиент читается и там, где акценты близки.
+          u.style.backgroundImage = "linear-gradient(100deg,var(--acc) 0%,var(--acc2) 20%,var(--ink) 28%,var(--acc2) 36%,var(--acc) 50%,var(--acc2) 70%,var(--ink) 78%,var(--acc2) 86%,var(--acc) 100%)";
           u.style.backgroundSize = `${(w * 2).toFixed(0)}px 100%`;
           u.style.backgroundPosition = `${(-(u.offsetLeft - base) - ((t * 70) % (w * 2))).toFixed(1)}px 0`;
           u.style.setProperty("-webkit-background-clip", "text");
@@ -588,21 +598,16 @@ window.__stage = (() => {
           tf = `translate(${(Math.cos(a) * r).toFixed(3)}em,${(Math.sin(a) * r).toFixed(3)}em) rotate(${((1 - e) * 300).toFixed(2)}deg)`;
           break;
         }
-        case "scramble": {
-          // Буква перебирает знаки и встаёт на свою: смена знака — по времени, а не по кадру.
-          const noise = u.querySelector<HTMLElement>(".__kn");
-          const settled = p >= 1;
-          if (noise) noise.textContent = settled ? "" : NOISE[Math.floor(hash(i, Math.floor(t * 18)) * NOISE.length)]!;
-          u.style.color = settled || !noise ? "" : "transparent";
-          if (noise) noise.style.color = "var(--acc2, currentColor)";
-          o = p > 0 ? 1 : 0;
-          break;
-        }
         default: break;
       }
       u.style.opacity = o.toFixed(3);
       u.style.transform = p >= 1 && !LASTING.includes(style) ? "none" : tf || "none";
-      u.style.filter = blur > 0.05 && p < 1 ? `blur(${blur.toFixed(2)}px)` : "none";
+      let smeared = "";
+      if (FAST_TRAVEL.includes(style) && p > 0 && p < 1) {
+        const pp = clamp((t - SMEAR_DT - startOf(i)) / dur), [x1, y1] = travelOf(style, i, n, p), [x0, y0] = travelOf(style, i, n, pp);
+        smeared = smearFilter(u, (x1 - x0) * em, (y1 - y0) * em);
+      }
+      u.style.filter = [blur > 0.05 && p < 1 ? `blur(${blur.toFixed(2)}px)` : "", smeared].filter(Boolean).join(" ") || "none";
       if (style === "flip" || style === "drop") u.style.transformOrigin = "50% 100%";
       // Слово в долю растёт вправо, от уже стоящих слов, а не на них.
       if (style === "beat") u.style.transformOrigin = "0 80%";
@@ -694,11 +699,60 @@ window.__stage = (() => {
     pos.forEach((p) => { const l = lines.get(p.y) ?? []; l.push(p.x); lines.set(p.y, l); });
     // Радиус — ширина самой длинной строки: дуга одинаково мягкая у короткой и длинной фразы.
     const radius = Math.max(em * 6, ...[...lines.values()].map((xs) => Math.max(...xs) - Math.min(...xs)));
+    // Каждая следующая строка опускается на наибольший подъём предыдущих: изогнутые края верхней
+    // строки иначе ложатся на середину нижней.
+    const sag = (xs: number[]): number => { const h = (Math.max(...xs) - Math.min(...xs)) / 2; return (radius - Math.sqrt(Math.max(0, radius * radius - h * h))) / em; };
+    const order = [...lines.keys()].sort((a, b) => a - b), below = new Map<number, number>();
+    order.reduce((acc, y) => { below.set(y, acc); return acc + sag(lines.get(y)!); }, 0);
     return pos.map((p) => {
       const xs = lines.get(p.y)!, mid = (Math.min(...xs) + Math.max(...xs)) / 2, dx = p.x - mid;
       const a = Math.asin(Math.max(-0.9, Math.min(0.9, dx / radius)));
-      return [a, (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx))) / em];
+      return [a, (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx))) / em + below.get(p.y)!];
     });
+  }
+
+  // — размытие движения на слое —
+  //
+  // Быстрое движение смазано вдоль своей скорости, как кадр с выдержкой в половину кадра при 25
+  // кадрах в секунду: сдвиг за 1/60 с до этого момента даёт скорость, половина её пути за 1/50 с —
+  // сила направленного гауссова размытия SVG. У каждого элемента свой фильтр; всё — функция t.
+  const SMEAR_DT = 1 / 60;
+  let smearDefs: SVGSVGElement | null = null;
+  const smearIds = new WeakMap<Element, string>();
+  let smearCount = 0;
+  /** Фильтр смаза для сдвига `dx`, `dy` (точки за SMEAR_DT) или пустая строка, если движение медленное. */
+  function smearFilter(node: Element, dx: number, dy: number): string {
+    const sx = Math.min(40, (Math.abs(dx) / SMEAR_DT) * (1 / 50) / 2), sy = Math.min(40, (Math.abs(dy) / SMEAR_DT) * (1 / 50) / 2);
+    if (Math.max(sx, sy) <= 0.6) return "";
+    if (!smearDefs) {
+      smearDefs = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      smearDefs.setAttribute("width", "0"); smearDefs.setAttribute("height", "0");
+      smearDefs.style.position = "absolute";
+      document.documentElement.appendChild(smearDefs);
+    }
+    let id = smearIds.get(node);
+    if (!id) {
+      id = `__smear-${smearCount++}`;
+      smearIds.set(node, id);
+      const f = document.createElementNS("http://www.w3.org/2000/svg", "filter");
+      f.id = id;
+      for (const [k, v] of [["x", "-40%"], ["y", "-40%"], ["width", "180%"], ["height", "180%"]]) f.setAttribute(k!, v!);
+      f.appendChild(document.createElementNS("http://www.w3.org/2000/svg", "feGaussianBlur"));
+      smearDefs.appendChild(f);
+    }
+    smearDefs.querySelector(`#${id} feGaussianBlur`)!.setAttribute("stdDeviation", `${sx.toFixed(2)} ${sy.toFixed(2)}`);
+    return `url(#${id})`;
+  }
+  /** Путь единицы фразы в em у стилей с быстрым переносом — для смаза: сдвиг, а не вид. */
+  const FAST_TRAVEL = ["fly", "slide", "split", "swirl", "spin"];
+  function travelOf(style: string, i: number, n: number, p: number): [number, number] {
+    const e = 1 - Math.pow(1 - p, 3), k = 1 - e;
+    if (style === "fly") { const a = hash(i, 1) * Math.PI * 2, d = k * (3 + hash(i, 2) * 3); return [Math.cos(a) * d, Math.sin(a) * d]; }
+    if (style === "slide") return [k * -1.8, 0];
+    if (style === "split") return [(i < n / 2 ? -1 : 1) * k * 2.5, 0];
+    if (style === "swirl") { const a = k * 4 + i * 0.6, r = k * 1.6; return [Math.cos(a) * r, Math.sin(a) * r]; }
+    // Вращение: край слова в полутора em от центра проходит дугу поворота.
+    return [(k * -200 * Math.PI / 180) * 1.5, 0];
   }
 
   // — вспомогательные чистые функции —
@@ -1121,19 +1175,22 @@ window.__stage = (() => {
     const part = s.__layerPart ?? "both";
     // Скелетон без предмета стоит посередине экрана, как карточка; с предметом — едет вместе с ним.
     const free = thinking.filter((b) => b.dataset.free !== undefined), held = thinking.filter((b) => b.dataset.free === undefined);
-    if (part === "scene") { for (const n of [...titles, ...lower, sub]) n.style.display = "none"; }
+    // Чужая половина помечается, а не прячется стилем: кадр каждый раз заново показывает примитив по
+    // его времени, и спрятанное стилем вернулось бы в оба слоя — под наездом вышло бы два титра.
+    const off = (n: Element): void => { (n as HTMLElement).dataset.offLayer = ""; };
+    if (part === "scene") { for (const n of [...titles, ...lower, sub]) off(n); }
     if (part === "scene") for (const n of free) n.style.visibility = "hidden";
     if (part === "screen" && s.__videoCamera) {
-      arrows.style.display = "none";
-      for (const c of callouts) c.box.style.display = "none";
-      for (const st of stickers) st.box.style.display = "none";
-      for (const g of glints) g.style.display = "none";
-      if (bursts) bursts.style.display = "none";
-      for (const g of pings) g.style.display = "none";
+      off(arrows);
+      for (const c of callouts) off(c.box);
+      for (const st of stickers) off(st.box);
+      for (const g of glints) off(g);
+      if (bursts) off(bursts);
+      for (const g of pings) off(g);
       for (const g of held) g.style.visibility = "hidden";
     }
     // Уведомления — экранный слой: на видео с наездом они стоят поверх, постоянного размера.
-    if (part === "scene" && s.__videoCamera) for (const g of toasts) g.style.display = "none";
+    if (part === "scene" && s.__videoCamera) for (const g of toasts) off(g);
   }
 
   /** Прямоугольник предмета примитива на экране слоя в момент кадра. */
@@ -1249,7 +1306,9 @@ window.__stage = (() => {
       if (!l.on) return;
       const dir = item.side === "right" ? 1 : -1;
       node.style.opacity = String(Math.min(1, l.enter * 1.6) * (1 - l.leave));
-      node.style.transform = `translateX(${(dir * (1 - l.enter) * 60 + dir * l.leave * 30).toFixed(2)}px)`;
+      const shift = (q: typeof l): number => dir * (1 - q.enter) * 60 + dir * q.leave * 30;
+      node.style.transform = `translateX(${shift(l).toFixed(2)}px)`;
+      node.style.filter = smearFilter(node, shift(l) - shift(life(t - SMEAR_DT, item.at, item.hold ?? 4, 0.7, 0.45)), 0) || "none";
       node.style.setProperty("--bar", ease(phase(t, item.at, item.at + 0.45)).toFixed(3));
       const subtitle = node.querySelector<HTMLElement>(".__lower-sub");
       if (subtitle) subtitle.style.opacity = String(ease(phase(t, item.at + 0.3, item.at + 0.8)));
@@ -1531,6 +1590,8 @@ window.__stage = (() => {
       const leave = t >= end ? Math.pow(Math.min(1, (t - end) / 0.4), 2) : 0;
       const x = (1 - enter) * u * 28 + leave * u * 28;
       const y = depth * u * 1.4;
+      const tp = t - SMEAR_DT, ep = 1 - Math.pow(1 - clamp((tp - item.at) / 0.4), 3), lp = tp >= end ? Math.pow(clamp((tp - end) / 0.4), 2) : 0;
+      box.style.filter = smearFilter(box, x - ((1 - ep) * u * 28 + lp * u * 28), 0) || "none";
       box.style.transform = `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${(1 - 0.05 * depth).toFixed(4)})`;
       box.style.transformOrigin = "50% 0";
       box.style.opacity = (Math.min(1, enter * 1.6) * (1 - leave) * Math.max(0, Math.min(1, 3 - depth))).toFixed(3);
@@ -1550,9 +1611,12 @@ window.__stage = (() => {
       const box = prims!.thinking[i]!;
       const l = life(t, item.at, item.hold, 0.3, 0.35);
       box.style.display = l.on ? "" : "none";
-      // Ответ под скелетоном скрыт, пока тот стоит целиком, и проступает, пока скелетон сходит.
+      // Ответа нет до скелетона и под ним, пока тот стоит целиком; он проступает, пока скелетон
+      // сходит. Видный до прихода скелетона ответ читался задом наперёд: есть — скрылся — появился.
       const cover = prims!.covered[i];
-      if (cover) cover.node.style.visibility = l.on && l.enter >= 1 && l.leave <= 0 ? "hidden" : cover.visibility;
+      // До первого скелетона на этой цели, а не до каждого: иначе между двумя скелетонами ответ пропадал.
+      const first = Math.min(...(scene!.overlay?.thinking ?? []).filter((x) => x.target && x.target === item.target).map((x) => x.at));
+      if (cover) cover.node.style.visibility = t < first || (l.on && l.enter >= 1 && l.leave <= 0) ? "hidden" : cover.visibility;
       if (!l.on) return;
       if (item.target || item.area) {
         const r = anchorRect(item, lz);
@@ -1800,6 +1864,8 @@ window.__stage = (() => {
     words.forEach((w, i) => {
       const ww = measure!.measureText(i < words.length - 1 ? `${w} ` : w).width;
       if (width && width + ww > room) { lines++; width = ww; } else width += ww;
+      // Слово шире строки (путь, имя переменной) переносится внутри себя и занимает строки само.
+      if (width > room) { lines += Math.ceil(width / room) - 1; width %= room; }
     });
     fitCache.set(text, lines);
     return lines;
@@ -1892,7 +1958,13 @@ window.__stage = (() => {
     }
     sub.style.display = "";
     {
-      const tops = new Set([...sub.querySelectorAll<HTMLElement>(".__word")].flatMap((w) => [...w.getClientRects()].map((r) => Math.round(r.top))));
+      // Строки считаются по прямоугольникам текста, а не слов: слово-блок, перенесённое внутри себя,
+      // даёт один прямоугольник, а строк — несколько.
+      const tops = new Set([...sub.querySelectorAll<HTMLElement>(".__word")].flatMap((w) => {
+        const r = document.createRange();
+        r.selectNodeContents(w);
+        return [...r.getClientRects()].filter((x) => x.width > 0).map((x) => Math.round(x.top));
+      }));
       if (tops.size > captionMost.lines) captionMost = { lines: tops.size, text: chunks[ci]! };
     }
     // Субтитры — речь для тех, кто смотрит без звука, поэтому фокус камеры их не гасит:
@@ -2291,8 +2363,12 @@ window.__stage = (() => {
     // Остановленный кадр в другом формате: камера ведёт окно и подсветку, но не приближает.
     if (scene.__noZoom) { k = 1; tx = 0; ty = 0; zp = 1; }
     zoomState = { k, tx: tx * zp, ty: ty * zp };
+    // Смещение посчитано в точках экрана, а сдвиг ставится внутри документа, увеличенного `zoom` на
+    // корне (слайд вписан в кадр так): без деления сдвиг вырос бы в это число раз, кадр уехал бы
+    // мимо цели, а подсветка, поставленная по точкам экрана, легла бы рядом с ней.
+    const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     el.zoom.style.transform =
-      `translate(${(tx * zp).toFixed(2)}px, ${(ty * zp).toFixed(2)}px) scale(${k.toFixed(4)})`;
+      `translate(${(tx * zp / rootZoom).toFixed(2)}px, ${(ty * zp / rootZoom).toFixed(2)}px) scale(${k.toFixed(4)})`;
     focusPoint = focusAt(t, zoomState.k, zoomState.tx);
 
     // 3. Подсветка ставится по ФАКТИЧЕСКОМУ положению цели на экране,
@@ -2519,6 +2595,11 @@ window.__stage = (() => {
         const tilt = (1 - enter) * sign * 4 + leave * sign * 6;
         node.style.transform = `translate(${dx.toFixed(2)}px,${dy.toFixed(2)}px) rotate(${tilt.toFixed(2)}deg)`
           + ` scale(${(0.94 + 0.06 * enter).toFixed(3)})`;
+        // Смаз по пути влёта и вылета: тот же путь на 1/60 с раньше.
+        const tp = t - SMEAR_DT, ep = ease(phase(tp, card.at, card.at + (card.enter ?? 0.65))), lp = ease(phase(tp, end - (card.exit ?? 0.45), end));
+        const alongPrev = sign * ((1 - ep) * 620 + lp * 520) - sign * Math.sin(ep * Math.PI) * 26 * (1 - lp);
+        const d = along - alongPrev;
+        node.style.filter = smearFilter(node, edge === "left" || edge === "right" ? d : 0, edge === "left" || edge === "right" ? 0 : d) || "none";
       } else if (card.motion === "pop") {
         node.style.transform = `scale(${(0.84 + 0.16 * enter - leave * 0.04).toFixed(3)})`
           + ` translateY(${life.toFixed(2)}px)`;
@@ -2576,10 +2657,16 @@ window.__stage = (() => {
     // Набор обязан кончиться до конца сцены: длинный текст в короткой сцене набирается быстрее,
     // а не обрывается на середине (последние 0,6 с текст стоит целиком). Прежде подзаголовок
     // заставки в пятисекундной сцене уходил в переход недописанным.
-    for (const node of own ? document.querySelectorAll<HTMLElement>("[data-type]") : []) {
+    // Одна клавиатура: следующий набираемый узел того же рода (следующая команда терминала) — тоже
+    // срок, и узел может попросить стоять целиком дольше (`data-type-hold`): команде нужно время
+    // поработать и показать вывод до следующей.
+    const typedNodes = own ? [...document.querySelectorAll<HTMLElement>("[data-type]")] : [];
+    for (const node of typedNodes) {
       const from = Number(node.dataset.at) || 0;
       const base = Number(node.dataset.typeSpeed) || (node.dataset.type === "title" ? 22 : 34);
-      const room = scene ? scene.duration - TYPE_HOLD - from : Infinity;
+      const next = Math.min(...typedNodes.filter((n) => n.dataset.type === node.dataset.type && (Number(n.dataset.at) || 0) > from)
+        .map((n) => Number(n.dataset.at) || 0), scene ? scene.duration : Infinity);
+      const room = next - (Number(node.dataset.typeHold) || TYPE_HOLD) - from;
       const speed = room > 0.2 ? Math.max(base, glyphCount(node) / room) : Infinity;
       typeTo(node, (t - from) * speed);
     }
@@ -2612,6 +2699,8 @@ window.__stage = (() => {
         shape.style.strokeDasharray = `${dash} ${total}`;
         shape.style.strokeDashoffset = String(dash - u * (total + dash));
         shape.style.opacity = t < from ? "0" : "";
+        // Луч светится: отрезок ярче и насыщеннее самой линии, иначе тёмный цвет связи его прячет.
+        shape.style.filter = t < from ? "" : "brightness(1.8) saturate(1.3)";
       }
     }
     // Морф формы: `data-morph` на пути SVG — форма, в которую путь перетекает от своего `data-at`
@@ -2780,8 +2869,8 @@ window.__stage = (() => {
   function outsideSafe(safe: { top: number; bottom: number; left: number; right: number }): Array<{ text: string; side: string }> {
     const body = document.body;
     if (!body) return [];
-    const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
-    const W = innerWidth * lz, H = innerHeight * lz, slack = 4;
+    // Прямоугольники Chromium и innerWidth — уже в точках кадра, с увеличением `zoom` на корне.
+    const W = innerWidth, H = innerHeight, slack = 4;
     const found = new Map<Element, string>();
     const walk = document.createTreeWalker(body, NodeFilter.SHOW_TEXT);
     for (let n = walk.nextNode(); n; n = walk.nextNode()) {
@@ -2792,7 +2881,7 @@ window.__stage = (() => {
       const range = document.createRange();
       range.selectNodeContents(n);
       for (const r0 of range.getClientRects()) {
-        const r = { left: r0.left * lz, right: r0.right * lz, top: r0.top * lz, bottom: r0.bottom * lz };
+        const r = r0;
         if (r.right <= 0 || r.left >= W || r.bottom <= 0 || r.top >= H || r0.width <= 0) continue;
         const side = r.left < safe.left - slack ? "left" : r.right > W - safe.right + slack ? "right"
           : r.top < safe.top - slack ? "top" : r.bottom > H - safe.bottom + slack ? "bottom" : "";
@@ -2873,10 +2962,25 @@ window.__stage = (() => {
    * в сборке в другом формате, окна кадрирования у цели фокуса. Сборка называет их в отчёте:
    * срезанная строка на экране не читается, а по сценарию этого не видно.
    */
+  /**
+   * Видна ли цель на экране сейчас: она есть, у неё есть размер, и ни она, ни её предки не скрыты.
+   * Пункт слайда до своего момента стоит скрытым — фокус на нём шёл к пустому углу кадра.
+   */
+  function shown(sel: string): boolean {
+    const node = findTarget(sel);
+    if (!node) return false;
+    const r = node.getBoundingClientRect();
+    if (r.width < 1 || r.height < 1) return false;
+    for (let x: Element | null = node; x && x !== document.documentElement; x = x.parentElement) {
+      const cs = getComputedStyle(x);
+      if (cs.display === "none" || cs.visibility === "hidden" || Number(cs.opacity) < 0.05) return false;
+    }
+    return true;
+  }
+
   function cutText(sel: string): string[] {
     const node = findTarget(sel);
     if (!node) return [];
-    const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const cw = scene?.__cropWidth;
     const x0 = cw ? focusPoint - cw / 2 : 0, x1 = cw ? focusPoint + cw / 2 : innerWidth;
     // Строка называется целиком: подсвеченный код и набор по буквам дробят её на куски текста в
@@ -2897,7 +3001,8 @@ window.__stage = (() => {
       if (cs.visibility === "hidden" || cs.display === "none" || Number(cs.opacity) === 0) continue;
       const range = document.createRange();
       range.selectNodeContents(n);
-      const cut = [...range.getClientRects()].some((r) => r.width > 0 && (r.left * lz < x0 - 0.5 || r.right * lz > x1 + 0.5 || r.top * lz < -0.5 || r.bottom * lz > innerHeight + 0.5));
+      // Прямоугольники — уже в точках кадра (увеличение `zoom` на корне в них учтено), как и края окна.
+      const cut = [...range.getClientRects()].some((r) => r.width > 0 && (r.left < x0 - 0.5 || r.right > x1 + 0.5 || r.top < -0.5 || r.bottom > innerHeight + 0.5));
       const line = cut ? lineOf(host) : null;
       if (line && !lines.includes(line)) lines.push(line);
     }
@@ -2926,15 +3031,15 @@ window.__stage = (() => {
    */
   function floor(): number {
     if (!prims || !banded) return innerHeight;
-    const lz = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     const probe = document.createElement("div");
     probe.style.cssText = "position:absolute;left:0;height:0;bottom:var(--lower-bottom)";
     el.layer.appendChild(probe);
-    const y = probe.getBoundingClientRect().top * lz;
+    // Прямоугольник — уже в точках кадра: увеличение `zoom` на корне в нём учтено.
+    const y = probe.getBoundingClientRect().top;
     probe.remove();
     return y;
   }
 
   return { mount, renderAt, targetRect, moving, focusX: () => focusPoint, rectOf, fontPx, cutText, smallText, floor,
-    captionLines: () => captionMost, outsideSafe, visibleText, get scene() { return scene; } };
+    captionLines: () => captionMost, outsideSafe, visibleText, shown, get scene() { return scene; } };
 })();

@@ -13,6 +13,7 @@ import { BACKGROUNDS } from "./styles.js";
 import { parseDevice } from "../../device.js";
 import { highlight, lineSet } from "./code.js";
 import { KINETIC } from "../../overlay.js";
+import { retiredAs } from "../../retired.js";
 import { ENTERS } from "./Slide.js";
 import { msg } from "../../msg.js";
 
@@ -65,8 +66,8 @@ function pair(v: string, what: string, lo: number, hi: number): [number, number]
   return [n[0]!, n[1]!];
 }
 
-/** «а | б | в» → ["а","б","в"] */
-const list = (v: string): string[] => v.split("|").map((s) => s.trim()).filter(Boolean);
+/** «а | б | в» → ["а","б","в"]; «\\|» внутри пункта — сама черта (конвейер в команде терминала). */
+const list = (v: string): string[] => v.split(/(?<!\\)\|/u).map((s) => s.replace(/\\\|/gu, "|").trim()).filter(Boolean);
 
 /** «Заголовок :: пункт | пункт» → {title, items} либо {title, text} */
 function column(v: string, id: string): Column {
@@ -172,6 +173,8 @@ export function slideOf(s: RawScene, dir = "."): Slide {
   if (f.background) {
     // Опечатка в имени фона давала молча пустой фон: слайд проходил и check, и lint.
     const bg = f.background.trim();
+    const bgUse = retiredAs("background", bg);
+    if (bgUse) throw new SourceError(msg("retired", { field: `scene ${s.id}: background`, value: bg, use: bgUse }));
     if (!BACKGROUNDS.includes(bg)) throw new SourceError(msg("slides.background", {
       id: s.id, value: bg, hint: didYouMean(bg, BACKGROUNDS), available: BACKGROUNDS.join(", ") }));
     slide.background = bg;
@@ -218,9 +221,11 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.count = f.count.trim() === "on";
   }
   if (f.text) {
-    // «fly» — так собирается заголовок; «fly scramble» — заголовок и текст.
+    // «fly» — так собирается заголовок; «fly flap» — заголовок и текст.
     const [title, body, ...extra] = f.text.trim().split(/\s+/);
     for (const k of [title, body]) {
+      const use = k ? retiredAs("text", k) : undefined;
+      if (use) throw new SourceError(msg("retired", { field: `scene ${s.id}: text`, value: k!, use }));
       if (k && !(KINETIC as readonly string[]).includes(k)) throw new SourceError(msg("slides.textStyle", { id: s.id, options: KINETIC.join(" | "), value: k }));
     }
     if (extra.length) throw new SourceError(msg("slides.textCount", { id: s.id }));
@@ -229,6 +234,10 @@ export function slideOf(s: RawScene, dir = "."): Slide {
   if (f.enter) {
     // Несколько входов через пробел раздаются пунктам по порядку.
     const list = f.enter.trim().split(/\s+/);
+    for (const e of list) {
+      const use = retiredAs("enter", e);
+      if (use) throw new SourceError(msg("retired", { field: `scene ${s.id}: enter`, value: e, use }));
+    }
     if (list.some((e) => !(ENTERS as readonly string[]).includes(e)))
       throw new SourceError(msg("slides.options", { id: s.id, field: "enter", options: ENTERS.join(" | ") }));
     slide.enter = list.join(" ");

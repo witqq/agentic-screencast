@@ -59,6 +59,17 @@ test("a still in a scene's fade is named; one inside the scene is not", () => {
   assert.equal(ids(warnings, "still-in-fade").length, 1);
 });
 
+test("a still inside a transition is named; one clear of it is not", () => {
+  // Доля сцены считает и её исходящий переход: кадр на 95 % первой сцены лежит в перекрытии, где
+  // сцены смешаны. Прежде проверка знала только затемнения сцены, которых на стыке с переходом нет.
+  const dir = mkdtempSync(join(tmpdir(), "sc-stilltr-"));
+  writeFileSync(join(dir, "p.html"), `<!doctype html><html><body style="margin:0;background:#fff"><h1>Page</h1></body></html>`);
+  const { warnings } = build(dir, `${HEAD}## a · page\npage: p.html\nduration: 3\nstills: 50% | 95%\n\n`
+    + `## b · page\npage: p.html\nduration: 3\ntransition: dots 1\nstills: 60%\n`);
+  const got = warnings.filter((w) => w.id === "still-in-fade").map((w) => w.scene);
+  assert.deepEqual(got, ["a"], JSON.stringify(warnings.filter((w) => w.id === "still-in-fade")));
+});
+
 test("a feed film opens on its first scene without a fade from black; an authored dark start is named", () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-loop-"));
   writeFileSync(join(dir, "p.html"), `<!doctype html><html><body style="margin:0;background:#fff"><h1 style="font:80px sans-serif">Product</h1></body></html>`);
@@ -77,7 +88,10 @@ test("a feed film opens on its first scene without a fade from black; an authore
 test("a still whose note quotes text missing from the frame is named; a quote on screen is not", () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-stillnote-"));
   writeFileSync(join(dir, "p.html"), `<!doctype html><html><body style="margin:0;background:#fff"><h1 style="font:40px sans-serif">Revenue grew</h1></body></html>`);
-  const { warnings } = build(dir, `${HEAD}## p · page\npage: p.html\nduration: 3\nstills: 50% :: the headline «Revenue grew» | 60% :: shows «Churn fell»\n\nThe page states the result.\n`);
+  const { warnings } = build(dir, `${HEAD}## p · page\npage: p.html\nduration: 4\n`
+    // Титр, чьи буквы въезжают по одной, читается из кадра по буквам — цитата его всё равно находит.
+    + `overlay: {"titles":[{"at":0.3,"hold":3.4,"text":"Launch day","style":"flap","position":"top"}]}\n`
+    + `stills: 50% :: the headline «Revenue grew» under «Launch day» | 60% :: shows «Churn fell»\n\nThe page states the result.\n`);
   const notes = warnings.filter((x) => x.id === "still-note") as Array<{ scene: string; id: string; rule: string; message?: string }>;
   assert.equal(notes.length, 1, JSON.stringify(notes));
   assert.equal(notes[0]!.rule, "FC-57");

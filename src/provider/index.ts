@@ -83,7 +83,7 @@ function external(command: string): Provider {
  */
 export function providerFor(name: string, declared: Record<string, string> = {}): Provider {
   if (isBuiltin(name)) return BUILTIN[name]!;
-  const command = declared[name];
+  const command = Object.hasOwn(declared, name) ? declared[name] : undefined;
   if (!command) {
     const known = [...Object.keys(BUILTIN), ...Object.keys(declared)].join(", ");
     throw new ProviderError(msg("provider.unknown", { name, known }));

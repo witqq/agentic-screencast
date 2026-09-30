@@ -203,7 +203,7 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
  * теста: новое поле не выходит без описания того, как его писать.
  */
 export const FIELD_FORMATS: Record<string, string> = {
-  title: "text", kicker: "text over the title", body: "text", note: "text under the slide", cta: "button text", url: "text",
+  title: "text", kicker: "text over the title", body: "text", note: "a line under the slide (compare, chain, quote) or the source of its figures (number, counter, chart); other kinds refuse it", cta: "button text", url: "text",
   items: "Title :: text | Title :: text | …  (features: 🚀 Title :: text)",
   values: "1,240 :: label | 98% :: label", value: "300 · label", tags: "a | b | c",
   left: "Heading :: item | item", right: "Heading :: item | item",
@@ -216,8 +216,8 @@ export const FIELD_FORMATS: Record<string, string> = {
   code: "| then the lines (or file:)", file: "path (code: snippet.ts; video: take.webm)", lines: "3-14", highlight: "5 7-8",
   cps: "characters per second, 5–400 (default: typing fits the scene)", name: "tab name (code) or window title (shell)",
   rows: "1 | 2 — rows of a marquee, the second one running the other way",
-  move: "drift | push | still | dolly | pan | orbit3d | handheld", count: "on | off", background: "grid | aurora | mesh | waves | particles | bokeh | rays | lamp | meteors | flicker | beams | warp | vortex | spotlight | none",
-  text: "kinetic style of the title [and the body]: fly scramble …", enter: "how items enter: rise | left | pop | flip | jolt | flip3d | tilt3d | mask | …",
+  move: "drift | push | still | dolly | pan | orbit3d | handheld", count: "on | off", background: "grid | aurora | waves | particles | bokeh | rays | lamp | meteors | flicker | beams | warp | vortex | none",
+  text: "kinetic style of the title [and the body]: fly flap …", enter: "how items enter: rise | left | pop | flip3d | jolt | tilt3d | mask | bounce | …",
   alive: "wiggle | float | jitter | pulse — the items' motion after they enter", glow: "border — a light runs round the cards' borders",
   ease: "standard | emphasized | expressive | spring | bouncy — the curve of every entrance", wave: "start | center | edges | random — the order items come in",
   stagger: "seconds between items, 0.03–1.5",
