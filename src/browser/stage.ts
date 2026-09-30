@@ -990,6 +990,7 @@ window.__stage = (() => {
     covered: Array<{ node: HTMLElement; visibility: string } | null>;
   }
   let prims: Prims | null = null;
+  const boopStyles = new Map<HTMLElement, { scale: string; rotate: string; translate: string; filter: string }>();
   /** есть ли у сцены субтитры или плашка подписи: под них отведена полоса внизу кадра */
   let banded = false;
   const SVGNS = "http://www.w3.org/2000/svg";
@@ -997,6 +998,14 @@ window.__stage = (() => {
   const MARK_SEGS = 64, HEAD_SEGS = 8;
 
   function mountPrimitives(s: StageScene): void {
+    boopStyles.clear();
+    for (const item of s.overlay?.boops ?? []) {
+      const node = document.querySelector<HTMLElement>(item.target);
+      if (!node) throw new Error(`sc-stage:primitiveTarget:${item.target}`);
+      if (!boopStyles.has(node)) boopStyles.set(node, {
+        scale: node.style.scale, rotate: node.style.rotate, translate: node.style.translate, filter: node.style.filter,
+      });
+    }
     const o = s.overlay ?? {};
     const root = document.createElement("div");
     root.id = "__prims";
@@ -1607,16 +1616,23 @@ window.__stage = (() => {
    * и сходит, открывая ответ; без предмета стоит карточкой посередине кадра, в безопасной зоне.
    */
   function renderThinking(t: number, lz: number): void {
+    const visibility = new Map<HTMLElement, { original: string; first: number; hidden: boolean }>();
+    (scene!.overlay?.thinking ?? []).forEach((item, i) => {
+      const cover = prims!.covered[i];
+      if (!cover) return;
+      const state = visibility.get(cover.node) ?? { original: cover.visibility, first: item.at, hidden: false };
+      const l = life(t, item.at, item.hold, 0.3, 0.35);
+      state.first = Math.min(state.first, item.at);
+      state.hidden ||= l.on && l.enter >= 1 && l.leave <= 0;
+      visibility.set(cover.node, state);
+    });
+    for (const [node, state] of visibility) node.style.visibility = t < state.first || state.hidden ? "hidden" : state.original;
     (scene!.overlay?.thinking ?? []).forEach((item, i) => {
       const box = prims!.thinking[i]!;
       const l = life(t, item.at, item.hold, 0.3, 0.35);
       box.style.display = l.on ? "" : "none";
       // Ответа нет до скелетона и под ним, пока тот стоит целиком; он проступает, пока скелетон
       // сходит. Видный до прихода скелетона ответ читался задом наперёд: есть — скрылся — появился.
-      const cover = prims!.covered[i];
-      // До первого скелетона на этой цели, а не до каждого: иначе между двумя скелетонами ответ пропадал.
-      const first = Math.min(...(scene!.overlay?.thinking ?? []).filter((x) => x.target && x.target === item.target).map((x) => x.at));
-      if (cover) cover.node.style.visibility = t < first || (l.on && l.enter >= 1 && l.leave <= 0) ? "hidden" : cover.visibility;
       if (!l.on) return;
       if (item.target || item.area) {
         const r = anchorRect(item, lz);
@@ -1641,11 +1657,13 @@ window.__stage = (() => {
    * предмет сама, а не затирают её.
    */
   function renderBoops(t: number): void {
+    // Restore each actual target once; an inactive cue must not erase an earlier active cue.
+    for (const [node, original] of boopStyles) Object.assign(node.style, original);
     for (const item of scene!.overlay?.boops ?? []) {
       const node = document.querySelector<HTMLElement>(item.target);
       if (!node) throw new Error(`sc-stage:primitiveTarget:${item.target}`);
       const p = (t - item.at) / (item.kind === "pulse" ? item.hold ?? 3 : 0.7);
-      if (p < 0 || p >= 1) { if (p >= 1 || p < -0.05) { node.style.scale = ""; node.style.rotate = ""; node.style.translate = ""; node.style.filter = ""; } continue; }
+      if (p < 0 || p >= 1) continue;
       // Пульс: предмет дышит циклами по 1,2 с и на вдохе светлеет и насыщается; края пульса гаснут.
       if (item.kind === "pulse") {
         const edge = Math.min(1, p * 8, (1 - p) * 8);

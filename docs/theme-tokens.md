@@ -4,8 +4,8 @@ This document answers how Agentic Screencast's theme tokens correspond to agenti
 film and a report page made for the same product can wear one look. Both tools keep every visual value
 in a theme as named CSS variables and ship themes under the same names; this table maps the variables
 that mean the same thing. Our full contract is `THEME_KEYS` in `src/theme.ts` (`help themes`);
-agentic-report's is `THEME_TOKENS` in its `src/authoring/theme-tokens.ts` (`schema --scope theme` from
-0.18). The table is a working agreement between the two products, checked against both sources on
+agentic-report's is `THEME_TOKENS` in its `src/authoring/theme-tokens.ts` (`schema --scope theme`).
+The table is a working agreement between the two products, checked against both sources on
 2026-09-29.
 
 ## Themes

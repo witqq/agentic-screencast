@@ -29,14 +29,19 @@ export function handover(storyFile: string, film?: string): Handover {
   check("lint", lint(story));
 
   const reportFile = reportOf(dir, film);
+  let filmFile: string | undefined;
   if (!reportFile) {
     check("build", [msg("handover.noReport", { dir })]);
   } else {
-    const report = JSON.parse(readFileSync(reportFile, "utf8")) as { audit?: { issues?: unknown[] }; warnings?: unknown[];
+    const report = JSON.parse(readFileSync(reportFile, "utf8")) as { out?: string; only?: string; audit?: { issues?: unknown[] }; warnings?: unknown[];
       stills?: Array<{ file: string }> };
+    filmFile = resolve(dir, film ?? report.out ?? reportFile.replace(/\.report\.json$/u, ".mp4"));
+    const missing = !existsSync(filmFile) || !statSync(filmFile).isFile() || statSync(filmFile).size === 0
+      ? [msg("handover.filmMissing", { file: filmFile })] : [];
+    const partial = report.only ? [msg("handover.partial", { scene: report.only })] : [];
     // Ролик, собранный до последней правки сценария, показывает не то, что в сценарии.
     const stale = statSync(reportFile).mtimeMs < statSync(story).mtimeMs ? [msg("handover.stale", { report: reportFile })] : [];
-    check("build", [...stale, ...(report.audit?.issues ?? [])]);
+    check("build", [...missing, ...partial, ...stale, ...(report.audit?.issues ?? [])]);
     check("warnings", report.warnings ?? []);
     check("stills", (report.stills ?? []).filter((s) => !existsSync(s.file)).map((s) => msg("handover.stillMissing", { file: s.file })));
   }
@@ -47,5 +52,5 @@ export function handover(storyFile: string, film?: string): Handover {
     const open = readFileSync(checklist, "utf8").split("\n").filter((l) => /^\s*- \[ \]/u.test(l)).map((l) => l.trim());
     check("checklist", open);
   }
-  return { verdict: checks.every((c) => c.passed) ? "pass" : "fail", ...(reportFile ? { film: reportFile.replace(/\.report\.json$/u, ".mp4") } : {}), checks };
+  return { verdict: checks.every((c) => c.passed) ? "pass" : "fail", ...(filmFile ? { film: filmFile } : {}), checks };
 }

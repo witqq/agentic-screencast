@@ -107,8 +107,9 @@ Usage:
 A command that reads a scenario also takes its path first: lint story.md.
 
 handover is the gate before the film goes to the owner: lint of the scenario,
-the film's report (built after the scenario's last edit, no audit issue, no
-warning), its stills on disk and checklist.md without an open box. It prints
+a non-empty MP4 and its full-film report (built after the scenario's last
+edit, no audit issue, no warning), its stills on disk and checklist.md
+without an open box. A build --only report cannot pass. It prints
 {verdict: "pass"|"fail", checks: [{name, passed, findings}]} and exits 1 on
 fail; --film names the film, otherwise the newest report beside the scenario.
 
@@ -139,15 +140,17 @@ agentic-screencast schema <kind> prints a kind's fields.
 
   report  report: page.md — a report, presentation or landing written for
           agentic-report, rebuilt from its source for every scene, so the
-          film shows the latest edit. Needs agentic-report in the project
-          (npm i -D agentic-report) and the Node version it requires. The
+          film shows the latest edit. Needs agentic-report >=0.20.0 in the
+          project (npm i -D agentic-report) and the Node version it requires. The
           camera frames its blocks by id (#section-id) or
           [data-review-target=…]; target, mustRead, zoom, spotFrom and focus
           work as on a page. The page keeps its own motion: its data-type
           and data-at mean agentic-report's roles, not typing. The scene
           builds the page without its top bar and what opens from it
           (topbar, review, schemeToggle, themeSwitcher: false) unless the
-          report names those keys itself.
+          report's metadata names those keys itself. The compiler reads the
+          original source without modifying it, preserving its block targets
+          across identical scene builds.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).
@@ -756,11 +759,13 @@ the film's length. The outgoing scene keeps a
 silent tail at least as long as the transition, so no word ends under the
 next picture, and no fade to black is drawn on that edge. Frames are mixed
 by a WebGL shader in the rendering browser; if WebGL is unavailable the
-build falls back to ffmpeg xfade and says so in its report
+build falls back to ffmpeg and says so in its report
 (transitions[].renderer). The light of wipe, mask, melt and leak, the shade
 of turning faces and the fill between them come from the theme of the
-incoming scene; ffmpeg cannot light in a theme colour, so without WebGL leak
-falls back to a plain fade. Merged names are refused with the one to write:
+incoming scene. Without WebGL, leak keeps its theme-coloured light over the
+same frames without overlapping scenes; other kinds use ffmpeg xfade.
+transitions[].at is the first transition frame, including the frames before
+the seam for leak. Merged names are refused with the one to write:
 dissolve is dots, zoom-blur is zoom, flash is leak, ripple is melt, iris is
 mask (without an element). sound plays an accent just before the cut; snap
 "music" lengthens the outgoing scene so the cut lands on a music beat: the

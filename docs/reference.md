@@ -287,7 +287,7 @@ The tool brings three providers with it:
 | `slides.cloud` | labels or icons on a turning sphere, the near ones large and bright | `items` |
 | `slides.shell` | a working terminal: commands type after the prompt, a spinner turns, output appears | `items` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
-| `report` | a page agentic-report builds from its Markdown source for every scene, without its top bar, review, scheme toggle and theme switcher unless the source names those keys; needs agentic-report in the project | `report` |
+| `report` | a page agentic-report builds from its original Markdown for every scene, preserving its block targets and source; its top bar, review, scheme toggle and theme switcher are off unless the report's metadata names those keys; needs agentic-report >=0.20.0 in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |
 
 For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 frame.
@@ -584,7 +584,7 @@ npx agentic-screencast craft spotlight          # film-craft rules for a decisio
 npm test                                     # the product's test suite
 ```
 
-`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, reads the film's report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail.
+`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail. A `build --only` report cannot pass.
 
 `schema` prints a machine-readable description of a scene, `scenes` prints the scenes
 of the parsed scenario in the same form. Together they give another agent

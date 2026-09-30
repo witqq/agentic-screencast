@@ -95,6 +95,14 @@ export const CAMERA_STYLES: Record<string, { move: number; return: number }> = {
   snappy: { move: 0.45, return: 0.5 },
 };
 
+/** Resolve only a declared camera style, with the caller's authoring field in the error. */
+export function cameraStyle(value: unknown, where: string): { move: number; return: number } | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !Object.hasOwn(CAMERA_STYLES, value))
+    throw new Error(msg("overlay.options", { where, options: Object.keys(CAMERA_STYLES).join(" | ") }));
+  return CAMERA_STYLES[value];
+}
+
 export const KINETIC = ["rise", "spin", "fly", "slide", "zoom", "bounce", "glitch", "beat", "aurora", "sparkle", "swarm",
   "drop", "wave", "split", "flip", "blur", "swirl", "flap", "arc"] as const;
 export type Kinetic = (typeof KINETIC)[number];
@@ -483,9 +491,7 @@ function parseOverlayBody(json: string): SceneOverlay {
       // Увеличение 1 — подсветка без наезда: кадр стоит, вокруг цели темнеет и встаёт рамка.
       if (scale !== undefined && (typeof scale !== "number" || !Number.isFinite(scale) || scale < 1 || scale > 3))
         throw new Error(msg("overlay.cameraScale", { where: `overlay.camera[${i}].scale` }));
-      if (raw.style !== undefined && !CAMERA_STYLES[String(raw.style)])
-        throw new Error(msg("overlay.options", { where: `overlay.camera[${i}].style`, options: Object.keys(CAMERA_STYLES).join(" | ") }));
-      const style = raw.style !== undefined ? CAMERA_STYLES[String(raw.style)] : undefined;
+      const style = cameraStyle(raw.style, `overlay.camera[${i}].style`);
       const move = raw.move === undefined ? style?.move ?? 0.9 : time(raw.move, `overlay.camera[${i}].move`);
       const back = raw.return === undefined ? style?.return ?? 0.9 : time(raw.return, `overlay.camera[${i}].return`);
       if (move < 0.35 || back < 0.35 || move > 4 || back > 4)

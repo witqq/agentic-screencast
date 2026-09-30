@@ -183,7 +183,7 @@ export async function renderScene(
       // Отмечаем один видимый предмет в момент снимка ДО кадра без него;
       // CSS-селектор скрыл бы обе копии, а начальный кадр может показывать другой вид страницы.
       await page.evaluate((t) => window.__clock.seek(t), o.at ?? o.probes?.[0]?.t ?? 0);
-      await page.evaluate((selector) => {
+      const found = await page.evaluate((selector) => {
         const shown = [...document.querySelectorAll(selector)].filter((node) => {
           const r = node.getBoundingClientRect();
           if (r.width < 1 || r.height < 1) return false;
@@ -193,9 +193,10 @@ export async function renderScene(
           }
           return true;
         });
-        if (shown.length !== 1) throw new Error(msg("render.morphTarget", { selector, found: shown.length }));
-        shown[0]!.setAttribute("data-sc-morph-target", "");
+        if (shown.length === 1) shown[0]!.setAttribute("data-sc-morph-target", "");
+        return shown.length;
       }, o.morphTarget);
+      if (found !== 1) throw new Error(msg("render.morphTarget", { selector: o.morphTarget, found }));
     }
     if (o.hide) await page.addStyleTag({ content: o.morphTarget
       ? "[data-sc-morph-target]{visibility:hidden!important}"

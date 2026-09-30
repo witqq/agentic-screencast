@@ -48,7 +48,7 @@ A line of the scenario names the subject when the narration reaches it. The came
 
 ::::::section{title="Slides that never stand still" id="slides" nav="Slides"}
 :::lead
-Twenty slide kinds give different evidence its own form; a slide is drawn at the scene's time, so a frame can be reproduced.
+31 slide kinds give different evidence its own form; a slide is drawn at the scene's time, so a frame can be reproduced.
 :::
 
 ::::cards
@@ -63,7 +63,7 @@ Code types in place and a chain draws the hand-off from scenario to MP4; before-
 :::
 ::::
 
-Fourteen ways to assemble a phrase are available when the phrase itself is the subject. The other words stay still long enough to read.
+19 ways to assemble a phrase are available when the phrase itself is the subject. The other words stay still long enough to read.
 ::::::
 
 ::::::section{title="Words stay readable" id="text" nav="Text"}
@@ -75,7 +75,7 @@ The examples on this page play silently; their captions carry the point without 
 ::::::section{title="Cuts, sound and a voice" id="sound" nav="Sound"}
 :::steps{title="The soundtrack follows the words"}
 
-1. **Cut with purpose.** Twelve WebGL transitions are available; a morph carries a visible element into the next scene, while a hard cut or dip serves a trailer.
+1. **Cut with purpose.** 17 WebGL transitions are available; a morph carries a visible element into the next scene, while a hard cut or dip serves a trailer.
 2. **Give speech room.** In a voiced film, music ducks under each measured beat, can change by chapter and can stop before a title. The mix targets −14 LUFS, and the finished AAC is checked against a −1 dBTP true-peak ceiling.
 3. **Choose the voice.** SpeechKit, a recorded voice or a local engine can narrate. The free `stub` gives a silent draft its planned timing without a network call.
 

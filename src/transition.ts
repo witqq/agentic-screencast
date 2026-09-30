@@ -11,7 +11,8 @@
 // идёт поверх последних кадров первой и первых кадров второй, и ролик не короче.
 //
 // Если браузер не дал WebGL (машина без программного рендера), работает
-// запасной путь — переходы ffmpeg xfade. Отчёт сборки называет, каким путём
+// запасной путь — переходы ffmpeg xfade, а у засветки — тот же свет фильтром geq.
+// Отчёт сборки называет, каким путём
 // сделан каждый переход: пометка «webgl» ставится только тогда, когда кадры
 // действительно получены из контекста WebGL.
 import { execFileSync } from "node:child_process";
@@ -727,13 +728,36 @@ Promise<{ frames: string[]; renderer: Renderer }> {
 function morphFallback(opts: MorphInput & { n: number; out: string }): string[] {
   execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-loop", "1", "-i", opts.aFull, "-loop", "1", "-i", opts.bFull,
     "-filter_complex", `[0:v][1:v]blend=all_expr='A*(1-N/${opts.n})+B*(N/${opts.n})'[v]`, "-map", "[v]", "-frames:v", String(opts.n),
-    resolve(opts.out, "%05d.png")]);
+    "-start_number", "0", resolve(opts.out, "%05d.png")]);
   return readdirSync(opts.out).filter((f) => f.endsWith(".png")).sort().map((f) => resolve(opts.out, f));
 }
 
-/** Запасной путь: тот же переход средствами ffmpeg xfade. */
-function xfade(opts: { kind: string; a: string[]; b: string[]; out: string; theme?: ThemeVars; color?: string; direction?: Direction }, n: number): string[] {
+/**
+ * Засветка поверх кадров на стыке: `geq` считает свет той же формы и тех же цветов, что шейдер.
+ * Сцены не смешиваются и не перекрываются — каждый исходный кадр остаётся на своём месте.
+ */
+function lightLeak(opts: { a: string[]; width: number; height: number; out: string; theme?: ThemeVars }, n: number): string[] {
+  const theme = opts.theme ?? resolveTheme(undefined);
+  const flash = rgbOf(theme["--tr-flash"]!), iris = rgbOf(theme["--tr-iris"]!);
+  const progress = `(N+0.5)/${n}`;
+  const qx = `((X+0.5)/W-(-0.25+1.5*(${progress})))*${opts.width / opts.height}`;
+  const qy = "((Y+0.5)/H-0.3)";
+  const glow = `exp(-pow(((${progress})-0.5)/0.26,2))`;
+  const leak = `exp(-(pow(${qx},2)+pow(${qy},2))*2.2)+0.6*exp(-(pow((${qx})+0.45,2)+pow((${qy})-0.35,2))*5)`;
+  const channels = ["r", "g", "b"].map((channel, i) => {
+    const light = `((${flash[i]}*(${leak})*0.8+${iris[i]}*0.15)*(${glow}))`;
+    return `${channel}='min(255,${channel}(X,Y)+(${light})*(255-${channel}(X,Y)))'`;
+  });
+  execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-framerate", "25",
+    "-i", resolve(opts.a[0]!, "..", "%05d.png"), "-vf", `format=gbrap,geq=${channels.join(":")}:a='alpha(X,Y)',format=rgba`,
+    "-frames:v", String(n), "-start_number", "0", resolve(opts.out, "%05d.png")]);
+  return readdirSync(opts.out).filter((f) => f.endsWith(".png")).sort().map((f) => resolve(opts.out, f));
+}
+
+/** Запасной путь: наплывы средствами xfade, свет на стыке — средствами geq. */
+function xfade(opts: { kind: string; a: string[]; b: string[]; width: number; height: number; out: string; theme?: ThemeVars; color?: string; direction?: Direction }, n: number): string[] {
   const kind = KINDS[opts.kind]!;
+  if (kind.joint) return lightLeak(opts, n);
   // ffmpeg умеет провал только в чёрное или белое: берётся ближайшее по яркости.
   const [r, g, b] = rgbOf(dipOf(opts));
   const via = opts.kind === "dip" ? (0.2126 * r! + 0.7152 * g! + 0.0722 * b! > 0.5 ? "fadewhite" : "fadeblack")
@@ -743,6 +767,6 @@ function xfade(opts: { kind: string; a: string[]; b: string[]; out: string; them
     "-framerate", "25", "-i", resolve(dirA, "%05d.png"), "-framerate", "25", "-i", resolve(dirB, "%05d.png"),
     "-filter_complex", `[0:v]format=rgb24[a];[1:v]format=rgb24[b];`
       + `[a][b]xfade=transition=${via}:duration=${((n - 0.001) / 25).toFixed(3)}:offset=0[v]`,
-    "-map", "[v]", "-frames:v", String(n), resolve(opts.out, "%05d.png")]);
+    "-map", "[v]", "-frames:v", String(n), "-start_number", "0", resolve(opts.out, "%05d.png")]);
   return readdirSync(opts.out).filter((f) => f.endsWith(".png")).sort().map((f) => resolve(opts.out, f));
 }

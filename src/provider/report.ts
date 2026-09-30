@@ -9,8 +9,8 @@
 // Компилятор — необязательная зависимость: кто не снимает отчёты, его не ставит. Договор
 // поставщика синхронный, а `buildReport` — асинхронный, поэтому сборка идёт отдельным процессом.
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
-import { basename, dirname, join, resolve } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import type { KindSpec, Provider } from "./types.js";
 import type { Film, RawScene } from "../source.js";
 import { SourceError } from "../source.js";
@@ -56,7 +56,11 @@ function compilerEntry(filmDir: string): string {
     for (let dir = start; ; dir = dirname(dir)) {
       const manifest = join(dir, "node_modules", "agentic-report", "package.json");
       if (existsSync(manifest)) {
-        const pkg = JSON.parse(readFileSync(manifest, "utf8")) as { exports?: Record<string, { import?: string } | string>; main?: string };
+        const pkg = JSON.parse(readFileSync(manifest, "utf8")) as { version?: string; exports?: Record<string, { import?: string } | string>; main?: string };
+        const version = /^(\d+)\.(\d+)\.\d+(?:\+[0-9A-Za-z.-]+)?$/u.exec(pkg.version ?? "");
+        if (!version || !(Number(version[1]) > 0 || Number(version[2]) >= 20)) {
+          throw new SourceError(msg("report.compilerVersion", { version: pkg.version ?? "?" }));
+        }
         const dot = pkg.exports?.["."];
         const rel = typeof dot === "string" ? dot : dot?.import ?? pkg.main ?? "index.js";
         return join(dirname(manifest), rel);
@@ -70,19 +74,9 @@ function compilerEntry(filmDir: string): string {
 /**
  * Верхняя панель отчёта и всё, что из неё открывается, — переключатели схемы и темы, ревью, — в
  * ролике ничего не делают и только занимают кадр: сцена снимает страницу без панели, если автор не
- * назвал эти ключи сам. Ревью и выбор темы открываются только из панели, поэтому без неё
- * компилятор требует выключить и их.
+ * назвал эти ключи сам в метаданных отчёта.
  */
-export const SCENE_KEYS: ReadonlyArray<[string, string]> = [
-  ["topbar", "false"], ["review", "false"], ["schemeToggle", "false"], ["themeSwitcher", "false"]];
-
-export function sceneSource(markdown: string, keys: ReadonlyArray<[string, string]> = SCENE_KEYS): string {
-  const m = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/u.exec(markdown);
-  const head = m ? m[1]! : "";
-  const add = keys.filter(([k]) => !new RegExp(`^${k}\\s*:`, "mu").test(head)).map(([k, v]) => `${k}: ${v}`);
-  if (!add.length) return markdown;
-  return m ? `---\n${head}\n${add.join("\n")}\n---\n${markdown.slice(m[0].length)}` : `---\n${add.join("\n")}\n---\n${markdown}`;
-}
+const SCENE_DEFAULTS = { topbar: false, review: false, schemeToggle: false, themeSwitcher: false };
 
 export const reportProvider: Provider = {
   name: "report",
@@ -95,16 +89,14 @@ export const reportProvider: Provider = {
     const input = resolve(film.dir ?? ".", String(scene.fields.report ?? ""));
     if (!existsSync(input)) throw new SourceError(msg("report.notFound", { id: scene.id, path: input }));
     const entry = compilerEntry(film.dir ?? ".");
-    // Копия исходника рядом с ним: относительные пути отчёта (данные, картинки, частичные файлы)
-    // остаются верными, а исходник автора не трогается.
-    const staged = join(dirname(input), `.${basename(input, ".md")}.scene.md`);
-    writeFileSync(staged, sceneSource(readFileSync(input, "utf8")));
+    // Компилятор читает исходник по его настоящему пути: от имени файла зависят цели камеры.
+    // Умолчания панели передаются отдельно; собственные метаданные автора остаются сильнее.
     const output = join(outDir, `${scene.id}.html`);
-    const script = "const [entry, input, output] = process.argv.slice(1);"
+    const script = "const [entry, input, output, defaults] = process.argv.slice(1);"
       + "import(require('node:url').pathToFileURL(entry).href)"
-      + ".then((m) => m.buildReport({ input, output, format: 'single-file' }))"
+      + ".then((m) => m.buildReport({ input, output, format: 'single-file', manifestDefaults: JSON.parse(defaults) }))"
       + ".catch((e) => { console.error(e && e.message ? e.message : String(e)); process.exit(1); });";
-    const r = spawnSync(process.execPath, ["-e", script, entry, staged, output], { encoding: "utf8" });
+    const r = spawnSync(process.execPath, ["-e", script, entry, input, output, JSON.stringify(SCENE_DEFAULTS)], { encoding: "utf8" });
     if (r.status !== 0 || !existsSync(output)) {
       throw new SourceError(msg("report.buildFailed", { id: scene.id, why: (r.stderr || r.stdout || "").trim().split("\n")[0] ?? "" }));
     }

@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, renameSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -29,6 +29,19 @@ test("handover passes a clean film and fails an open checklist box or a scenario
   };
   const clean = gate();
   assert.deepEqual([clean.status, clean.verdict, clean.failed], [0, "pass", []]);
+
+  renameSync(join(dir, "draft.mp4"), join(dir, "saved.mp4"));
+  assert.deepEqual(gate().failed, ["build"], "a report without its film cannot pass");
+  writeFileSync(join(dir, "draft.mp4"), "");
+  assert.deepEqual(gate().failed, ["build"], "an empty film cannot pass");
+  renameSync(join(dir, "saved.mp4"), join(dir, "draft.mp4"));
+
+  const reportFile = join(dir, "draft.report.json");
+  const complete = readFileSync(reportFile, "utf8");
+  writeFileSync(reportFile, JSON.stringify({ ...JSON.parse(complete), only: "p" }));
+  assert.deepEqual(gate().failed, ["build"], "a scene preview cannot pass the whole-film gate");
+  writeFileSync(reportFile, complete);
+  assert.equal(gate().verdict, "pass");
 
   writeFileSync(join(dir, "checklist.md"), "- [x] brief\n- [ ] story\n");
   assert.deepEqual(gate().failed, ["checklist"]);

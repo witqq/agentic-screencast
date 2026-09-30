@@ -62,11 +62,25 @@ build.
 | `slides.outro` | the closing card: title, body, button (`cta`), URL | the call to action | yes |
 | `slides.card` | a trailer card: one to three words slamming in, flash, shake, sparks | "ONE FILE" in the trailer chapter | text |
 | `slides.titlecard` | the film's title in spaced capitals, from a blur, a flare | the overview's title | text |
+| `slides.marquee` | an endless strip of labels or logos, with `rows` and `speed` | two rows of integrations travelling in opposite directions | no |
+| `slides.stack` | a deck of cards: the top card flies off at each item's moment | options revealed one at a time | no |
+| `slides.orbit` | icons circle the title on one or two orbits | integrations around the product | no |
+| `slides.chat` | bubbles appear in turn, with thinking before each answer | a question followed by the assistant's answer | no |
+| `slides.carousel` | cards turn in a real 3D ring | successive options facing the viewer | no |
+| `slides.globe` | a WebGL globe with arcs and city labels; `map: flat` keeps all cities visible | a route from one city to the others | no |
+| `slides.wall` | `images` on a tilted wall, columns sliding past each other | a product with many screens | no |
+| `slides.cloud` | labels on a turning sphere, nearer ones larger and brighter | the ecosystem around a product | no |
+| `slides.shell` | commands type, a spinner turns and output appears | a verified command and its real output | no |
+| `slides.layers` | screenshot `panels` lift to their depths and settle back | the layers of an interface separating | no |
+| `slides.bento` | cells of different sizes assemble into one grid | capabilities with one large leading cell | no |
 | `page` | any HTML page: saved, generated, or your own with its animations on the scene clock; `target`, `mustRead`, `zoom`, `spotFrom`, `focus` | a diagram page drawn beat by beat | yes |
 | `report` | a report, presentation or landing built by agentic-report from `report`, rebuilt for every scene; the camera frames its sections by id | the landing's own source filmed section by section | no |
 | `page` drawing by the narration | `window.renderAt(t)` and `data-at` anchors | a diagram whose boxes appear as they are named | no |
 | `video` | a finished clip or a live take: `from`/`to` piece, `fit` contain or cover, `freezeAt`, `duration` | a live take in several scenes | yes |
-| Slide options on every kind | `text` (14 phrase styles), `enter` (18 entrances), `move` drift/push/still, `background`, `align`, `at`, `count`, `note` | one slide rebuilt in three styles | text |
+| Slide options on the kinds that accept them (`schema <kind>`) | `text`, `enter`, `move` drift/push/still/dolly/pan/orbit3d/handheld, `background`, `align`, `at`, `count`, `note` | one slide rebuilt with three entrance and camera choices | text |
+| Order, curves and tempo of item entrances | `wave`, `stagger`, `ease`, `pace` | a grid assembling from the centre on a spring | no |
+| Items keep moving after their entrance; light travels around card borders | `alive`, `glow: border` | a held card breathing with light on its border | no |
+| Trends beside figures and rankings over time | counter `spark`, chart `type: race` | a sourced figure and its trend, then a changing ranking | no |
 | Slides fit themselves, down to 72%; what does not fit is reported (`overflow`) | automatic | the report line for a slide that is too long | no |
 | Custom scene kinds from an external provider | `providers` in the header, `provider-check` | — (a developer's feature) | no |
 
@@ -101,7 +115,10 @@ build.
 | Time inside a shot: slow motion, ramps, interpolation, holds | `speed` (`rate`, `ramp`, `interpolate`, `{at,hold}`), `freezeAt` | a result held while the camera pushes in | yes |
 | Motion blur on camera moves, holds stay sharp | `motionBlur` | a fast push-in frame, blurred vs sharp | no |
 | Device frames for a clip or a screenshot | `device: browser <url> \| phone \| frame` | the same take in a browser, a phone and a plain window | text |
-| Hits: a flash of light and a shake | `flash`, `shake` | a trailer card landing | no |
+| Hits: a flash of light, a shake and splitting colour channels; scene or music-beat anchors | `flash`, `shake`, `rgb` | a trailer card landing with a sound on the same anchor | no |
+| A saved page answers a pointer: toggles, tabs, menus and a list reordering smoothly | `overlay.actions`, pointer `magnet` and `drag` | a press followed by its visible result | no |
+| A circle of light follows the pointer; thinking hides the answer until it arrives | `overlay.torch`, `overlay.thinking` | exploring a dense interface, then an answer appearing | no |
+| Notifications, object reactions and rings at the event's moment | `overlay.toasts`, `overlay.boops`, `overlay.pings` | a completed action followed by confirmation | no |
 | Loupe: a magnified circle while the camera stands | `overlay.loupe` (`place`) | the peak of a chart magnified | yes |
 | Hand-drawn marks: circle passing its start, arrow, underline — tapered pen strokes | `overlay.marks` | a circle drawn around a total | stale |
 | Glints and bursts (confetti, sparks, seeded) | `overlay.glints`, `overlay.bursts` | success confetti | yes |
@@ -118,7 +135,8 @@ build.
 | Titles: rise, slam, type, split and every phrase style | `overlay.titles` | "Built for speed" slamming in | yes |
 | Lower thirds, callouts with an arrow into the subject | `overlay.lower`, `overlay.callouts` | a name plate and a callout on a live take | yes |
 | Stickers: emoji, images (GIF and animated PNG play on scene time), text badges | `overlay.stickers` | a rocket on a result | yes |
-| Kinetic phrases: 14 styles, every glyph in its final place | slide `text:`, title style | one phrase in several styles | yes |
+| Kinetic phrases, every glyph in its final place; new styles include swarm, flap and arc | slide `text:`, title style | one phrase in several styles | stale |
+| A rotating title word, a liquid word change, a picture inside headline letters | `{a\|b\|c}`, `swap: morph`, `fill` | the product's picture inside its name | no |
 | Emoji drawn from the bundled Noto set | automatic; `emoji: {"dir":…}` | — | no |
 | Progress bar with the part's name; the name reads on a phone (36 px) | `progress: {"parts":true,"label":…}` | the bar and the label across chapters | text |
 | Presenter in a circle, shrinking during push-ins | `pip` | the owner's face in the corner | text |
@@ -127,7 +145,10 @@ build.
 
 | Feature | Switched on by | How to show | Landing |
 |---|---|---|---|
-| 12 WebGL transitions between moving frames: dissolve, zoom-blur, whip, wipe, iris, cube, flip, glitch, flash, ripple, dip, push | `transition: <kind> <seconds>` | a montage of all twelve | yes |
+| 17 WebGL transitions: whip, zoom, wipe, cube, flip, glitch, dip, push, melt, leak, clock, curl, tiles, blur, mask, dots, pixelate | `transition: <kind> <seconds>` | a montage with each transition labelled | stale |
+| One axis through a sequence; zoom into a detail or a mask opening from an element | transition `direction`, `at`, `element` | a button opening into the screen it leads to | no |
+| A light leak over the cut, without overlap; both render paths keep the theme's light | `transition: leak` | the seam lit without shortening the film | no |
+| Connected transitions at every seam without an authored transition | header `flow: auto` | scenes continuing along one camera axis | no |
 | Morph: one element travels to its place in the next scene | `transition: {"kind":"morph","element":…}` | a number flying into a chart | text |
 | Hard cut and dip to a colour | `transition: cut`, `dip 0.6 white` | a trailer's cuts | text |
 | A scene's own fades | `fade` | — | no |
@@ -161,13 +182,14 @@ build.
 
 | Feature | Switched on by | How to show | Landing |
 |---|---|---|---|
-| Eleven themes styling slides and the overlay together: neutral (the default), frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint and the genre themes synthwave and blockbuster; one accent each, a quiet second colour | `theme:` | one slide in eleven themes | stale (names nine) |
+| Twelve themes styling slides and the overlay together: neutral, frost, midnight, calm-paper, daylight, noir, aurora, ember, blueprint, terminal, synthwave and blockbuster | `theme:` | one slide in the shipped themes | stale |
+| Light and dark schemes of named themes; blockbuster is dark only | `scheme` in the header or scene theme | the same product in both schemes | no |
 | A subtitle face chosen per theme, kickers in sentence case, titles never tracked tighter than −0.025em | `--sub-font`, `--sub-weight`, `--kicker-case`, `--kicker-tracking` | the same subtitle in three themes | no |
 | A theme from brand colours or a logo | `agentic-screencast theme --from logo.png` | a logo turning into a theme | text |
 | A part of the film in another theme | scene `theme:` | a light chapter in a dark film | text |
 | 24 bundled font families, Latin and Cyrillic | theme `--display`, `--sans`, `--mono`, `--sub-font` | — | no |
 | Film look: grade, vignette, grain, letterbox bars | `look:` | the same frame graded | text |
-| Live WebGL backgrounds: grid, aurora, mesh, waves, particles, bokeh; the shipped themes default to a quiet grid or none | theme, slide `background:` | — | yes |
+| Live backgrounds: grid, aurora, waves, particles, bokeh, rays, lamp, meteors, flicker, beams, warp, vortex, none | theme, slide `background:` | a quiet grid beside a deliberate launch reveal | stale |
 | Every drawn value is a token: a theme is the whole look | the token contract | — | no |
 
 ## 10. Vertical and square
@@ -185,6 +207,7 @@ build.
 | Feature | Switched on by | How to show | Landing |
 |---|---|---|---|
 | Director rules: two-text-layers, overloaded-line, still-scene, long-scene, title-over-interface, first-transition, spotlight-collision, still-hold, page-unmarked, typing-too-fast, take-theme, push-crop, loupe-scale, speed-range, captions-top-progress, take-small, piece-crosses-mark, empty-area, scene-jump, number-source, karaoke-contrast, uncredited, untranslated | `lint` | the lint JSON next to the fixed scene | text |
+| Readable words and visible targets: long-word, no-subtitles, silent-hits, focus-unseen; one lead movement and a measured push: motion-stack, harsh-push | `lint`; focus-unseen also in build warnings | a finding beside the corrected timing or caption | no |
 | Signs of a template film counted, not failed: hit-outside-trailer, grain, many-sparkles, transition-kinds, decorative-background, placeholder-address, kicker-caps, emoji-icons, same-entrance; four or more — the film is average | `lint` (`cliches`) | a template scenario scoring eight, a considered one zero | no |
 | A drawn frame with an empty third is named | `frames` (`empty`) | — | no |
 | A frame of every scene without a build, at any moment including a beat | `frames [--at b2+0.5]` | the labelled sheet | yes |
@@ -212,5 +235,6 @@ build.
 | Genre skeletons: pitch, product-demo, trailer, explainer, release, reel | `new <genre> [--lang] [--format]` | a skeleton built in one command | yes |
 | A film checklist with evidence per item | `checklist.md` from `new` | the ticked checklist | no |
 | The film-craft rules for the decision at hand: a scene kind, a technique, a genre or a finding | `craft <topic>` | the rules for spotlight printed beside the scene being written | no |
-| One gate before the handover: lint, the report built after the last edit, stills and the checklist in one verdict | `handover` | the verdict JSON beside the finished film | no |
-| A knowledge base: directing rules, genre playbook, vertical video, visual assets, sound — with sources | `docs/` | see `knowledge.md` | no |
+| One gate before the handover: lint, a non-empty MP4 and its full-film report built after the last edit, stills and the checklist | `handover` (a `build --only` report fails) | the verdict JSON beside the finished film | no |
+| Motion principles, effect vocabulary and composition recipes for genres and scene kinds | `docs/motion-design.md`; the playbook's Motion paragraph | a recipe's devices working together with one lead movement | no |
+| A knowledge base: directing rules, genre playbook, vertical video, visual assets, sound and motion design — with sources | `docs/` | see `knowledge.md` | no |

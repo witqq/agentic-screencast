@@ -49,7 +49,7 @@ await recordTake({
 
 A take can also push in on an element, place an explanation card beside it while the real action runs, name a moment for the scenario to refer to, and wait for an asynchronous result without a guessed delay. `type` refuses password fields; perform credential entry in `prepare`. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service, and `agentic-screencast help capture` is the API guide. The output WebM is a normal `video` scene input.
 
-Capture writes `<take>.marks.json` beside the WebM. Named moments and element rectangles let the scenario address a recorded action with `@name`; `cameraMoves` records focus and unfocus motion already visible in the take, so `lint` can distinguish it from an unexplained screen change. The marks file also names the script that recorded the take: a camera over the take in a video scene is performed by the browser on a re-recording, so small text stays sharp in a push-in (`help capture`).
+Capture writes `<take>.marks.json` beside the WebM. Named moments and element rectangles let the scenario address a recorded action with `@name`; `cameraMoves` records focus and unfocus motion already visible in the take, so `lint` can distinguish it from an unexplained screen change. The marks file also names the script that recorded the take. When the scene supports live camera recording, the build re-runs that script with the camera performed in the browser, keeping small text sharp. `help capture` lists the supported scenes and the fallback to a push-in over the recorded pixels.
 
 ## Build a video
 

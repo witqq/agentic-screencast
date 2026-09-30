@@ -5,7 +5,8 @@
 //
 //   node website/overview/make-material.mjs          everything; the demo builds are reused if present
 //   node website/overview/make-material.mjs --demo   rebuild the sample film and its web package too
-//   node website/overview/make-material.mjs --pages  only the pages (after an edit of this script)
+//   node website/overview/make-material.mjs --pages [name] [ru|en] only the selected pages
+//   node website/overview/make-material.mjs --outputs refresh short command output without video builds
 //   node website/overview/make-material.mjs --frames only the images made by `frames` (needs every page,
 //                                                     the takes and the record-page take)
 //
@@ -24,6 +25,10 @@ const OUT = join(HERE, "demo", "out");
 const PAGES = join(HERE, "pages");
 for (const d of [GEN, OUT, PAGES]) mkdirSync(d, { recursive: true });
 const args = process.argv.slice(2);
+const pagesIndex = args.indexOf("--pages");
+const pageName = pagesIndex < 0 || args[pagesIndex + 1]?.startsWith("--") ? undefined : args[pagesIndex + 1];
+const pageLang = pageName ? args[pagesIndex + 2] : undefined;
+if (pageLang && !["ru", "en"].includes(pageLang)) throw new Error("--pages language must be ru or en");
 
 // A command of the tool, run in the film's folder, in the language its output is shown in.
 function tool(lang, argv, { cwd = HERE, ok = false } = {}) {
@@ -148,7 +153,7 @@ function frames() {
 // ---------------------------------------------------------------------------------------------
 // Pages. Each is written in both languages; the Russian file ends in .ru.html.
 const shell = (lang, title, body, css = "", js = "") => `<!doctype html>
-<html lang="${lang}"><head><meta charset="utf-8"><title>${esc(title)}</title>
+<html data-sc-page lang="${lang}"><head><meta charset="utf-8"><title>${esc(title)}</title>
 <link rel="stylesheet" href="kit.css">
 <style>
 /* The page's own motion runs on the scene's clock: the build seeks it to every frame. */
@@ -160,7 +165,10 @@ ${body}
 <script src="kit.js"></script>${js ? `\n<script>\n${js}\n</script>` : ""}
 </body></html>
 `;
-const write = (name, s, html) => writeFileSync(join(PAGES, `${name}${s}.html`), html);
+const write = (name, s, html) => {
+  if ((pageName && pageName !== name) || (pageLang && pageLang !== (s ? "ru" : "en"))) return;
+  writeFileSync(join(PAGES, `${name}${s}.html`), html);
+};
 
 // A terminal: commands typed on their beats, output lines appearing after them.
 // steps: [{ cmd, at, lines: [text | {t, cls}], every }]
@@ -191,9 +199,10 @@ function pages() {
       const story = readFileSync(join(HERE, "story.md"), "utf8");
       const block = story.slice(story.indexOf("## c00-cold"), story.indexOf("## c00-file")).trimEnd().split("\n");
       const en = block.indexOf("[en]");
-      const fields = block.slice(0, block.findIndex((x) => x.trim() === "")).filter((x) => !x.startsWith("stills:")
+      const fieldsEnd = block.findIndex((x) => x.trim() === "");
+      const fields = block.slice(0, fieldsEnd).filter((x) => !x.startsWith("stills:")
         && (L === "en" ? !/^(part|file):/.test(x) : !/\.en:/.test(x)));
-      const prose = L === "en" ? block.slice(en + 1) : block.slice(fields.length, en);
+      const prose = L === "en" ? block.slice(en + 1) : block.slice(fieldsEnd + 1, en);
       const lines = [...fields, "", ...prose.filter((x, i, a) => x.trim() || (i > 0 && a[i - 1].trim()))].slice(0, 16);
       const code = lines.map((x, i) => `<span class="ln rv" data-at="${(0.1 + i * 0.12).toFixed(2)}"><b>${i + 1}</b>${esc(x) || " "}</span>`).join("\n");
       write("split", s, shell(L, "story.md", `<div class="split">
@@ -601,8 +610,9 @@ ${head(L === "ru" ? "Якоря" : "Anchors", title)}
 }
 
 if (args.includes("--demo")) { variants(); demo(); }
+if (args.includes("--outputs")) { variants(); outputs(); }
 if (args.length === 0) { variants(); outputs(); await images(); }
-if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); portraitPages(); }
+if (args.length === 0 || args.includes("--pages")) { pages(); if (existsSync(join(HERE, "checklist.md"))) checklistPage(); portraitPages(pageName, pageLang); }
 if (args.includes("--portrait-pages")) portraitPages(args[args.indexOf("--portrait-pages") + 1], args[args.indexOf("--portrait-pages") + 2]);
 if (args.includes("--frames")) frames();
 console.log("material ready");

@@ -49,14 +49,16 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
       once; `audit.issues` empty or every finding resolved, chapters match the authored parts, and
       the MP4 watched for framing, captions and actual cursor/camera movement. Check that the named
       subject stays visible through each move and that narrated actions occur in the intended order
-      relative to speech; write `n/a:` with a reason when a film has no such action. With measurable
+      relative to speech; write `n/a:` with a reason when a film has no such action. For report
+      scenes, verify the camera's `target` against the rebuilt original page. With measurable
       sound, final AAC true peak is at most
       −1 dBTP and achieved loudness is read from `audio.loudness.measured` (peak correction can put it
       below the target); silence has a null peak and `audio: false` has no sound measurement.
 
 ## 8. Handoff
 
-- [ ] `agentic-screencast handover` passed (or each failing check is named to the owner), and the MP4
+- [ ] `agentic-screencast handover` passed with a non-empty MP4 and its full-film report
+      (not `build --only`), or each failing check is named to the owner; the MP4
       (and `web` output for a page) is with the owner, with the credits the licences ask for and the
       decisions taken without the owner named.
 
@@ -79,6 +81,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Live capture: clicks (and their effect), typing, keys, ranges, drags, cards, focus during the take, clicks through a layer — `recordTake`, `take.*`, `help capture`
 - Zoom to actions and follow the cursor, device frame — `autoZoom` with `follow` (`help capture`), `device` (`help slides`)
 - Saved pages and interface snapshots — `page`, `agentic-screencast snapshot`, `help video`
+- Reports rebuilt from their original Markdown with their section ids and block targets preserved — `report`, `target`, `help video`
 - Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, push or whip with a direction, zoom into an element, a mask out of an element or a glowing circle from a point, a page curl, a light leak that keeps the length, a scene's own fades — `transition`, `fade`, `help transitions`
 - A continuous film: every seam connected instead of fades — `flow: auto`, `help transitions`, docs/motion-design.md "A continuous film"
 - Camera and life on slides: dolly, pan, 3D orbit, hand-held camera; living, jolting, bouncing, fanning and 3D entrances with motion blur; waves, stagger, curves and the scene's pace; a light on the border; hits on music beats — `move`, `alive`, `enter`, `wave`, `stagger`, `ease`, `pace`, `glow`, `flash`/`shake`/`rgb` with `m16`, `help slides`

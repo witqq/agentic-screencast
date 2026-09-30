@@ -711,14 +711,17 @@ const sizeK = (el) => {
 let choreoDone = false;
 function choreo() {
   if (choreoDone) return;
-  choreoDone = true;
   const wave = document.body.dataset.wave, step = Number(document.body.dataset.stagger || 0);
-  if (!wave && !step) return;
+  if (!wave && !step) { choreoDone = true; return; }
   const groups = new Map();
   for (const el of document.querySelectorAll('.el:not(.w)')) {
     if (!groups.has(el.parentElement)) groups.set(el.parentElement, []);
     groups.get(el.parentElement).push(el);
   }
+  // The initial page render precedes stage.mount, which resolves speech anchors to seconds.
+  // Keep those anchors intact until every group can be scheduled from measured times.
+  if ([...groups.values()].some((list) => list.length >= 3 && list.some((el) => !Number.isFinite(start(el))))) return;
+  choreoDone = true;
   for (const list of groups.values()) {
     if (list.length < 3) continue;
     let times = list.map(start).sort((a, b) => a - b);

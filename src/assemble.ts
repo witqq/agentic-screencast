@@ -122,7 +122,8 @@ export async function assembleVideo(opts: {
         rmSync(work, { recursive: true, force: true });
       } else renderer = (JSON.parse(readFileSync(meta, "utf8")) as { renderer: Renderer }).renderer;
       parts.push(clip);
-      done.push({ scene: s.id, kind: s.transition!.kind, renderer, at: Number(starts[i]!.toFixed(3)),
+      const transitionStart = starts[i]! - (isJoint(s.transition!.kind) ? jointSplit(kIn).out / enc.fps : 0);
+      done.push({ scene: s.id, kind: s.transition!.kind, renderer, at: Number(transitionStart.toFixed(3)),
         duration: Number((kIn / enc.fps).toFixed(3)) });
     }
     const from = trimIn, to = s.frames - trimOut;

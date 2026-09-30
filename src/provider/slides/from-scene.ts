@@ -134,9 +134,12 @@ function chartOf(f: Record<string, string>, dir: string, id: string): NonNullabl
     if (periods.length < 2 || periods.length > 40 || body.length < 2 || body.length > 16)
       throw new SourceError(msg("slides.chartRace", { id }));
     const race = body.map((r, i) => {
-      const values = periods.map((_, k) => num(r[k + 1] ?? ""));
-      if (values.some((v) => !Number.isFinite(v) || v < 0))
-        throw new SourceError(msg("slides.chartRow", { id, row: i + 2, value: r.join(",") }));
+      const cells = r.slice(1);
+      const values = cells.map(num);
+      if (r.length !== periods.length + 1 || !r[0]?.trim()
+        || cells.some((cell) => !cell.replace(/[\s_\u00a0\u202f]/gu, ""))
+        || values.some((v) => !Number.isFinite(v) || v < 0))
+        throw new SourceError(msg("slides.chartRaceRow", { id, row: i + 2, count: periods.length, value: r.join(",") }));
       return { label: r[0]!, values };
     });
     const last = race.map((r) => ({ label: r.label, value: r.values.at(-1)!, shown: String(r.values.at(-1)) }));
@@ -146,7 +149,8 @@ function chartOf(f: Record<string, string>, dir: string, id: string): NonNullabl
   if (rows.length < 2 || rows.length > 24) throw new SourceError(msg("slides.chartRows", { id, count: rows.length }));
   const out = rows.map((r, i) => {
     const value = num(r[1] ?? "");
-    if (r.length < 2 || !Number.isFinite(value)) throw new SourceError(msg("slides.chartRow", { id, row: i + 1, value: r.join(",") }));
+    if (r.length < 2 || !r[0]?.trim() || !r[1]?.replace(/[\s_\u00a0\u202f]/gu, "") || !Number.isFinite(value))
+      throw new SourceError(msg("slides.chartRow", { id, row: i + 1, value: r.join(",") }));
     if (value < 0) throw new SourceError(msg("slides.chartValue", { id, row: i + 1, value }));
     return { label: r[0]!, value, shown: r[2] || r[1]! };
   });
@@ -302,6 +306,8 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       const where = msg("slides.where", { id: s.id, field: `panels[${i + 1}]` });
       if (!m) throw new SourceError(msg("slides.panelForm", { where }));
       const [x, y, w, h, depth] = m.slice(1).map(Number) as [number, number, number, number, number];
+      if ([x, y, w, h, depth].some((value) => !Number.isFinite(value)))
+        throw new SourceError(msg("slides.panelForm", { where }));
       if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > 1 || y + h > 1) throw new SourceError(msg("slides.panelOutside", { where }));
       if (depth < 0 || depth > 1) throw new SourceError(msg("slides.panelDepth", { where }));
       return { x, y, w, h, depth };
