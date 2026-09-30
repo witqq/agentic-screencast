@@ -5,11 +5,11 @@ description: One scenario lets your agent film a real product, direct the viewer
 language: en
 localizations:
   ru: report.ru.md
-theme: light
+scheme: light
 layout: landing
-preset: editorial
-scrollProgress: true
-tokens:
+progress: page
+theme:
+  extends: calm-paper
   accent: teal
   width: wide
   radius: sharp
