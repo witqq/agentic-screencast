@@ -92,7 +92,7 @@ function column(v: string, id: string): Column {
 /** Движения камеры по кадру слайда (`move`). */
 export const MOVES = ["drift", "push", "still", "dolly", "pan", "orbit3d", "handheld"];
 /** Жизнь элементов после входа (`alive`). */
-export const ALIVE = ["wiggle", "float", "jitter"];
+export const ALIVE = ["wiggle", "float", "jitter", "pulse"];
 /** Кривые входов (`ease`). */
 export const EASES = ["standard", "emphasized", "expressive", "spring", "bouncy"];
 /** Порядок входа пунктов (`wave`). */
@@ -120,11 +120,27 @@ export function csvRows(text: string): string[][] {
 /** График: CSV «подпись,значение» рядом со сценарием, вид столбцов или линии, подсвеченная строка. */
 function chartOf(f: Record<string, string>, dir: string, id: string): NonNullable<Slide["chart"]> {
   const type = (f.type ?? "bar").trim();
-  if (type !== "bar" && type !== "line") throw new SourceError(msg("slides.options", { id, field: "type", options: "bar | line" }));
+  if (type !== "bar" && type !== "line" && type !== "race")
+    throw new SourceError(msg("slides.options", { id, field: "type", options: "bar | line | race" }));
   const path = resolve(dir, f.data!);
   if (!existsSync(path)) throw new MissingMaterialError(msg("slides.dataMissing", { id, file: f.data! }), "data", f.data!);
   const num = (v: string): number => Number(v.replace(/[\s_\u00a0\u202f]/gu, ""));
   let rows = csvRows(readFileSync(path, "utf8"));
+  if (type === "race") {
+    // Гонка: шапка «имя,2020,2021,…» называет периоды, каждая строка — «подпись,значение,значение,…».
+    const [head, ...body] = rows;
+    const periods = (head ?? []).slice(1);
+    if (periods.length < 2 || periods.length > 40 || body.length < 2 || body.length > 16)
+      throw new SourceError(msg("slides.chartRace", { id }));
+    const race = body.map((r, i) => {
+      const values = periods.map((_, k) => num(r[k + 1] ?? ""));
+      if (values.some((v) => !Number.isFinite(v) || v < 0))
+        throw new SourceError(msg("slides.chartRow", { id, row: i + 2, value: r.join(",") }));
+      return { label: r[0]!, values };
+    });
+    const last = race.map((r) => ({ label: r.label, value: r.values.at(-1)!, shown: String(r.values.at(-1)) }));
+    return { type, rows: last, race: { periods, rows: race } };
+  }
   if (rows.length && !Number.isFinite(num(rows[0]![1] ?? ""))) rows = rows.slice(1);
   if (rows.length < 2 || rows.length > 24) throw new SourceError(msg("slides.chartRows", { id, count: rows.length }));
   const out = rows.map((r, i) => {
@@ -173,7 +189,7 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       throw new SourceError(msg("slides.options", { id: s.id, field: "move", options: MOVES.join(" | ") }));
     slide.move = f.move.trim() as Slide["move"];
   }
-  const choice = <K extends "alive" | "glow" | "ease" | "wave">(k: K, options: readonly string[]): void => {
+  const choice = <K extends "alive" | "glow" | "ease" | "wave" | "swap" | "pace">(k: K, options: readonly string[]): void => {
     if (!f[k]) return;
     const v = f[k]!.trim();
     if (!options.includes(v)) throw new SourceError(msg("slides.options", { id: s.id, field: k, options: options.join(" | ") }));
@@ -183,6 +199,14 @@ export function slideOf(s: RawScene, dir = "."): Slide {
   choice("glow", ["border"]);
   choice("ease", EASES);
   choice("wave", WAVES);
+  choice("swap", ["slide", "morph"]);
+  // Глобус — умолчание: хранится только плоская карта.
+  if (f.map) {
+    const v = f.map.trim();
+    if (!["globe", "flat"].includes(v)) throw new SourceError(msg("slides.options", { id: s.id, field: "map", options: "globe | flat" }));
+    if (v === "flat") slide.map = "flat";
+  }
+  choice("pace", ["calm", "brisk", "snap"]);
   if (f.stagger) {
     const v = Number(f.stagger.trim().replace(/s$/i, ""));
     if (!Number.isFinite(v) || v < 0.03 || v > 1.5) throw new SourceError(msg("slides.stagger", { id: s.id }));
@@ -297,7 +321,20 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       ...(f.name ? { name: f.name } : f.file ? { name: basename(f.file) } : {}) };
   }
   if (s.kind === "chart") slide.chart = chartOf(f, dir, s.id);
+  if (f.spark) {
+    // «1 3 2 5 8 | 4 3 5»: ряд на каждое значение счётчика по порядку.
+    slide.spark = f.spark.split("|").map((part) => part.trim().split(/[\s,]+/u).filter(Boolean).map(Number));
+    if (slide.spark.some((row) => row.length < 2 || row.some((v) => !Number.isFinite(v))))
+      throw new SourceError(msg("slides.spark", { id: s.id }));
+  }
   if (f.image) slide.image = image(f.image, dir, s.id);
+  if (f.fill) slide.fill = image(f.fill, dir, s.id);
+  if (s.kind === "shell" && f.name) slide.name = f.name;
+  if (f.images) {
+    // Стена снимков: от трёх картинок, иначе колонки повторяют одно и то же.
+    slide.images = list(f.images).map((file) => image(file, dir, s.id));
+    if (slide.images.length < 3) throw new SourceError(msg("slides.wallImages", { id: s.id }));
+  }
   if (f.after) slide.after = image(f.after, dir, s.id);
   return slide;
 }

@@ -4,9 +4,10 @@ This guide answers one question: how should things move in a film so that the vi
 product and not a slideshow? Its first half gives the principles that separate a lively frame from a
 dull one — order, timing, curves, springs, transitions, rhythm — with the numbers practitioners use.
 Its second half is a vocabulary of named effects (a logo marquee, a toast stack, an orbit of icons,
-a chat that types) and how to get each one in Agentic Screencast today. It was researched on
-2026-09-29 from design-system documentation, practitioners' articles and component libraries, not
-from frame-by-frame breakdowns; bracketed numbers point to the sources at the end.
+a chat that types) and how to get each one in Agentic Screencast today, followed by recipes that
+combine them for a genre or a kind of scene. It was researched on 2026-09-29 and 2026-09-30 from
+design-system documentation, practitioners' articles and component libraries, not from
+frame-by-frame breakdowns; bracketed numbers point to the sources at the end.
 
 Most timing numbers below come from interface guidelines, where a person clicks and waits. A viewer
 of a film clicks nothing, so durations may run longer — marketing and explainer animation "can be
@@ -145,6 +146,8 @@ Choose the transition by what connects the two scenes [7][11]:
 | Go from an overview to a detail | a zoom into the detail | `{"kind":"zoom","element":".feat:nth-child(2)"}` or `"at":"0.7 0.3"` |
 | Are unrelated topics | a fade through, or a hard cut | a scene's own fade, or `cut` |
 | Land on a beat, change the act | a hard cut or a dip | `cut`, `dip 0.6 black` |
+| An element of the first opens into the second (a button into its screen) | a mask growing out of that element | `{"kind":"mask","element":"#open"}` |
+| Change the act on music without losing a second | a light leak over the cut | `leak 0.8` (no overlap, the film keeps its length) |
 
 A hard cut is "the most basic and possibly the most useful" transition [12]; a film whose every seam
 is an effect tires the viewer (film craft 52). A whip pan hides a cut in motion blur and belongs to
@@ -176,11 +179,13 @@ in a title [28]. **Scramble** decodes a short technical title, a **typewriter** 
 never less than about 5/6 s per event [24].
 
 **How to write it here.** `text:` on a slide sets a kinetic style for the title and body: `rise`,
-`spin`, `fly`, `slide`, `zoom`, `bounce`, `shuffle`, `drop`, `wave`, `scramble`, `split`, `flip`,
-`blur`, `swirl` (`help text`). Overlay titles take `style: rise | slam | type | split` or any of the
+`spin`, `fly`, `slide`, `zoom`, `bounce`, `shuffle`, `glitch`, `beat`, `aurora`, `sparkle`,
+`swarm`, `drop`, `wave`, `scramble`, `split`, `flip`, `blur`, `swirl`, `flap`, `arc` (`help
+slides` says what each does). Overlay titles take `style: rise | slam | type | split` or any of the
 same styles; cards take `reveal`. `slides.counter` and `slides.number` roll their numbers; karaoke
 captions light each word as it is spoken. `enter: mask` raises each item from under its own lower
-edge — the line mask — and a title rotates a word with `{a|b|c}`.
+edge — the line mask — and a title rotates a word with `{a|b|c}` (`swap: morph` makes the words
+flow into each other). Typed text keeps the uneven pace of a hand on its own.
 
 ## Depth and camera
 
@@ -204,8 +209,11 @@ throughout.
 **How to write it here.** `move: drift | push | still | dolly | pan | orbit3d | handheld` on
 full-frame slides (`help slides`); `shake` on a scene for a jolt (scene or music anchors);
 `spotlight` and `overlay.camera` for push-ins with a hold, `pan` along a wide subject, `autoZoom` on
-takes (`help overlay`, `help capture`); `slides.parallax` and `slides.perspective` for depth;
-`motionBlur` in the header blurs camera moves.
+takes (`help overlay`, `help capture`); `slides.parallax`, `slides.perspective`, `slides.layers` and
+`slides.wall` for depth; `motionBlur` in the header blurs camera moves, and fast slide entrances
+carry their own directional blur. `lint` names a push-in faster than about a doubling in 0.58 s
+(`harsh-push`) and a push-in stacked on a slide's own camera move or a title flying in during it
+(`motion-stack`) — both break rule 66 of film craft.
 
 ## Rhythm and sound
 
@@ -216,9 +224,11 @@ pass, a riser before a reveal, a click under every shown click — each once, no
 [37]. Change the pace: fast runs, then a pause, then the hit [38].
 
 **How to write it here.** `transition.snap: "music"` places the middle of a transition two frames
-before a beat (the pre-hit); `sfx`, `flash` and `shake` take music anchors (`m16`) as well as scene
-anchors; `speechAt` lets a hit come before the voice (`help sound`, `help transitions`, `help
-overlay`).
+before a beat (the pre-hit); `sfx`, `flash`, `shake` and `rgb` (the colour channels split and come
+back) take music anchors (`m16`) as well as scene anchors; `text: beat` lands a phrase word by word
+on the music's beats; `pace: calm | brisk | snap` sets a slide's tempo, so a fast run can be
+followed by a calm scene; `speechAt` lets a hit come before the voice (`help sound`, `help
+transitions`, `help overlay`, `help slides`).
 
 ## A living frame
 
@@ -227,10 +237,15 @@ changes without a shift of position pull attention far less than sliding does, s
 background [39]. A drifting gradient, a slow grid, a sheen that crosses a card once, a little grain.
 **Secondary action** happens once, at the climax: a status dot blinks, a check mark trembles [16].
 
-**How to write it here.** `background: grid | aurora | mesh | waves | particles | bokeh` on a slide
-or `--bg-motion` in the theme (`help slides`, `help themes`) — note that the default `neutral` and
-`frost` themes have no live background; `overlay.glints` for a sheen, `overlay.bursts` for confetti
-and sparks, `look: {"grain": …}` for grain.
+**How to write it here.** `background:` on a slide or `--bg-motion` in the theme (`help slides`,
+`help themes`) — note that the default `neutral` and `frost` themes have no live background, on
+purpose (visual design, "The tool's own defaults"). The quiet one is `grid`; `waves` is calm; the
+others say something and belong where that is the point: `rays` and `lamp` — a solemn reveal of a
+title; `spotlight` — a beam finds the headline; `meteors` — depth and energy at night; `flicker` —
+technical and alive; `beams` — flow, data, AI; `warp` — speed, a breakthrough; `vortex` — a pull
+into the middle, a call to action; `aurora`, `mesh`, `particles`, `bokeh` — atmosphere. `lint`
+counts every one of them but `grid` and `waves` as a decorative background. `overlay.glints` for a
+sheen, `overlay.bursts` for confetti and sparks, `look: {"grain": …}` for grain.
 
 ## Effect vocabulary
 
@@ -252,12 +267,19 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
   event's moment.
 - **Pulse and ping** — "active, listening, here". Tailwind's pulse fades to 0.5 over a 2 s cycle; its
   ping grows to 2× and fades within 1 s [43]. Keep below three flashes a second (film craft 66).
-  *In the tool:* `overlay.pings` on a target, area or point; `click: true` on the pointer draws a ripple.
+  *In the tool:* `overlay.pings` on a target, area or point; `overlay.boops` with `kind: pulse` makes
+  one control breathe for `hold` seconds ("press here"); `alive: pulse` makes every item of a slide
+  breathe; `click: true` on the pointer draws a ripple.
+- **Magnet** — a button leans towards the cursor before the press, so the press reads as intended.
+  *In the tool:* `magnet` on a pointer point.
 - **Float, wiggle, boil** — an idle motion keeps a held object alive: a slow float, a small rocking,
   or the hand-drawn "boiling line" that changes about twelve times a second. *In the tool:* items
   breathe by default; `alive: float | wiggle | jitter` on a slide gives them a visible life.
-- **Jolt** — an object slams in with overshoot and a dying tremor: an impact, an alarm, "this
-  broke". *In the tool:* `enter: jolt`; the whole frame trembles with the scene's `shake`.
+- **Jolt, bounce, fan** — an object slams in with overshoot and a dying tremor (an impact, an alarm);
+  drops and bounces like a ball, each bounce lower (something light and playful); or a group opens
+  like a hand of cards (options). *In the tool:* `enter: jolt | bounce | fan`; the whole frame
+  trembles with the scene's `shake`. Fast entrances carry motion blur along their direction, as a
+  camera shutter would.
 
 ### Carousels and streams
 
@@ -270,6 +292,10 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
   6 % smaller; Sonner's toasts shrink 5 % per step [49][50]. *In the tool:* `slides.stack`, standing
   in 3D.
 - **Scrolling a long screen** — "there is a lot here". *In the tool:* a tall `slides.shot` scrolls.
+- **Wall of screens in 3D** — "the product is big, there are many screens": columns of screenshots
+  on a tilted plane slide past each other under the title [88]. *In the tool:* `slides.wall`.
+- **Icon cloud** — "everything revolves around us", in depth: labels on a turning sphere, the near
+  ones large [91]. *In the tool:* `slides.cloud`; `slides.orbit` for a flat, calmer version.
 
 ### Assembly and layout
 
@@ -280,14 +306,16 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
   tool:* `slides.layers` lifts cut-out panels of a snapshot to their depths while the camera tilts
   and settles them back; `slides.parallax` hangs them at depths without the tilt.
 - **Layout change** — the same objects rearranged keep their identity (list → grid, a card opening)
-  [53][54]. *In the tool:* the `morph` transition carries one object between scenes.
+  [53][54]. *In the tool:* the `morph` transition carries one object between scenes; inside a scene
+  `overlay.actions` with `reorder`, or any action with `glide`, moves the elements to their new
+  places over 0.6 s (the FLIP technique).
 
 ### Data
 
 - **Count-up and odometer**, **progress ring**, **growing chart** — *in the tool:* `slides.counter`,
   `slides.number`, `slides.chart`.
-- **Bar chart race** — "who leads over time" [55]. *On a page.*
-- **Sparkline** beside a number — "and it is growing". *On a page.*
+- **Bar chart race** — "who leads over time" [55]. *In the tool:* `slides.chart` with `type: race`.
+- **Sparkline** beside a number — "and it is growing". *In the tool:* `spark:` on `slides.counter`.
 
 ### Lines and shapes
 
@@ -296,28 +324,41 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
   `marks` draw circles, arrows and underlines by hand. *On a page:* `data-draw` on any SVG shape draws
   its stroke from its `data-at`.
 - **Animated beam** — pulses of light run along links from source to target: "data flows from here to
-  there"; a 3 s cycle, curvature ±75 [59]. *On a page.*
+  there"; a 3 s cycle, curvature ±75 [59]. *In the tool:* `slides.chain` sends a pulse along its
+  nodes once they stand; the `particles` background sends pulses along its links; the `beams`
+  background runs light along curved paths; `slides.timeline` leads its line with a glowing head
+  [90]. *On a page:* `data-beam` on an SVG path.
 - **Orbiting icons** — "everything turns around the product": integrations. Radius 160 px, a 20 s
   cycle, no more than two orbits [60]. *In the tool:* `slides.orbit`.
 - **Icon morph** — a change of state of one object [61]. *On a page:* `data-morph` on an SVG path
   flows it into a second shape with the same commands and point count.
 - **Globe with arcs** — "used worldwide"; arcs fly about 2.5 s and a ping marks the landing [62][63].
-  *In the tool:* `slides.globe` (WebGL).
+  *In the tool:* `slides.globe` (WebGL); `map: flat` lays the dots and arcs on a flat map [90], so
+  every city reads at once.
 
 ### Interface
 
 - **Typing in a field** — a prompt or a query; about 100 ms a character, uneven rather than
-  mechanical [14][64]. *In the tool:* card `reveal: "type"`, `slides.code`, `data-type` on your page.
+  mechanical [14][64]. *In the tool:* card `reveal: "type"`, `slides.code`, `data-type` on your
+  page — all type at a hand's uneven pace, pausing after spaces and punctuation.
+- **A terminal that works** — a developer product doing real work: a command types itself, a
+  spinner turns, output lines appear [90][91]. *In the tool:* `slides.shell`.
 - **Toast stack** — "the system is alive, events arrive": a new toast slides in over 400 ms, three
   visible, each one behind 5 % smaller, 14 px apart [50][65]. *In the tool:* `overlay.toasts`.
-- **Chat bubbles** — the most recognisable frame of an AI product: bubbles pop in turn, typing dots
+- **Chat bubbles** — the most recognisable frame of an AI product: bubbles pop in turn, "thinking"
   before the answer [66][67]. *In the tool:* `slides.chat`.
-- **"AI is thinking"** — a sheen across "Thinking…" or three jumping dots for one or two seconds
-  before the answer [43][68][66]. *In the tool:* `slides.chat` shows typing dots before each answer.
+- **"AI is thinking"** — a sheen across "Thinking…" and shimmering skeleton bars for one or two
+  seconds before the answer [43][68][66]. *In the tool:* `slides.chat` before each answer;
+  `overlay.thinking` over any page or clip — laid over the answer's place it hides the answer until
+  it leaves.
 - **Cursor as an actor** — it arrives on an arc, presses with a ripple, drags [4][25]. *In the tool:*
-  `overlay.pointer` with `click` (moves on a slight arc) and the live take's cursor.
+  `overlay.pointer` with `click` (moves on a slight arc), `drag` to carry an element to the next
+  point, and the live take's cursor.
 - **Toggles, tabs, menus** — the shortest way to show a setting; the thumb slides in about 300 ms
-  [54]. *On a page.*
+  [54]. *In the tool:* `overlay.actions` — `toggle`, `tab`, `open`, `close`, `class` — with `glide`
+  on the thumb, and a pointer click on the same moment.
+- **Torch** — the frame goes dark and a circle of light follows the cursor: exploring a dense or dark
+  interface [90]. *In the tool:* `overlay.torch`.
 - **Code focus** — dim everything but the working lines [69]. *In the tool:* `slides.code` with
   `highlight:`.
 
@@ -337,29 +378,165 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 - **Words from blur** — a thought being born; 0.2 s between words for a solemn line [74]. *In the
   tool:* `text: blur`.
 - **Marker under a word, strike-through** — the key word, or "the old way"; drawn over about 800 ms
-  [75]. *In the tool:* overlay `marks` (underline, circle, arrow) on a target. *On a page:* on a word
-  of your title.
+  [75]. *In the tool:* in a slide's title `==word==` (marker), `((word))` (a circle by hand) and
+  `~~word~~` (strike-through); overlay `marks` (underline, circle, arrow) on any target.
 - **Scramble** — decoding, search [76]. *In the tool:* `text: scramble`.
-- **Split-flap** — an update, a departure [77]. *In the tool:* `text: flip` is the nearest.
+- **Split-flap** — an update, a departure [77]. *In the tool:* `text: flap`.
+- **Text on a curve** — a badge, a seal, a playful claim. *In the tool:* `text: arc`.
+- **Glitch** — a failure, a hack, a hard edit; channels split and slices jump [90]. *In the tool:*
+  `text: glitch` on a phrase, `rgb` on a scene for the whole frame, the `glitch` transition.
+- **Living gradient and sparkles in the word** — the one word that must shine [91]. *In the tool:*
+  `text: aurora`, `text: sparkle`.
+- **Particles into text** — the name or the idea is born out of chaos, the most expensive first frame
+  [90][91]. *In the tool:* `text: swarm`.
+- **Text filled with the product** — the name "made of" the product [91]. *In the tool:* `fill:` with
+  a picture on `slides.hero` or `slides.card`.
+- **Morphing word** — a change of meaning without a cut [91]. *In the tool:* `swap: morph` on a title
+  with `{a|b}`.
+- **Words on the beat** — a hook cut to music. *In the tool:* `text: beat`.
 
 ### Transitions
 
 *In the tool:* `dissolve`, `zoom-blur`, `whip`, `zoom`, `wipe`, `iris`, `cube`, `flip`, `glitch`,
-`flash`, `ripple`, `dip`, `push`, `morph`, `cut`, and `flow: auto` for a whole film
-(`help transitions`). Choose by the table in "Transitions"
-above. Libraries add liquid and pixel dissolves and light leaks laid over a cut [78][79]; none of
-them states a relation between scenes, so keep them for a genre that wants them.
+`flash`, `ripple`, `dip`, `push`, `melt`, `leak`, `clock`, `curl`, `tiles`, `blur`, `mask`, `dots`,
+`pixelate`, `morph`, `cut`, and `flow: auto` for a whole film (`help transitions`). Choose by the
+table in "Transitions" above. Two of the new ones state a relation: `mask` grows the next scene out
+of an element of the first, and `curl` turns a page — the next item of a list, a new version.
+`leak` is a light over the cut that keeps the film's length. The rest — liquid `melt`, `tiles`,
+`dots`, `pixelate`, `clock`, soft-focus `blur` — are dissolves with a character [78][79][90]; none
+of them states a relation between scenes, so keep them for a genre that wants them, one kind per
+film.
 
 ### Background and light
 
 - **Drifting colour** — atmosphere without meaning [80][81]. *In the tool:* `aurora`, `mesh`.
-- **Grid with running light** — "technical, precise" [82][67]. *In the tool:* `grid`.
-- **Particles** — depth, data, AI [83]. *In the tool:* `particles`, `bokeh`, `overlay.bursts`.
+- **Grid with running light** — "technical, precise" [82][67]. *In the tool:* `grid`; `flicker`
+  for a grid of cells that light up in their own rhythms [91].
+- **Particles** — depth, data, AI [83]. *In the tool:* `particles`, `bokeh`, `overlay.bursts`;
+  `vortex` draws them into the middle [90]; `warp` flies through them [92].
+- **Light from above** — a solemn reveal: rays from the top [93], a lamp that lights a cone over the
+  title [89], a slanted spotlight that finds the headline [90]. *In the tool:* `rays`, `lamp`,
+  `spotlight`.
+- **Meteors** — depth and energy [94]. *In the tool:* `meteors`.
 - **Sheen across a card** — "new, premium", once after it lands [68]. *In the tool:*
   `overlay.glints`.
 - **Light running along a border** — "this card is recommended": a short beam around the frame over a
   2–6 s cycle [84][85]. *In the tool:* `glow: border` on a slide (feature, stack and bento cards,
   chips; a four-second cycle).
+
+## Composition recipes
+
+A single effect rarely makes a frame memorable; a composition does — a few devices that say one
+thing together, with one lead movement at a time. Each recipe below names the devices that work
+together, the scene or genre it serves, why the parts belong together, and when to leave it out.
+Take a recipe as a starting point for one scene, not as a template for every scene: a film repeats a
+recipe at most twice (film craft 45). The genres' own rules for motion are in the scenario playbook,
+each genre's section.
+
+### 1. The opening that shows the product (hero)
+
+**Together:** `slides.hero` with the product's result as `image` behind the headline, or poured into
+its letters with `fill`; `move: dolly` so the frame pushes in once; over an `image`, the headline as
+`text: blur` or `text: swarm` (a filled headline keeps its own entrance) — or, without a phrase
+style, one marked word in the title (`==word==`), since a phrase style shows the words without their
+marks; `flow: auto` so the scene hands its push to the next one.
+A `lamp` or `spotlight` background replaces the image only in a launch or a trailer.
+
+**When and why.** The first three seconds decide (film craft 64): the eye lands on the product,
+the push says "come closer", the phrase assembling gives the claim its moment, and the marker names
+the one word that matters. Everything moves in one direction — in.
+
+**Not when** the film opens on a live take (the take is the opening), or in a support how-to, where
+a claim delays the answer.
+
+### 2. "The assistant answers" (an AI product)
+
+**Together:** `slides.chat`, or a page of the product with `overlay.thinking` laid over the answer's
+place for 1.2–1.8 s; the answer arrives in its place; `overlay.glints` crosses it once; a `boops`
+`pop` on the send button at the moment of the question; a pointer `click` on the same moment.
+
+**When and why.** An AI answer is the climax of such a demo: the skeleton says "it is working", the
+sheen says "done", and the boop ties the question to the answer (cause and effect).
+
+**Not when** the answer must be read closely for more than a line — hold it still instead, with a
+`spotlight` push-in after the glint, never during it (`motion-stack`).
+
+### 3. A setting that changes the product (UI walkthrough)
+
+**Together:** `overlay.pointer` arriving on an arc, `magnet` on the control before the press,
+`click: true`; `overlay.actions` (`toggle` with `glide` on the thumb, `tab`, `open`) on the click's
+moment; an `overlay.toasts` confirmation half a second later; then `spotlight` on what changed.
+`overlay.torch` for a dark or dense interface.
+
+**When and why.** "Where it is → the press → what it did → the consequence" is the orientation →
+action → evidence order of the playbook, and every part is visible: nobody has to take the
+narration's word for it.
+
+**Not when** a real take of the product can show the same press (`recordTake` — the real product
+beats a drawn pointer), or with `flash`/`shake`: a setting is not an impact.
+
+### 4. The number that proves it (data scene)
+
+**Together:** `slides.counter` rolling the figure with a `spark:` line under it, or `slides.chart`
+(`type: race` for "who leads over time"); the key word of the title marked (`==twice as fast==`);
+`pace: calm`; a `push` or `morph` transition carrying the number into its detail.
+
+**When and why.** A number convinces when it arrives last, with its trend and its source (film craft
+12, 56): the roll gives it weight, the sparkline gives it a direction, the calm pace gives the viewer
+time to read it.
+
+**Not when** there is no source and date for the number (`number-source`), and never over a
+decorative background: nothing may compete with a figure the viewer must remember.
+
+### 5. "Everything connects" (integrations, ecosystem, reach)
+
+**Together:** `slides.orbit` (calm) or `slides.cloud` (in depth) for integrations, `slides.marquee`
+for "and the list goes on", `slides.globe` or `map: flat` for reach; `beams` behind a flow of data;
+`slides.chain` whose pulse runs from node to node for a pipeline.
+
+**When and why.** These kinds keep moving while the voice speaks, so a list becomes a system the
+viewer feels without reading every name.
+
+**Not when** each name must be read — then `slides.features` or a still list; and only one of these
+kinds per film.
+
+### 6. The developer product at work
+
+**Together:** `slides.shell` (commands type, a spinner turns, output lands), then `slides.code`
+with `highlight:` on the lines that matter; `flicker` or `grid` behind; `text: scramble` or `flap`
+on a chapter title; `pixelate` or `glitch` as the one transition kind, or a hard `cut`.
+
+**When and why.** Developers trust what runs: a command and its real output are the evidence, the
+typing gives it a human pace, and the technical background sets the tone without a word.
+
+**Not when** the output is invented — show the recorded run (film craft 2) — or for an audience that
+does not read code.
+
+### 7. The trailer hook and its hits
+
+**Together:** `slides.card` on a hard `cut`, with `flash`, `shake` or `rgb` on the music's beats
+(`m16`) and a hit in `sfx` on the same anchor; a `slides.hero` whose claim is cut to the music with
+`text: beat` and `pace: snap`; a `leak` over the change of act; `slides.wall` or a `warp`
+background for "many screens, speed"; `fill:` with the product in a card's letters.
+
+**When and why.** A trailer is carried by rhythm: the hit lands two to four frames before the beat,
+loud comes only after quiet, and the product shows through every card.
+
+**Not when** the film is a demo or an explainer (`hit-outside-trailer`), and never every card with a
+hit — "one well-placed hit is strong, four are a parody" (the playbook's action trailer).
+
+### 8. What is new (release)
+
+**Together:** `slides.compare` whose title strikes the old way and marks the new one
+(`~~three steps~~ ==one click==`); `slides.stack` or `slides.bento` with `glow: border` on the new
+card; a `mask` transition from the "new" badge into the feature's screen, or `curl` from version to
+version; `overlay.toasts` for the events the feature creates.
+
+**When and why.** A release is a change: the strike-through and the marker state the change in one
+glance, and the mask says "this is where it lives".
+
+**Not when** a change is a trifle — a 15-second clip says it better (the playbook's release section)
+— or when more than one card glows: the glow means "this one".
 
 ## Too much, and safety
 
@@ -372,7 +549,7 @@ in any second [87] — the build names it (`flashing`).
 
 ## Sources
 
-All sources were opened and checked on 2026-09-29.
+All sources were opened and checked on 2026-09-29; sources 88–94 on 2026-09-30.
 
 1. Emil Kowalski — review-animations/STANDARDS.md (GitHub) — https://github.com/emilkowalski/skills/blob/main/skills/review-animations/STANDARDS.md.
 2. IBM Carbon — motion.json, duration and curve tokens, DTCG (GitHub) — https://github.com/carbon-design-system/carbon/blob/main/packages/motion/src/dtcg/motion.json.
@@ -461,3 +638,10 @@ All sources were opened and checked on 2026-09-29.
 85. Aceternity UI — Moving Border — https://ui.aceternity.com/components/moving-border.
 86. CRITICA — Motion Graphics Trends 2026: What's New — https://www.criticatv.com/motion-graphics-trends-how-visual-storytelling-is-evolving-in-2026/ — April 2026.
 87. W3C WAI — Understanding Success Criterion 2.3.1: Three Flashes or Below Threshold — https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html.
+88. Aceternity UI — 3D Marquee — https://ui.aceternity.com/components/3d-marquee.
+89. Aceternity UI — Lamp Effect — https://ui.aceternity.com/components/lamp-effect.
+90. Aceternity UI — the components catalogue: Background Beams, Vortex, Spotlight, Meteors, Terminal, Canvas Reveal Effect, Pixelated Canvas, Chromatic Image, Tracing Beam, World Map, Sparkles — https://ui.aceternity.com/components.
+91. Magic UI — the components catalogue: Icon Cloud, Terminal, Flickering Grid, Aurora Text, Sparkles Text, Video Text, Morphing Text — https://magicui.design/docs/components.
+92. Magic UI — Warp Background — https://magicui.design/docs/components/warp-background.
+93. Magic UI — Light Rays — https://magicui.design/docs/components/light-rays.
+94. Magic UI — Meteors — https://magicui.design/docs/components/meteors.

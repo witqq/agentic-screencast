@@ -458,6 +458,28 @@ export function lint(file: string): Finding[] {
       }
     }
 
+    // Правило 66: одно главное движение за раз. Наезд камеры поверх движения всего кадра (наезд,
+    // облёт, проход, рука слайда) — два главных движения сразу, и ни одно не ведёт взгляд; крупный
+    // титр, влетающий, пока едет камера, — то же самое.
+    const frameMove = (f.move ?? "").trim();
+    if (["push", "dolly", "pan", "orbit3d", "handheld"].includes(frameMove) && (s.overlay?.camera?.length || spotlit)) {
+      add("motion-stack", msg("lint.motionStack", { move: frameMove }));
+    }
+    for (const t of titles) {
+      const c = (s.overlay?.camera ?? []).find((c) => t.at < c.at + (c.move ?? 0.9) && c.at < t.at + 0.8);
+      if (c) add("motion-stack", msg("lint.motionStackTitle", { title: t.text, at: c.at.toFixed(1) }));
+    }
+    // Правило 66, вестибулярная безопасность: крупный наезд за короткое время — то, от чего зрителя
+    // укачивает. Мера — скорость приближения, ln(увеличение) за секунду движения; больше 1,2 (двукратный
+    // наезд быстрее 0,58 с) — резко. Увеличение, которое выберет кадр, оценивается умолчанием 1,65.
+    const harsh = [...(s.overlay?.camera ?? []).map((c) => ({ at: `${c.at.toFixed(1)}s`, scale: c.scale ?? 1.65, move: c.move ?? 0.9 })),
+      ...(s.spotlight ?? []).map((sp) => ({ at: String(sp.at), scale: sp.scale ?? 1.65, move: (sp as { move?: number }).move ?? 0.8 }))];
+    for (const c of harsh) {
+      const rate = Math.log(Math.max(1, c.scale)) / Math.max(0.05, c.move);
+      if (rate > 1.2) add("harsh-push", msg("lint.harshPush", { at: c.at, scale: c.scale, move: c.move,
+        slow: (Math.log(c.scale) / 1.2).toFixed(2) }));
+    }
+
     // Число на слайде называет источник и дату (film craft 12, 56): цифра без них — снимок,
     // выданный за текущее положение, или число, которое неоткуда проверить.
     if (spec.numbers) {
@@ -484,7 +506,7 @@ export function lint(file: string): Finding[] {
 /** Признак клише облика: приём, взятый без причины (docs/visual-design.md). */
 export interface Sign { id: string; scenes: string[]; message: string }
 
-const DECORATIVE = new Set(["aurora", "mesh", "bokeh", "particles"]);
+const DECORATIVE = new Set(["aurora", "mesh", "bokeh", "particles", "rays", "lamp", "meteors", "flicker", "beams", "warp", "vortex", "spotlight"]);
 const PLACEHOLDER_URL = /^(?:$|https?:\/\/)?(?:$|(?:www\.)?(?:example\.(?:com|org)|localhost|127\.0\.0\.1|your[-\w]*\.\w+|app\.com|placeholder|acme\.\w+))/iu;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -508,7 +530,7 @@ export function clicheSigns(file: string): Sign[] {
   const trailer = scenes.some(({ spec }) => spec.trailer)
     || (src.look?.bars !== undefined && src.look?.grade === "teal-orange") || scenes.some(({ vars }) => genre(vars));
   if (!trailer) {
-    sign("hit-outside-trailer", scenes.filter(({ f }) => f.flash || f.shake).map(({ s }) => s.id),
+    sign("hit-outside-trailer", scenes.filter(({ f }) => f.flash || f.shake || f.rgb).map(({ s }) => s.id),
       msg("lint.clicheHit"));
     if ((src.look?.grain ?? 0) > 0) sign("grain", ["(film)"], msg("lint.clicheGrain"));
   }

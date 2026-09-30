@@ -3,9 +3,9 @@
 // кадр (горизонталь, вертикаль, пресет `format: vertical` с его безопасной
 // зоной и портретной сеткой слайда — в уменьшенном кадре ради времени). Каждая клетка — настоящая сборка ролика
 // с этим переходом; проверяется, что ролик собран, каждый переход сделан
-// шейдером и длина ролика равна расчётной.
+// шейдером и длина ролика равна расчётной (переход на стыке её не укорачивает).
 //
-// Отдельно от `npm test`: шестьдесят шесть переходов собираются минуты, а
+// Отдельно от `npm test`: переходы всех видов во всех клетках собираются минуты, а
 // модульные проверки каждого вида уже идут в обычном прогоне. Запуск —
 // `npm run matrix:transitions`.
 import { execFileSync, spawnSync } from "node:child_process";
@@ -14,7 +14,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { KIND_NAMES } from "../transition.js";
+import { isJoint, KIND_NAMES } from "../transition.js";
 
 const require = createRequire(import.meta.url);
 const ffmpeg = require("ffmpeg-static") as string;
@@ -49,7 +49,9 @@ for (const [w, h, name, preset] of [[240, 136, "landscape", ""], [136, 240, "por
     scenes: Array<{ frames: number }> };
   // Длина сцены — из отчёта: у немого клипа её задаёт сам клип, поле duration
   // для видео — нижняя граница. Ролик короче суммы сцен ровно на переходы.
-  const want = (rep.scenes.reduce((n, s) => n + s.frames, 0) - cells.length * T * FPS) / FPS;
+  // Переход на стыке (засветка) сцены не перекрывает и ролик не укорачивает.
+  const overlapping = cells.filter((c) => !isJoint(c.split("→")[0]!)).length;
+  const want = (rep.scenes.reduce((n, s) => n + s.frames, 0) - overlapping * T * FPS) / FPS;
   const webgl = rep.transitions.filter((t) => t.renderer === "webgl").length;
   const ok = rep.transitions.length === cells.length && webgl === cells.length && Math.abs(rep.duration - want) < 0.15;
   if (!ok) failed++;

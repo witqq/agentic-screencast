@@ -184,7 +184,13 @@ agentic-screencast schema <kind> prints a kind's fields.
           (data-draw="1.5"; empty — 1.2 s): a diagram line, an arrow, a
           signature. data-morph="M… (the second shape)" on an SVG path
           flows it into that shape over 0.9 s from its data-at; draw both
-          shapes with the same commands and number of points.
+          shapes with the same commands and number of points. data-beam on
+          an SVG shape runs a glowing segment an eighth of its length along
+          it from its data-at, one lap in the named seconds (empty — 2 s):
+          data flowing along a link. Typed text (data-type, a card's
+          reveal: type, typed titles and callouts) comes in at the uneven
+          pace of a hand — a pause after a space, a longer one after a comma
+          and a full stop — and still ends when an even pace would.
   video   file: clip; from/to cut a piece (seconds or @marks, and every
           clip second of the scene then counts from from); fit: contain
           (default: whole clip, bars of the theme's letterbox colour) or
@@ -390,7 +396,43 @@ a hand moves a mouse, the arc bending to alternate sides. click:true draws a
 0.65-second ripple at that point; it does not click the underlying UI.
 For real UI actions, use agentic-screencast help capture instead. A manual
 pointer on imported footage is only a graphic annotation, not synchronized
-interaction.
+interaction. On a page or a slide the pointer can also handle the page:
+  "magnet":".button" on a point — the element leans towards the pointer (a
+    quarter of the distance) while it is within an eighth of the frame, the
+    pull of a button before the press
+  "drag":"#card" on a point — the pointer picks the element up there and
+    carries it to the next point, where it stays; lifted in flight, the
+    cursor pressed. The last point has nowhere to carry to
+
+Actions make the page answer a press without its own script — the page is a
+snapshot or a slide, so its scripts do not run on the film's clock:
+overlay: {"actions":[{"at":"b2","target":"#autosave","kind":"toggle","glide":".knob"},
+  {"at":"b3","target":"#tab-details","kind":"tab"},
+  {"at":"b4","target":"#menu","kind":"open"},
+  {"at":"b5","target":"#list","kind":"reorder","order":[3,1,2]}]}
+  toggle   a checkbox or radio flips its checked state; another element flips
+           aria-pressed or aria-checked; class also flips that class
+  tab      the tab gets aria-selected and the class active (or class), its
+           siblings lose them, and panels named by aria-controls swap
+  open     a details element opens; another gets aria-expanded and the class
+           open (or class), and the panel named by aria-controls shows
+  close    the same, closing
+  class    flips the named class — any change your page's CSS knows
+  reorder  the target's children take the new order (numbers from 1)
+glide names elements that travel to their new places over 0.6 s on a spring
+instead of jumping (the FLIP technique); reorder glides the children by
+itself. The state at any second is rebuilt from the page's own state, so a
+frame taken from the middle equals the same frame of a full build. Put a
+pointer click on the same moment: the press and its effect land together.
+
+  "torch":[{"at":"b2","hold":3,"size":0.25}] — the frame darkens in the
+    theme's dimming colour and a circle of light, size a share of the frame
+    width, follows the pointer: exploring a dark or dense interface
+  "thinking":[{"at":"b2","hold":1.6,"target":"#answer","text":"Thinking…","lines":3}]
+    — "AI is thinking": a sheen runs along the line and skeleton bars
+    shimmer; laid over target (or area) it hides the answer beneath until it
+    leaves, so the answer appears in its place; without one it stands as a
+    card in the middle of the frame. lines 0–5 (default 3), hold from 0.6 s
 
 Cards support position: corners, center, or near-focus; reveal:"type" and
 motion:"rise"|"pop"|"glide"|"fly". enter/exit are seconds; hold is optional and
@@ -538,13 +580,16 @@ a clip large.
 Hits on any scene — a slide, a page or a clip:
 flash: b2 | 1.5s
 shake: [{"at":"b2","length":0.4,"strength":1.5}]
+rgb: m16
 flash lights the whole frame in the scene theme's flash colour (--tr-flash)
 at its anchor and lets it die out over length (default 0.35 s, strength 0.85
 of full light); shake jolts the frame in two directions and settles over
 length (default 0.35 s; strength 1 moves it 1.5% of the frame width), zooming
-in just enough that no edge shows. Anchors are the scene's: b2, b2.end+0.3,
+in just enough that no edge shows; rgb splits the colour channels — one
+slides right and another left by 1.2% of the frame width at strength 1 — and
+brings them back together over length (default 0.3 s). Anchors are the scene's: b2, b2.end+0.3,
 40%, 1.5s — or a music beat of the film, m16, when the header's music has a
-tempo, so the hit lands in the rhythm rather than in the speech. Both are drawn in one pass over the joined film, so they look the
+tempo, so the hit lands in the rhythm rather than in the speech. All three are drawn in one pass over the joined film, so they look the
 same on a slide and on captured footage; the build report lists them under
 hits. Put a sound on the same anchor (sfx) — a hit without one reads as a
 glitch.`;
@@ -628,7 +673,9 @@ Hand-drawn marks, glints and bursts ride with the subject under the camera:
     inside overlay ("at":"@saved") are marks too
   "glints":[{"at":5,"target":".card"}] — a band of light crosses the subject once
   "boops":[{"at":"b2","target":"#send","kind":"pop"}] — the element on the page
-    jolts and springs back: pop, shake, jelly or nod; ties a cause to its effect
+    jolts and springs back: pop, shake, jelly or nod; ties a cause to its effect;
+    pulse makes it breathe — brighter and a little larger on each 1.2 s
+    breath — for hold seconds (default 3): "press here", "listening"
   "pings":[{"at":1,"target":"#dot","hold":2}] — rings spread from the subject,
     like radar; also "area" or "point"
   "toasts":[{"at":1,"icon":"✅","title":"Build finished","body":"film.mp4 is
@@ -692,7 +739,9 @@ kind and seconds (0.2–2), or an object:
 transition: {"kind":"whip","duration":0.6,"sound":"audio/whoosh.ogg","snap":"music"}
 
 The scenes overlap by the transition's length: the next scene starts that
-much earlier, so the film gets shorter by it. The outgoing scene keeps a
+much earlier, so the film gets shorter by it — except leak, which lays its
+light over the last frames of one scene and the first of the next and keeps
+the film's length. The outgoing scene keeps a
 silent tail at least as long as the transition, so no word ends under the
 next picture, and no fade to black is drawn on that edge. Frames are mixed
 by a WebGL shader in the rendering browser; if WebGL is unavailable the
@@ -712,6 +761,10 @@ viewer reads it as one camera travelling. zoom flies the camera into a point
 of the outgoing scene and lands in the next one: {"kind":"zoom","at":"0.7 0.3"}
 (fractions of the frame) or {"kind":"zoom","element":".feat:nth-child(2)"} —
 the centre of that element at the end of a drawn scene, found by the build.
+mask grows the next scene out of an element of the outgoing one — a button
+opening into the screen it leads to: {"kind":"mask","element":"#open"}
+opens a window from that element's rectangle to the whole frame, and
+{"kind":"mask","at":"0.7 0.3"} from a small square around a point.
 
 flow: auto in the film header gives every seam without its own transition a
 connected one instead of two fades, so the film runs as one stream: the
@@ -949,15 +1002,22 @@ body: One scenario file, real footage, honest checks.
 duration: 5
 
 Each kind is a scene header slides.<kind>. The classic five: chapter
-(title, body), compare (left, right), chain (nodes, back), quote (parts) and
-number (value or values, label, tags); schema <kind> shows how to write each.
+(title, body), compare (left, right), chain (nodes, back; once every node
+stands, a pulse of light runs from node to node), quote (parts) and number
+(value or values, label, tags); schema <kind> shows how to write each.
 Beyond them the full-frame kinds are:
 
-  hero      headline rising word by word; body, optional image behind
+  hero      headline rising word by word; body, optional image behind;
+            fill: picture.png pours the picture into the letters of the
+            headline, drifting slowly inside them — the name "made of" the
+            product
   steps     items: Title :: text | …  — lit one by one with the narration
   features  items: 🚀 Title :: text | …  — two to six cards flipping in
-  timeline  items: 2024 :: text | …  — a line that draws itself to each stop
-  counter   values: 1,240 :: label | 98% :: label — odometer digits, % ring
+  timeline  items: 2024 :: text | …  — a line that draws itself to each stop,
+            a glowing head leading it
+  counter   values: 1,240 :: label | 98% :: label — odometer digits, % ring;
+            spark: 3 5 4 8 12 | 90 94 98 draws a small line under each value
+            (a series per value) that ends in a flash: "and it is growing"
   beforeafter  image: old.png, after: new.png, labels: Before | After,
             split: 0.8 0.2 — two states in one frame, before left of a
             divider that travels across, after right of it
@@ -970,7 +1030,10 @@ Beyond them the full-frame kinds are:
             and without WebGL the page shows the flat screenshot
   chart     data: sales.csv (label,value per line), type: bar | line,
             peak: max | a row number | a label — bars grow, a line draws
-            itself left to right, the peak lights up; data.ru: for a translation
+            itself left to right, the peak lights up; data.ru: for a translation.
+            type: race runs a bar chart race over a CSV «name,2020,2021,…» —
+            2–40 periods, 2–16 rows — the bars re-sort as the periods pass,
+            "who leads over time"
   code      code: a\\nb or file: snippet.ts, lines: 3-14, highlight: 5 7-8,
             cps: 40 (default: typing fits the scene), name: shown in the tab
   photo     image: pic.jpg, point: 0.6 0.4, push: 1 1.16 — slow push-in
@@ -997,41 +1060,81 @@ Living kinds keep moving while the voice speaks:
   orbit     items: 🟣 Linear | … — icons circling the kicker and title in the
             middle, one orbit up to six, two beyond (the outer one reversed)
   chat      items: you :: question | Agent :: answer | … — bubbles pop in turn
-            (you, user, me on the right), typing dots before each answer
+            (you, user, me on the right); before each answer a sheen runs across
+            "Thinking…" over skeleton bars
   carousel  items: 🎬 Title :: text | … — cards standing in a real 3D ring that
             turns to each card on its moment
   globe     items: Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | … — a WebGL
             globe of dots; arcs fly from the first city to the others in
-            turn and ping where they land, the city's name beside it
+            turn and ping where they land, the city's name beside it; map:
+            flat lays the same dots, arcs and pings on a flat map that does
+            not turn — global, yet every city readable at once
   layers    image: screen.png, panels: 0.1 0.2 0.4 0.3 @ 1 | … — an exploded
             view: the panels lift off the screenshot to their depth while
             the camera tilts round the stack, and settle back flat by the end
   bento     items: 🚀 Title :: text | … — a bento grid, the first cell large
             and the last ones wide so the grid closes, each tilting in from depth
+  wall      images: a.png | b.png | c.png | … (three or more) — a wall of
+            screenshots tilted in 3D, its four columns sliding past each
+            other, the title over it: "the product is big, many screens"
+  cloud     items: 🟣 Linear | 🟢 Notion | … — labels on a turning sphere,
+            the near ones large and bright, the far ones small and dim:
+            everything around the product, in depth
+  shell     items: $ npm test :: ✔ 302 passed | ✔ build ready, name: zsh —
+            a terminal that works: a command types itself after the prompt,
+            a spinner turns while it runs, then its output appears (the part
+            after ::); an item without $ is an output line; ✔ lines take the
+            theme's success colour and ✘ lines its failure colour; the lines
+            scroll up when they do not fit
 A title may rotate a word: title: Built for {teams|agents|you} — each word
-holds 2.2 s, the next rises from below, and the line stops on the last.
+holds 2.2 s, the next rises from below, and the line stops on the last;
+swap: morph makes the words flow into each other like a liquid instead.
+A title may mark a word as a pen would once the title stands: ==word== lays a
+marker stroke under it, ((word)) circles it by hand, ~~word~~ strikes it out
+— the key word, or "the old way". The marks draw one after another, 0.7 s
+after the title appears; part names and subtitles read the title without them,
+and so does a title assembled by a phrase style (text:), which shows its words
+without the marks.
 When to use each: docs/motion-design.md, "Effect vocabulary".
 
 Items appear one by one: each on its own beat when the speech has enough beats, otherwise at an even pace across the speech, unless at: names moments.
 text: the phrase style of the headline and body — ${KINETIC.join(" | ")}
 — assembles them word by word or letter by letter on the scene's time,
 every unit already in its final place, so lines never re-wrap. Titles and a
-card's reveal take the same styles (help text).
+card's reveal take the same styles (help text). By words: rise, spin, fly,
+slide, zoom, bounce, shuffle (each word its own entrance); glitch — words
+enter jerking sideways with the theme's two accents split apart, and glitch
+again for an instant every 2.6 s; beat — one word on each beat of the film's
+music (music.bpm, found in the file when not named; 120 per minute without
+music), and the phrase twitches on every later beat; aurora — words rise and
+a gradient of the two accents flows through the letters; sparkle — words rise
+and small stars flash around the phrase; swarm — thousands of dots fly in from
+all around and settle into the letters, then the text stands. By letters:
+drop, wave, scramble, split, flip, blur, swirl; flap — each letter clicks
+through characters like a split-flap board and stops on its own; arc — the
+letters take their places on an arc and stay curved.
 enter: how the items come in — rise | lift | word | left | right | pop | wipe |
 flip | track | line | tilt | zoom | fade | spin | fly | drop | swing | unfold |
-jolt | flip3d | tilt3d | mask (each kind has its own default); several
-names, enter: pop flip rise, are handed to the items in turn. jolt slams in
-with overshoot and a dying tremor; flip3d and tilt3d are real 3D turns from
-depth; mask raises a line from under its own lower edge.
+jolt | flip3d | tilt3d | mask | bounce | fan (each kind has its own default);
+several names, enter: pop flip rise, are handed to the items in turn. jolt
+slams in with overshoot and a dying tremor; flip3d and tilt3d are real 3D
+turns from depth; mask raises a line from under its own lower edge; bounce
+drops an item that bounces like a ball, each bounce lower; fan opens a group
+like a hand of cards from one point below. Fast entrances carry motion blur
+along their direction, as a camera shutter would; parts of feature, bento,
+step, counter and timeline cards follow their card a frame or two late.
 Choreography and life of the items, on any kind:
   wave: start | center | edges | random — the order the items come in; their
         moments stay the speech's, only who takes each one changes
   stagger: 0.12 — seconds between items, from the first item's moment
   ease: standard | emphasized | expressive | spring | bouncy — the curve of
         every entrance; with it, larger elements also take longer, as mass does
-  alive: wiggle | float | jitter — motion after the entrance: a small
-        rocking, a slow float, or a hand-drawn boil (12 changes a second);
-        without it an item only breathes by a point and a half
+  alive: wiggle | float | jitter | pulse — motion after the entrance: a small
+        rocking, a slow float, a hand-drawn boil (12 changes a second), or a
+        breath that swells each item a little every 1.2 s; without it an item
+        only breathes by a point and a half
+  pace: calm | brisk | snap — the scene's tempo: every entrance takes 1.4×,
+        0.7× or 0.45× its time; calm for a solemn line, snap for a trailer
   glow: border — a light runs round the border of cards (features, stack,
         bento, chips) every four seconds
 Feature cards and the stack stand in 3D and turn slowly towards the light.
@@ -1050,8 +1153,15 @@ settles; pan a sideways travel across the scene; orbit3d a real 3D tilt
 that swings round the frame; handheld a living hand-held camera (layered
 tremor without repetition). Shakes on a hit are the scene's shake. count: off
 keeps a number from rolling. background: grid | aurora | mesh | waves |
-particles | bokeh | none overrides the theme's live background; WebGL
-backgrounds fall back to grid and mark the page when WebGL is missing.
+particles | bokeh | rays | lamp | meteors | flicker | beams | warp | vortex |
+spotlight | none overrides the theme's live background: rays fan light down
+from the top; lamp lights a bar over the title and opens a cone of light
+below it in the first 1.6 s; meteors streak across a starry sky; flicker is a
+grid of cells lighting up in their own rhythms with rare sparks; beams run
+light along curved paths (flow, data, AI); warp flies through stars out of
+the centre; vortex draws particles along spirals into the middle (a call to
+action); spotlight swings a slanted beam across the frame in the first 3 s. WebGL backgrounds fall back to grid and
+mark the page when WebGL is missing.
 Every slide carries an ambient layer of its own — a breathing glow, a
 drifting grid, a travelling sheen — items keep a faint float after they
 appear, and held cards breathe; all of it is a function of scene time, so a
@@ -1270,15 +1380,21 @@ Helpers that save a full build:
       a take's piece where it has no mark (scene-jump), a number, counter or
       chart slide whose note names no source and date (number-source), a
       theme that dims unspoken karaoke words under 4.5:1 on the plate
-      (karaoke-contrast), a music or sound file with no line in
+      (karaoke-contrast), two lead movements at once — a camera push over
+      a slide's own move (push, dolly, pan, orbit3d, handheld) or a title
+      flying in while the camera moves (motion-stack), a push-in faster
+      than ln(scale) per 1.2 s that makes viewers queasy (harsh-push),
+      a music or sound file with no line in
       assets/CREDITS.md beside the scenario (uncredited), and with --lang the visible fields a translation
       left out (untranslated).
       Beside the findings the JSON counts the signs of a template film in
       "cliches" — they do not fail lint, since each can be a decision:
-      flash or shake outside a trailer (hit-outside-trailer), film grain
+      flash, shake or rgb outside a trailer (hit-outside-trailer), film grain
       outside a trailer (grain), more than two bursts and glints
       (many-sparkles), more than two kinds of transition (transition-kinds),
-      an aurora, mesh, bokeh or particles background (decorative-background),
+      a decorative live background — aurora, mesh, bokeh, particles, rays,
+      lamp, meteors, flicker, beams, warp, vortex, spotlight
+      (decorative-background),
       a browser frame with no real address (placeholder-address), a kicker
       in capitals (kicker-caps), emoji icons in features (emoji-icons), the
       same enter on every slide (same-entrance); four or more add a verdict

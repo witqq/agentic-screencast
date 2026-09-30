@@ -19,7 +19,7 @@ const still = {
   fade: { in: 0.3, out: 0.3 },
 };
 
-const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger"];
+const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger", "swap", "pace"];
 /** Новые виды держат кадр в движении целиком: облёт, наезд или покой. */
 const staged = [...common, "move"];
 
@@ -89,8 +89,8 @@ export const KINDS: Record<string, KindSpec> = {
     check,
   },
   hero: {
-    about: "opening statement: a headline that rises word by word over a live background, optional picture behind it",
-    fields: [...staged, "body", "image"],
+    about: "opening statement: a headline that rises word by word over a live background, optional picture behind it; fill pours a picture into the letters of the headline",
+    fields: [...staged, "body", "image", "fill"],
     required: [["title"]],
     silentOk: true,
     chapterFrom: ["kicker", "title"],
@@ -121,7 +121,7 @@ export const KINDS: Record<string, KindSpec> = {
   },
   counter: {
     about: "figures that roll up like an odometer, a ring for percentages: «1200+ :: label | 98% :: label»",
-    fields: [...staged, "values", "value", "count"],
+    fields: [...staged, "values", "value", "count", "spark"],
     required: [["values", "value"]],
     numbers: true,
     effects: still,
@@ -152,7 +152,7 @@ export const KINDS: Record<string, KindSpec> = {
     check,
   },
   chart: {
-    about: "a bar or line chart drawn from a CSV «label,value» beside the scenario: bars grow, a line draws itself, the peak lights up",
+    about: "a bar or line chart drawn from a CSV «label,value» beside the scenario: bars grow, a line draws itself, the peak lights up; type: race runs a bar chart race over the periods of a CSV «name,2020,2021,…»",
     fields: [...staged, "data", "type", "peak"],
     required: [["data"]],
     numbers: true,
@@ -216,7 +216,7 @@ export const KINDS: Record<string, KindSpec> = {
     check,
   },
   chat: {
-    about: "a conversation that writes itself: bubbles pop in turn, the assistant shows typing dots before each answer: «you :: question | bot :: answer | …»",
+    about: "a conversation that writes itself: bubbles pop in turn, before each answer the assistant shows «Thinking…» with a sheen running over it and skeleton bars: «you :: question | bot :: answer | …»",
     fields: [...staged, "items"],
     required: [["items"]],
     silentOk: true,
@@ -234,11 +234,36 @@ export const KINDS: Record<string, KindSpec> = {
   },
   globe: {
     about: "a WebGL globe of dots that turns; from the first city arcs fly to the others in turn and ping where they land: «Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | …» (latitude longitude)",
-    fields: [...staged, "items"],
+    fields: [...staged, "items", "map"],
     required: [["items"]],
     silentOk: true,
     effects: still,
     check,
+  },
+  wall: {
+    about: "a wall of screenshots tilted in 3D, its columns sliding past each other with the title over it: «images: a.png | b.png | c.png | …» — the product is big, there are many screens",
+    fields: [...staged, "images"],
+    required: [["images"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  cloud: {
+    about: "labels or icons on a turning sphere, near ones large and bright, far ones small and dim: «🟣 Linear | 🟢 Notion | …» — everything revolves around the product, in depth",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  shell: {
+    about: "a terminal that works: commands type themselves after a prompt, a spinner turns, output appears line by line: «$ npm test :: ✔ 302 passed | …» — a developer product doing real work",
+    fields: [...staged, "items", "name"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check: { ...check, chars: 520, body: 22 },
   },
   layers: {
     about: "an exploded view of a screenshot: its panels («x y w h @ depth | …») lift off in 3D, the camera tilts round the stack, and they settle back flat by the end",
@@ -260,7 +285,7 @@ export const KINDS: Record<string, KindSpec> = {
   // Кегль карты подбирается под ширину кадра, а не задаётся: пороги текста у неё свои.
   card: {
     about: "a trailer card: one to three words across the whole frame that slam in with a flash, a shake, a sheen over metal letters and rising sparks",
-    fields: ["title", "kicker", "at", "background"],
+    fields: ["title", "kicker", "at", "background", "fill"],
     required: [["title"]],
     trailer: true,
     silentOk: true,
@@ -297,7 +322,8 @@ for (const spec of Object.values(KINDS)) spec.moving = true;
 const SHOWN = ["title", "kicker", "body", "note", "items", "left", "right", "nodes", "back", "parts",
   "values", "value", "label", "tags", "cta", "data", "labels"];
 const STAGING = ["align", "at", "background", "code", "count", "cps", "device", "enter", "file", "highlight", "image",
-  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels", "rows", "speed"];
+  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels", "rows", "speed",
+  "images", "fill", "swap", "map", "pace"];
 for (const spec of Object.values(KINDS)) {
   spec.shown = spec.fields.filter((f) => SHOWN.includes(f));
   spec.staging = spec.fields.filter((f) => STAGING.includes(f));

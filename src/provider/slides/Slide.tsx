@@ -8,6 +8,7 @@
 import type { JSX, ReactNode } from "react";
 import type { Column, Slide } from "../../source.js";
 import { deviceLayout, deviceMarkup, type Box } from "../../device.js";
+import { MARK, ROTATE, plainTitle } from "./markup.js";
 
 /**
  * Момент появления элемента номер i — ЯКОРЬ, а не секунда.
@@ -64,7 +65,7 @@ export function tone(col: Column | undefined, dflt: NonNullable<Column["tone"]>)
  * Как именно двигать, решает скрипт страницы; разметка только называет вход.
  */
 export const ENTERS = ["rise", "lift", "word", "left", "right", "pop", "wipe", "flip", "track", "line", "tilt", "zoom", "fade",
-  "spin", "fly", "drop", "swing", "unfold", "jolt", "flip3d", "tilt3d", "mask"] as const;
+  "spin", "fly", "drop", "swing", "unfold", "jolt", "flip3d", "tilt3d", "mask", "bounce", "fan"] as const;
 export type Enter = (typeof ENTERS)[number];
 
 /**
@@ -77,16 +78,21 @@ const enterOf = (s: Slide, dflt: Enter, i = 0): Enter => {
 };
 
 /**
- * Смена слова в строке: «Built for {teams|agents|you}» — слово в скобках сменяется другими по очереди
- * и останавливается на последнем. Все варианты стоят в одной ячейке, поэтому строка не
- * перекладывается, пока слово меняется.
+ * Заголовок с разметкой (`markup.ts`): у смены слова все варианты стоят в одной ячейке, поэтому
+ * строка не перекладывается, пока слово меняется; пометка слова лежит поверх него и раскладку не трогает.
  */
-const ROTATE = /\{([^{}|]+(?:\|[^{}|]+)+)\}/u;
 export function rich(text: string): ReactNode {
-  const m = ROTATE.exec(text);
-  if (!m) return text;
-  const words = m[1]!.split("|").map((w) => w.trim());
-  return <>{text.slice(0, m.index)}<span className="rot">{words.map((w, i) => <span className="rot-w" key={i}>{w}</span>)}</span>{rich(text.slice(m.index + m[0].length))}</>;
+  const r = ROTATE.exec(text), m = MARK.exec(text);
+  if (!r && !m) return text;
+  if (r && (!m || r.index < m.index)) {
+    const words = r[1]!.split("|").map((w) => w.trim());
+    return <>{text.slice(0, r.index)}<span className="rot">{words.map((w, i) => <span className="rot-w" key={i}>{w}</span>)}</span>{rich(text.slice(r.index + r[0].length))}</>;
+  }
+  const [word, kind] = m![1] ? [m![1], "hl"] : m![2] ? [m![2], "ci"] : [m![3]!, "st"];
+  return <>{text.slice(0, m!.index)}<span className={`mk mk-${kind}`}>{word}{kind === "ci"
+    ? <svg viewBox="0 0 100 40" preserveAspectRatio="none" aria-hidden="true">
+      <path pathLength={1} d="M10 24 C8 8 88 2 95 18 C101 34 22 42 7 28 C0 20 18 8 42 6" /></svg> : null}</span>
+    {rich(text.slice(m!.index + m![0].length))}</>;
 }
 
 /**
@@ -96,9 +102,24 @@ export function rich(text: string): ReactNode {
  */
 function Title({ s, t, cls, text }: { s: Slide; t: string; cls?: string; text?: string }): JSX.Element {
   const k = s.text?.title;
+  // Буквы, залитые картинкой (`fill`): картинка — фон заголовка, обрезанный по буквам; её ведёт скрипт страницы.
+  const fill = s.fill ? { className: cls ? `${cls} filled` : "filled", style: { backgroundImage: `url(${s.fill.src})` } } : { className: cls };
   return k
-    ? <Reveal at={t} enter="fade"><h1 className={cls} data-kinetic={k} data-at={t}>{text ?? s.title}</h1></Reveal>
-    : <Reveal at={t} enter="lift"><h1 className={cls}>{rich(text ?? s.title ?? "")}</h1></Reveal>;
+    ? <Reveal at={t} enter="fade"><h1 {...fill} data-kinetic={k} data-at={t}>{plainTitle(text ?? s.title ?? "")}</h1></Reveal>
+    : <Reveal at={t} enter="lift"><h1 {...fill} {...(s.swap === "morph" ? { "data-swap": "morph" } : {})}>{rich(text ?? s.title ?? "")}</h1>
+      {s.swap === "morph" ? <Goo /> : null}</Reveal>;
+}
+
+/**
+ * Жидкая смена слова: размытые слова проходят через порог прозрачности и слипаются, как капли.
+ * Фильтр действует, только пока слово меняется (скрипт страницы, `rotate`).
+ */
+function Goo(): JSX.Element {
+  return (
+    <svg className="goo-defs" width="0" height="0" aria-hidden="true">
+      <filter id="sc-goo"><feColorMatrix type="matrix" values="1 0 0 0 0 0 1 0 0 0 0 0 1 0 0 0 0 0 22 -9" /></filter>
+    </svg>
+  );
 }
 function Body({ s, t, cls }: { s: Slide; t: string; cls: string }): JSX.Element {
   const k = s.text?.body;
@@ -121,8 +142,10 @@ function Reveal({ at: t, enter, delay, className, children }: {
  * Ролик без объявленного языка говорит на том, на котором написаны сцены.
  */
 const WORDS = {
-  ru: { chapter: "Следующая глава", compare: "сравнение", chain: "как это устроено", quote: "настоящий ответ движка", number: "цифра" },
-  en: { chapter: "Next chapter", compare: "comparison", chain: "how it works", quote: "the real answer", number: "the number" },
+  ru: { chapter: "Следующая глава", compare: "сравнение", chain: "как это устроено", quote: "настоящий ответ движка", number: "цифра",
+    thinking: "Думаю…" },
+  en: { chapter: "Next chapter", compare: "comparison", chain: "how it works", quote: "the real answer", number: "the number",
+    thinking: "Thinking…" },
 };
 type Words = typeof WORDS.en;
 export function wordsFor(lang: string | undefined, s: Slide): Words {
@@ -369,7 +392,7 @@ function KHead({ s }: { s: Slide }): JSX.Element | null {
 /** Заголовок, встающий по словам: у каждого слова свой вход с задержкой. */
 function Words({ s, text, t, cls }: { s: Slide; text: string; t: string; cls: string }): JSX.Element {
   // Названный способ сборки и смена слова заменяют встающие слова целиком.
-  if (s.text?.title || ROTATE.test(text)) return <Title s={s} t={t} cls={cls} text={text} />;
+  if (s.text?.title || s.fill || ROTATE.test(text) || MARK.test(text)) return <Title s={s} t={t} cls={cls} text={text} />;
   const words = text.split(/\s+/).filter(Boolean);
   return (
     <h1 className={cls}>
@@ -444,6 +467,7 @@ function Timeline({ s }: Props): JSX.Element {
       <KHead s={s} />
       <div className="tl" data-n={items.length}>
         <span className="tl-rail"><span className="tl-fill" /></span>
+        <span className="tl-head" aria-hidden="true" />
         <div className="tl-items">
           {items.map((it, i) => (
             <Reveal at={item(s, i, items.length)} enter={enterOf(s, "pop", i)} className="tl-item" key={i}>
@@ -455,6 +479,19 @@ function Timeline({ s }: Props): JSX.Element {
         </div>
       </div>
     </Stage>
+  );
+}
+
+/** Мини-график под числом: ломаная без осей рисуется слева направо, на конце вспыхивает точка. */
+function Spark({ values }: { values: number[] }): JSX.Element {
+  const lo = Math.min(...values), hi = Math.max(...values), span = hi - lo || 1;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * 100, 28 - ((v - lo) / span) * 24] as const);
+  const [ex, ey] = pts.at(-1)!;
+  return (
+    <svg className="ctr-spark" viewBox="0 0 100 32" preserveAspectRatio="none" aria-hidden="true">
+      <polyline pathLength={1} points={pts.map(([x, y]) => `${x.toFixed(2)},${y.toFixed(2)}`).join(" ")} />
+      <circle cx={ex.toFixed(2)} cy={ey.toFixed(2)} r="2.6" />
+    </svg>
   );
 }
 
@@ -479,6 +516,7 @@ function Counter({ s }: Props): JSX.Element {
               ) : null}
               <div className="ctr-v"><Value s={s} v={v.value} t={item(s, i, values.length)} /></div>
               {v.label ? <div className="ctr-l">{v.label}</div> : null}
+              {s.spark?.[i] ? <Spark values={s.spark[i]!} /> : null}
             </Reveal>
           );
         })}
@@ -566,6 +604,27 @@ function Chart({ s }: Props): JSX.Element {
   const max = Math.max(...c.rows.map((r) => r.value)) || 1;
   const t = item(s, 0, 1);
   const cls = (i: number): string => (c.peak === i ? " peak" : "");
+  if (c.type === "race" && c.race) {
+    // Гонка баров: строки стоят абсолютно, место в ряду, длину и число каждого кадра считает скрипт
+    // страницы по периодам из разметки; устоявшийся кадр — последний период.
+    const r = c.race;
+    return (
+      <Stage s={s} cls="k-chart" move="drift">
+        <KHead s={s} />
+        <Reveal at={t} enter="fade" className="chart race" >
+          <div className="race-plot" data-at={t} data-periods={JSON.stringify(r.periods)} data-n={r.rows.length}>
+            {r.rows.map((row, i) => (
+              <div className="race-row" key={i} data-values={row.values.join(" ")}>
+                <span className="race-l">{row.label}</span>
+                <span className="race-track"><span className="race-bar" /><b className="race-v">{row.values.at(-1)}</b></span>
+              </div>
+            ))}
+            <span className="race-period">{r.periods.at(-1)}</span>
+          </div>
+        </Reveal>
+      </Stage>
+    );
+  }
   if (c.type === "line") {
     const W = 1000, H = 420, n = c.rows.length;
     const pts = c.rows.map((r, i) => [((i + 0.5) / n) * W, H - (r.value / max) * H] as const);
@@ -848,9 +907,95 @@ function Globe({ s }: Props): JSX.Element {
     <Stage s={s} cls="k-globe" move="still">
       <KHead s={s} />
       <div className="globe">
-        <canvas className="globe-cv" data-cities={JSON.stringify(items.map((it) => (it.text ?? "0 0").split(/\s+/).map(Number)))} />
+        <canvas className="globe-cv" data-map={s.map ?? "globe"} data-cities={JSON.stringify(items.map((it) => (it.text ?? "0 0").split(/\s+/).map(Number)))} />
         {items.map((it, i) => <span className="globe-l" key={i} data-at={i ? item(s, i - 1, items.length - 1) : "0"}>{it.title}</span>)}
       </div>
+    </Stage>
+  );
+}
+
+/**
+ * Стена снимков: четыре колонки картинок на плоскости, наклонённой в 3D, соседние колонки едут
+ * навстречу друг другу; заголовок стоит поверх под пеленой фона. Плоскость трёхмерна на каждом
+ * кадре, колонки двигает скрипт страницы (`wall`).
+ */
+function Wall({ s }: Props): JSX.Element {
+  const imgs = s.images ?? [];
+  return (
+    <Stage s={s} cls="k-wall" move="still" back={
+      <div className="wall" aria-hidden="true">
+        <div className="wall-plane">
+          {[0, 1, 2, 3].map((c) => (
+            <div className="wall-col" data-dir={c % 2 ? 1 : -1} key={c}>
+              {[0, 1].map((k) => imgs.map((_, i) => <img key={`${k}-${i}`} alt="" src={imgs[(i + c * 2) % imgs.length]!.src} />))}
+            </div>
+          ))}
+        </div>
+        <div className="wall-shade" />
+      </div>}>
+      <div className="wall-copy">
+        {s.kicker ? <Reveal at="0.2s" enter="track"><p className="kicker">{s.kicker}</p></Reveal> : null}
+        {s.title ? <Title s={s} t={moment(s, 0, "0.4s")} cls="wall-title" /> : null}
+      </div>
+    </Stage>
+  );
+}
+
+/**
+ * Облако на сфере: пункты стоят на сфере Фибоначчи, сфера поворачивается; ближние пункты крупнее и
+ * ярче дальних. Проекцию считает скрипт страницы (`cloud`); пункт выпрыгивает на своём моменте.
+ */
+function Cloud({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-cloud" move="still">
+      <KHead s={s} />
+      <div className="cloud" data-n={items.length}>
+        {items.map((it, i) => (
+          <div className="cloud-pos" key={i} data-i={i}>
+            <Reveal at={item(s, i, items.length)} enter="pop"><Chip icon={it.icon} title={it.title} /></Reveal>
+          </div>
+        ))}
+      </div>
+    </Stage>
+  );
+}
+
+/** Строка вывода терминала: успех, ошибка или обычная — по знаку в начале. */
+const outKind = (line: string): string => (/^[✔✓]/u.test(line) ? "term-out ok" : /^[✘✗×]/u.test(line) ? "term-out bad" : "term-out");
+
+/**
+ * Терминал: команда после приглашения набирается неровным темпом руки, пока она «работает», крутится
+ * спиннер, потом появляется вывод. Пункт «$ команда :: вывод» — команда с выводом, пункт без «$» —
+ * строка вывода. Показ, спиннер и прокрутку ведёт скрипт страницы (`terminal`, вид `shell`).
+ */
+function Terminal({ s }: Props): JSX.Element {
+  const items = s.items ?? [];
+  return (
+    <Stage s={s} cls="k-term" move="drift">
+      <KHead s={s} />
+      <Reveal at="0.1s" enter="tilt" className="code-win term-win">
+        <div className="code-bar"><i /><i /><i /><span>{s.name ?? "shell"}</span></div>
+        <div className="term">
+          <div className="term-feed">
+            {items.map((it, i) => {
+              const t = item(s, i, items.length);
+              const line = `${it.icon ? `${it.icon} ` : ""}${it.title}`;
+              const cmd = /^\$\s*/u.test(line);
+              return (
+                <div className="term-block" key={i} data-at={t}>
+                  {cmd
+                    ? <div className="term-cmd"><span className="term-ps">$</span>{" "}
+                      <span className="term-in" data-type="term" data-at={t} data-type-speed="24">{line.replace(/^\$\s*/u, "")}</span>
+                      <span className="term-spin" /></div>
+                    : <div className={outKind(line)}>{line}</div>}
+                  {it.text ? <div className={`${outKind(it.text)} term-late`}>{it.text}</div> : null}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </Reveal>
     </Stage>
   );
 }
@@ -859,10 +1004,11 @@ function Globe({ s }: Props): JSX.Element {
 const USER = /^(you|user|me|human|я|вы|ты|пользователь|клиент)$/iu;
 
 /**
- * Чат: реплики выпрыгивают по очереди от своего края; перед каждой репликой ассистента на секунду
- * встают три точки — «ИИ думает». Когда реплики не помещаются, лента чата прокручивается вверх.
+ * Чат: реплики выпрыгивают по очереди от своего края; перед каждой репликой ассистента встаёт
+ * «ИИ думает» — строка, по которой бежит блик, и мерцающие полосы скелетона на месте будущего
+ * ответа. Когда реплики не помещаются, лента чата прокручивается вверх.
  */
-function Chat({ s }: Props): JSX.Element {
+function Chat({ s, w }: Props): JSX.Element {
   const items = s.items ?? [];
   return (
     <Stage s={s} cls="k-chat" move="drift">
@@ -874,7 +1020,7 @@ function Chat({ s }: Props): JSX.Element {
             const t = item(s, i, items.length);
             return (
               <div className={me ? "msg me" : "msg"} key={i}>
-                {me ? null : <span className="msg-dots" data-at={t}><i /><i /><i /></span>}
+                {me ? null : <span className="msg-think" data-at={t}><em>{w.thinking}</em><i /><i /></span>}
                 <Reveal at={t} enter="pop" className="bubble">
                   {me ? null : <b className="msg-who">{it.title}</b>}
                   <span>{it.text ?? it.title}</span>
@@ -915,7 +1061,8 @@ function Card({ s }: Props): JSX.Element {
       <div className="card-smoke" aria-hidden="true" />
       <div className="card-stage">
         {s.kicker ? <p className="card-kicker">{s.kicker}</p> : null}
-        <div className="card-shake"><h1 className="card-word">{s.title}</h1></div>
+        <div className="card-shake"><h1 className={s.fill ? "card-word filled" : "card-word"}
+          style={s.fill ? { backgroundImage: `url(${s.fill.src})` } : undefined}>{s.title}</h1></div>
       </div>
       <Embers n={14} seed={1} />
       <div className="card-flash" aria-hidden="true" />
@@ -1019,6 +1166,9 @@ const BODIES: Record<string, (p: Props) => JSX.Element> = {
   stack: Stack,
   orbit: Orbit,
   chat: Chat,
+  wall: Wall,
+  cloud: Cloud,
+  shell: Terminal,
   carousel: Ring,
   globe: Globe,
   layers: Layers,

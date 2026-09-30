@@ -293,6 +293,14 @@ export function mixFilm(opts: {
   return report;
 }
 
+/** Доли музыки внутри отрезка ролика [from, from + length), в секундах от его начала. */
+export function beatsWithin(from: number, length: number, bpm: number, offset = 0): number[] {
+  const len = 60 / bpm, out: number[] = [];
+  for (let n = Math.max(0, Math.ceil((from - offset) / len)); offset + n * len < from + length; n++)
+    out.push(Number((offset + n * len - from).toFixed(3)));
+  return out;
+}
+
 /** Секунда доли номер n музыки с темпом bpm и сдвигом первой доли. */
 export const musicBeat = (n: number, bpm: number, offset = 0): number => offset + (n * 60) / bpm;
 

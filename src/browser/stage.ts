@@ -14,7 +14,9 @@ window.__stage = (() => {
      Своих значений у правил нет — тема полна всегда (ролик без темы носит ночную), и правило,
      которое тема не описала, не проходит проверку договора. */
   #__st{position:fixed;inset:0;z-index:2147483000;pointer-events:none}
-  #__cur{position:fixed;left:0;top:0;width:var(--sc-cursor-size);height:var(--sc-cursor-size);filter:var(--sc-cursor-shadow)}
+  #__cur{position:fixed;left:0;top:0;width:var(--sc-cursor-size);height:var(--sc-cursor-size);filter:var(--sc-cursor-shadow);transform-origin:0 0}
+  /* Прожектор за указателем: кадр гаснет цветом затемнения темы, светлый круг идёт за курсором. */
+  #__torch{position:fixed;inset:0;pointer-events:none;opacity:0}
   #__cur path{fill:var(--sc-cursor-fill);stroke:var(--sc-cursor-line);stroke-width:var(--sc-cursor-line-width);stroke-linejoin:round}
   #__rip{position:fixed;border-radius:50%;background:var(--sc-accent-soft);transform:translate(-50%,-50%)}
   #__spot{position:fixed;border-radius:var(--sc-spot-radius);box-shadow:var(--sc-spot-shadow)}
@@ -114,6 +116,17 @@ window.__stage = (() => {
   .__toast b{display:block;color:var(--sc-card-ink);font-weight:700;font-size:calc(var(--u)*1.4);margin-bottom:calc(var(--u)*0.15)}
   .__glint i{position:absolute;top:-20%;bottom:-20%;width:45%;transform:skewX(-18deg);background:var(--sc-glint)}
   #__bursts{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+  /* «ИИ думает»: по строке и полосам скелетона бежит блик — светлая середина градиента втрое шире
+     предмета. С предметом скелетон лежит на нём, без предмета — карточкой посередине кадра. */
+  .__think{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;gap:calc(var(--u)*.8);
+    padding:var(--sc-pad-y) var(--sc-pad-x);border-radius:var(--sc-card-radius);background:var(--sc-card-bg);
+    border:var(--sc-hairline) solid var(--sc-card-line);box-shadow:var(--sc-card-shadow);overflow:hidden}
+  .__think[data-free]{width:calc(var(--u)*30)}
+  .__think em{font:600 calc(var(--u)*1.5)/1.3 var(--sans);font-style:normal;color:transparent;-webkit-background-clip:text;background-clip:text;
+    background-image:linear-gradient(90deg,var(--sc-card-body) 35%,var(--sc-card-ink) 50%,var(--sc-card-body) 65%);background-size:300% 100%}
+  .__think i{display:block;height:calc(var(--u)*1);border-radius:var(--radius-pill);background-size:300% 100%;
+    background-image:linear-gradient(90deg,color-mix(in srgb,var(--sc-card-body) 20%,transparent) 35%,color-mix(in srgb,var(--sc-card-body) 50%,transparent) 50%,color-mix(in srgb,var(--sc-card-body) 20%,transparent) 65%)}
+  .__think i:last-child{width:62%}
   /* Субтитры контуром (умолчание, captions.look: outline): белый текст с чёрной обводкой в 0,08
      кегля и мягкой тенью, без плашки — читается и на светлом, и на тёмном кадре, как у плеера с
      «Outline Text». Обводка — кольцо теней: -webkit-text-stroke в Chromium ложится поверх буквы и
@@ -149,6 +162,8 @@ window.__stage = (() => {
   #__st[data-format] .__lower-sub{font-size:calc(var(--u)*1.8)}
   #__st[data-format] .__callout{font-size:calc(var(--u)*2);max-width:calc(var(--sw) * .8)}
   #__st[data-format] .__badge{font-size:calc(var(--u)*1.6)}
+  #__st[data-format] .__think[data-free]{width:calc(var(--sw) - var(--sc-edge) * 2)}
+  #__st[data-format] .__think em{font-size:calc(var(--u)*2.2)}
   `;
   const CURSOR = `<svg id="__cur" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
     <path d="M4 2 L4 20 L9 15.5 L12 22 L15 20.5 L12 14.2 L19 14 Z"/></svg>`;
@@ -160,7 +175,7 @@ window.__stage = (() => {
   interface Els {
     zoom: HTMLElement; layer: HTMLElement; spot: HTMLElement; cap: HTMLElement;
     capText: HTMLElement; capBar: HTMLElement; cur: HTMLElement; rip: HTMLElement;
-    fade: HTMLElement; cards: HTMLElement; veil: HTMLElement;
+    fade: HTMLElement; cards: HTMLElement; veil: HTMLElement; torch: HTMLElement;
   }
 
   let scene: StageScene | null = null;
@@ -272,13 +287,39 @@ window.__stage = (() => {
   /** Сколько секунд в конце сцены набранный текст стоит целиком. */
   const TYPE_HOLD = 0.6;
   /**
-   * Показать первые `count` графем, остальные скрыть на своих местах. Пока набор
-   * идёт, за последним знаком стоит каретка: она нарисована поверх и раскладку
-   * не трогает.
+   * Неровный темп руки: момент, когда встаёт каждая графема, в «знаках» ровного набора. Знаки
+   * идут с разбросом от половины до полутора средних, после пробела рука медлит, после запятой —
+   * вдвое, после точки — втрое. Итог нормирован на число знаков: набор кончается тогда же, когда
+   * кончился бы ровный, меняется только ритм внутри. Разброс — функция номера знака: одинаков в
+   * каждом прогоне.
+   */
+  const rhythmCache = new WeakMap<HTMLElement, number[]>();
+  function rhythm(el: HTMLElement): number[] {
+    const known = rhythmCache.get(el);
+    if (known) return known;
+    const list = glyphsOf(el);
+    let acc = 0;
+    const raw = list.map((_, i) => {
+      const prev = i ? list[i - 1]!.textContent ?? "" : "";
+      let w = 0.5 + hash(i, 9);
+      if (/[.!?…]/.test(prev)) w *= 3; else if (/[,;:—]/.test(prev)) w *= 2; else if (/\s/.test(prev)) w *= 1.4;
+      acc += w;
+      return acc;
+    });
+    const times = raw.map((v) => (v * list.length) / (acc || 1));
+    rhythmCache.set(el, times);
+    return times;
+  }
+  /**
+   * Показать графемы, чей момент в неровном ритме наступил к `count` знакам ровного набора,
+   * остальные скрыть на своих местах. Пока набор идёт, за последним знаком стоит каретка: она
+   * нарисована поверх и раскладку не трогает.
    */
   function typeTo(el: HTMLElement, count: number): void {
     const list = glyphsOf(el);
-    const shown = Math.max(0, Math.min(list.length, Math.floor(count)));
+    const times = rhythm(el);
+    let shown = 0;
+    while (shown < list.length && times[shown]! <= count + 1e-9) shown++;
     list.forEach((g, i) => {
       g.style.visibility = i < shown ? "" : "hidden";
       g.classList.toggle("__caret", shown < list.length && i === shown - 1);
@@ -356,8 +397,12 @@ window.__stage = (() => {
   // с середины переставал совпадать с кадром сквозного прогона.
   //
   // Имена стилей и их смысл — в описании накладки (`overlay.ts`, KINETIC).
-  const LETTER_STYLES = ["drop", "wave", "scramble", "split", "flip", "blur", "swirl"];
-  // Остальные стили — по словам: rise, spin, fly, slide, zoom, bounce, shuffle.
+  const LETTER_STYLES = ["drop", "wave", "scramble", "split", "flip", "blur", "swirl", "flap", "arc"];
+  // Остальные стили — по словам: rise, spin, fly, slide, zoom, bounce, shuffle, glitch, beat.
+  /** Стили, у которых и собранная фраза остаётся единицами: дуга стоит изогнутой, сбой и доля повторяются. */
+  const LASTING = ["arc", "glitch", "beat", "aurora", "sparkle"];
+  /** Частицы фразы `swarm`: куда каждая летит (точки букв) и холст, на котором они рисуются. */
+  const swarms = new WeakMap<HTMLElement, { cv: HTMLCanvasElement; pts: number[] | null; pad: [number, number] }>();
   const SHUFFLE = ["rise", "spin", "fly", "zoom", "bounce", "slide"];
   const NOISE = "ABCDEFGHJKLMNPQRSTUVWXYZ0123456789#%&*+=?@";
   /** Детерминированный шум по номеру: одно и то же у каждого прогона. */
@@ -395,7 +440,7 @@ window.__stage = (() => {
           u.style.display = "inline-block";
           const picture = emojiImage(ch);
           if (picture) u.appendChild(picture); else u.textContent = ch;
-          if (style === "scramble" && !picture) {
+          if ((style === "scramble" || style === "flap") && !picture) {
             // Шум рисуется поверх настоящей буквы, а сама буква держит место.
             u.style.position = "relative";
             const noise = document.createElement("b");
@@ -412,6 +457,27 @@ window.__stage = (() => {
       }
       node.appendChild(word);
     }
+    // Искры и холст частиц — часть собираемой фразы: они живут среди единиц и уходят вместе с ними.
+    if (style === "sparkle" || style === "swarm") {
+      if (getComputedStyle(node).position === "static") node.style.position = "relative";
+    }
+    if (style === "sparkle") {
+      for (let i = 0; i < 8; i++) {
+        const spark = document.createElement("i");
+        spark.className = "__spk";
+        spark.textContent = "✦";
+        spark.style.cssText = `position:absolute;left:${(hash(i, 21) * 100).toFixed(1)}%;top:${(-25 + hash(i, 22) * 130).toFixed(1)}%;`
+          + `font-size:${(0.25 + hash(i, 23) * 0.25).toFixed(2)}em;color:var(--acc2,currentColor);pointer-events:none;font-style:normal`;
+        node.appendChild(spark);
+      }
+    }
+    if (style === "swarm") {
+      const cv = document.createElement("canvas");
+      cv.className = "__swarm";
+      cv.style.cssText = "position:absolute;pointer-events:none";
+      node.appendChild(cv);
+      swarms.set(node, { cv, pts: null, pad: [0, 0] });
+    }
     node.dataset.kinetic = style;
     kineticUnits.set(node, { units, style, letters, plain, split: Array.from(node.childNodes), showing: "split" });
   }
@@ -423,10 +489,18 @@ window.__stage = (() => {
     const n = k.units.length;
     // Фраза собирается не дольше секунды с небольшим, сколько бы в ней ни было единиц.
     const step = Math.min(k.letters ? 0.03 : 0.08, 1.1 / Math.max(1, n));
-    const dur = k.letters ? 0.55 : 0.7;
+    const dur = k.style === "flap" ? 0.95 : k.style === "beat" ? 0.3 : k.letters ? 0.55 : 0.7;
+    // Слова «beat» выходят на доли музыки, пришедшие со сценой (секунды сцены); без музыки — ровно
+    // по 120 ударов в минуту от начала фразы.
+    const beats = k.style === "beat" ? (scene?.musicBeats ?? []).filter((b) => b >= at - 0.02) : [];
+    const beatOf = (j: number): number => beats[j] ?? (beats.length ? beats[beats.length - 1]! + (j - beats.length + 1) * 0.5 : at + j * 0.5);
+    const startOf = (i: number): number => (k.style === "beat" ? beatOf(i) : at + i * step);
+    // Дуга: у каждой строки своя середина; буква стоит на окружности радиусом в ширину фразы.
+    const arc = k.style === "arc" ? arcPlaces(node, k.units) : null;
+    if (k.style === "swarm") return swarmAt(node, k.units, t, at, k);
     let done = 1;
     k.units.forEach((u, i) => {
-      const p = clamp((t - at - i * step) / dur);
+      const p = clamp((t - startOf(i)) / dur);
       done = Math.min(done, p);
       const e = 1 - Math.pow(1 - p, 3);
       const style = k.style === "shuffle" ? SHUFFLE[Math.floor(hash(i, 3) * SHUFFLE.length)]! : k.style;
@@ -457,6 +531,58 @@ window.__stage = (() => {
         }
         case "flip": tf = `scaleY(${Math.sin(e * Math.PI / 2).toFixed(4)})`; o = p > 0 ? 1 : 0; break;
         case "blur": blur = (1 - e) * 16; o = e; break;
+        case "flap": {
+          // Табло: знак перещёлкивается 14 раз в секунду, каждая смена — лист, сжимающийся по высоте.
+          const noise = u.querySelector<HTMLElement>(".__kn");
+          const settled = p >= 1, tick = (t - startOf(i)) * 14;
+          if (noise) noise.textContent = settled ? "" : NOISE[Math.floor(hash(i, Math.floor(tick)) * NOISE.length)]!;
+          // Букву прячет цвет заливки, а не цвет: знак табло наследует цвет буквы и остаётся виден.
+          u.style.setProperty("-webkit-text-fill-color", settled || !noise ? "" : "transparent");
+          if (noise) noise.style.setProperty("-webkit-text-fill-color", "currentColor");
+          const q = tick - Math.floor(tick);
+          tf = settled ? "" : `scaleY(${(0.3 + 0.7 * Math.abs(Math.cos(q * Math.PI))).toFixed(3)})`;
+          o = p > 0 ? 1 : 0;
+          break;
+        }
+        case "arc": {
+          const [ang, lift] = arc![i]!;
+          tf = `translateY(${(lift + (1 - e) * 0.5).toFixed(3)}em) rotate(${ang.toFixed(3)}rad)`;
+          o = e;
+          break;
+        }
+        case "glitch": {
+          // Сбой: слово дёргается вбок и расслаивается на два цвета темы на входе и в коротких
+          // повторах каждые 2,6 с после сборки.
+          const since = t - startOf(i), again = since > dur && ((since - dur) % 2.6) > 2.45;
+          const shake = p < 1 ? 1 - p : again ? 0.6 : 0, tick = Math.floor(t * 24);
+          const dx = (hash(i, tick) - 0.5) * 0.5 * shake;
+          tf = shake ? `translateX(${dx.toFixed(3)}em) skewX(${((hash(i, tick + 7) - 0.5) * 20 * shake).toFixed(2)}deg)` : "";
+          u.style.textShadow = shake ? `${(0.06 * shake).toFixed(3)}em 0 var(--acc), ${(-0.06 * shake).toFixed(3)}em 0 var(--acc2)` : "";
+          o = p > 0 ? (p < 1 && hash(i, tick + 3) < 0.2 ? 0.35 : 1) : 0;
+          break;
+        }
+        case "beat": {
+          // Удар: слово влетает крупным и оседает за 0,3 с; дальше вся фраза вздрагивает на каждой доле.
+          const since = t - startOf(i);
+          const last = beats.filter((b) => b <= t).pop();
+          const after = last !== undefined && last > startOf(n - 1) ? t - last : Infinity;
+          tf = `scale(${(1 + 0.28 * Math.exp(-10 * Math.max(0, since)) + 0.05 * Math.exp(-12 * after)).toFixed(4)})`;
+          o = since >= 0 ? 1 : 0;
+          break;
+        }
+        case "aurora": {
+          // Живой градиент: одна полоса двух акцентов темы вдвое шире фразы течёт по всем словам сразу.
+          tf = `translateY(${((1 - e) * 0.5).toFixed(3)}em)`;
+          blur = (1 - e) * 6;
+          const base = u.offsetParent === node ? 0 : node.offsetLeft, w = Math.max(1, node.offsetWidth);
+          u.style.backgroundImage = "linear-gradient(100deg,var(--acc),var(--acc2),var(--acc),var(--acc2),var(--acc))";
+          u.style.backgroundSize = `${(w * 2).toFixed(0)}px 100%`;
+          u.style.backgroundPosition = `${(-(u.offsetLeft - base) - ((t * 70) % (w * 2))).toFixed(1)}px 0`;
+          u.style.setProperty("-webkit-background-clip", "text");
+          u.style.setProperty("-webkit-text-fill-color", "transparent");
+          break;
+        }
+        case "sparkle": tf = `translateY(${((1 - e) * 0.5).toFixed(3)}em)`; blur = (1 - e) * 6; break;
         case "swirl": {
           const a = (1 - e) * 4 + i * 0.6, r = (1 - e) * 1.6;
           tf = `translate(${(Math.cos(a) * r).toFixed(3)}em,${(Math.sin(a) * r).toFixed(3)}em) rotate(${((1 - e) * 300).toFixed(2)}deg)`;
@@ -475,17 +601,104 @@ window.__stage = (() => {
         default: break;
       }
       u.style.opacity = o.toFixed(3);
-      u.style.transform = p >= 1 ? "none" : tf || "none";
+      u.style.transform = p >= 1 && !LASTING.includes(style) ? "none" : tf || "none";
       u.style.filter = blur > 0.05 && p < 1 ? `blur(${blur.toFixed(2)}px)` : "none";
       if (style === "flip" || style === "drop") u.style.transformOrigin = "50% 100%";
+      // Слово в долю растёт вправо, от уже стоящих слов, а не на них.
+      if (style === "beat") u.style.transformOrigin = "0 80%";
     });
-    // Показ зависит только от t: собрано — исходный текст, иначе — единицы.
-    const want = done >= 1 ? "plain" : "split";
+    // Искры вспыхивают по очереди, каждая раз в 1,6 с, с поворотом — пока фраза стоит.
+    if (k.style === "sparkle") {
+      node.querySelectorAll<HTMLElement>(".__spk").forEach((sp, i) => {
+        const q = (((t - at) / 1.6 + hash(i, 24)) % 1 + 1) % 1, on = t >= at + 0.3 ? Math.sin(q * Math.PI) : 0;
+        sp.style.opacity = (on * on).toFixed(3);
+        sp.style.transform = `scale(${(0.3 + 0.9 * on).toFixed(3)}) rotate(${(q * 180).toFixed(1)}deg)`;
+      });
+    }
+    // Показ зависит только от t: собрано — исходный текст, иначе — единицы. Дуга, сбой и доля
+    // остаются единицами и собранными: их вид после сборки — не исходная строка.
+    const want = done >= 1 && !LASTING.includes(k.style) ? "plain" : "split";
     if (k.showing !== want) {
       node.replaceChildren(...(want === "plain" ? k.plain : k.split));
       k.showing = want;
     }
     return done;
+  }
+
+  /**
+   * Рой: точки букв фразы (буквы нарисованы на скрытом холсте её шрифтом на своих местах, берётся
+   * каждая третья точка) слетаются из разброса вокруг фразы за 1,6 с, каждая со своей задержкой;
+   * к концу полёта проступает настоящий текст, и холст гаснет. Разброс и задержки — функция номера
+   * точки: кадр с середины совпадает с кадром сквозного прогона.
+   */
+  function swarmAt(node: HTMLElement, units: HTMLElement[], t: number, at: number,
+    k: { units: HTMLElement[]; plain: Node[]; split: Node[]; showing: "plain" | "split" }): number {
+    const sw = swarms.get(node)!;
+    const W = node.offsetWidth, H = node.offsetHeight;
+    if (!sw.pts) {
+      const cs = getComputedStyle(node), pad: [number, number] = [W * 0.5, H * 1.2];
+      sw.pad = pad;
+      sw.cv.width = Math.max(2, Math.round(W + pad[0] * 2)); sw.cv.height = Math.max(2, Math.round(H + pad[1] * 2));
+      sw.cv.style.left = `${-pad[0]}px`; sw.cv.style.top = `${-pad[1]}px`;
+      sw.cv.style.width = `${sw.cv.width}px`; sw.cv.style.height = `${sw.cv.height}px`;
+      const probe = document.createElement("canvas");
+      probe.width = sw.cv.width; probe.height = sw.cv.height;
+      const g = probe.getContext("2d")!;
+      g.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+      g.textBaseline = "top";
+      g.fillStyle = cs.color;
+      const base = units[0]?.offsetParent === node ? [0, 0] : [node.offsetLeft, node.offsetTop];
+      for (const u of units) g.fillText(u.textContent ?? "", u.offsetLeft - base[0]! + pad[0], u.offsetTop - base[1]! + pad[1]);
+      const img = g.getImageData(0, 0, probe.width, probe.height).data, pts: number[] = [];
+      const step = Math.max(2, Math.round(parseFloat(cs.fontSize) / 22));
+      for (let y = 0; y < probe.height; y += step) for (let x = 0; x < probe.width; x += step) if (img[(y * probe.width + x) * 4 + 3]! > 128) pts.push(x, y);
+      sw.pts = pts;
+    }
+    const pts = sw.pts, n = pts.length / 2, P = clamp((t - at) / 1.6);
+    const ctx = sw.cv.getContext("2d")!;
+    ctx.clearRect(0, 0, sw.cv.width, sw.cv.height);
+    const show = P < 1;
+    sw.cv.style.display = show ? "" : "none";
+    if (show && t >= at) {
+      ctx.fillStyle = getComputedStyle(node).color;
+      const r = Math.max(1, parseFloat(getComputedStyle(node).fontSize) / 40);
+      for (let i = 0; i < n; i++) {
+        const d = hash(i, 31) * 0.35, q = clamp((P - d) / (1 - d) * 1.1), e = 1 - Math.pow(1 - Math.min(1, q), 3);
+        const a = hash(i, 32) * Math.PI * 2, far = (0.5 + hash(i, 33)) * Math.max(W, H) * 0.6;
+        const sx = pts[i * 2]! + Math.cos(a) * far, sy = pts[i * 2 + 1]! + Math.sin(a) * far * 0.6;
+        ctx.globalAlpha = Math.min(1, 0.25 + q) * (1 - smoothIn(P, 0.82, 1));
+        ctx.fillRect(sx + (pts[i * 2]! - sx) * e - r / 2, sy + (pts[i * 2 + 1]! - sy) * e - r / 2, r, r);
+      }
+      ctx.globalAlpha = 1;
+    }
+    const textOn = smoothIn(P, 0.78, 1);
+    for (const u of units) { u.style.opacity = textOn.toFixed(3); u.style.transform = "none"; u.style.filter = "none"; }
+    const want = P >= 1 ? "plain" : "split";
+    if (k.showing !== want) { node.replaceChildren(...(want === "plain" ? k.plain : k.split)); k.showing = want; }
+    return P;
+  }
+  /** Плавный вход доли `p` в промежутке [a, b]: 0 до a, 1 после b. */
+  const smoothIn = (p: number, a: number, b: number): number => { const x = clamp((p - a) / (b - a)); return x * x * (3 - 2 * x); };
+
+  /**
+   * Места букв на дуге: угол поворота и подъём (в em) по смещению буквы от середины её строки.
+   * Строки узнаются по верхнему краю букв; меряется раскладка без трансформаций (`offsetLeft`),
+   * поэтому места одинаковы на любом кадре.
+   */
+  function arcPlaces(node: HTMLElement, units: HTMLElement[]): Array<[number, number]> {
+    const em = parseFloat(getComputedStyle(node).fontSize) || 16;
+    // `offsetLeft` буквы уже отсчитан от ближайшего размещённого предка, как и у соседних букв:
+    // строка — буквы с одним верхним краем (с точностью до четверти кегля).
+    const pos = units.map((u) => ({ x: u.offsetLeft + u.offsetWidth / 2, y: Math.round(u.offsetTop / (em / 4)) }));
+    const lines = new Map<number, number[]>();
+    pos.forEach((p) => { const l = lines.get(p.y) ?? []; l.push(p.x); lines.set(p.y, l); });
+    // Радиус — ширина самой длинной строки: дуга одинаково мягкая у короткой и длинной фразы.
+    const radius = Math.max(em * 6, ...[...lines.values()].map((xs) => Math.max(...xs) - Math.min(...xs)));
+    return pos.map((p) => {
+      const xs = lines.get(p.y)!, mid = (Math.min(...xs) + Math.max(...xs)) / 2, dx = p.x - mid;
+      const a = Math.asin(Math.max(-0.9, Math.min(0.9, dx / radius)));
+      return [a, (radius - Math.sqrt(Math.max(0, radius * radius - dx * dx))) / em];
+    });
   }
 
   // — вспомогательные чистые функции —
@@ -599,7 +812,7 @@ window.__stage = (() => {
     const layer = document.createElement("div");
     layer.id = "__st";
     layer.innerHTML = `<div id="__veil"></div><div id="__spot"></div><div id="__cap"><span id="__captext"></span>
-      <div id="__capbar"></div></div><div id="__cards"></div><div id="__rip"></div>${CURSOR}<div id="__fade"></div>`;
+      <div id="__capbar"></div></div><div id="__torch"></div><div id="__cards"></div><div id="__rip"></div>${CURSOR}<div id="__fade"></div>`;
     // Накладка живёт ВНЕ увеличиваемого узла: `position: fixed` внутри
     // трансформированного предка отсчитывается от него, а не от кадра,
     // и подсветка с затемнением поехали бы вместе со страницей.
@@ -614,6 +827,7 @@ window.__stage = (() => {
       zoom, layer, spot: pick("#__spot"), cap: pick("#__cap"),
       capText: pick("#__captext"), capBar: pick("#__capbar"),
       cur: pick("#__cur"), rip: pick("#__rip"), fade: pick("#__fade"), cards: pick("#__cards"), veil: pick("#__veil"),
+      torch: pick("#__torch"),
     };
     for (const card of s.overlay?.cards ?? []) {
       const node = document.createElement("div");
@@ -648,7 +862,7 @@ window.__stage = (() => {
     // Предметная половина слоя на странице (кадрирование в другой формат): карточки,
     // подпись и затемнение перехода рисует экранная половина и сборка поверх окна.
     // Без слоя: проверка сравнивает сам материал в окне, без подсветки и курсора.
-    if (s.__bareLayer) for (const n of [el.spot, el.veil, el.cur, el.rip]) n.style.visibility = "hidden";
+    if (s.__bareLayer) for (const n of [el.spot, el.veil, el.cur, el.rip, el.torch]) n.style.visibility = "hidden";
     if (!s.__overlayOnly && s.__layerPart === "scene") {
       el.cards.style.display = "none";
       el.cap.style.display = "none";
@@ -671,6 +885,7 @@ window.__stage = (() => {
         el.cap.style.display = "none";
         el.cur.style.display = "none";
         el.rip.style.display = "none";
+        el.torch.style.display = "none";
       }
       el.fade.style.display = "none";
       if (!s.caption) el.cap.style.display = "none";
@@ -716,6 +931,9 @@ window.__stage = (() => {
     bursts: HTMLCanvasElement | null;
     pings: HTMLElement[];
     toasts: HTMLElement[];
+    thinking: HTMLElement[];
+    /** предметы скелетонов и их видимость до монтирования: под скелетоном ответ скрыт */
+    covered: Array<{ node: HTMLElement; visibility: string } | null>;
   }
   let prims: Prims | null = null;
   /** есть ли у сцены субтитры или плашка подписи: под них отведена полоса внизу кадра */
@@ -881,11 +1099,30 @@ window.__stage = (() => {
         return box;
       });
     }
-    prims = { root, arrows, sub, titles, lower, callouts, stickers, marks, glints, bursts, pings, toasts, subOff: (s.__layerPart ?? "both") === "scene" };
+    const thinking = (o.thinking ?? []).map((item) => {
+      const box = document.createElement("div");
+      box.className = "__think";
+      if (!item.target && !item.area) box.dataset.free = "";
+      const line = document.createElement("em");
+      setRichText(line, item.text ?? "Thinking…");
+      box.appendChild(line);
+      for (let k = 0; k < (item.lines ?? 3); k++) box.appendChild(document.createElement("i"));
+      root.appendChild(box);
+      return box;
+    });
+    const covered = (o.thinking ?? []).map((item) => {
+      const node = item.target ? document.querySelector<HTMLElement>(item.target) : null;
+      return node ? { node, visibility: node.style.visibility } : null;
+    });
+    prims = { root, arrows, sub, titles, lower, callouts, stickers, marks, glints, bursts, pings, toasts, thinking, covered,
+      subOff: (s.__layerPart ?? "both") === "scene" };
     // Какая половина слоя рисуется поверх видео: предметные примитивы (выноски,
     // стикеры) едут вместе с картинкой под наездом, экранные — поверх него.
     const part = s.__layerPart ?? "both";
+    // Скелетон без предмета стоит посередине экрана, как карточка; с предметом — едет вместе с ним.
+    const free = thinking.filter((b) => b.dataset.free !== undefined), held = thinking.filter((b) => b.dataset.free === undefined);
     if (part === "scene") { for (const n of [...titles, ...lower, sub]) n.style.display = "none"; }
+    if (part === "scene") for (const n of free) n.style.visibility = "hidden";
     if (part === "screen" && s.__videoCamera) {
       arrows.style.display = "none";
       for (const c of callouts) c.box.style.display = "none";
@@ -893,6 +1130,7 @@ window.__stage = (() => {
       for (const g of glints) g.style.display = "none";
       if (bursts) bursts.style.display = "none";
       for (const g of pings) g.style.display = "none";
+      for (const g of held) g.style.visibility = "hidden";
     }
     // Уведомления — экранный слой: на видео с наездом они стоят поверх, постоянного размера.
     if (part === "scene" && s.__videoCamera) for (const g of toasts) g.style.display = "none";
@@ -1106,6 +1344,7 @@ window.__stage = (() => {
     renderBursts(t, lz, frameW, frameH);
     renderPings(t, lz);
     renderToasts(t);
+    renderThinking(t, lz);
     renderBoops(t);
     renderSubtitles(t);
   }
@@ -1299,6 +1538,39 @@ window.__stage = (() => {
     });
   }
 
+  /** Блик по строке: светлая середина градиента проходит предмет слева направо за 1,1 с. */
+  const shimmerAt = (t: number): string => `${((1 - (((t / 1.1) % 1) + 1) % 1) * 100).toFixed(2)}%`;
+
+  /**
+   * «ИИ думает»: строка с бликом и полосы скелетона. С предметом скелетон ложится ровно на него
+   * и сходит, открывая ответ; без предмета стоит карточкой посередине кадра, в безопасной зоне.
+   */
+  function renderThinking(t: number, lz: number): void {
+    (scene!.overlay?.thinking ?? []).forEach((item, i) => {
+      const box = prims!.thinking[i]!;
+      const l = life(t, item.at, item.hold, 0.3, 0.35);
+      box.style.display = l.on ? "" : "none";
+      // Ответ под скелетоном скрыт, пока тот стоит целиком, и проступает, пока скелетон сходит.
+      const cover = prims!.covered[i];
+      if (cover) cover.node.style.visibility = l.on && l.enter >= 1 && l.leave <= 0 ? "hidden" : cover.visibility;
+      if (!l.on) return;
+      if (item.target || item.area) {
+        const r = anchorRect(item, lz);
+        box.style.left = `${r.left.toFixed(1)}px`;
+        box.style.top = `${r.top.toFixed(1)}px`;
+        box.style.width = `${r.width.toFixed(1)}px`;
+        box.style.height = `${r.height.toFixed(1)}px`;
+      } else {
+        const zone = safeRect(lz), w = box.offsetWidth, h = box.offsetHeight;
+        const frameW = innerWidth / lz, frameH = innerHeight / lz;
+        box.style.left = `${Math.max(zone.l, Math.min(zone.r - w, (frameW - w) / 2)).toFixed(1)}px`;
+        box.style.top = `${Math.max(zone.t, Math.min(zone.b - h, (frameH - h) / 2)).toFixed(1)}px`;
+      }
+      box.style.opacity = (Math.min(1, l.enter * 1.5) * (1 - l.leave)).toFixed(3);
+      [...box.children].forEach((c, k) => { (c as HTMLElement).style.backgroundPosition = `${shimmerAt(t - item.at - k * 0.12)} 0`; });
+    });
+  }
+
   /**
    * «Буп»: предмет на странице вздрагивает и пружиной возвращается. Пишется в отдельные свойства
    * `scale`, `rotate`, `translate`: они складываются с трансформацией, которой страница двигает
@@ -1308,8 +1580,16 @@ window.__stage = (() => {
     for (const item of scene!.overlay?.boops ?? []) {
       const node = document.querySelector<HTMLElement>(item.target);
       if (!node) throw new Error(`sc-stage:primitiveTarget:${item.target}`);
-      const p = (t - item.at) / 0.7;
-      if (p < 0 || p >= 1) { if (p >= 1 || p < -0.05) { node.style.scale = ""; node.style.rotate = ""; node.style.translate = ""; } continue; }
+      const p = (t - item.at) / (item.kind === "pulse" ? item.hold ?? 3 : 0.7);
+      if (p < 0 || p >= 1) { if (p >= 1 || p < -0.05) { node.style.scale = ""; node.style.rotate = ""; node.style.translate = ""; node.style.filter = ""; } continue; }
+      // Пульс: предмет дышит циклами по 1,2 с и на вдохе светлеет и насыщается; края пульса гаснут.
+      if (item.kind === "pulse") {
+        const edge = Math.min(1, p * 8, (1 - p) * 8);
+        const breath = Math.pow(Math.sin(((t - item.at) / 1.2) * Math.PI), 2) * edge;
+        node.style.scale = (1 + 0.05 * breath).toFixed(4);
+        node.style.filter = breath > 0.01 ? `brightness(${(1 + 0.14 * breath).toFixed(4)}) saturate(${(1 + 0.25 * breath).toFixed(4)})` : "";
+        continue;
+      }
       const wave = Math.exp(-5 * p) * Math.sin(p * Math.PI * 5);
       if (item.kind === "pop") node.style.scale = (1 + 0.14 * wave).toFixed(4);
       else if (item.kind === "shake") node.style.translate = `${(wave * 14).toFixed(2)}px 0`;
@@ -1633,6 +1913,151 @@ window.__stage = (() => {
     }
   }
 
+  // — действия на странице —
+  //
+  // Нажатие в ролике не запускает скрипт страницы: страница — снимок или слайд, и её скрипт либо
+  // не работает, либо зависит от часов. Действие накладки само ставит состояние, которое дало бы
+  // нажатие: флажок, выбранную вкладку, открытое меню, класс, новый порядок детей. Состояние в
+  // момент t выводится из исходного: всё тронутое возвращается к исходному, и действия, чей момент
+  // наступил, применяются заново по порядку — кадр с середины совпадает с кадром сквозного прогона.
+  interface Touched { attrs: Map<string, string | null>; classes: Map<string, boolean>; checked?: boolean; open?: boolean; children?: ChildNode[] }
+  const touched = new Map<Element, Touched>();
+  const touch = (node: Element): Touched => {
+    let rec = touched.get(node);
+    if (!rec) { rec = { attrs: new Map(), classes: new Map() }; touched.set(node, rec); }
+    return rec;
+  };
+  function setAttr(node: Element, name: string, value: string | null): void {
+    const rec = touch(node);
+    if (!rec.attrs.has(name)) rec.attrs.set(name, node.getAttribute(name));
+    if (value === null) node.removeAttribute(name); else node.setAttribute(name, value);
+  }
+  function setClass(node: Element, name: string, on: boolean): void {
+    const rec = touch(node);
+    if (!rec.classes.has(name)) rec.classes.set(name, node.classList.contains(name));
+    node.classList.toggle(name, on);
+  }
+  function setChecked(node: HTMLInputElement, on: boolean): void {
+    const rec = touch(node);
+    rec.checked ??= node.checked;
+    node.checked = on;
+  }
+  function restoreActions(): void {
+    for (const [node, rec] of touched) {
+      if (rec.children) node.replaceChildren(...rec.children);
+      for (const [name, v] of rec.attrs) { if (v === null) node.removeAttribute(name); else node.setAttribute(name, v); }
+      for (const [name, on] of rec.classes) node.classList.toggle(name, on);
+      if (rec.checked !== undefined) (node as HTMLInputElement).checked = rec.checked;
+      if (rec.open !== undefined) (node as HTMLDetailsElement).open = rec.open;
+    }
+  }
+  /** Панель, которой управляет вкладка или кнопка меню: `aria-controls`. */
+  const panelOf = (node: Element): Element | null => {
+    const id = node.getAttribute("aria-controls");
+    return id ? document.getElementById(id) : null;
+  };
+  function applyAction(a: StageAction): void {
+    const node = document.querySelector(a.target);
+    if (!node) throw new Error(`sc-stage:primitiveTarget:${a.target}`);
+    if (a.kind === "toggle") {
+      if (node instanceof HTMLInputElement && (node.type === "checkbox" || node.type === "radio")) {
+        // Радиокнопка гасит соседок по группе сама: их прежнее состояние тоже запоминается.
+        if (node.type === "radio" && node.name) {
+          for (const r of document.querySelectorAll<HTMLInputElement>(`input[type=radio][name="${window.CSS.escape(node.name)}"]`)) setChecked(r, r.checked);
+        }
+        setChecked(node, node.type === "radio" ? true : !node.checked);
+      } else {
+        const attr = node.hasAttribute("aria-pressed") ? "aria-pressed" : "aria-checked";
+        setAttr(node, attr, node.getAttribute(attr) === "true" ? "false" : "true");
+      }
+      if (a.class) setClass(node, a.class, !node.classList.contains(a.class));
+    } else if (a.kind === "tab") {
+      // Соседки вкладки — дети того же родителя с той же ролью (или тем же тегом, если роли нет).
+      const role = node.getAttribute("role");
+      const tabs = node.parentElement ? [...node.parentElement.children]
+        .filter((c) => (role ? c.getAttribute("role") === role : c.tagName === node.tagName)) : [node];
+      for (const tab of tabs) {
+        const on = tab === node;
+        setAttr(tab, "aria-selected", String(on));
+        setClass(tab, a.class ?? "active", on);
+        const panel = panelOf(tab);
+        if (panel) setAttr(panel, "hidden", on ? null : "");
+      }
+    } else if (a.kind === "open" || a.kind === "close") {
+      const on = a.kind === "open";
+      if (node instanceof HTMLDetailsElement) {
+        const rec = touch(node);
+        rec.open ??= node.open;
+        node.open = on;
+      } else setAttr(node, "aria-expanded", String(on));
+      const panel = panelOf(node);
+      if (panel) setAttr(panel, "hidden", on ? null : "");
+      setClass(node, a.class ?? "open", on);
+    } else if (a.kind === "class") {
+      setClass(node, a.class!, !node.classList.contains(a.class!));
+    } else {
+      // Новый порядок — относительно того, в каком дети стоят к этому действию; неназванные — следом.
+      const rec = touch(node);
+      rec.children ??= [...node.childNodes];
+      const cur = [...node.children];
+      const next = a.order!.map((k) => cur[k - 1]).filter((c): c is Element => Boolean(c));
+      node.append(...next, ...cur.filter((c) => !next.includes(c)));
+    }
+  }
+  /** Сколько длится переезд предметов на новые места после действия. */
+  const GLIDE = 0.6;
+  let actionsKey = "";
+  const glided = new Set<HTMLElement | SVGElement>();
+  /** Предметы, которые после действия переезжают плавно: `glide`, у `reorder` — дети цели. */
+  function glidersOf(a: StageAction): Array<HTMLElement | SVGElement> {
+    if (a.glide) return [...document.querySelectorAll<HTMLElement | SVGElement>(a.glide)];
+    if (a.kind === "reorder") return [...(document.querySelector(a.target)?.children ?? [])] as Array<HTMLElement | SVGElement>;
+    return [];
+  }
+  /**
+   * Состояние страницы в момент t. Перемена раскладки не прыгает (FLIP): предмет меряется на
+   * старом месте (действия до этого) и на новом (с ним), ставится на новое и смещается назад на
+   * разницу, которая гаснет пружиной за 0,6 с. Замер повторяется на каждом кадре переезда —
+   * без памяти о прошлых кадрах.
+   */
+  function renderActions(t: number): void {
+    const list = [...(scene?.overlay?.actions ?? [])].sort((a, b) => a.at - b.at);
+    if (!list.length) return;
+    const done = list.filter((a) => t >= a.at).length;
+    const moving = list.map((a, i) => ({ a, i })).filter(({ a }) => t >= a.at && t < a.at + GLIDE);
+    if (String(done) === actionsKey && !moving.length && !glided.size) return;
+    actionsKey = String(done);
+    for (const n of glided) n.style.translate = "";
+    glided.clear();
+    const shift = new Map<HTMLElement | SVGElement, [number, number]>();
+    for (const { a, i } of moving) {
+      const nodes = glidersOf(a);
+      if (!nodes.length) continue;
+      const place = (): DOMRect[] => nodes.map((n) => n.getBoundingClientRect());
+      restoreActions();
+      list.slice(0, i).forEach(applyAction);
+      const before = place();
+      applyAction(a);
+      const after = place();
+      const left = 1 - spring(phase(t, a.at, a.at + GLIDE));
+      nodes.forEach((n, k) => {
+        // Сдвиг пишется в точках самого предмета: экранная разница делится на его увеличение
+        // (наезд, увеличение страницы и слайда).
+        const w = (n as HTMLElement).offsetWidth;
+        const scale = w > 0 && after[k]!.width > 0 ? after[k]!.width / w : 1;
+        const [dx, dy] = shift.get(n) ?? [0, 0];
+        shift.set(n, [dx + ((before[k]!.left - after[k]!.left) * left) / scale, dy + ((before[k]!.top - after[k]!.top) * left) / scale]);
+      });
+    }
+    restoreActions();
+    list.slice(0, done).forEach(applyAction);
+    for (const [n, [dx, dy]] of shift) {
+      if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) continue;
+      n.style.translate = `${dx.toFixed(2)}px ${dy.toFixed(2)}px`;
+      glided.add(n);
+    }
+  }
+
   /** Плавный старт и плавная остановка без рывка ускорения: кривая киносъёмочного крана. */
   const smoother = (p: number): number => p * p * p * (p * (p * 6 - 15) + 10);
   /**
@@ -1780,6 +2205,8 @@ window.__stage = (() => {
     if (!scene) return;
     const fx = scene.effects ?? {};
     const dur = scene.duration;
+    // 0. Действия на странице — до всех замеров: они меняют раскладку, которую меряют камера и слой.
+    renderActions(t);
 
     // 1. Прокрутка к цели — мгновенно, до всех измерений.
     // Прокрутка идемпотентна и выполняется на каждом кадре: она не должна
@@ -1964,7 +2391,64 @@ window.__stage = (() => {
       const px = (1 - p) * (1 - p) * ax + 2 * (1 - p) * p * cx + p * p * bx;
       const py = (1 - p) * (1 - p) * ay + 2 * (1 - p) * p * cy + p * p * by;
       el.cur.style.display = t < points[0]!.at ? "none" : "";
-      el.cur.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px)`;
+      // Магнит: предмет тянется к подлетающему указателю — на четверть расстояния, когда тот ближе
+      // восьмой части ширины кадра, — и возвращается, когда указатель ушёл.
+      for (const point of points) {
+        if (!point.magnet) continue;
+        const node = document.querySelector<HTMLElement>(point.magnet);
+        if (!node) throw new Error(`sc-stage:primitiveTarget:${point.magnet}`);
+        // Место предмета меряется без прошлого притяжения: кадр не зависит от предыдущего.
+        node.style.translate = "";
+        const r = node.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+        const reach = innerWidth / 8, d = Math.hypot(px - cx, py - cy);
+        const pull = t < points[0]!.at ? 0 : Math.max(0, 1 - d / reach);
+        const k = pull * pull * (3 - 2 * pull) * 0.25;
+        node.style.translate = k > 0.001 ? `${((px - cx) * k).toFixed(2)}px ${((py - cy) * k).toFixed(2)}px` : "";
+      }
+      // Перетаскивание: предмет, взятый в точке с `drag`, идёт за указателем до следующей точки и
+      // лежит там, где его отпустили. Сдвиг — сумма законченных переносов и текущего; пока предмет
+      // в руке, он чуть приподнят, а курсор нажат.
+      const carried = new Map<string, { dx: number; dy: number; lift: number }>();
+      points.forEach((point, i) => {
+        if (!point.drag) return;
+        const next = points[i + 1]!;
+        const rec = carried.get(point.drag) ?? { dx: 0, dy: 0, lift: 0 };
+        if (t >= next.at) { rec.dx += (next.x - point.x) * innerWidth; rec.dy += (next.y - point.y) * innerHeight; }
+        else if (t >= point.at) {
+          rec.dx += px - point.x * innerWidth;
+          rec.dy += py - point.y * innerHeight;
+          rec.lift = Math.min(1, (t - point.at) / 0.15, (next.at - t) / 0.15);
+        }
+        carried.set(point.drag, rec);
+      });
+      let press = 0;
+      for (const [sel, rec] of carried) {
+        const node = document.querySelector<HTMLElement>(sel);
+        if (!node) throw new Error(`sc-stage:primitiveTarget:${sel}`);
+        // Сдвиг пишется в точках предмета: путь указателя в точках слоя переводится в экранные
+        // (увеличение документа) и делится на увеличение предмета (наезд, вписывание слайда).
+        node.style.scale = "";
+        const lzd = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+        const w = node.offsetWidth, r = node.getBoundingClientRect();
+        const scale = w > 0 && r.width > 0 ? r.width / w : 1;
+        node.style.translate = rec.dx || rec.dy ? `${((rec.dx * lzd) / scale).toFixed(2)}px ${((rec.dy * lzd) / scale).toFixed(2)}px` : "";
+        node.style.scale = rec.lift > 0 ? (1 + 0.04 * rec.lift).toFixed(4) : "";
+        node.style.zIndex = rec.lift > 0 ? "10" : "";
+        press = Math.max(press, rec.lift);
+      }
+      el.cur.style.transform = `translate(${Math.round(px)}px, ${Math.round(py)}px)${press > 0 ? ` scale(${(1 - 0.12 * press).toFixed(3)})` : ""}`;
+      // Прожектор: светлый круг вокруг острия курсора, кадр вокруг гаснет цветом затемнения темы.
+      let lit = 0, size = 0.22;
+      for (const torch of scene.overlay?.torch ?? []) {
+        if (t < torch.at || t >= torch.at + torch.hold) continue;
+        lit = Math.min(1, (t - torch.at) / 0.35, (torch.at + torch.hold - t) / 0.35);
+        size = torch.size ?? 0.22;
+      }
+      el.torch.style.opacity = lit.toFixed(3);
+      if (lit > 0) {
+        const radius = (size * innerWidth) / 2;
+        el.torch.style.background = `radial-gradient(circle at ${px.toFixed(1)}px ${py.toFixed(1)}px, transparent ${(radius * 0.55).toFixed(1)}px, var(--sc-dim) ${radius.toFixed(1)}px)`;
+      }
       const clicked = [...points].reverse().find((point) => point.click && t >= point.at && t < point.at + 0.65);
       if (clicked) {
         const rp = phase(t, clicked.at, clicked.at + 0.65);
@@ -2112,6 +2596,22 @@ window.__stage = (() => {
         if (total === undefined) { total = shape.getTotalLength(); drawLength.set(shape, total); }
         shape.style.strokeDasharray = `${total} ${total}`;
         shape.style.strokeDashoffset = String(total * (1 - p));
+      }
+    }
+    // Бегущий луч: `data-beam` на фигуре SVG — по ней от её `data-at` бежит светящийся отрезок в
+    // восьмую часть длины, круг за названные секунды (без числа — 2 с): поток данных по связи.
+    for (const node of own ? document.querySelectorAll<Element>("[data-beam]") : []) {
+      const from = Number((node as HTMLElement).dataset.at) || 0;
+      const period = Number((node as HTMLElement).dataset.beam) || 2;
+      const shapes = node instanceof SVGGeometryElement ? [node]
+        : [...node.querySelectorAll<SVGGeometryElement>("path,line,polyline,polygon,circle,ellipse,rect")];
+      for (const shape of shapes) {
+        let total = drawLength.get(shape);
+        if (total === undefined) { total = shape.getTotalLength(); drawLength.set(shape, total); }
+        const dash = total / 8, u = t < from ? 0 : (((t - from) / period) % 1);
+        shape.style.strokeDasharray = `${dash} ${total}`;
+        shape.style.strokeDashoffset = String(dash - u * (total + dash));
+        shape.style.opacity = t < from ? "0" : "";
       }
     }
     // Морф формы: `data-morph` на пути SVG — форма, в которую путь перетекает от своего `data-at`

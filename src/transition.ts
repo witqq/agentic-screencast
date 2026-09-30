@@ -3,10 +3,12 @@
 //
 // Переход длиной d перекрывает сцены: следующая начинается на d раньше, чем
 // кончилась предыдущая, и в эти d секунд кадр — смесь последних кадров первой
-// и первых кадров второй. Смешивает шейдер WebGL в том же браузере, что рисует
-// сцены: кадры обеих сцен уходят в него текстурами, результат снимается как
-// обычный снимок. Время перехода задаётся номером кадра, поэтому переход —
-// чистая функция и кэшируется по содержимому обеих сцен.
+// и первых кадров второй. Смешивает шейдер WebGL в отдельном экземпляре Chromium,
+// который сборка запускает для переходов: готовые кадры обеих сцен уходят в него
+// текстурами, результат снимается как обычный снимок. Время перехода задаётся
+// номером кадра, поэтому переход — чистая функция и кэшируется по содержимому
+// обеих сцен. Переход «на стыке» (`joint`, засветка) сцены не перекрывает: свет
+// идёт поверх последних кадров первой и первых кадров второй, и ролик не короче.
 //
 // Если браузер не дал WebGL (машина без программного рендера), работает
 // запасной путь — переходы ffmpeg xfade. Отчёт сборки называет, каким путём
@@ -23,8 +25,12 @@ import { msg } from "./msg.js";
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
 
-/** Вид перехода: шейдер, запасной xfade и одна строка для справки. */
-interface Kind { about: string; glsl: string; xfade: string; geometric: boolean }
+/**
+ * Вид перехода: шейдер, запасной xfade и одна строка для справки. `joint` — переход на стыке без
+ * перекрытия: шейдер получает в обеих текстурах один и тот же кадр — сначала последние кадры
+ * первой сцены, затем первые кадры второй.
+ */
+interface Kind { about: string; glsl: string; xfade: string; geometric: boolean; joint?: boolean }
 
 // Общие для всех видов функции шейдера: A — кадр уходящей сцены, B — входящей.
 const PRELUDE = `#version 300 es
@@ -39,6 +45,8 @@ uniform vec3 DIP;
 uniform vec2 DIR;
 // Точка, в которую влетает камера у пролёта (zoom): доли кадра, (0.5, 0.5) — центр.
 uniform vec2 AT;
+// Прямоугольник предмета первой сцены у маски (mask): левый верх и размер в долях кадра.
+uniform vec4 AREA;
 in vec2 uv; out vec4 color;
 vec4 A(vec2 p) { return texture(from, p); }
 vec4 B(vec2 p) { return texture(to, p); }
@@ -235,9 +243,157 @@ export const KINDS: Record<string, Kind> = {
       else color = inside(pb) ? B(pb) : FILL;
     }`,
   },
+  melt: {
+    about: "the first scene melts and runs down in uneven drips, uncovering the next one",
+    xfade: "wipedown", geometric: true,
+    glsl: `float wave(float x) {
+      float i = floor(x), f = fract(x);
+      return mix(rand(vec2(i, 4.0)), rand(vec2(i + 1.0, 4.0)), f * f * (3.0 - 2.0 * f));
+    }
+    void main() {
+      float x = uv.x * ratio;
+      float n = wave(x * 9.0) * 0.65 + wave(x * 23.0) * 0.35;
+      float drop = pow(progress, 1.6) * (1.0 + 1.1 * n) * 1.2;
+      vec2 pa = vec2(uv.x, uv.y - drop);
+      float edge = exp(-pow(pa.y / 0.012, 2.0)) * sin(progress * PI);
+      vec4 c = pa.y >= 0.0 ? A(pa) : B(uv);
+      color = c + vec4(SEAM * edge, 0.0);
+    }`,
+  },
+  leak: {
+    about: "a warm light leak sweeps across the cut; the scenes do not overlap, so the film keeps its length",
+    xfade: "fade", geometric: false, joint: true,
+    glsl: `void main() {
+      vec4 base = A(uv);
+      float g = exp(-pow((progress - 0.5) / 0.26, 2.0));
+      vec2 c = vec2(mix(-0.25, 1.25, progress), 0.3);
+      vec2 q = (uv - c) * vec2(ratio, 1.0);
+      vec2 r = q + vec2(0.45, -0.35);
+      float leak = exp(-dot(q, q) * 2.2) + 0.6 * exp(-dot(r, r) * 5.0);
+      vec3 light = (FLASH * leak * 0.8 + IRIS * 0.15) * g;
+      color = vec4(base.rgb + light * (1.0 - base.rgb), base.a);
+    }`,
+  },
+  clock: {
+    about: "a clock hand sweeps round from twelve and uncovers the next scene behind it",
+    xfade: "radial", geometric: true,
+    glsl: `void main() {
+      vec2 q = (uv - 0.5) * vec2(ratio, 1.0);
+      float a = atan(q.x, -q.y);
+      a = a < 0.0 ? a + 2.0 * PI : a;
+      float s = smoothstep(0.0, 1.0, progress) * 2.0 * PI;
+      float e = smoothstep(s - 0.015, s + 0.015, a);
+      float hand = exp(-pow((a - s) * length(q) / 0.006, 2.0)) * sin(progress * PI);
+      color = mix(B(uv), A(uv), e) + vec4(SEAM * hand, 0.0);
+    }`,
+  },
+  curl: {
+    about: "the page curls from its bottom-right corner and turns over, the next scene lies beneath",
+    xfade: "diagtl", geometric: true,
+    glsl: `void main() {
+      vec2 n = normalize(vec2(ratio, 1.0));
+      vec2 q = uv * vec2(ratio, 1.0);
+      float span = length(vec2(ratio, 1.0));
+      float d = dot(q, n);
+      float R = 0.09;
+      float fold = mix(span + 0.05, -R * PI - 0.05, smoothstep(0.0, 1.0, progress));
+      float x = d - fold;
+      vec4 c = B(uv);
+      // Лицо листа под изгибом и плоское до изгиба; изнанка — поверх, в тени.
+      if (x < 0.0) c = A(uv);
+      if (x >= 0.0 && x < R) {
+        float th = asin(x / R);
+        vec2 o = (q - n * (d - (fold + th * R))) / vec2(ratio, 1.0);
+        if (inside(o)) c = shade(A(o), 0.35 * x / R);
+      }
+      float back = x < R ? (x >= 0.0 ? fold + (PI - asin(x / R)) * R : fold + PI * R - x) : -1.0;
+      if (back > 0.0) {
+        vec2 o = (q - n * (d - back)) / vec2(ratio, 1.0);
+        if (inside(o) && dot(o * vec2(ratio, 1.0), n) <= span) c = mix(shade(A(o), 0.5), FILL, 0.35);
+      }
+      color = c;
+    }`,
+  },
+  tiles: {
+    about: "the next scene assembles tile by tile: each tile flips over in its own turn",
+    xfade: "pixelize", geometric: true,
+    glsl: `void main() {
+      vec2 grid = vec2(floor(9.0 * ratio + 0.5), 9.0);
+      vec2 cell = floor(uv * grid), l = fract(uv * grid);
+      float t0 = rand(cell) * 0.55;
+      float p = clamp((progress - t0) / 0.45, 0.0, 1.0);
+      float w = abs(cos(p * PI));
+      float y = (l.y - 0.5) / max(0.0001, w) + 0.5;
+      vec2 s = (cell + vec2(l.x, y)) / grid;
+      vec4 c = y < 0.0 || y > 1.0 ? FILL : shade(p < 0.5 ? A(s) : B(s), 1.0 - w);
+      color = c;
+    }`,
+  },
+  blur: {
+    about: "a dissolve through soft focus: the first scene blurs out and the next one sharpens into place",
+    xfade: "fade", geometric: false,
+    glsl: `vec4 soft(sampler2D t, vec2 p, float r) {
+      vec4 acc = texture(t, p);
+      for (int i = 0; i < 24; i++) {
+        float a = float(i) * 2.39996, k = sqrt((float(i) + 0.5) / 24.0);
+        acc += texture(t, p + vec2(cos(a), sin(a)) * k * r / vec2(ratio, 1.0));
+      }
+      return acc / 25.0;
+    }
+    void main() {
+      float r = sin(progress * PI) * 0.035;
+      color = mix(soft(from, uv, r), soft(to, uv, r), smoothstep(0.25, 0.75, progress));
+    }`,
+  },
+  mask: {
+    about: "an element of the first scene (element, or at) opens like a window and the next scene grows out of it to fill the frame",
+    xfade: "circleopen", geometric: true,
+    glsl: `void main() {
+      float p = smoothstep(0.0, 1.0, progress);
+      float g = p * p;
+      vec4 r = mix(AREA, vec4(-0.02, -0.02, 1.04, 1.04), g);
+      vec2 c = r.xy + r.zw * 0.5;
+      vec2 h = r.zw * 0.5 * vec2(ratio, 1.0);
+      float rad = min(h.x, h.y) * 0.35 * (1.0 - g);
+      vec2 q = abs((uv - c) * vec2(ratio, 1.0)) - h + rad;
+      float d = length(max(q, 0.0)) + min(max(q.x, q.y), 0.0) - rad;
+      float e = smoothstep(-0.0025, 0.0025, d);
+      vec2 ac = AREA.xy + AREA.zw * 0.5;
+      vec2 pa = ac + (uv - ac) / (1.0 + 0.2 * p);
+      float seam = exp(-pow(d / 0.004, 2.0)) * sin(progress * PI);
+      color = mix(B(uv), shade(A(pa), p), e) + vec4(SEAM * seam, 0.0);
+    }`,
+  },
+  dots: {
+    about: "the next scene appears through a grid of dots that grow from nothing and merge into the whole frame",
+    xfade: "dissolve", geometric: true,
+    glsl: `void main() {
+      vec2 grid = vec2(floor(34.0 * ratio + 0.5), 34.0);
+      vec2 cell = floor(uv * grid), l = fract(uv * grid) - 0.5;
+      float t0 = rand(cell) * 0.45 + length(uv - 0.5) * 0.3;
+      float r = clamp((progress - t0) / 0.4, 0.0, 1.0) * 0.75;
+      float e = smoothstep(r, r - 0.06, length(l));
+      color = mix(A(uv), B(uv), e);
+    }`,
+  },
+  pixelate: {
+    about: "the first scene breaks into ever larger pixels, the next one comes back into focus out of them",
+    xfade: "pixelize", geometric: false,
+    glsl: `void main() {
+      float s = sin(progress * PI);
+      float cells = max(2.0, floor(mix(260.0, 14.0, s * s)));
+      vec2 grid = vec2(floor(cells * ratio + 0.5), cells);
+      vec2 p = (floor(uv * grid) + 0.5) / grid;
+      vec4 c = progress < 0.5 ? A(p) : B(p);
+      color = c;
+    }`,
+  },
 };
 
 export const KIND_NAMES = Object.keys(KINDS);
+
+/** Переход на стыке без перекрытия сцен: ролик с ним не короче суммы сцен. */
+export const isJoint = (kind: string): boolean => KINDS[kind]?.joint === true;
 
 /**
  * Переход общим элементом: предмет, который есть в обеих сценах (карточка, число,
@@ -268,8 +424,10 @@ export interface Transition {
   color?: string;
   /** у толчка и хлёста: куда уезжает уходящая сцена; без него — влево */
   direction?: Direction;
-  /** у пролёта (zoom): точка первой сцены, в которую влетает камера, доли кадра `[x, y]` */
+  /** у пролёта (zoom) и маски (mask): точка первой сцены, в которую влетает камера или из которой растёт окно, доли кадра `[x, y]` */
   at?: [number, number];
+  /** у маски: прямоугольник предмета первой сцены `[x, y, w, h]` в долях кадра — его меряет сборка по `element` */
+  area?: [number, number, number, number];
 }
 
 /** Куда уезжает уходящая сцена у толчка и хлёста. */
@@ -279,6 +437,15 @@ export type Direction = (typeof DIRECTIONS)[number];
 export const DIRECTED = ["push", "whip"];
 /** Пролёт камеры в точку или предмет первой сцены. */
 export const ZOOM = "zoom";
+/** Окно из предмета первой сцены, через которое растёт вторая. */
+export const MASK = "mask";
+/** Виды, которым нужна точка или предмет первой сцены. */
+export const AIMED = [ZOOM, MASK];
+/** Предмет маски без названного: окно растёт из пятой части кадра вокруг точки (или середины). */
+export const areaAround = (at: [number, number] | undefined): [number, number, number, number] => {
+  const [x, y] = at ?? [0.5, 0.5];
+  return [Math.max(0, x - 0.08), Math.max(0, y - 0.08), 0.16, 0.16];
+};
 /** Вектор направления в координатах кадра (y вниз): так его читает шейдер. */
 export const dirVector = (d: Direction | undefined): [number, number] =>
   d === "right" ? [-1, 0] : d === "up" ? [0, 1] : d === "down" ? [0, -1] : [1, 0];
@@ -313,13 +480,13 @@ export function parseTransition(raw: string): Transition {
   }
   if (kind === MORPH && (typeof value.element !== "string" || !value.element.trim()))
     throw new Error(msg("transition.morphElement"));
-  if (kind !== MORPH && kind !== ZOOM && value.element !== undefined) throw new Error(msg("transition.onlyMorphElement"));
+  if (kind !== MORPH && !AIMED.includes(kind) && value.element !== undefined) throw new Error(msg("transition.onlyMorphElement"));
   if (value.direction !== undefined && (!DIRECTED.includes(kind) || !DIRECTIONS.includes(value.direction as Direction)))
     throw new Error(msg("transition.direction", { direction: String(value.direction), available: DIRECTIONS.join(", ") }));
   let at: [number, number] | undefined;
   if (value.at !== undefined) {
     const nums = (Array.isArray(value.at) ? value.at : String(value.at).trim().split(/\s+/)).map(Number);
-    if (kind !== ZOOM || nums.length !== 2 || nums.some((v) => !Number.isFinite(v) || v < 0 || v > 1))
+    if (!AIMED.includes(kind) || nums.length !== 2 || nums.some((v) => !Number.isFinite(v) || v < 0 || v > 1))
       throw new Error(msg("transition.at"));
     at = [nums[0]!, nums[1]!];
   }
@@ -331,7 +498,7 @@ export function parseTransition(raw: string): Transition {
   if (value.snap !== undefined && value.snap !== "music") throw new Error(msg("transition.snap"));
   return { kind, duration, ...(value.sound ? { sound: String(value.sound).trim() } : {}),
     ...(value.snap ? { snap: "music" as const } : {}),
-    ...(kind === MORPH || (kind === ZOOM && typeof value.element === "string" && value.element.trim()) ? { element: String(value.element).trim() } : {}),
+    ...(kind === MORPH || (AIMED.includes(kind) && typeof value.element === "string" && value.element.trim()) ? { element: String(value.element).trim() } : {}),
     ...(color ? { color } : {}), ...(value.direction ? { direction: value.direction as Direction } : {}), ...(at ? { at } : {}) };
 }
 
@@ -376,6 +543,7 @@ export async function renderTransition(opts: {
   color?: string;
   direction?: Direction;
   at?: [number, number];
+  area?: [number, number, number, number];
 }): Promise<{ frames: string[]; renderer: Renderer }> {
   const n = opts.a.length;
   if (n !== opts.b.length || n < 2) throw new Error("transition: both scenes must give the same number of frames");
@@ -401,13 +569,13 @@ const dipOf = (opts: { color?: string; theme?: ThemeVars }): string =>
   opts.color ?? (opts.theme ?? resolveTheme(undefined))["--sc-fade"]!;
 
 async function webgl(opts: { kind: string; a: string[]; b: string[]; width: number; height: number; out: string; theme?: ThemeVars; color?: string;
-  direction?: Direction; at?: [number, number] },
+  direction?: Direction; at?: [number, number]; area?: [number, number, number, number] },
   n: number): Promise<string[] | null> {
   const kind = KINDS[opts.kind]!;
   const theme = opts.theme ?? resolveTheme(undefined);
   const light = { SEAM: rgbOf(theme["--tr-seam"]!), IRIS: rgbOf(theme["--tr-iris"]!), FLASH: rgbOf(theme["--tr-flash"]!),
     FILL: rgbOf(theme["--tr-fill"]!), SHADE: Number(theme["--tr-shade"]), DIP: rgbOf(dipOf(opts)),
-    DIR: dirVector(opts.direction), AT: opts.at ?? [0.5, 0.5] };
+    DIR: dirVector(opts.direction), AT: opts.at ?? [0.5, 0.5], AREA: opts.area ?? areaAround(opts.at) };
   const browser = await chromium.launch();
   try {
     const page = await browser.newPage({ viewport: { width: opts.width, height: opts.height }, deviceScaleFactor: 1 });
@@ -458,6 +626,7 @@ async function webgl(opts: { kind: string; a: string[]; b: string[]; width: numb
       gl.uniform1f(gl.getUniformLocation(prog, "SHADE"), light.SHADE);
       gl.uniform2fv(gl.getUniformLocation(prog, "DIR"), light.DIR);
       gl.uniform2fv(gl.getUniformLocation(prog, "AT"), light.AT);
+      gl.uniform4fv(gl.getUniformLocation(prog, "AREA"), light.AREA);
       return gl.getError() === gl.NO_ERROR;
     }, { frag: kind.glsl, prelude: PRELUDE, light });
     if (!ok) return null;

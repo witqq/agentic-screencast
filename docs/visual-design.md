@@ -155,7 +155,7 @@ The same mechanisms produce film-specific clichés. Each is a field an agent rea
 - emoji icons in `slides.features`, a release built as a grid of emoji cards;
 - a screenshot floating in 3D inside a browser frame with traffic-light buttons (`slides.shot`,
   `slides.perspective`, `device: browser`) with a placeholder address;
-- a live background as "depth": aurora, mesh, bokeh, particles;
+- a live background as "depth": aurora, mesh, bokeh, particles, rays, lamp, meteors, flicker, beams, warp, vortex, spotlight;
 - a "cinematic" look in one line (`look: cinematic` — teal-orange grade, grain, vignette) on a product
   demo;
 - creator-style subtitles: capitals, a yellow word, a pop on every word;

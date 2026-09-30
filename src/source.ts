@@ -60,6 +60,7 @@ import { parseDevice, type Device } from "./device.js";
 import { parseLook, type Look } from "./look.js";
 import { frameOf, parseFormat, parseZone, safeOf, type Safe, type Zone } from "./format.js";
 import { existsSync } from "node:fs";
+import { plainTitle } from "./provider/slides/markup.js";
 
 /**
  * Вид сцены — ПРОИЗВОЛЬНАЯ строка: его смысл знает поставщик материала,
@@ -287,7 +288,7 @@ export interface Slide {
   /** движение кадра целиком: медленный облёт, наезд или неподвижность */
   move?: "drift" | "push" | "still" | "dolly" | "pan" | "orbit3d" | "handheld";
   /** жизнь элементов после входа: покачивание, парение или дрожь */
-  alive?: "wiggle" | "float" | "jitter";
+  alive?: "wiggle" | "float" | "jitter" | "pulse";
   /** свечение, бегущее по рамке карточек */
   glow?: "border";
   /** кривая входов: стандартная, выразительная, пружина */
@@ -316,7 +317,23 @@ export interface Slide {
   rows?: 1 | 2;
   speed?: number;
   /** график из CSV: вид, строки «подпись — значение», подсвеченная строка */
-  chart?: { type: "bar" | "line"; rows: Array<{ label: string; value: number; shown: string }>; peak?: number };
+  chart?: { type: "bar" | "line" | "race"; rows: Array<{ label: string; value: number; shown: string }>; peak?: number;
+    /** гонка: периоды из шапки CSV и значения каждой строки по периодам */
+    race?: { periods: string[]; rows: Array<{ label: string; values: number[] }> } };
+  /** мини-графики у значений счётчика: ряд чисел на каждое значение */
+  spark?: number[][];
+  /** стена снимков: картинки, уже встроенные в страницу */
+  images?: Array<{ src: string; width: number; height: number }>;
+  /** картинка, которой залиты буквы заголовка */
+  fill?: { src: string; width: number; height: number };
+  /** как сменяется слово `{a|b}`: выезжает (умолчание) или перетекает, как жидкость */
+  swap?: "slide" | "morph";
+  /** плоская карта из точек вместо глобуса */
+  map?: "flat";
+  /** подпись окна терминала */
+  name?: string;
+  /** темп сцены: входы спокойнее или резче */
+  pace?: "calm" | "brisk" | "snap";
 }
 
 export interface Deck { slides: Slide[] }
@@ -377,6 +394,8 @@ export interface PitchScene {
   /** вспышки и тряска кадра на якорях сцены */
   flash?: Hit[];
   shake?: Hit[];
+  /** расслоение цвета кадра на якорях сцены */
+  rgb?: Hit[];
   /** рамка устройства вокруг материала сцены */
   device?: Device;
   /** тема этой сцены поверх темы ролика: слайды, страница и слой сцены рисуются ею */
@@ -431,7 +450,7 @@ export interface Pitch {
  * Поля, допустимые у ЛЮБОЙ сцены: хвост тишины и временные аннотации
  * принадлежат композиции, а не конкретному поставщику материала.
  */
-export const COMMON: string[] = ["tail", "overlay", "duration", "part", "transition", "fade", "sfx", "music", "flash", "shake", "speechAt", "captions", "spotlight", "theme", "stills"];
+export const COMMON: string[] = ["tail", "overlay", "duration", "part", "transition", "fade", "sfx", "music", "flash", "shake", "rgb", "speechAt", "captions", "spotlight", "theme", "stills"];
 
 /**
  * Состав полей и их обязательность живут у ПОСТАВЩИКА и спрашиваются
@@ -940,7 +959,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       const v = Number(s.fields.speechAt.replace(/s$/i, ""));
       if (!Number.isFinite(v) || v < 0 || v > 10) err(s.__line ?? 0, msg("source.speechAt", { id: s.id }));
     }
-    for (const k of ["flash", "shake"] as const) {
+    for (const k of ["flash", "shake", "rgb"] as const) {
       if (!s.fields[k]) continue;
       try { parseHits(s.fields[k], k); }
       catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
@@ -1353,8 +1372,9 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       ...(f.captions ? { captionsAt: f.captions.trim() as CaptionPosition } : {}),
       ...(f.flash ? { flash: parseHits(f.flash, "flash") } : {}),
       ...(f.shake ? { shake: parseHits(f.shake, "shake") } : {}),
+      ...(f.rgb ? { rgb: parseHits(f.rgb, "rgb") } : {}),
       ...(f.part ? { chapter: f.part }
-        : !explicitParts && spec.chapterFrom?.some((k) => f[k]) ? { chapter: spec.chapterFrom.map((k) => f[k]).find(Boolean)! } : {}),
+        : !explicitParts && spec.chapterFrom?.some((k) => f[k]) ? { chapter: plainTitle(spec.chapterFrom.map((k) => f[k]).find(Boolean)!) } : {}),
     };
   });
   // Куски одного дубля встык (конец одного — начало следующего, одна запись) склеиваются без

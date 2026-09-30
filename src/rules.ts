@@ -29,6 +29,8 @@ export const RULES: Record<string, `FC-${number}` | `VA-${number}`> = {
   "typing-too-fast": "FC-59",
   "number-source": "FC-56",
   "karaoke-contrast": "FC-62",
+  "motion-stack": "FC-66",
+  "harsh-push": "FC-66",
   // visual-assets, «Checking a licence and writing the credit»: шаг N
   "uncredited": "VA-5",
   // сборка: по отрисованному и закодированному

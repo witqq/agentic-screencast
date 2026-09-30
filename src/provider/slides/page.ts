@@ -136,7 +136,7 @@ export function buildSlide(scene: Slide, outDir: string, film?: Film): string {
   const html = page(scene.title ?? "", body, elements,
     gridCss(grid) + themeCss(film), film?.lang ?? "en", scene.background, scene.align,
     // Хореография и жизнь элементов — свойства страницы: их читает её скрипт.
-    { alive: scene.alive, glow: scene.glow, ease: scene.ease, wave: scene.wave,
+    { alive: scene.alive, glow: scene.glow, ease: scene.ease, wave: scene.wave, pace: scene.pace,
       stagger: scene.stagger === undefined ? undefined : String(scene.stagger) });
   mkdirSync(outDir, { recursive: true });
   const file = `${outDir}/${scene.id}.html`;

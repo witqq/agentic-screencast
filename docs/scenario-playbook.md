@@ -77,6 +77,13 @@ range and holds on a landscape screen; on a phone read slower, about 13 characte
 **In the tool.** A beat of narration is one paragraph; at 150 wpm a 25-word beat lasts about ten
 seconds. Use `agentic-screencast script` to count words before paying for speech.
 
+**Motion.** Each genre below closes with the motion it wants: which recipe of [the motion-design
+guide](motion-design.md) ("Composition recipes") fits its scenes, which transitions, how much energy
+and what to leave out. Three rules hold in every genre: one lead movement at a time (film craft 66;
+`lint` names two at once, `motion-stack`), a push-in no faster than the viewer can follow
+(`harsh-push`), and a change of pace across the film — a fast run, a calm scene, then the hit —
+rather than one tempo from start to end (`pace` on slides, the length of the scenes, the music).
+
 ## A branch result or a new feature
 
 **Purpose.** Show colleagues or the owner what a piece of work added to a product: a branch, a
@@ -94,6 +101,11 @@ own numbers (12); control surfaces are part of the film when the owner says so (
 21, 28); `spotlight` for each part the narration names; a closing `slides.outro` with where to get
 it. Skeleton: [`templates/product-demo.md`](../templates/product-demo.md) adapted to the six parts.
 
+**Motion.** The product moves, the film around it stays quiet: `flow: auto` with a push along one
+axis inside a part and a zoom into each new part; recipe 3 (a setting that changes the product) for
+the control surfaces, recipe 4 (the number that proves it) for behaviour under load. No
+decorative background and no hits: the evidence is the spectacle.
+
 ## A film without a product
 
 **Purpose.** A parody, a teaser for an idea, a story told with other people's footage — a film whose
@@ -106,6 +118,11 @@ The strongest piece of material gets the strongest shot, as in any film.
 **In the tool.** Clips come through [the visual-assets guide](visual-assets.md) ("Video clips"), sounds
 through [the sound guide](sound.md); `agentic-screencast sheet` lays out a downloaded clip to choose
 its pieces, `from`/`to` cut them, `fit: cover` fills the frame with a clip of another shape.
+
+**Motion.** Borrowed from the genre it tells: a parody trailer takes the trailer's motion below in
+full seriousness, an idea teaser the explainer's calm one. Found clips carry their own motion, so the
+tool's devices are fewer: a push-in on the detail that makes the joke, `speed` for the dramatic
+beat, a hard `cut` on the music.
 
 ## Business presentation and pitch
 
@@ -161,6 +178,12 @@ test sets the minimum time a card or silent slide stays up — about three secon
 a rhythm of `slides.compare` "is / could be" beats between live evidence.
 Skeleton: [`templates/pitch.md`](../templates/pitch.md).
 
+**Motion.** Confident and calm: recipe 1 for the purpose (a `dolly` push-in, the key word marked),
+recipe 4 for traction (`spark:` under the counter, `pace: calm`), a `morph` where a number carries
+into its detail, `flow: auto` for the rest. The contrast of "what is" and "what could be" is the
+energy; a strike-through of the old way (`~~…~~`) and a marker on the new one say it in the title.
+No hits, and at most one living kind (recipe 5) for the market or the ecosystem.
+
 ## Product demo, walkthrough, SaaS explainer
 
 **Purpose.** Help a prospect decide whether to buy [9]; depth follows the funnel — benefit shorts
@@ -204,6 +227,12 @@ tighten the pace, and unhandled objections [9].
 seconds" means the first live `video` scene shows the product's result, not an empty screen; the
 "so what?" answer is the caption over the shot, the feature name is not.
 Skeleton: [`templates/product-demo.md`](../templates/product-demo.md).
+
+**Motion.** The scenario's own action carries it: recipe 3 (pointer, press, the page answering, a
+toast, then a push-in on the consequence) or a live take with `autoZoom`; recipe 2 when the product
+answers with AI; recipe 6 for a developer product. `flow: auto` keeps the demo one stream; a `zoom`
+transition into the detail says "look closer". Keep the frame still under text the viewer must read
+("avoid needless motion" [4]).
 
 ## Trailer and teaser (film and game craft applied to a product)
 
@@ -271,6 +300,12 @@ short cuts are `transition: cut`, which joins shots edge to edge without the fad
 has; the cut to black before the title is `transition: dip` (to white for an impact); the
 button is a short scene after the end card.
 Skeleton: [`templates/trailer.md`](../templates/trailer.md).
+
+**Motion.** Recipe 7: hits (`flash`, `shake`, `rgb`) on the music's beats with a sound on each, the
+energy curve in the pace — `pace: snap` and short scenes in the climax, a held shot or slow motion
+before it — hard cuts inside an act and one other transition kind (`dip`, `leak`) between acts.
+`slides.wall`, `warp` and a card with the product in its letters (`fill`) are the trailer's own
+spectacle; they read as a joke in any other genre.
 
 ### The action trailer and its parody
 
@@ -407,6 +442,12 @@ misconception on a `slides.compare` with `tone: bad` and refute it on the next b
 focus with the narration so signalling and temporal contiguity come for free.
 Skeleton: [`templates/explainer.md`](../templates/explainer.md).
 
+**Motion.** Motion is signalling [40]: every move points at the part the narration names. A chain
+whose pulse runs from node to node shows the mechanism flowing; the misconception struck out
+(`~~…~~`) and the correct idea marked (`==…==`) in the titles; `spotlight` moving with the words;
+`flow: auto` with pushes along one axis for the steps. No decorative background and no hits —
+"busy editing with extra transitions" is the genre's named mistake [10].
+
 ## Release, changelog, "what's new"
 
 **Purpose.** Existing users and observers need what changed, why it matters to them and what to
@@ -449,6 +490,11 @@ availability or compatibility limits [7]; announcing every trifle [45].
 recording; a release film is a promise chapter, one live shot per change with its before-state
 and after-state visible, and an end card naming where to find it.
 Skeleton: [`templates/release.md`](../templates/release.md).
+
+**Motion.** Recipe 8: the old way struck out and the new capability marked, the new card glowing
+(`glow: border`) in a stack or a bento, a `mask` from the "new" badge into the feature, the press
+that shows it working (recipe 3). One launch, one energy: a dense stream of changes for experts may
+run at `pace: brisk`; a single promise stays calm.
 
 ## Summary
 

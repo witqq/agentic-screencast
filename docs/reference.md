@@ -260,15 +260,15 @@ The tool brings three providers with it:
 | `slides.chain` | diagram with arrows and a return-arrow caption | `nodes` |
 | `slides.number` | a large quantity with a caption | `values` or `value` |
 | `slides.quote` | a verbatim quote of someone else's answer | `parts` |
-| `slides.hero` | opening statement: the title rises word by word, an image may serve as background | `title` |
+| `slides.hero` | opening statement: the title rises word by word, an image may serve as background or be poured into the letters (`fill`) | `title` |
 | `slides.steps` | steps lighting up one by one following the speech | `items` |
 | `slides.features` | a grid of two to six capabilities with icons | `items` |
-| `slides.timeline` | milestones on a line that is drawn out to each one | `items` |
-| `slides.counter` | numbers counting up like a counter, shares as a ring | `values` or `value` |
+| `slides.timeline` | milestones on a line that is drawn out to each one, a glowing head leading it | `items` |
+| `slides.counter` | numbers counting up like a counter, shares as a ring, a small trend line under each (`spark`) | `values` or `value` |
 | `slides.beforeafter` | two states of an interface in one frame: "before" on the left, "after" on the right, the divider moves | `image` and `after` |
 | `slides.perspective` | a snapshot on a screen in perspective (WebGL): camera fly-around, glare, reflection | `image` |
 | `slides.parallax` | a snapshot splits into panels at different depths, nearer ones drift more | `image` and `panels` |
-| `slides.chart` | a chart from a "label,value" CSV: bars grow, the line is drawn, the peak is highlighted | `data` |
+| `slides.chart` | a chart from a "label,value" CSV: bars grow, the line is drawn, the peak is highlighted; `type: race` runs a bar chart race over the periods of a CSV | `data` |
 | `slides.code` | code being typed with highlighting; from a scenario string or a file | `code` or `file` |
 | `slides.photo` | an image with a slow push-in to a point and a caption | `image` |
 | `slides.shot` | a screenshot in a browser or phone frame, floating in 3D | `image` |
@@ -278,11 +278,14 @@ The tool brings three providers with it:
 | `slides.marquee` | an endless strip of logos or labels, one row or two in opposite directions | `items` |
 | `slides.stack` | a deck of cards: on each item the top one flies off and the deck moves up | `items` |
 | `slides.orbit` | icons circling the title on one or two orbits | `items` |
-| `slides.chat` | chat bubbles in turn, typing dots before each answer | `items` |
+| `slides.chat` | chat bubbles in turn; before each answer a sheen runs across "Thinking…" over skeleton bars | `items` |
 | `slides.carousel` | cards in a real 3D ring that turns to each item | `items` |
-| `slides.globe` | a WebGL globe of dots: arcs from the first city to the others, a ping and a label | `items` |
+| `slides.globe` | a WebGL globe of dots: arcs from the first city to the others, a ping and a label; `map: flat` lays them on a flat map | `items` |
 | `slides.layers` | an exploded view: panels of a snapshot lift off to their depth while the camera tilts, then settle flat | `image` and `panels` |
 | `slides.bento` | a bento grid: a large first cell, the last ones wide so the grid closes, the rest small, each tilting in from depth | `items` |
+| `slides.wall` | a wall of screenshots tilted in 3D, its columns sliding past each other under the title | `images` |
+| `slides.cloud` | labels or icons on a turning sphere, the near ones large and bright | `items` |
+| `slides.shell` | a working terminal: commands type after the prompt, a spinner turns, output appears | `items` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
 | `report` | a page agentic-report builds from its Markdown source for every scene, without its top bar, review, scheme toggle and theme switcher unless the source names those keys; needs agentic-report in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |
@@ -334,7 +337,12 @@ freeze frame in one scenario, and the [self-contained example](../example/idea-v
 a saved page with a push-in by CSS selector and the caption "illustration".
 
 A manual pointer `overlay.pointer` with `click:true` draws a ripple but does not press
-the button in the source recording: record real actions with Playwright capture.
+the button in the source recording: record real actions with Playwright capture. On a
+saved page or a slide the overlay can make the page answer instead: `overlay.actions`
+switch a toggle, a tab or a menu and reorder a list with its elements gliding to their
+places, the pointer's `drag` carries an element, `overlay.thinking` lays "AI is thinking"
+over the answer's place and `overlay.torch` follows the pointer with a circle of light
+(`agentic-screencast help overlay`).
 For a scene with `freezeAt` the build measures the brightness spread in every `area` region
 on the frozen frame and fails if a region is almost empty: the failure names
 the scene and the measured contrast.
