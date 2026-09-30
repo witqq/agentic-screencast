@@ -131,9 +131,9 @@ await check("команды README исполняются", () => {
     // таким снисхождением не пользуются — именно они и были дефектом.
     const why = ((r.stderr || "") + (r.stdout || "")).trim();
     const asset =
-      /нет ключа [A-Z_]+/.test(why) ? "нет ключа доступа"
+      /нет ключа [A-Z_]+|no key [A-Z_]+/.test(why) ? "нет ключа доступа"
       : (r.error as NodeJS.ErrnoException | undefined)?.code === "ENOENT"
-        || /программа не найдена/.test(why)
+        || /программа не найдена|program not found/.test(why)
         ? "внешний движок голоса не поставлен"
       : /нет файла модели/.test(why) ? "нет файла модели голоса"
       : null;

@@ -30,8 +30,9 @@ export const ALLOWED: Array<{ file: string; text: string; why: string }> = [
   { file: "agentic-screencast.ts", text: "black", why: "help text: a word describing the blockbuster theme" },
   { file: "agentic-screencast.ts", text: "#ffd27a", why: "help text: an example colour a scenario names for a dip, not drawn" },
   { file: "agentic-screencast.ts", text: "white", why: "help text: the word white in an example dip, not drawn" },
-  { file: "brand.ts", text: "#ff5a1f", why: "error message: an example of the colour form the command expects" },
-  { file: "brand.ts", text: "grey", why: "error message: tells the user the picture is grey" },
+  { file: "msg.ts", text: "#ff5a1f", why: "messages: an example of the colour form the theme command and a theme expect" },
+  { file: "msg.ts", text: "#1f6fff", why: "messages: the second example colour of the theme command's usage line" },
+  { file: "msg.ts", text: "grey", why: "error message: tells the user the brand picture is grey" },
   { file: "fonts.ts", text: "font-family:", why: "the bundled font table: its @font-face rules name each family that a theme's --display, --sans and --mono refer to" },
   { file: "look.ts", text: "=black", why: "film look: cinema letterbox bars are black by definition; part of the look, not of the theme" },
   { file: "transition.ts", text: "#000000", why: "the word black a scenario may name as the colour of a dip: the author's colour, not a theme's" },
@@ -122,7 +123,9 @@ function themeBlocks(): Map<string, string> {
 
 test("each theme is stored as its own complete object, not borrowed from another", () => {
   const blocks = themeBlocks();
-  assert.equal(blocks.size, THEME_NAMES.length, `the theme table stores ${blocks.size} theme objects for ${THEME_NAMES.length} names`);
+  // У terminal набора руками нет: обе его схемы строятся из общего файла палитр.
+  const hand = THEME_NAMES.filter((n) => n !== "terminal");
+  assert.equal(blocks.size, hand.length, `the theme table stores ${blocks.size} theme objects for ${hand.length} hand-written themes`);
   for (const [name, body] of blocks) {
     assert.ok(!/\.\.\.|Object\.assign/.test(body), `${name} inherits another theme's set`);
     const entries = new Map([...body.matchAll(/^\s*"(--[\w-]+)":\s*(.+?),?\s*$/gm)].map((m) => [m[1]!, m[2]!]));

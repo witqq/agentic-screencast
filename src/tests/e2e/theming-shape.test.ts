@@ -498,6 +498,6 @@ test("the loupe ring, the presenter ring and the progress bar drawn by ffmpeg fo
 });
 
 test("every non-colour token is measured by a test of this file", () => {
-  const self = readFileSync(join(here, "..", "..", "..", "src", "tests", "unit", "theming-shape.test.ts"), "utf8");
+  const self = readFileSync(join(here, "..", "..", "..", "src", "tests", "e2e", "theming-shape.test.ts"), "utf8");
   assert.deepEqual(NON_COLOUR_TOKENS.filter((k) => !self.includes(`"${k}"`)), []);
 });

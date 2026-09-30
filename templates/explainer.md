@@ -1,13 +1,15 @@
 # Explainer: <the idea>
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
-captions: {"style":"subtitle","look":"plate"}
+captions: {"style":"subtitle","look":"plate","everywhere":true}
+flow: auto
 
 ## problem · slides.hero
 kicker: The question
-title: <The viewer's problem, asked over the result the idea leads to>
+title: <The viewer's problem, asked over the ==result== the idea leads to>
 body: <Why it matters to them.>
 image: pages/result.svg
+move: dolly
 duration: 6
 
 ## names · slides.chain
@@ -22,7 +24,7 @@ at: b1 b1 b2
 
 ## misconception · slides.compare
 kicker: A common mistake
-title: <What people usually believe>
+title: <What people ~~usually~~ believe>
 left: The misconception (bad) :: <the wrong belief> | <why it seems right>
 right: What actually happens (good) :: <the correct mechanism>
 at: b1 b2
@@ -35,6 +37,7 @@ at: b1 b2
 kicker: How it works
 title: <The mechanism in three steps>
 items: <First> :: <what happens> | <Then> :: <what follows> | <Finally> :: <the result>
+move: push
 
 <Step one, in one sentence.>
 
@@ -45,6 +48,7 @@ items: <First> :: <what happens> | <Then> :: <what follows> | <Finally> :: <the 
 ## how · page
 page: pages/live-shot.html
 spotlight: .card b @ 1s | .card code @ 4.5s
+overlay: {"marks":[{"at":2.2,"kind":"underline","target":".card b"}]}
 duration: 8
 
 <Show the mechanism step by step; the narration and the picture move together.>

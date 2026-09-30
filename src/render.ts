@@ -18,6 +18,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { fontFaceCss, themeFamilies, FONT_PROBE } from "./fonts.js";
 import { parseOverlay } from "./overlay.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -87,8 +88,14 @@ export interface RenderOpts {
   legible?: Array<{ t: number; target: string }>;
   /** моменты и цели фокусов, у которых проверить строки, срезанные кадром */
   cuts?: Array<{ t: number; target: string }>;
+  /** Цели фокусов в момент, когда камера к ним приходит: видна ли цель на экране. */
+  unseen?: Array<{ t: number; target: string }>;
   /** момент и порог в точках готового кадра, мельче которого строки страницы называются */
   small?: { t: number; min: number };
+  /** моменты и безопасная зона ленты (в точках готового кадра), за которую не должен заходить текст */
+  unsafe?: { times: number[]; safe: { top: number; bottom: number; left: number; right: number } };
+  /** момент, в который снять видимый текст кадра (страница и слой) */
+  readText?: number;
   /** Селектор, который на кадрах не рисуется: так переход общим элементом получает фон без предмета. */
   hide?: string;
   /** Видимый экземпляр общего элемента перехода, если селектор встречается в скрытых видах страницы. */
@@ -123,7 +130,7 @@ export const DEFAULTS: RenderOpts = { fps: 25, width: 1920, height: 1080, scale:
 export async function renderScene(
   scene: RenderScene,
   opts: Partial<RenderOpts> = {},
-): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts; rects: Array<{ left: number; top: number; width: number; height: number }>; floor: number; renderer?: string; overflow?: number; legible?: Array<{ t: number; target: string; px: number | null }>; cuts?: Array<{ t: number; target: string; text: string[] }>; small?: Array<{ text: string; px: number }> }> {
+): Promise<{ frames: number; shots: Shot[]; opts: RenderOpts; rects: Array<{ left: number; top: number; width: number; height: number }>; floor: number; renderer?: string; overflow?: number; legible?: Array<{ t: number; target: string; px: number | null }>; cuts?: Array<{ t: number; target: string; text: string[] }>; unseen?: Array<{ t: number; target: string }>; small?: Array<{ text: string; px: number }>; captionLines?: { lines: number; text: string }; outside?: Array<{ t: number; text: string; side: string }>; text?: string }> {
   const o = { ...DEFAULTS, ...opts };
   const frames = Math.ceil(scene.duration * o.fps);
   const browser = await chromium.launch();
@@ -176,7 +183,7 @@ export async function renderScene(
       // Отмечаем один видимый предмет в момент снимка ДО кадра без него;
       // CSS-селектор скрыл бы обе копии, а начальный кадр может показывать другой вид страницы.
       await page.evaluate((t) => window.__clock.seek(t), o.at ?? o.probes?.[0]?.t ?? 0);
-      await page.evaluate((selector) => {
+      const found = await page.evaluate((selector) => {
         const shown = [...document.querySelectorAll(selector)].filter((node) => {
           const r = node.getBoundingClientRect();
           if (r.width < 1 || r.height < 1) return false;
@@ -186,9 +193,10 @@ export async function renderScene(
           }
           return true;
         });
-        if (shown.length !== 1) throw new Error(`morph target ${selector}: expected one visible element, found ${shown.length}`);
-        shown[0]!.setAttribute("data-sc-morph-target", "");
+        if (shown.length === 1) shown[0]!.setAttribute("data-sc-morph-target", "");
+        return shown.length;
       }, o.morphTarget);
+      if (found !== 1) throw new Error(msg("render.morphTarget", { selector: o.morphTarget, found }));
     }
     if (o.hide) await page.addStyleTag({ content: o.morphTarget
       ? "[data-sc-morph-target]{visibility:hidden!important}"
@@ -248,12 +256,32 @@ export async function renderScene(
       const text = await page.evaluate((sel) => window.__stage.cutText(sel), c.target);
       if (text.length) cuts.push({ ...c, text });
     }
+    const unseen: Array<{ t: number; target: string }> = [];
+    for (const u of o.unseen ?? []) {
+      await page.evaluate((tt) => window.__clock.seek(tt), u.t);
+      if (!(await page.evaluate((sel) => window.__stage.shown(sel), u.target))) unseen.push(u);
+    }
     // Мелкий текст страницы — в точках готового кадра: порог переводится в точки страницы.
     let small: Array<{ text: string; px: number }> = [];
     if (o.small) {
       await page.evaluate((tt) => window.__clock.seek(tt), o.small.t);
       small = (await page.evaluate((m) => window.__stage.smallText(m), o.small.min / o.scale))
         .map((x) => ({ ...x, px: Number((x.px * o.scale).toFixed(1)) }));
+    }
+    let text: string | undefined;
+    if (o.readText !== undefined) {
+      await page.evaluate((tt) => window.__clock.seek(tt), o.readText);
+      text = await page.evaluate(() => window.__stage.visibleText());
+    }
+    // Текст за безопасной зоной ленты — в каждый названный момент, с наездом камеры.
+    const outside: Array<{ t: number; text: string; side: string }> = [];
+    for (const t of o.unsafe?.times ?? []) {
+      await page.evaluate((tt) => window.__clock.seek(tt), t);
+      const k = o.scale ?? 1;
+      const zone = { top: o.unsafe!.safe.top / k, bottom: o.unsafe!.safe.bottom / k, left: o.unsafe!.safe.left / k, right: o.unsafe!.safe.right / k };
+      for (const x of await page.evaluate((z) => window.__stage.outsideSafe(z), zone)) {
+        if (!outside.some((y) => y.text === x.text)) outside.push({ t, ...x });
+      }
     }
     // Верх полосы субтитров: над ним сборка держит линзу лупы.
     const floor = await page.evaluate(() => window.__stage.floor());
@@ -264,10 +292,22 @@ export async function renderScene(
     // Слайд, которому не хватило места и при предельном ужатии, говорит, на сколько точек сетки.
     const overflow = scene.__overlayOnly ? undefined
       : await page.evaluate(() => Number(document.body?.dataset.overflow) || undefined).catch(() => undefined);
-    return { frames, shots, opts: o, rects, floor, ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
+    const captionLines = await page.evaluate(() => window.__stage.captionLines()).catch(() => ({ lines: 0, text: "" }));
+    return { frames, shots, opts: o, rects, floor, ...(text !== undefined ? { text } : {}), ...(captionLines.lines ? { captionLines } : {}), ...(outside.length ? { outside } : {}), ...(legible.length ? { legible } : {}), ...(cuts.length ? { cuts } : {}), ...(unseen.length ? { unseen } : {}), ...(small.length ? { small } : {}), ...(renderer ? { renderer } : {}), ...(overflow ? { overflow } : {}) };
+  } catch (e) {
+    throw stageError(e);
   } finally {
     await browser.close();
   }
+}
+
+/**
+ * Слой композиции живёт в странице, куда словарь сообщений не попадает, поэтому он бросает
+ * устойчивый код `sc-stage:<код>:<цель>`, а слова на языке запуска подставляются здесь.
+ */
+function stageError(e: unknown): unknown {
+  const m = /sc-stage:(\w+):([^\n]*)/.exec(String((e as Error)?.message ?? ""));
+  return m ? new Error(msg(`stage.${m[1]}`, { target: m[2]!.trim() })) : e;
 }
 
 /**

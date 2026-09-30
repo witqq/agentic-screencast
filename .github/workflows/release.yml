@@ -78,7 +78,6 @@ jobs:
           gh release create "${RELEASE_TAG}" "${asset}" \
             --verify-tag \
             --generate-notes \
-            --notes "[Made with Moira](https://moira-mcp.com/)" \
             --title "agentic-screencast ${version}"
 
       - name: Report accepted asset identity

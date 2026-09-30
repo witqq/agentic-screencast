@@ -12,6 +12,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { parseTransition } from "../../transition.js";
 import { useLang } from "../../msg.js";
+import { renderScene } from "../../render.js";
 
 const require = createRequire(import.meta.url);
 const ffmpeg = require("ffmpeg-static") as string;
@@ -131,4 +132,20 @@ test("a morph names its element, and other transitions do not take one", () => {
   assert.throws(() => parseTransition('{"kind":"morph"}'), /names the element shared by both scenes/);
   assert.throws(() => parseTransition('{"kind":"cube","element":"#a"}'), /only a morph moves an element/);
   assert.equal(parseTransition('{"kind":"morph","element":"#total"}').element, "#total");
+});
+
+test("a missing or ambiguous morph target reports the count in the selected language", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-morph-count-"));
+  const source = join(dir, "page.html");
+  writeFileSync(source, '<!doctype html><body><div class="card">One</div><div class="card">Two</div></body>');
+  try {
+    for (const [lang, selector, expected] of [
+      ["en", ".missing", /morph target \.missing: expected one visible element, found 0/u],
+      ["ru", ".card", /цель morph \.card: ожидался один видимый элемент, найдено 2/u],
+    ] as const) {
+      useLang(lang);
+      await assert.rejects(renderScene({ page: source, duration: 1 },
+        { width: 320, height: 180, at: 0.5, morphTarget: selector }), expected);
+    }
+  } finally { useLang("en"); }
 });

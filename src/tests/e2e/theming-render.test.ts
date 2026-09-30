@@ -14,7 +14,10 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
 import { chromium, type Browser, type Page } from "playwright";
-import { THEMES, THEME_NAMES, type ThemeVars } from "../../theme.js";
+import { THEMES, themeVariants, type ThemeVars } from "../../theme.js";
+
+/** Каждая тема в каждой своей схеме: слой рисуется по набору, а не по имени. */
+const VARIANTS = themeVariants().map((v) => ({ label: `${v.name} ${v.scheme}`, theme: v.name, scheme: v.scheme, vars: v.vars }));
 import { parseOverlay } from "../../overlay.js";
 import { generateFrom } from "../../generate.js";
 import { rawOf } from "../support.js";
@@ -151,7 +154,8 @@ test("text colour probe reads a glyph instead of a changing background", async (
 function contrast(name: string, token: string): void {
   if (THEMES.midnight![token] === THEMES.daylight![token]) return;
   const m = seen.get(name)!;
-  assert.ok(far(m.get("midnight")!, m.get("daylight")!) > 20, `${name}: midnight and daylight draw different colours (${m.get("midnight")} vs ${m.get("daylight")})`);
+  const [dark, light] = [m.get("midnight dark") ?? m.get("midnight"), m.get("daylight light") ?? m.get("daylight")];
+  assert.ok(far(dark!, light!) > 20, `${name}: midnight and daylight draw different colours (${dark} vs ${light})`);
 }
 
 const PAGE = `<!doctype html><html><body style="margin:0;background:#7f7f7f">
@@ -168,8 +172,7 @@ test("the overlay — cards, lower thirds, callouts, badges, titles, subtitles, 
   const titled = parseOverlay(JSON.stringify({ titles: [{ at: 0.2, text: "Big claim", style: "rise", position: "center", hold: 20 }] }));
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const theme = THEMES[name]!;
+    for (const { label: name, vars: theme } of VARIANTS) {
       const base = { duration: 12, beats: 1, theme, starts: [0], spoken: [10], captionStyle: "karaoke", captionLook: "plate", captionEverywhere: true,
         beatTexts: ["Every word lights up while it is spoken"], effects: { cursor: { hidden: true } } };
       const p = await mountStage(browser, PAGE, { ...base, overlay }, 3.2);
@@ -225,7 +228,7 @@ test("the overlay — cards, lower thirds, callouts, badges, titles, subtitles, 
 });
 
 /** Сценарий со всеми восемнадцатью видами слайдов в названной теме и материалы к нему. */
-function slidesStory(theme: string): string {
+function slidesStory(theme: string, scheme?: string): string {
   const dir = mkdtempSync(join(tmpdir(), "sc-tr-slides-"));
   // Снимок: ровное серое поле с синей полосой сверху — по нему видно, чем его закрасил вид.
   execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=0x808080:s=1600x1000", "-vf",
@@ -236,7 +239,7 @@ lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
 frame: {"width":1280,"height":720,"fps":25,"scale":1}
 theme: ${theme}
-
+${scheme ? `scheme: ${scheme}\n` : ""}
 ## chapter · slides.chapter
 kicker: CHAPTER
 title: A chapter opens
@@ -373,8 +376,8 @@ test("every slide kind and the device frames draw with their theme's tokens in e
   ];
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const g = generateFrom(slidesStory(name));
+    for (const { label: name, theme: themeName, scheme } of VARIANTS) {
+      const g = generateFrom(slidesStory(themeName, scheme));
       const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ id: string; effects?: unknown }>; theme: ThemeVars };
       const mount = async (id: string, at = 6.5): Promise<Page> => mountStage(browser, g.pages[id]!,
         { duration: 8, beats: 0, theme: pitch.theme, effects: pitch.scenes.find((s) => s.id === id)!.effects }, at);
@@ -411,8 +414,7 @@ test("confetti, sparks and the glint take their colours from the theme in every 
   }));
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const theme = THEMES[name]!;
+    for (const { label: name, vars: theme } of VARIANTS) {
       const p = await mountStage(browser, PAGE, { duration: 12, beats: 0, theme, overlay, effects: { cursor: { hidden: true } } }, 1.35);
       const f = decode(await p.screenshot(), W);
       // Частицы: у каждого цвета темы считаются точки кадра рядом с ним.
@@ -427,7 +429,8 @@ test("confetti, sparks and the glint take their colours from the theme in every 
       await p.evaluate(() => window.__clock.seek(4.9));
       const before = decode(await p.screenshot(), W).px(880, 315);
       let moved: RGB = before, best = 0;
-      for (const t of [5.45, 5.55, 5.65, 5.75]) {
+      // Полоса блика узкая: шаг выборки мельче её прохода, иначе пик попадает между выборками.
+      for (let t = 5.4; t <= 5.8 + 1e-9; t += 0.025) {
         await p.evaluate((tt) => window.__clock.seek(tt), t);
         const c = decode(await p.screenshot(), W).px(880, 315);
         if (far(c, before) > best) { best = far(c, before); moved = c; }
@@ -453,23 +456,25 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
   const a = frames("a", A), b = frames("b", B);
   const mid = [0, 1, 2].map((k) => (A[k]! + B[k]!) / 2) as RGB;
   const clampAdd = (base: RGB, add: RGB, k: number): RGB => base.map((v, i) => Math.min(255, v + add[i]! * k)) as RGB;
-  for (const name of THEME_NAMES) {
-    const theme = THEMES[name]!;
+  for (const { label: name, vars: theme } of VARIANTS) {
     const run = async (kind: string): Promise<(x: number, y: number) => RGB> => {
       const got = await renderTransition({ kind, a, b, width: TW, height: TH, out: join(dir, `${name}-${kind}`), theme });
       assert.equal(got.renderer, "webgl");
       return decode(readFileSync(got.frames[4]!), TW).px; // прогресс 4,5/8 ≈ 0,56
     };
-    // Вспышка: в пятне утечки света (0,3; 0,35) к смеси сцен прибавлен свет темы.
-    const flash = await run("flash");
-    const p = 4.5 / 8, glow = Math.exp(-(((p - 0.5) / 0.16) ** 2)), s = Math.min(1, Math.max(0, (p - 0.42) / 0.16)), mixK = s * s * (3 - 2 * s);
-    const base = [0, 1, 2].map((k) => A[k]! * (1 - mixK) + B[k]! * mixK) as RGB;
-    check(name, "flash light", "--tr-flash", { got: flash(TW * 0.3, TH * 0.35), want: clampAdd(base, hexRgb(theme["--tr-flash"]!), glow * 1.15) }, 12);
-    // Шов шторки и кольцо диафрагмы: самая светлая точка строки — середина смеси плюс свет темы.
-    for (const [kind, token, amp] of [["wipe", "--tr-seam", Math.sin(Math.PI * p)], ["iris", "--tr-iris", Math.sin(Math.PI * p)]] as const) {
+    // Засветка: в середине пятна (оно идёт слева направо, на прогрессе p — в точке mix(-0.25, 1.25, p))
+    // к кадру прибавлен свет темы экраном: A + свет · (1 − A), свет — вспышка темы и немного кольца.
+    const leak = await run("leak");
+    const p = 4.5 / 8, g = Math.exp(-(((p - 0.5) / 0.26) ** 2)), cx = -0.25 + 1.5 * p;
+    const spot = 1 + 0.6 * Math.exp(-(0.45 ** 2 + 0.35 ** 2) * 5);
+    const fl = hexRgb(theme["--tr-flash"]!), ir = hexRgb(theme["--tr-iris"]!);
+    const lit = [0, 1, 2].map((k) => Math.round(A[k]! + ((fl[k]! / 255) * spot * 0.8 + (ir[k]! / 255) * 0.15) * g * (255 - A[k]!))) as RGB;
+    check(name, "leak light", "--tr-flash", { got: leak(TW * cx, TH * 0.3), want: lit.map((v) => Math.min(255, v)) as RGB }, 14);
+    // Шов шторки и кольцо круглой маски: самая светлая точка полосы вокруг середины — середина смеси плюс свет темы.
+    for (const [kind, token, amp] of [["wipe", "--tr-seam", Math.sin(Math.PI * p)], ["mask", "--tr-iris", Math.sin(Math.PI * p)]] as const) {
       const px = await run(kind);
       let best: RGB = [0, 0, 0];
-      for (let x = 0; x < TW; x++) { const c = px(x, TH / 2); if (c[0] + c[1] + c[2] > best[0] + best[1] + best[2]) best = c; }
+      for (let y = TH / 2 - 20; y < TH / 2 + 20; y++) for (let x = 0; x < TW; x++) { const c = px(x, y); if (c[0] + c[1] + c[2] > best[0] + best[1] + best[2]) best = c; }
       check(name, `${kind} light`, token, { got: best, want: clampAdd(mid, hexRgb(theme[token]!), amp) }, 16);
     }
     // Просветы между гранями: у куба над поворачивающейся гранью — заливка темы, а не чёрный.
@@ -477,7 +482,7 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
     check(name, "cube gap", "--tr-fill", { got: cube(TW * 0.05, 1), want: hexRgb(theme["--tr-fill"]!) }, 6);
   }
   // Переходы без своего цвета: каждая точка середины — в пределах цветов двух сцен по каждому каналу.
-  for (const kind of ["dissolve", "zoom-blur", "ripple", "glitch", "whip"]) {
+  for (const kind of ["dots", "zoom", "pixelate", "glitch", "whip"]) {
     const got = await renderTransition({ kind, a, b, width: TW, height: TH, out: join(dir, `plain-${kind}`), theme: THEMES.synthwave! });
     const px = decode(readFileSync(got.frames[4]!), TW).px;
     for (let y = 0; y < TH; y += 7) for (let x = 0; x < TW; x += 7) {
@@ -485,15 +490,14 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
       for (let k = 0; k < 3; k++) assert.ok(c[k]! >= Math.min(A[k]!, B[k]!) - 4 && c[k]! <= Math.max(A[k]!, B[k]!) + 4, `${kind} adds no colour of its own (${c} at ${x},${y})`);
     }
   }
-  for (const [n, token] of [["flash light", "--tr-flash"], ["cube gap", "--tr-fill"]] as const) contrast(n, token);
+  for (const [n, token] of [["leak light", "--tr-flash"], ["cube gap", "--tr-fill"]] as const) contrast(n, token);
 });
 
 test("the perspective screen's glint and the live backgrounds wear their theme in every theme", async () => {
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const theme = THEMES[name]!;
-      const g = generateFrom(slidesStory(name));
+    for (const { label: name, theme: themeName, scheme, vars: theme } of VARIANTS) {
+      const g = generateFrom(slidesStory(themeName, scheme));
       const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ id: string; effects?: unknown }>; theme: ThemeVars };
       // Блик по экрану в перспективе: самая светлая точка серого снимка (0,5) — снимок плюс блик темы
       // силы --pv-glint-strength: 0,5 + сила · цвет блика по каждому каналу.
@@ -518,7 +522,7 @@ test("the perspective screen's glint and the live backgrounds wear their theme i
       // Тема вписывается в страницу при порождении (живой фон на холсте читает её при загрузке), поэтому
       // замена токена идёт через шапку сценария, как у автора ролика.
       const meanOf = async (spec: string): Promise<RGB> => {
-        const gg = generateFrom(slidesStory(spec));
+        const gg = generateFrom(slidesStory(spec, scheme));
         const pp = JSON.parse(readFileSync(gg.pitchFile, "utf8")) as { scenes: Array<{ id: string; effects?: unknown }>; theme: ThemeVars };
         const pg = await mountStage(browser, gg.pages.hero!, { duration: 8, beats: 0, theme: pp.theme, effects: pp.scenes.find((s) => s.id === "hero")!.effects }, 4);
         const f = decode(await pg.screenshot(), W);
@@ -527,10 +531,10 @@ test("the perspective screen's glint and the live backgrounds wear their theme i
         await pg.context().close();
         return sum.map((v) => v / n) as RGB;
       };
-      const mean = await meanOf(name);
+      const mean = await meanOf(themeName);
       const l1 = (x: RGB, y: RGB): number => Math.abs(x[0] - y[0]) + Math.abs(x[1] - y[1]) + Math.abs(x[2] - y[2]);
       assert.ok(l1(mean, hexRgb(theme["--bg"]!)) <= 45, `${name} · live background (${theme["--bg-motion"]}): mean ${mean.map(Math.round)} is near the theme's --bg ${theme["--bg"]}`);
-      const green = await meanOf(JSON.stringify({ preset: name, "--bg": "#00a000" }));
+      const green = await meanOf(JSON.stringify({ preset: themeName, "--bg": "#00a000" }));
       const target: RGB = [0, 160, 0];
       assert.ok(l1(green, target) < l1(mean, target) - 60, `${name} · live background follows --bg: ${mean.map(Math.round)} → ${green.map(Math.round)}`);
     }
@@ -552,8 +556,7 @@ test("the progress bar, chapter labels, the presenter ring and the loupe ring dr
   const FW = 640, FH = 360;
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const theme = THEMES[name]!;
+    for (const { label: name, theme: themeName, scheme, vars: theme } of VARIANTS) {
       const dir = mkdtempSync(join(tmpdir(), "sc-tr-film-"));
       writeFileSync(join(dir, "page.html"), `<!doctype html><html><body style="margin:0;background:#808080">
 <div id="t" style="position:absolute;left:260px;top:120px;width:120px;height:80px;background:#606060"></div></body></html>`);
@@ -562,7 +565,8 @@ test("the progress bar, chapter labels, the presenter ring and the loupe ring dr
 lang: en
 voice: {"engine":"stub","name":"silent","cps":15}
 frame: {"width":${FW},"height":${FH},"fps":10,"scale":1}
-theme: ${name}
+theme: ${themeName}
+scheme: ${scheme}
 progress: {"position":"bottom"}
 pip: {"file":"face.mp4","size":0.2}
 
@@ -608,11 +612,10 @@ test("a live take draws its cursor, click, key caps, card and spotlight in the t
   const CW = 1280, CH = 720;
   const browser = await chromium.launch();
   try {
-    for (const name of THEME_NAMES) {
-      const theme = THEMES[name]!;
+    for (const { label: name, theme: themeName, scheme, vars: theme } of VARIANTS) {
       const dir = mkdtempSync(join(tmpdir(), "sc-tr-take-"));
       const out = join(dir, "take.webm");
-      await recordTake({ output: out, viewport: { width: CW, height: CH }, theme: name,
+      await recordTake({ output: out, viewport: { width: CW, height: CH }, theme: { preset: themeName, scheme },
         prepare: async (page) => { await page.setContent(`<body style="margin:0;background:#ffffff">
 <button id="b" style="position:absolute;left:560px;top:300px;width:160px;height:60px">Go</button>
 <input id="i" style="position:absolute;left:560px;top:420px;width:160px;height:30px"></body>`); } },
@@ -629,8 +632,8 @@ test("a live take draws its cursor, click, key caps, card and spotlight in the t
         take.mark("focused");
         await take.page.waitForTimeout(600);
       });
-      const marks = JSON.parse(readFileSync(`${out}.marks.json`, "utf8")) as { marks: Record<string, number>; clicks: Array<{ t: number; x: number; y: number }>; theme: { name?: string } };
-      assert.equal(marks.theme.name, name, `${name}: the take records its theme (${JSON.stringify(marks.theme)})`);
+      const marks = JSON.parse(readFileSync(`${out}.marks.json`, "utf8")) as { marks: Record<string, number>; clicks: Array<{ t: number; x: number; y: number }>; theme: { name?: string; scheme?: string } };
+      assert.equal(`${marks.theme.name} ${marks.theme.scheme}`, name, `${name}: the take records its theme and scheme (${JSON.stringify(marks.theme)})`);
       const frame = (t: number): ReturnType<typeof decode> => decode(execFileSync(ffmpeg, ["-loglevel", "error", "-ss", String(Math.max(0, t)), "-i", out,
         "-frames:v", "1", "-f", "image2pipe", "-vcodec", "png", "-"]), CW);
       /** Ближайшая к цвету точка в прямоугольнике — есть ли там этот цвет. */

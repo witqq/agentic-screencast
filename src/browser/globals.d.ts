@@ -25,7 +25,7 @@ interface StageFocus {
   at?: StageWhen;
 }
 
-interface StageOverlayPoint { at: number; x: number; y: number; click?: boolean }
+interface StageOverlayPoint { at: number; x: number; y: number; click?: boolean; magnet?: string; drag?: string }
 interface StageOverlayCard {
   at: number; title: string; body?: string;
   position?: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "near-focus";
@@ -55,7 +55,17 @@ interface StageOverlay {
   pointer?: StageOverlayPoint[]; cards?: StageOverlayCard[]; camera?: StageCamera[];
   titles?: StageTitle[]; lower?: StageLower[]; callouts?: StageCallout[]; stickers?: StageSticker[];
   marks?: StageMark[]; glints?: StageGlint[]; bursts?: StageBurst[];
+  boops?: StageBoop[]; pings?: StagePing[]; toasts?: StageToast[];
+  actions?: StageAction[]; torch?: StageTorch[]; thinking?: StageThinking[];
+  ease?: "standard" | "emphasized" | "expressive" | "spring" | "bouncy";
 }
+interface StageBoop { at: number; target: string; kind: "pop" | "shake" | "jelly" | "nod" | "pulse"; hold?: number }
+interface StagePing extends StageAnchor { at: number; hold?: number }
+interface StageToast { at: number; title: string; body?: string; icon?: string; hold?: number }
+interface StageAction { at: number; target: string; kind: "toggle" | "tab" | "open" | "close" | "class" | "reorder";
+  class?: string; order?: number[]; glide?: string }
+interface StageTorch { at: number; hold: number; size?: number }
+interface StageThinking extends StageAnchor { at: number; hold: number; text?: string; lines?: number }
 
 interface StageScene {
   id?: string;
@@ -68,6 +78,8 @@ interface StageScene {
   beats?: number;
   /** начала тактов в секундах, измеренные сборкой по звуку */
   starts?: number[];
+  /** доли музыки ролика, попавшие в сцену, в секундах сцены: по ним бьёт фраза `beat` */
+  musicBeats?: number[];
   /** оформление ролика: пары «переменная — значение» */
   theme?: Record<string, string>;
   /** эмодзи сцены картинками из поставляемого набора: знак → data-URI */
@@ -124,7 +136,14 @@ interface StageApi {
   /** кегль самого мелкого видимого текста цели в точках экрана; null — цели нет или в ней нет текста */
   fontPx(sel: string): number | null;
   cutText(sel: string): string[];
+  shown(sel: string): boolean;
   smallText(min: number): Array<{ text: string; px: number }>;
+  /** самый длинный кусок субтитра в строках, как он лёг в кадре */
+  captionLines(): { lines: number; text: string };
+  /** текст страницы за безопасной зоной ленты в кадре как есть */
+  outsideSafe(safe: { top: number; bottom: number; left: number; right: number }): Array<{ text: string; side: string }>;
+  /** текст, видимый в кадре сейчас: страница и слой */
+  visibleText(): string;
   /** верх полосы, отведённой субтитрам или плашке подписи, в точках кадра; без них — высота кадра */
   floor(): number;
   readonly scene: StageScene | null;

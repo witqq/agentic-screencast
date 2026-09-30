@@ -155,8 +155,11 @@ test("on every slide kind the kicker, the title and the content start on one lef
         const edges = await p.evaluate((sels) => {
           // Край на экране относительно левого края поля: вписанный слайд уменьшен (\`zoom\`), и
           // смещения родителей там в разных масштабах, поэтому меряется видимое положение.
-          // Движение (дрейф камеры, плавание, въезд) — не вёрстка: трансформации сняты на время замера.
-          for (const n of document.querySelectorAll<HTMLElement>("body, body *")) n.style.transform = "none";
+          // Движение (дрейф камеры, плавание, въезд) — не вёрстка: трансформации сняты на время замера,
+          // и отдельные свойства тоже — облёт классических слайдов идёт свойством `translate`.
+          for (const n of document.querySelectorAll<HTMLElement>("body, body *")) {
+            n.style.transform = "none"; n.style.translate = "none"; n.style.rotate = "none"; n.style.scale = "none";
+          }
           const padL = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--pad-l"));
           const box = (document.querySelector(".k-in") ?? document.body) as HTMLElement;
           const br = box.getBoundingClientRect(), k = br.width / (box.offsetWidth || 1);

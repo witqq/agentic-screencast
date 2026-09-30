@@ -1,8 +1,12 @@
 {
   "name": "agentic-screencast",
-  "version": "1.3.0",
+  "version": "2.0.0",
   "type": "module",
   "description": "A video-building CLI for AI agents: declarative scenarios, narration, reproducible frames and MP4 output.",
+  "author": {
+    "name": "wit_qq",
+    "url": "https://github.com/witqq"
+  },
   "keywords": [
     "screencast",
     "video",
@@ -35,15 +39,15 @@
     "access": "public"
   },
   "scripts": {
-    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.json && tsc -p tsconfig.browser.json && node scripts/embed-theme.mjs && vite build && node -e \"require('fs').cpSync('src/rules','dist/rules',{recursive:true})\" && node -e \"require('fs').chmodSync('dist/agentic-screencast.js', 0o755)\"",
+    "build": "node scripts/clean.mjs dist && tsc -p tsconfig.json && node -e \"require('fs').cpSync('assets/palettes','dist/palettes',{recursive:true})\" && tsc -p tsconfig.browser.json && node scripts/embed-theme.mjs && vite build && node -e \"require('fs').cpSync('src/rules','dist/rules',{recursive:true})\" && node -e \"require('fs').chmodSync('dist/agentic-screencast.js', 0o755)\"",
     "prepare": "npm run build",
     "types": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.browser.json --noEmit",
     "lint": "oxlint src scripts --deny-warnings",
-    "unit": "node --test --test-timeout=900000 dist/tests/unit/*.test.js",
-    "e2e:tests": "node --test --test-timeout=900000 dist/tests/e2e/*.test.js",
+    "unit": "node --import ./dist/tests/locale.js --test --test-timeout=900000 dist/tests/unit/*.test.js",
+    "e2e:tests": "node --import ./dist/tests/locale.js --test --test-timeout=900000 dist/tests/e2e/*.test.js",
     "e2e": "npm run build && npm run e2e:tests && npm run suite && npm run site:check",
-    "suite": "node dist/tests/suite.js",
-    "matrix:transitions": "node dist/tests/transitions-matrix.js",
+    "suite": "node --import ./dist/tests/locale.js dist/tests/suite.js",
+    "matrix:transitions": "node --import ./dist/tests/locale.js dist/tests/transitions-matrix.js",
     "check": "node dist/agentic-screencast.js check",
     "verify": "node dist/agentic-screencast.js verify",
     "voices": "node dist/agentic-screencast.js voices",
@@ -90,6 +94,8 @@
     "docs/visual-assets.md",
     "docs/visual-design.md",
     "docs/sound.md",
+    "docs/motion-design.md",
+    "docs/theme-tokens.md",
     "example/story.md",
     "example/agent-video.md",
     "example/kinetic-video.md",
@@ -113,10 +119,18 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.0",
-    "agentic-report": "0.17.0",
+    "agentic-report": "0.20.0",
     "ajv": "8.20.0",
     "oxlint": "1.80.0",
     "typescript": "7.0.2",
     "vite": "8.2.2"
+  },
+  "peerDependencies": {
+    "agentic-report": ">=0.20.0"
+  },
+  "peerDependenciesMeta": {
+    "agentic-report": {
+      "optional": true
+    }
   }
 }

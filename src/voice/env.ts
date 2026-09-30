@@ -10,6 +10,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { msg } from "../msg.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -41,5 +42,5 @@ export function envKey(name: string): string {
       return line.slice(name.length + 1).trim().replace(/^["']|["']$/g, "");
     }
   }
-  throw new Error(`нет ключа ${name}: положите его в окружение или в .env проекта`);
+  throw new Error(msg("voice.noKey", { name }));
 }

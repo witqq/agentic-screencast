@@ -24,6 +24,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { assetsForCheck } from "./stage-assets.js";
+import { msg } from "./msg.js";
 
 // Слой композиции нужен и здесь: моменты появления записаны ЯКОРЯМИ
 // (`b2`, `40%`), и разрешает их он. Без него в разметке лежали бы строки,
@@ -35,7 +36,7 @@ const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8");
 
 const file = process.argv[2];
 if (!file) {
-  console.error("order-check.js <файл-сцен.json>");
+  console.error(msg("orderCheck.usage"));
   process.exit(2);
 }
 const pitch = JSON.parse(readFileSync(file, "utf8"));

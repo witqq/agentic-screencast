@@ -19,7 +19,9 @@ const still = {
   fade: { in: 0.3, out: 0.3 },
 };
 
-const common = ["kicker", "title", "at", "note", "background", "text", "enter", "align"];
+// `note` (приписка под слайдом) рисуют сравнение, цепочка, цитата и виды с цифрами (источник
+// цифр) — у остальных видов поле отвергается разбором, а не пропадает молча.
+const common = ["kicker", "title", "at", "background", "text", "enter", "align", "alive", "glow", "ease", "wave", "stagger", "swap", "pace"];
 /** Новые виды держат кадр в движении целиком: облёт, наезд или покой. */
 const staged = [...common, "move"];
 
@@ -52,6 +54,7 @@ export const KINDS: Record<string, KindSpec> = {
     required: [["title"], ["body"]],
     silentOk: true,
     chapterFrom: ["kicker", "title"],
+    arrival: true,
     // Заставка набирает заголовок с 0,7 с и текст с 2,4 с (Slide.tsx), если у неё не задан
     // кинетический текст (`text`).
     typing: [{ field: "title", from: 0.7, cps: 22, unless: "text" }, { field: "body", from: 2.4, cps: 34, unless: "text" }],
@@ -60,21 +63,21 @@ export const KINDS: Record<string, KindSpec> = {
   },
   compare: {
     about: "a comparison in two columns: without and with, «Title (bad|good|plain) :: text | item»",
-    fields: [...common, "left", "right"],
+    fields: [...common, "note", "left", "right"],
     required: [["left"], ["right"]],
     effects: still,
     check,
   },
   chain: {
     about: "a chain of nodes joined by arrows, with a line about what goes back",
-    fields: [...common, "nodes", "back"],
+    fields: [...common, "note", "nodes", "back"],
     required: [["nodes"]],
     effects: still,
     check,
   },
   number: {
     about: "a large number with its label; several side by side, tags below",
-    fields: [...common, "value", "label", "values", "tags", "count"],
+    fields: [...common, "note", "value", "label", "values", "tags", "count"],
     required: [["values", "value"]],
     numbers: true,
     effects: still,
@@ -82,14 +85,14 @@ export const KINDS: Record<string, KindSpec> = {
   },
   quote: {
     about: "a verbatim quote of a real answer, in parts «label :: text»",
-    fields: [...common, "parts"],
+    fields: [...common, "note", "parts"],
     required: [["parts"]],
     effects: still,
     check,
   },
   hero: {
-    about: "opening statement: a headline that rises word by word over a live background, optional picture behind it",
-    fields: [...staged, "body", "image"],
+    about: "opening statement: a headline that rises word by word over a live background, optional picture behind it; fill pours a picture into the letters of the headline",
+    fields: [...staged, "body", "image", "fill"],
     required: [["title"]],
     silentOk: true,
     chapterFrom: ["kicker", "title"],
@@ -120,7 +123,7 @@ export const KINDS: Record<string, KindSpec> = {
   },
   counter: {
     about: "figures that roll up like an odometer, a ring for percentages: «1200+ :: label | 98% :: label»",
-    fields: [...staged, "values", "value", "count"],
+    fields: [...staged, "note", "values", "value", "count", "spark"],
     required: [["values", "value"]],
     numbers: true,
     effects: still,
@@ -151,8 +154,8 @@ export const KINDS: Record<string, KindSpec> = {
     check,
   },
   chart: {
-    about: "a bar or line chart drawn from a CSV «label,value» beside the scenario: bars grow, a line draws itself, the peak lights up",
-    fields: [...staged, "data", "type", "peak"],
+    about: "a bar or line chart drawn from a CSV «label,value» beside the scenario: bars grow, a line draws itself, the peak lights up; type: race runs a bar chart race over the periods of a CSV «name,2020,2021,…»",
+    fields: [...staged, "note", "data", "type", "peak"],
     required: [["data"]],
     numbers: true,
     silentOk: true,
@@ -185,10 +188,106 @@ export const KINDS: Record<string, KindSpec> = {
     effects: still,
     check: { ...check, body: 16 },
   },
+  // Живые виды: кадр держит движение, пока идёт речь, — лента едет, стопка листается,
+  // орбита вращается, чат пишет (docs/motion-design.md, «Effect vocabulary»).
+  marquee: {
+    about: "an endless strip of logos or short labels that runs sideways, one row or two in opposite directions: «🟣 Linear | 🟢 Notion | …» — \"many use it and the list goes on\"",
+    fields: [...staged, "items", "rows", "speed"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  stack: {
+    about: "a deck of cards: the top one flies off on each beat and the deck springs forward: «Title :: text | …» — one at a time, the rest waiting",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  orbit: {
+    about: "icons circling the product on one or two orbits around the centre (kicker and title in the middle): «🟣 Linear | 🟢 Notion | …» — integrations, an ecosystem",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  chat: {
+    about: "a conversation that writes itself: bubbles pop in turn, before each answer the assistant shows «Thinking…» with a sheen running over it and skeleton bars: «you :: question | bot :: answer | …»",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  carousel: {
+    about: "cards standing in a real 3D ring that turns to bring the next card forward on each beat: «🚀 Title :: text | …» — a whole set with no start or end",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  globe: {
+    about: "a WebGL globe of dots that turns; from the first city arcs fly to the others in turn and ping where they land: «Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | …» (latitude longitude)",
+    fields: [...staged, "items", "map"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  wall: {
+    about: "a wall of screenshots tilted in 3D, its columns sliding past each other with the title over it: «images: a.png | b.png | c.png | …» — the product is big, there are many screens",
+    fields: [...staged, "images"],
+    required: [["images"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  cloud: {
+    about: "labels or icons on a turning sphere, near ones large and bright, far ones small and dim: «🟣 Linear | 🟢 Notion | …» — everything revolves around the product, in depth",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  shell: {
+    about: "a terminal that works: commands type themselves after a prompt, a spinner turns, output appears line by line: «$ npm test :: ✔ 302 passed | …» — a developer product doing real work",
+    fields: [...staged, "items", "name"],
+    required: [["items"]],
+    silentOk: true,
+    effects: still,
+    check: { ...check, chars: 520, body: 22 },
+  },
+  layers: {
+    about: "an exploded view of a screenshot: its panels («x y w h @ depth | …») lift off in 3D, the camera tilts round the stack, and they settle back flat by the end",
+    fields: [...staged, "image", "panels"],
+    required: [["image"], ["panels"]],
+    silentOk: true,
+    effects: still,
+    check,
+  },
+  bento: {
+    about: "a bento grid: cells of different sizes, the first one large and the last ones wide so the grid closes, each tilting in from depth: «🚀 Title :: text | …» — what matters most gets the most room",
+    fields: [...staged, "items"],
+    required: [["items"]],
+    icons: "items",
+    silentOk: true,
+    effects: still,
+    check,
+  },
   // Кегль карты подбирается под ширину кадра, а не задаётся: пороги текста у неё свои.
   card: {
     about: "a trailer card: one to three words across the whole frame that slam in with a flash, a shake, a sheen over metal letters and rising sparks",
-    fields: ["title", "kicker", "at", "background"],
+    fields: ["title", "kicker", "at", "background", "fill"],
     required: [["title"]],
     trailer: true,
     silentOk: true,
@@ -210,6 +309,7 @@ export const KINDS: Record<string, KindSpec> = {
     fields: [...staged, "body", "cta", "url", "image"],
     required: [["title"]],
     silentOk: true,
+    arrival: true,
     effects: { ...still, fade: { in: 0.5, out: 0.9 } },
     check,
   },
@@ -224,7 +324,8 @@ for (const spec of Object.values(KINDS)) spec.moving = true;
 const SHOWN = ["title", "kicker", "body", "note", "items", "left", "right", "nodes", "back", "parts",
   "values", "value", "label", "tags", "cta", "data", "labels"];
 const STAGING = ["align", "at", "background", "code", "count", "cps", "device", "enter", "file", "highlight", "image",
-  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels"];
+  "lines", "move", "name", "point", "push", "text", "url", "type", "peak", "after", "split", "panels", "rows", "speed",
+  "images", "fill", "swap", "map", "pace", "alive", "glow", "ease", "wave", "stagger", "spark"];
 for (const spec of Object.values(KINDS)) {
   spec.shown = spec.fields.filter((f) => SHOWN.includes(f));
   spec.staging = spec.fields.filter((f) => STAGING.includes(f));

@@ -54,7 +54,7 @@ ${lines[1]}
     audit: { expected: { frames: number; partNames: string[] };
       measured: { video: { frames: number; duration: number }; audio: { duration: number };
         chapters: Array<{ name: string }> }; issues: Array<{ code: string }> };
-    warnings: string[];
+    warnings: unknown[];
   };
   assert.deepEqual(report.audit.expected.partNames, ["Opening", "Details"]);
   assert.equal(report.beats.length, 2);

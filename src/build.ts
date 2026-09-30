@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Сборщик: сценарий → озвучка → сегменты (с кэшем) → склейка.
 // Запуск: build.js --pitch pitch.json --out video.mp4 [--voice baya]
-import { FLASH_DEFAULT, SHAKE_DEFAULT, hitsFilter, type FilmHit, type Hit } from "./effects.js";
+import { FLASH_DEFAULT, RGB_DEFAULT, SHAKE_DEFAULT, hitsFilter, type FilmHit, type Hit } from "./effects.js";
 import { fitFilter, type Fit } from "./fit.js";
 import { renderScene, encode, DEFAULTS, ENCODE } from "./render.js";
 import { speechFor } from "./speech.js";
@@ -22,29 +22,36 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraFilter, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
+import { cameraPerspective, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
 import { chaptersOf, filmPass, subtitleMax, writeChapters, writeSrt, type FilmScene } from "./film.js";
 import { layerSafe } from "./part-label.js";
 import type { Captions, Pip, Progress, SceneMusic, SfxCue } from "./source.js";
-import { assembleVideo, timeline, transitionFrames } from "./assemble.js";
-import { mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
+import { assembleVideo, overlapFrames, timeline, transitionFrames } from "./assemble.js";
+import { beatsWithin, mixFilm, musicBeat, nextMusicBeat, type Music, type MusicCue, type Sfx } from "./mix.js";
 import { ensureEncodedPeak, EncodedPeakError } from "./encoded-audio.js";
 import { auditFilm } from "./film-audit.js";
-import { MORPH, type MorphInput, type Transition } from "./transition.js";
+import { AIMED, MASK, MORPH, isJoint, type MorphInput, type Transition } from "./transition.js";
 import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
 import { autoBand, bandShare } from "./capband.js";
+import { liveCamera } from "./live-camera.js";
 import { actionZoomCues, autoZoomCues, marksOf, trimMarks, type AutoZoom, type Trim } from "./marks.js";
-import { DEVICE_CSS, deviceLayout, deviceMarkup, type Device, type DeviceLayout } from "./device.js";
+import { DEVICE_CSS, deviceMarkup, deviceScene, type Device, type DeviceLayout } from "./device.js";
 import type { Look } from "./look.js";
 import type { Safe } from "./format.js";
 import { ffmpegColour, resolveTheme } from "./theme.js";
+import { finding, type Finding } from "./rules.js";
+import { flatShare } from "./lint.js";
+import { specOf } from "./source.js";
+import { topAtoms } from "./web.js";
 
 /** Порог читаемости текста в кадре — доля короткой стороны: 48 точек на кадре 1080 (docs/vertical-video.md). */
-const LEGIBLE_SHARE = 48 / 1080;
+// Порог читаемости цели фокуса — доля короткой стороны кадра. Ленту смотрят с телефона: 48 точек на
+// 1080. Широкий кадр смотрят на экране, и ему хватает порога основного текста слайда: 28 на 1080.
+const LEGIBLE_SHARE = 48 / 1080, LEGIBLE_SHARE_WIDE = 28 / 1080;
 // Нижняя граница читаемого второстепенного текста в вертикальном кадре (docs/vertical-video.md,
 // «Text»): 36 точек на 1080. Мельче неё сборка называет строки встроенного слайда.
 const SMALL_SHARE = 36 / 1080;
@@ -135,6 +142,7 @@ interface BuiltScene {
   captionsAt?: "bottom" | "top" | "middle" | "auto";
   flash?: Hit[];
   shake?: Hit[];
+  rgb?: Hit[];
   spotlight?: Spotlight[];
   /** контрольные кадры сцены */
   stills?: Still[];
@@ -154,6 +162,8 @@ interface BuiltScene {
   __autoZoom?: number;
   /** чем рисуется сцена-страница: нужно переходу общим элементом, чтобы снять её кадр без предмета */
   __render?: RenderScene;
+  /** слой видеосцены без клипа: по нему сборка читает надписи кадра для сверки заметок */
+  __layer?: RenderScene;
   [key: string]: unknown;
 }
 
@@ -361,8 +371,14 @@ async function main() {
     const wav = `${CACHE}/${key}.wav`;
     if (!existsSync(wav)) {
       try {
-        const said = await engineFor(base).synth(speech, base, wav);
-        writeFileSync(`${wav}.json`, JSON.stringify(said));
+        // Запись идёт во временный файл и встаёт на место переименованием: сборки вариантов идут
+        // параллельно в одном кэше, и соседняя читала недописанный файл («Invalid data»).
+        const part = `${CACHE}/${key}.${process.pid}-${Date.now()}.part.wav`;
+        try {
+          const said = await engineFor(base).synth(speech, base, part);
+          writeFileSync(`${wav}.json`, JSON.stringify({ ...said, file: wav }));
+          renameSync(part, wav);
+        } finally { rmSync(part, { force: true }); }
       } catch (e) {
         if ((e as { engineError?: boolean }).engineError) {
           console.error(String((e as Error).message));
@@ -376,8 +392,12 @@ async function main() {
     const f = 2 ** (pitch / 12);
     const shifted = `${CACHE}/${key}.pitch${pitch}.wav`;
     if (!existsSync(shifted)) {
-      execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", wav, "-af",
-        `asetrate=${Math.round(48000 * f)},aresample=48000,atempo=${(1 / f).toFixed(6)}`, "-ar", "48000", "-ac", "1", shifted]);
+      const part = `${CACHE}/${key}.pitch${pitch}.${process.pid}-${Date.now()}.part.wav`;
+      try {
+        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", wav, "-af",
+          `asetrate=${Math.round(48000 * f)},aresample=48000,atempo=${(1 / f).toFixed(6)}`, "-ar", "48000", "-ac", "1", part]);
+        renameSync(part, shifted);
+      } finally { rmSync(part, { force: true }); }
     }
     // Кто озвучил такт — тот же движок, что записал исходник: без этой пометки у сдвинутой записи
     // отчёт ключей говорил «неизвестно».
@@ -470,14 +490,7 @@ async function main() {
     const said = execFileSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
       "-of", "csv=p=0:s=x", src], { encoding: "utf8" }).trim();
     const [cw, ch] = said.split("x").map(Number);
-    const W = opts.width, H = opts.height;
-    const box = H > W ? { x: W * 0.05, y: H * 0.1, w: W * 0.9, h: H * 0.8 } : { x: W * 0.07, y: H * 0.08, w: W * 0.86, h: H * 0.84 };
-    const layout = deviceLayout(s.device, box, cw && ch ? cw / ch : undefined);
-    const sc = layout.screen;
-    const map = (a: [number, number, number, number]): [number, number, number, number] =>
-      [(sc.x + a[0] * sc.w) / W, (sc.y + a[1] * sc.h) / H, (a[2] * sc.w) / W, (a[3] * sc.h) / H];
-    const overlay = s.overlay ? { ...s.overlay, camera: s.overlay.camera?.map((c) => (c.area ? { ...c, area: map(c.area) } : c)) } : undefined;
-    return { layout, overlay, html: deviceMarkup(layout, { surround: { width: W, height: H } }) };
+    return deviceScene(s.device, cw && ch ? cw / ch : undefined, opts.width, opts.height, s.overlay);
   }
 
   // Время ролика, с которого начинается очередная сцена: переход сдвигает
@@ -488,6 +501,7 @@ async function main() {
   const weights: number[] = [];
   const slots: Array<Array<Record<string, unknown>>> = [];
   const t0 = Date.now();
+  const liveCameraFailed: Array<{ id: string; why: string }> = [];
   for (const s of pitch.scenes) {
     // Чужие сцены при одиночной сборке не озвучиваются и не рисуются:
     // за ключом сегмента нужны только имена соседей, а они известны
@@ -569,6 +583,19 @@ async function main() {
       } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
     }
+    // Наезд над живым дублем исполняет браузер: сборка переснимает дубль его же скриптом с камерой
+    // сцены, и сцена берёт пересъёмку уже без камеры по видео (live-camera.ts).
+    if (s.video && s.overlay?.camera?.length) {
+      const live = liveCamera(s, SRC, Boolean(pitch.reframe));
+      if (live.baked) {
+        s.page = live.page;
+        if (live.trim) s.trim = live.trim;
+        // Накладка из одной камеры после пересъёмки пуста, а пустая накладка — ошибка разбора.
+        const { camera: _baked, ...rest } = s.overlay;
+        s.overlay = Object.values(rest).some((v) => v !== undefined && !(Array.isArray(v) && !v.length)) ? rest : undefined;
+        if (live.recorded) process.stderr.write(msg("build.liveCamera", { id: s.id, file: live.page }) + "\n");
+      } else if ("failed" in live) liveCameraFailed.push({ id: s.id, why: live.failed });
+    }
     // Клип берётся уже переигранным: и длина сцены, и кадры считаются
     // по тому материалу, который попадёт в ролик.
     const clip = s.video ? clipOf(s) : "";
@@ -592,15 +619,19 @@ async function main() {
       s.overlay ? overlayEnd(s.overlay) + 0.25 : 0) * opts.fps);
     // Переход «в долю»: сцена продлевается до ближайшей доли музыки, чтобы
     // склейка пришлась на ритм. Сцена только растёт — речь не обрезается.
+    // Глаз ловит смену кадра на середине перехода, а ухо слышит долю на пару кадров позже, чем
+    // она звучит: поэтому на долю ставится середина перехода с упреждением в два кадра (pre-hit).
     if (into?.snap && pitch.music?.bpm && !only) {
-      const start = clock + frames / opts.fps - transitionFrames(into, opts.fps) / opts.fps;
-      const beat = nextMusicBeat(start, pitch.music.bpm, pitch.music.offset ?? 0);
-      frames += Math.round((beat - start) * opts.fps);
+      // Середина перехода с перекрытием — за половину перехода до конца сцены; у перехода на стыке — сам стык.
+      const half = overlapFrames(into, opts.fps) / opts.fps / 2, lead = 2 / opts.fps;
+      const middle = clock + frames / opts.fps - half;
+      const beat = nextMusicBeat(middle + lead, pitch.music.bpm, pitch.music.offset ?? 0);
+      frames += Math.round((beat - lead - middle) * opts.fps);
     }
     s.duration = frames / opts.fps;
     s.__spoken = spoken;
     s.__at = clock;
-    clock += s.duration - (into ? transitionFrames(into, opts.fps) / opts.fps : 0);
+    clock += s.duration - (into ? overlapFrames(into, opts.fps) / opts.fps : 0);
     // На стыке с переходом затемнения нет: переход сам ведёт из сцены в сцену.
     if ((s.transition && index > 0) || into) {
       const fx: Record<string, unknown> = Object.assign({}, s.effects);
@@ -681,9 +712,16 @@ async function main() {
           } }) });
       autoPlaces.push({ scene: s.id, position: captionPos });
     }
+    // Доли музыки внутри сцены, в секундах сцены, — только сцене, где фраза бьёт в долю (`beat`):
+    // они зависят от места сцены в ролике, и сцена без такой фразы не должна пересобираться,
+    // когда сдвигается от правки соседей.
+    const beatText = /"(?:style|reveal)":"beat"|data-kinetic="beat"/;
+    const pageText = !s.video && existsSync(resolve(SRC, String(s.page))) ? readFileSync(resolve(SRC, String(s.page)), "utf8") : "";
+    const musicBeats = pitch.music?.bpm && !only && (beatText.test(JSON.stringify(s.overlay ?? {})) || beatText.test(pageText))
+      ? beatsWithin(s.__at ?? 0, s.duration!, pitch.music.bpm, pitch.music.offset ?? 0) : undefined;
     // Всё, что слой знает о сцене сверх её данных: эмодзи, стикеры, стиль
     // подписи и речь по тактам для субтитров.
-    const stage = { emoji: assets.emoji, __stickers: assets.stickers, ...(stageSafe ? { safe: stageSafe } : {}),
+    const stage = { ...(musicBeats ? { musicBeats } : {}), emoji: assets.emoji, __stickers: assets.stickers, ...(stageSafe ? { safe: stageSafe } : {}),
       ...(pitch.captions?.style ? { captionStyle: pitch.captions.style } : {}),
       ...(pitch.captions?.everywhere ? { captionEverywhere: true } : {}),
       ...(pitch.captions?.size ? { subScale: pitch.captions.size } : {}),
@@ -693,6 +731,7 @@ async function main() {
     // Нарисованная сцена помнит, чем её рисовать: переход общим элементом снимает с неё
     // кадр без предмета уже после того, как сегмент готов (или взят из кэша).
     if (!s.video) s.__render = { ...s, stills: undefined, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme } as RenderScene;
+    else s.__layer = { ...s, stills: undefined, ...stage, __overlayOnly: true, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme } as RenderScene;
     // В ключ сегмента входят строки синтеза ВСЕХ тактов и их начала:
     // от первых зависит звук, от вторых — расписание картинки, и оба
     // обязаны пересобирать кадр.
@@ -707,7 +746,7 @@ async function main() {
       // клип, и без темы в ключе правка темы в шапке отдавала из кэша сегмент со старым слоем.
       __theme: s.theme ?? pitch.theme, __safe: stageSafe ?? null,
       __assets: assets.hash, __captions: pitch.captions ?? null, __reframe: reframe,
-      __bare: process.env.AGENTIC_SCREENCAST_BARE === "1" },
+      __bare: process.env.AGENTIC_SCREENCAST_BARE === "1", __musicBeats: musicBeats ?? null },
       neighbours, voice, opts, SRC);
     const seg = `${CACHE}/${key}.mp4`;
     // Сегмент пишется во временный файл и встаёт на место одним переименованием: две сборки с общим
@@ -720,11 +759,17 @@ async function main() {
     // середину окна занимает сама цель.
     const screenOverlay = (o: typeof s.overlay): typeof s.overlay => {
       if (!o) return o;
-      const { camera: _c, callouts: _l, stickers: _s, marks: _m, glints: _g, bursts: _b, ...rest } = o;
+      // Всё, что ищет предмет на странице (отклик, действие, перенос, магнит, скелетон на предмете),
+      // живёт в предметной половине: экранная рисуется над пустой страницей, и селектор там не найти.
+      const { camera: _c, callouts: _l, stickers: _s, marks: _m, glints: _g, bursts: _b, boops: _o, actions: _a, ...rest } = o;
+      const thinking = o.thinking?.filter((k) => !k.target && !k.area);
       const kept = { ...rest,
+        ...(o.pointer ? { pointer: o.pointer.map(({ drag: _d, magnet: _g2, ...p }) => p) } : {}),
+        ...(o.thinking ? { thinking: thinking?.length ? thinking : undefined } : {}),
         ...(o.cards ? { cards: o.cards.map((c) => (c.position === "near-focus" ? { ...c, position: "top-left" as const } : c)) } : {}) };
       // Слой без единого экранного примитива — не слой: разбор такой накладки отвергает.
-      return (kept.cards?.length || kept.titles?.length || kept.lower?.length || kept.pointer?.length) ? kept : undefined;
+      return (kept.cards?.length || kept.titles?.length || kept.lower?.length || kept.pointer?.length || kept.toasts?.length
+        || kept.thinking?.length) ? kept : undefined;
     };
     // Лупы сцены: момент и предмет. Прямоугольник предмета на странице меряет рендер (он
     // знает вёрстку), у видео — доли кадра. Лупа ложится на готовый сегмент.
@@ -744,13 +789,34 @@ async function main() {
     // готового кадра. Порог — доля короткой стороны кадра (LEGIBLE_SHARE): 48 точек на 1080.
     const legibleProbes = (s.overlay?.camera ?? []).filter((c) => c.target)
       .map((c) => ({ t: Number((c.at + (c.move ?? 0.9) + c.hold / 2).toFixed(3)), target: c.target! }));
-    const legibleMin = Math.round(Math.min(opts.width, opts.height) * LEGIBLE_SHARE);
+    const wide = opts.width > opts.height;
+    const legibleMin = Math.round(Math.min(opts.width, opts.height) * (wide ? LEGIBLE_SHARE_WIDE : LEGIBLE_SHARE));
     let legibleGot: Array<{ t: number; target: string; px: number | null }> = [];
     let cutsGot: Array<{ t: number; target: string; text: string[] }> = [];
-    // Мелкий текст встроенного слайда в вертикальном кадре — вся страница, когда элементы вошли.
-    const smallProbe = s.provider === "slides" && opts.height > opts.width
-      ? { t: Number((s.duration! * 0.9).toFixed(3)), min: Math.round(opts.width * SMALL_SHARE) } : undefined;
+    // Цель фокуса обязана быть на экране, когда камера к ней приходит: пункт слайда до своего
+    // момента скрыт, и камера шла к пустому месту.
+    const unseenProbes = (s.overlay?.camera ?? []).filter((c) => c.target)
+      .map((c) => ({ t: Number((c.at + (c.move ?? 0.9)).toFixed(3)), target: c.target! }));
+    let unseenGot: Array<{ t: number; target: string }> = [];
+    // Мелкий текст в вертикальном кадре — вся страница, когда элементы вошли: у встроенного слайда
+    // строки от 36 точек на 1080, у своей страницы автора — от 48, как любой текст, который читают
+    // на телефоне (у слайда вёрстка своя и разреженная, у страницы — чужая и плотная).
+    const smallProbe = (s.provider === "slides" || s.provider === "page") && opts.height > opts.width
+      ? { t: Number((s.duration! * 0.9).toFixed(3)), min: Math.round(opts.width * (s.provider === "page" ? LEGIBLE_SHARE : SMALL_SHARE)) } : undefined;
     let smallGot: Array<{ text: string; px: number }> = [];
+    // Текст за безопасной зоной ленты: на серединах удержаний камеры и у конца сцены, когда всё вошло.
+    const unsafeProbe = stageSafe && pitch.safe && !s.video
+      ? { times: [...new Set([...(s.overlay?.camera ?? []).map((c) => Number((c.at + (c.move ?? 0.9) + c.hold / 2).toFixed(3))),
+        Number((s.duration! * 0.9).toFixed(3))])].filter((t) => t < s.duration!), safe: stageSafe } : undefined;
+    let outsideGot: Array<{ t: number; text: string; side: string }> = [];
+    // Кусок субтитра, легший больше чем в две строки, — по отрисованному кадру, в любом пути рендера.
+    let linesGot = { lines: 0, text: "" };
+    const draw: typeof renderScene = async (...a) => {
+      const r = await renderScene(...a);
+      if ((r.captionLines?.lines ?? 0) > linesGot.lines) linesGot = r.captionLines!;
+      if (r.outside?.length) outsideGot = r.outside;
+      return r;
+    };
     const geometry = (items: LoupeAt[], frame: { width: number; height: number }, cams: Array<{ at: number; scale: number; rect: Rect }>): Record<string, unknown> => {
       const lens = items.flatMap(({ loupe, rect, floor }) => {
         const g = loupeLayout(loupe, rect, frame, floor);
@@ -764,9 +830,10 @@ async function main() {
       });
       const legibility = legibleGot.filter((l) => l.px !== null).map((l) => ({ at: l.t, target: l.target, px: l.px!, min: legibleMin }));
       const cut = cutsGot.map((c) => ({ at: c.t, target: c.target, text: c.text }));
+      const unseenAt = unseenGot.map((u) => ({ at: u.t, target: u.target }));
       const small = smallGot.length ? { at: smallProbe!.t, min: smallProbe!.min, lines: smallGot.slice(0, 5) } : undefined;
-      const out = { ...(lens.length ? { loupes: lens } : {}), ...(push.length ? { pushes: push } : {}),
-        ...(legibility.length ? { legibility } : {}), ...(cut.length ? { cut } : {}), ...(small ? { small } : {}) };
+      const out = { ...(linesGot.lines > 2 ? { captionLines: linesGot } : {}), ...(outsideGot.length ? { outside: outsideGot } : {}), ...(lens.length ? { loupes: lens } : {}), ...(push.length ? { pushes: push } : {}),
+        ...(legibility.length ? { legibility } : {}), ...(cut.length ? { cut } : {}), ...(unseenAt.length ? { unseen: unseenAt } : {}), ...(small ? { small } : {}) };
       writeFileSync(`${seg}.geometry.json`, JSON.stringify(out));
       return out;
     };
@@ -795,14 +862,15 @@ async function main() {
         mkdirSync(sceneDir, { recursive: true });
         mkdirSync(screenDir, { recursive: true });
         const scale = (opts.height / src.height) * (opts.scale ?? 1);
-        const a = await renderScene({ ...material, __layerPart: "scene" },
-          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes });
+        const a = await draw({ ...material, __layerPart: "scene" },
+          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
         legibleGot = a.legible ?? [];
         cutsGot = a.cuts ?? [];
+        unseenGot = a.unseen ?? [];
         a.shots.forEach((shot, i) => writeFileSync(`${sceneDir}/${String(i).padStart(5, "0")}.png`, shot.buf));
         // Предмет лупы — в координатах окна: его прямоугольник на исходном кадре минус левый край
         // окна в момент лупы, в точках нового кадра.
-        const b = await renderScene({ ...s, ...stage, overlay: screenOverlay(s.overlay), __overlayOnly: true, __layerPart: "screen",
+        const b = await draw({ ...s, ...stage, overlay: screenOverlay(s.overlay), __overlayOnly: true, __layerPart: "screen",
           beats: s.beats.length, starts, theme: s.theme ?? pitch.theme }, opts);
         const k = opts.height / src.height;
         const items: LoupeAt[] = loupes.map((loupe, li) => {
@@ -915,7 +983,7 @@ async function main() {
           notes = await reframePage({ ...s, ...stage, page: html, offline: true, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme, __noZoom: true,
             ...(process.env.AGENTIC_SCREENCAST_BARE === "1" ? { __bareLayer: true } : {}) });
         } else {
-          const { shots, rects, floor } = await renderScene({ ...s, ...stage, page: html, offline: true,
+          const { shots, rects, floor } = await draw({ ...s, ...stage, page: html, offline: true,
             ...(dev ? { overlay: dev.overlay } : {}), beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
             { ...opts, ...(dev ? {} : { probes: loupeProbes }) });
           const items = dev ? [] : loupes.map((loupe, li) => ({ loupe, rect: rects[li]!, floor }));
@@ -975,7 +1043,7 @@ async function main() {
         // подкадры одного кадра усредняются. Кадр клипа внутри своего периода не меняется (подкадры —
         // его копии), поэтому размывается только движение камеры, а удержание остаётся резким.
         const sub = opts.motionBlur ? opts.motionBlur.samples : 1;
-        const camera = cut ? null : cameraFilter(overlay?.camera ?? [], opts.fps * sub, cursorPath);
+        const camera = cut ? null : cameraPerspective(overlay?.camera ?? [], opts.fps * sub, cursorPath);
         const windowCues = overlay?.camera ?? [];
         const windowShare = cut ? (opts.width / opts.height) / (cut.width / cut.height) : 1;
         // Верх полосы субтитров в кадре сцены: его знает экранная половина слоя.
@@ -983,7 +1051,7 @@ async function main() {
         const layer = async (dir: string, part: "scene" | "screen"): Promise<void> => {
           mkdirSync(dir, { recursive: true });
           const own = cut && part === "screen";
-          const { shots, floor: line } = await renderScene({ ...s, ...stage, ...device, overlay: own ? screenOverlay(overlay) : overlay,
+          const { shots, floor: line } = await draw({ ...s, ...stage, ...device, overlay: own ? screenOverlay(overlay) : overlay,
             __overlayOnly: true, __layerPart: part, __videoCamera: true, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
           cut && part === "scene" ? { ...opts, width: cut.width, height: cut.height } : opts);
           shots.forEach((shot, index) => writeFileSync(
@@ -993,7 +1061,7 @@ async function main() {
         if (needsOverlay && (camera || cut)) { await layer(sceneDir, "scene"); await layer(screenDir, "screen"); }
         else if (needsOverlay) {
           mkdirSync(screenDir, { recursive: true });
-          const { shots, floor: line } = await renderScene({ ...s, ...stage, ...device, overlay, __overlayOnly: true,
+          const { shots, floor: line } = await draw({ ...s, ...stage, ...device, overlay, __overlayOnly: true,
             beats: s.beats.length, starts, theme: s.theme ?? pitch.theme }, opts);
           floor = line;
           shots.forEach((shot, index) => writeFileSync(
@@ -1004,8 +1072,7 @@ async function main() {
           const shutter = opts.motionBlur ? Math.max(2, Math.min(sub, Math.round(sub * opts.motionBlur.shutter))) : 1;
           const zoom = camera
             ? (sub > 1 ? `,fps=${opts.fps * sub}` : "")
-              + `,zoompan=z='${camera.z}':x='${camera.x}':y='${camera.y}':d=1:`
-              + `s=${opts.width}x${opts.height}:fps=${opts.fps * sub}`
+              + `,${camera}`
               + (sub > 1 ? `,tmix=frames=${shutter},select='eq(mod(n,${sub}),${sub - 1})',setpts=N/(${opts.fps}*TB),fps=${opts.fps}` : "")
             : "";
           const dynamicWindow = cut && windowNeedsZoom(windowCues, windowShare);
@@ -1073,11 +1140,13 @@ async function main() {
         if (reframe) {
           notes = await reframePage({ ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme });
         } else {
-          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, small } = await renderScene(
+          const { shots, rects, floor, renderer: drawn, overflow, legible, cuts, unseen, small } = await draw(
             { ...s, ...stage, __src: SRC, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
-            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, ...(smallProbe ? { small: smallProbe } : {}) });
+            { ...opts, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes, ...(smallProbe ? { small: smallProbe } : {}),
+              ...(unsafeProbe ? { unsafe: unsafeProbe } : {}) });
           legibleGot = legible ?? [];
           cutsGot = cuts ?? [];
+          unseenGot = unseen ?? [];
           smallGot = small ?? [];
           const items = loupes.map((loupe, li) => ({ loupe, rect: rects[li]!, floor }));
           await encode(shots, part, opts, withLoupes([], items, opts, sceneTheme));
@@ -1128,20 +1197,47 @@ async function main() {
     pump();
   });
   for (const slot of slots) log.push(...slot);
+  // Предупреждения по сценам копятся находками общего формата (правило базы, id, сообщение,
+  // подсказка) и идут в отчёт вместе с предупреждениями готового файла, а в поток ошибок — сразу.
+  const sceneWarnings: Array<Finding & { scene: string }> = [];
+  const warn = (scene: string, id: string, message: string): void => {
+    sceneWarnings.push({ scene, ...finding(id, message) });
+    process.stderr.write(message + "\n");
+  };
+  for (const f of liveCameraFailed) warn(f.id, "live-camera", msg("build.liveCameraFailed", { id: f.id, why: f.why }));
   // Мелкий текст у цели фокуса называется сразу: на телефоне его не прочтут, а по кадру на
   // большом экране этого не видно.
   for (const e of log) {
+    // Наезд сильнее, чем вмещает предмет, и лупа слабее заказанной — мерены по отрисованной
+    // странице; lint знает их только по оценке, а в отчёте они лежали без предупреждения.
+    for (const c of (e.pushes as Array<{ at: number; scale: number; fits: number }> | undefined) ?? []) {
+      warn(String(e.id), "push-crop", msg("build.pushCrop", { id: String(e.id), at: c.at, scale: c.scale, fit: c.fits }));
+    }
+    for (const o of (e.outside as Array<{ t: number; text: string; side: string }> | undefined) ?? []) {
+      // У каше (только в широком кадре) зону задают его полосы: текст уходит под них, а не под
+      // кнопки площадки.
+      const key = pitch.look?.bars ? "build.safeZoneBars" : "build.safeZone";
+      warn(String(e.id), "safe-zone", msg(key, { id: String(e.id), at: o.t, text: o.text, side: o.side }));
+    }
+    const lines = e.captionLines as { lines: number; text: string } | undefined;
+    if (lines) warn(String(e.id), "caption-lines", msg("build.captionLines", { id: String(e.id), lines: lines.lines, text: lines.text }));
+    for (const l of (e.loupes as Array<{ at: number; asked: number; scale: number; outside?: string }> | undefined) ?? []) {
+      warn(String(e.id), "loupe-scale", msg("build.loupeScale", { id: String(e.id), at: l.at, asked: l.asked, actual: l.scale }));
+    }
     for (const l of (e.legibility as Array<{ at: number; target: string; px: number; min: number }> | undefined) ?? []) {
-      if (l.px < l.min) process.stderr.write(msg("build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }) + "\n");
+      if (l.px < l.min) warn(String(e.id), "legibility", msg(opts.width > opts.height ? "build.legibleWide" : "build.legible", { id: String(e.id), target: l.target, px: l.px, at: l.at, min: l.min }));
     }
     const small = e.small as { at: number; min: number; lines: Array<{ text: string; px: number }> } | undefined;
     if (small) {
-      process.stderr.write(msg("build.small", { id: String(e.id), min: small.min,
-        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }) + "\n");
+      warn(String(e.id), "small", msg("build.small", { id: String(e.id), min: small.min,
+        lines: small.lines.slice(0, 3).map((l) => `«${l.text}» ${l.px} px`).join(", ") }));
+    }
+    for (const u of (e.unseen as Array<{ at: number; target: string }> | undefined) ?? []) {
+      warn(String(e.id), "focus-unseen", msg("build.focusUnseen", { id: String(e.id), target: u.target, at: u.at }));
     }
     for (const c of (e.cut as Array<{ at: number; target: string; text: string[] }> | undefined) ?? []) {
-      process.stderr.write(msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
-        text: `«${c.text.slice(0, 3).join("», «")}»` }) + "\n");
+      warn(String(e.id), "cut", msg("build.cut", { id: String(e.id), target: c.target, at: c.at,
+        text: `«${c.text.slice(0, 3).join("», «")}»` }));
     }
   }
   const tScenes = Date.now();
@@ -1149,7 +1245,19 @@ async function main() {
   // Куда пришлись фокусы внимания — в отчёт сцены: по ним видно, что фокус
   // сдвинулся вместе с речью, без просмотра кадров.
   for (const entry of log) {
-    if (entry.overflow) process.stderr.write(msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }) + "\n");
+    if (entry.overflow) warn(String(entry.id), "overflow", msg("build.overflow", { id: String(entry.id), px: Number(entry.overflow) }));
+    // Пустая полоса в трети кадра и больше у нарисованной сцены — та же мера, что у листа кадров
+    // (`frames`), но по готовому сегменту: предупреждение приходит и без листа. Карта трейлера
+    // держит пустоту нарочно, у видео кадр — сам материал.
+    const drawn = pitch.scenes.find((x) => x.id === entry.id);
+    if (drawn?.__seg && !drawn.video && existsSync(drawn.__seg)
+      && !specOf(drawn as unknown as { provider: string; kind: string }, (pitch as { providers?: Record<string, string> }).providers ?? {}).trailer) {
+      const at = Number((drawn.duration! * 0.6).toFixed(2));
+      const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-ss", String(at), "-i", drawn.__seg, "-frames:v", "1",
+        "-vf", "scale=48:64:flags=area,format=gray", "-f", "rawvideo", "-"], { maxBuffer: 1 << 20 });
+      const share = raw.length === 48 * 64 ? flatShare(raw, 48, 64) : 0;
+      if (share >= 0.3) warn(String(entry.id), "empty-area", msg("build.emptyArea", { id: String(entry.id), percent: Math.round(share * 100), at }));
+    }
     const sc = pitch.scenes.find((x) => x.id === entry.id);
     if (sc?.nativePortrait) entry.nativePortrait = true;
     if (sc?.__spotlights) entry.spotlights = sc.__spotlights;
@@ -1212,14 +1320,25 @@ async function main() {
       : { ...m, stop: undefined, file: resolve(SRC, m.file!), at });
   });
   // Вспышки и тряска — в секундах ролика; цвет вспышки — из темы своей сцены.
-  const flashes: FilmHit[] = [], shakes: FilmHit[] = [];
+  const flashes: FilmHit[] = [], shakes: FilmHit[] = [], rgbs: FilmHit[] = [];
   taken.forEach((s, i) => {
-    const at = (h: Hit): number => tl.starts[i]! + anchorSeconds(h.at.replace(/s$/i, ""), s.__starts ?? [], s.duration, speechEnds(s));
+    // Якорь `m16` — доля музыки номер 16 в секундах ролика: удар ложится в ритм, а не в речь.
+    const at = (h: Hit): number => {
+      const m = /^m(\d+(?:\.\d+)?)$/.exec(h.at);
+      if (!m) return tl.starts[i]! + anchorSeconds(h.at.replace(/s$/i, ""), s.__starts ?? [], s.duration, speechEnds(s));
+      if (!pitch.music?.bpm) {
+        console.error(msg("build.sfxTempo", { at: h.at }));
+        process.exit(2);
+      }
+      return musicBeat(Number(m[1]), pitch.music.bpm, pitch.music.offset ?? 0);
+    };
     const colour = ffmpegColour(((s.theme ?? pitch.theme) as Record<string, string>)["--tr-flash"]!);
-    for (const h of s.flash ?? []) flashes.push({ at: at(h), length: h.length ?? FLASH_DEFAULT.length, strength: h.strength ?? FLASH_DEFAULT.strength, colour });
-    for (const h of s.shake ?? []) shakes.push({ at: at(h), length: h.length ?? SHAKE_DEFAULT.length, strength: h.strength ?? SHAKE_DEFAULT.strength });
+    const inFilm = (h: Hit): boolean => !only || !h.at.startsWith("m");
+    for (const h of (s.flash ?? []).filter(inFilm)) flashes.push({ at: at(h), length: h.length ?? FLASH_DEFAULT.length, strength: h.strength ?? FLASH_DEFAULT.strength, colour });
+    for (const h of (s.shake ?? []).filter(inFilm)) shakes.push({ at: at(h), length: h.length ?? SHAKE_DEFAULT.length, strength: h.strength ?? SHAKE_DEFAULT.strength });
+    for (const h of (s.rgb ?? []).filter(inFilm)) rgbs.push({ at: at(h), length: h.length ?? RGB_DEFAULT.length, strength: h.strength ?? RGB_DEFAULT.strength });
   });
-  const hits = flashes.length + shakes.length > 0;
+  const hits = flashes.length + shakes.length + rgbs.length > 0;
   // Звук ролика сводится и нормируется всегда, когда он есть: ролик только с голосом прежде
   // выходил около −19 LUFS при цели площадок −14 (docs/sound.md), и зритель прибавлял громкость.
   const mixNeeded = useTransitions || hits || pitch.audio !== false;
@@ -1235,7 +1354,7 @@ async function main() {
       "-safe", "0", "-i", alist, "-c", "copy", audio]);
     mux = execFileSync("/bin/sh", ["-c",
       `${FFMPEG} -nostdin -y -f concat -safe 0 -i ${vlist} -i ${audio} ` +
-      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest ${muxed} 2>&1`], { encoding: "utf8" });
+      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest -movflags +faststart ${muxed} 2>&1`], { encoding: "utf8" });
   } else {
     const video = `${CACHE}/film-video-${process.pid}.mp4`;
     if (useTransitions) {
@@ -1267,6 +1386,27 @@ async function main() {
           process.exit(2);
         }
       }
+      // Пролёт в предмет: точка пролёта — центр предмета в первом кадре перехода; у маски — весь
+      // его прямоугольник, из которого растёт окно.
+      for (let i = 1; i < taken.length; i++) {
+        const s = taken[i]!, prev = taken[i - 1]!, t = s.transition;
+        if (!t || !AIMED.includes(t.kind) || !t.element || t.at) continue;
+        if (!prev.__render) {
+          console.error(msg("build.morphVideo", { id: s.id }));
+          process.exit(2);
+        }
+        const at = (sceneFrames(prev) - transitionFrames(t, opts.fps)) / opts.fps;
+        try {
+          const r = await renderScene(prev.__render, { ...opts, at, morphTarget: t.element, probes: [{ t: at, anchor: { target: t.element } }] });
+          const box = r.rects[0]!;
+          const clamp = (v: number): number => Math.min(1, Math.max(0, v));
+          s.transition = { ...t, at: [clamp((box.left + box.width / 2) / opts.width), clamp((box.top + box.height / 2) / opts.height)],
+            ...(t.kind === MASK ? { area: [clamp(box.left / opts.width), clamp(box.top / opts.height), clamp(box.width / opts.width), clamp(box.height / opts.height)] as [number, number, number, number] } : {}) };
+        } catch (e) {
+          console.error(msg("build.zoomElement", { id: s.id, element: t.element, why: (e as Error).message.split("\n")[0]! }));
+          process.exit(2);
+        }
+      }
       ({ transitions: transitionsDone } = await assembleVideo({ out: video, cache: CACHE, self: SELF,
         scenes: taken.map((s) => ({ id: s.id, seg: s.__seg!, frames: sceneFrames(s),
           ...(s.transition ? { transition: s.transition } : {}), ...(morphs.has(s.id) ? { morph: morphs.get(s.id)! } : {}),
@@ -1283,7 +1423,7 @@ async function main() {
       // Удары — одним проходом поверх склейки: вспышка и тряска одинаковы на слайде и на клипе.
       const hit = `${CACHE}/film-hits-${process.pid}.mp4`;
       execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", video, "-filter_complex",
-        hitsFilter({ flashes, shakes, width: opts.width, height: opts.height, fps: opts.fps }), "-map", "[v]",
+        hitsFilter({ flashes, shakes, rgbs, width: opts.width, height: opts.height, fps: opts.fps }), "-map", "[v]",
         "-c:v", "libx264", "-preset", opts.encode!.preset, "-crf", String(opts.encode!.crf), "-pix_fmt", opts.encode!.pix,
         "-g", String(opts.fps * 2), "-r", String(opts.fps), hit]);
       renameSync(hit, video);
@@ -1300,7 +1440,7 @@ async function main() {
       loudness: pitch.loudness ?? -14 });
     mux = execFileSync("/bin/sh", ["-c",
       `${FFMPEG} -nostdin -y -i ${video} -i ${mixed} ` +
-      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest ${muxed} 2>&1`], { encoding: "utf8" });
+      `-c:v copy -c:a aac -b:a ${opts.encode!.audio} -shortest -movflags +faststart ${muxed} 2>&1`], { encoding: "utf8" });
   }
   const filmScenes: FilmScene[] = taken.map((s, i) => ({ duration: s.duration, at: tl.starts[i]!,
     beats: s.beats.map((b) => ({ text: b.text, spoken: b.__spoken ?? 0 })),
@@ -1382,12 +1522,113 @@ async function main() {
     });
   });
 
-  const warnings = [
-    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)),
-    ...audit.issues.map((issue) => msg("build.auditIssue", { code: issue.code,
-      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") })),
+  // Готовый ролик по сценам: то, что видно только в кадрах, — неподвижный отрезок, мигание,
+  // действие без речи, контрольный кадр на затухании, тёмный первый кадр ленты.
+  if (!only) {
+    const W = 32, H = 18, size = W * H;
+    const grayFrames = (file: string): Buffer[] => {
+      const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", file, "-vf", `fps=${opts.fps},scale=${W}:${H}:flags=area,format=gray`,
+        "-f", "rawvideo", "-"], { maxBuffer: 1 << 28 });
+      return Array.from({ length: Math.floor(raw.length / size) }, (_, k) => raw.subarray(k * size, (k + 1) * size));
+    };
+    const meanDiff = (a: Buffer, b: Buffer): number => { let d = 0; for (let k = 0; k < size; k++) d += Math.abs(a[k]! - b[k]!); return d / size; };
+    const mean = (a: Buffer): number => a.reduce((t, v) => t + v, 0) / size;
+    taken.forEach((s) => {
+      if (!s.__seg || !existsSync(s.__seg)) return;
+      const frames = grayFrames(s.__seg);
+      const trailer = !s.video && specOf(s as unknown as { provider: string; kind: string }, (pitch as { providers?: Record<string, string> }).providers ?? {}).trailer;
+      // Почти неподвижный отрезок: кадры три секунды подряд не отличаются друг от друга.
+      let run = 0, runFrom = 0, reported = false;
+      for (let k = 1; k < frames.length && !trailer && !reported; k++) {
+        if (meanDiff(frames[k]!, frames[k - 1]!) < 0.15) { if (!run) runFrom = (k - 1) / opts.fps; run++; } else run = 0;
+        if (run / opts.fps >= 3) {
+          warn(s.id, "still-stretch", msg("build.stillStretch", { id: s.id, from: runFrom.toFixed(1), seconds: 3 }));
+          reported = true;
+        }
+      }
+      // Мигание (как вспышку считает WCAG 2.3.1): пара противоположных перепадов яркости на десятую
+      // долю шкалы и больше; больше трёх таких пар за секунду — семь перепадов с чередованием знака.
+      const lum = frames.map(mean);
+      const turns: number[] = [];
+      let sign = 0;
+      for (let k = 1; k < lum.length; k++) {
+        const d = lum[k]! - lum[k - 1]!;
+        if (Math.abs(d) < 25) continue;
+        if (Math.sign(d) !== sign) { turns.push(k / opts.fps); sign = Math.sign(d); }
+      }
+      for (let k = 0; k + 6 < turns.length; k++) {
+        if (turns[k + 6]! - turns[k]! <= 1) {
+          warn(s.id, "flashing", msg("build.flashing", { id: s.id, at: turns[k]!.toFixed(1) }));
+          break;
+        }
+      }
+      // Действие без речи: клики дубля позже чем через секунду после конца речи сцены.
+      if (s.video && s.beats.length) {
+        const clicks = trimMarks(marksOf(resolve(SRC, String(s.page))), s.trim)?.clicks ?? [];
+        const said = speechEnds(s).at(-1) ?? 0;
+        const late = clicks.map((c) => (s.speed?.length ? filmTimeOf(s.speed, c.t) : c.t)).filter((t) => t > said + 1 && t < s.duration);
+        if (late.length) warn(s.id, "silent-action", msg("build.silentAction", { id: s.id, count: late.length, at: late[0]!.toFixed(1), said: said.toFixed(1) }));
+      }
+    });
+    // Контрольный кадр на затухании края сцены: на нём не видно того, ради чего он назван.
+    for (const st of stills) {
+      const i = taken.findIndex((x) => x.id === st.scene);
+      const s = taken[i]!, local = st.time - tl.starts[i]!, dur = sceneFrames(s) / opts.fps;
+      const f = (s.effects as { fade?: { in?: number; out?: number } } | undefined)?.fade;
+      const fin = f?.in ?? 0.3, fout = f?.out ?? 0.3;
+      if ((fin > 0 && local < fin) || (fout > 0 && local > dur - fout)) {
+        warn(st.scene, "still-in-fade", msg("build.stillInFade", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
+        continue;
+      }
+      // Переход на стыке тоже прячет то, ради чего кадр назван: сцены смешаны или залиты светом.
+      // Перекрытие — на всю длину перехода; переход на стыке берёт свою часть кадров у каждой сцены.
+      const edge = (t: Transition | undefined, side: "in" | "out"): number => {
+        if (!useTransitions || !t) return 0;
+        const k = transitionFrames(t, opts.fps);
+        return (isJoint(t.kind) ? (side === "out" ? k - Math.floor(k / 2) : Math.floor(k / 2)) : k) / opts.fps;
+      };
+      const tin = i > 0 ? edge(s.transition, "in") : 0, tout = edge(taken[i + 1]?.transition, "out");
+      if ((tin > 0 && local < tin) || (tout > 0 && local > dur - tout)) {
+        warn(st.scene, "still-in-fade", msg("build.stillInTransition", { id: st.scene, moment: st.moment, time: st.time.toFixed(2) }));
+      }
+    }
+    // Заметка контрольного кадра, цитирующая текст в «кавычках», сверяется с текстом, видимым в
+    // кадре в этот момент (страница и слой). Агент принимал кадр по своей заметке, не глядя на
+    // картинку (замер базы); цитата — та часть заметки, которую можно проверить машиной.
+    for (const st of stills) {
+      const quotes = [...(st.note ?? "").matchAll(/«([^»]+)»|“([^”]+)”|"([^"]+)"/gu)].map((m) => (m[1] ?? m[2] ?? m[3])!.trim()).filter(Boolean);
+      if (!quotes.length) continue;
+      const i = taken.findIndex((x) => x.id === st.scene);
+      const s = taken[i]!, scene = s.__render ?? s.__layer;
+      if (!scene) continue;
+      const local = Math.max(0, st.time - tl.starts[i]!);
+      const { text = "" } = await renderScene(scene, { ...opts, at: local, readText: local });
+      // Пробелы не сравниваются: буквы, которые въезжают по одной, лежат в отдельных узлах, и
+      // прочитанный кадр разбивает слово на буквы через пробел.
+      const norm = (x: string): string => x.toLowerCase().replace(/\s+/gu, "");
+      const missing = quotes.filter((q) => !norm(text).includes(norm(q)));
+      if (missing.length) warn(st.scene, "still-note", msg("build.stillNote", { id: st.scene, moment: st.moment, quote: missing.join("», «") }));
+    }
+    // Лента: первый кадр — превью и начало петли, тёмный кадр там выглядит мёртвым.
+    if ((pitch as { feed?: boolean }).feed) {
+      const first = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", out, "-frames:v", "1",
+        "-vf", `scale=${W}:${H}:flags=area,format=gray`, "-f", "rawvideo", "-"]);
+      if (first.length === size && mean(first) < 25) warn(taken[0]!.id, "loop-start", msg("build.loopStart", { id: taken[0]!.id }));
+    }
+  }
+
+  // Индекс MP4 в начале файла: плеер страницы начинает показ до конца загрузки. Все шаги пишут
+  // его так; проверка стоит за тем, чтобы новый шаг этого не потерял.
+  const atoms = topAtoms(out);
+  const fastStart = atoms.indexOf("moov") >= 0 && atoms.indexOf("moov") < atoms.indexOf("mdat");
+  const fileWarnings = [
+    ...(fastStart ? [] : [finding("faststart", msg("build.faststart", { atoms: atoms.join(" ") }))]),
+    ...mux.split("\n").filter((l) => /Non-monoton|DTS|Invalid/.test(l)).map((l) => finding("mux", l)),
+    ...audit.issues.map((issue) => finding("audit", msg("build.auditIssue", { code: issue.code,
+      details: Object.entries(issue.details).map(([key, value]) => `${key}=${JSON.stringify(value)}`).join(", ") }))),
   ];
-  for (const warning of warnings) process.stderr.write(warning + "\n");
+  for (const warning of fileWarnings) process.stderr.write(warning.message + "\n");
+  const warnings = [...sceneWarnings, ...fileWarnings];
   const finalAudioReport = audioReport ? { ...audioReport,
     ...(audioReport.loudness && encodedAudio
       ? { loudness: { ...audioReport.loudness, measured: encodedAudio.integrated } } : {}),
@@ -1402,8 +1643,11 @@ async function main() {
   // Отчёт — ещё и файлом рядом с роликом (`<ролик>.report.json`): поток вывода прочитан
   // один раз, а по файлу сцены, их начала и контрольные кадры сверяют и через час.
   const reportFile = `${out.replace(/\.[^./]+$/, "")}.report.json`;
+  // Язык собранного ролика: вариант, выбранный `--lang`, иначе язык шапки. По нему `web` ставит
+  // язык дорожки глав.
+  const filmLang = process.env.AGENTIC_SCREENCAST_FILM_LANG || pitch.lang;
   const report = JSON.stringify({
-    out, report: reportFile, scenes: log, ...(only ? { only } : {}),
+    out, report: reportFile, ...(filmLang ? { lang: filmLang } : {}), scenes: log, ...(only ? { only } : {}),
     segments: taken.map((s) => ({ id: s.id, seg: s.__seg, md5: md5file(s.__seg!) })),
     // Начала тактов от начала ролика: по ним сверяются субтитры и всё, что
     // привязано к речи, без повторного измерения звука.
@@ -1411,7 +1655,8 @@ async function main() {
       start: Number((fs.at! + (fs.starts[k] ?? 0)).toFixed(3)), spoken: Number(b.spoken.toFixed(3)) }))),
     ...(transitionsDone.length ? { transitions: transitionsDone } : {}),
     ...(finalAudioReport ? { audio: finalAudioReport } : {}),
-    ...(hits ? { hits: { flash: flashes.map((h) => Number(h.at.toFixed(3))), shake: shakes.map((h) => Number(h.at.toFixed(3))) } } : {}),
+    ...(hits ? { hits: { flash: flashes.map((h) => Number(h.at.toFixed(3))), shake: shakes.map((h) => Number(h.at.toFixed(3))),
+      rgb: rgbs.map((h) => Number(h.at.toFixed(3))) } } : {}),
     ...(srt ? { srt } : {}), ...(chapters.length ? { chapters, chaptersFile } : {}),
     ...(stills.length ? { stills } : {}), ...(takeMarks.length ? { marks: takeMarks } : {}),
     ...(autoPlaces.length ? { captionPlaces: autoPlaces } : {}),

@@ -1,5 +1,6 @@
 # Пример
 voice: {"engine":"stub","name":"nullvoice","cps":18}
+captions: {"style":"subtitle","everywhere":true}
 
 ## e1 · slides.compare
 kicker: пример

@@ -18,7 +18,7 @@ const story = (body: string, head = HEAD): string => {
   writeFileSync(file, `${head}\n${body}`);
   return file;
 };
-const rules = (file: string): string[] => clicheSigns(file).map((s) => s.rule).sort();
+const rules = (file: string): string[] => clicheSigns(file).map((s) => s.id).sort();
 
 test("lint counts the signs of a template film, and a considered film carries none", () => {
   const cliche = story(`
@@ -45,13 +45,13 @@ The second beat.
 title: Next
 body: What comes next.
 enter: rise
-transition: zoom-blur
+transition: zoom
 
 The third beat.
 `, `${HEAD}look: {"grade":"teal-orange","grain":0.3}\n`);
   assert.deepEqual(rules(cliche), ["decorative-background", "emoji-icons", "grain", "hit-outside-trailer", "kicker-caps", "many-sparkles", "same-entrance", "transition-kinds"]);
   // Признаки не валят lint: каждый бывает решением.
-  assert.ok(!lint(cliche).some((f) => f.rule === "kicker-caps"));
+  assert.ok(!lint(cliche).some((f) => f.id === "kicker-caps"));
   const r = spawnSync("node", [ENTRY, "lint", cliche], { encoding: "utf8" });
   const out = JSON.parse(r.stdout) as { cliches: { count: number; verdict?: string } };
   assert.equal(out.cliches.count, 8);
@@ -99,7 +99,7 @@ values: 65 :: directing rules
 
 The rules.
 `);
-  assert.ok(lint(bare).some((f) => f.rule === "number-source"));
+  assert.ok(lint(bare).some((f) => f.id === "number-source"));
   const noted = story(`
 ## n · slides.counter
 title: Rules
@@ -108,7 +108,7 @@ note: docs/film-craft.md, September 2026
 
 The rules.
 `);
-  assert.ok(!lint(noted).some((f) => f.rule === "number-source"));
+  assert.ok(!lint(noted).some((f) => f.id === "number-source"));
 });
 
 test("the frames sheet names a drawn scene whose frame has a flat empty third", () => {

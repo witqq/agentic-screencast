@@ -17,6 +17,7 @@ import { parseOverlay } from "../../overlay.js";
 import { lint } from "../../lint.js";
 import { rawOf } from "../support.js";
 import { THEMES } from "../../theme.js";
+import { generateFrom } from "../../generate.js";
 
 const require = createRequire(import.meta.url);
 const ffmpeg = require("ffmpeg-static") as string;
@@ -149,7 +150,7 @@ test("lint names a push-in whose named scale crops its area, and a loupe that ha
   execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "color=c=gray:s=320x180:r=10:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "clip.mp4")]);
   const file = join(dir, "story.md");
   const scene = (overlay: string): void => writeFileSync(file, `# G\nvoice: {"engine":"stub","name":"silent","cps":15}\nlang: en\n\n## v · video\nfile: clip.mp4\nduration: 4\noverlay: ${overlay}\n`);
-  const rules = (): string[] => lint(file).filter((f) => f.rule === "push-crop" || f.rule === "loupe-scale").map((f) => `${f.rule}: ${f.message}`);
+  const rules = (): string[] => lint(file).filter((f) => f.id === "push-crop" || f.id === "loupe-scale").map((f) => `${f.id}: ${f.message}`);
   scene('{"camera":[{"at":0.5,"hold":1,"area":[0.1,0.1,0.7,0.5],"scale":1.8}],"loupe":[{"at":2.5,"area":[0.1,0.1,0.6,0.6],"scale":3,"hold":1}]}');
   const found = rules().join("\n");
   assert.match(found, /push-crop: the push-in at 0\.5s scales ×1\.8, but its area stays whole in the frame only up to ×1\.29/);
@@ -159,12 +160,12 @@ test("lint names a push-in whose named scale crops its area, and a loupe that ha
 });
 
 /** Сборка сценария в каталоге; отчёт сборки. */
-function build(dir: string, story: string, args: string[] = []): { report: { scenes: Array<Record<string, unknown>> }; out: string } {
+function build(dir: string, story: string, args: string[] = []): { report: { scenes: Array<Record<string, unknown>>; warnings: Array<{ scene: string; id: string; rule: string }> }; out: string } {
   writeFileSync(join(dir, "story.md"), story);
   const r = spawnSync("node", [ENTRY, "build", "story.md", "--out", "out.mp4", ...args], { cwd: dir, encoding: "utf8",
     env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, ".home") } });
   assert.equal(r.status, 0, r.stderr.slice(-600));
-  return { report: JSON.parse(r.stdout) as { scenes: Array<Record<string, unknown>> }, out: join(dir, "out.mp4") };
+  return { report: JSON.parse(r.stdout) as { scenes: Array<Record<string, unknown>>; warnings: Array<{ scene: string; id: string; rule: string }> }, out: join(dir, "out.mp4") };
 }
 // Кольцо лупы ищется цветом ночной темы, поэтому она названа явно: умолчание — neutral.
 const HEAD = (w: number, h: number): string => `# G\nlang: en\ntheme: midnight\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":${w},"height":${h},"fps":10,"scale":1}\n`;
@@ -183,6 +184,8 @@ overlay: {"camera":[{"at":2.2,"move":0.4,"hold":0.8,"target":"#big","scale":1.8}
   const loupes = p.loupes as Array<{ asked: number; scale: number }>, pushes = p.pushes as Array<{ scale: number; fits: number }>;
   assert.ok(loupes?.length === 1 && loupes[0]!.asked === 2 && loupes[0]!.scale < 2, `the report names the lowered loupe (${JSON.stringify(p.loupes)})`);
   assert.ok(pushes?.length === 1 && pushes[0]!.scale === 1.8 && pushes[0]!.fits < 1.8, `the report names the cropping push-in (${JSON.stringify(p.pushes)})`);
+  // И предупреждает о них находками с правилом базы, а не только данными сцены.
+  assert.deepEqual(report.warnings.filter((w) => w.scene === "p" && (w.id === "push-crop" || w.id === "loupe-scale")).map((w) => `${w.id}:${w.rule}`).sort(), ["loupe-scale:FC-33", "push-crop:FC-33"]);
   // Сцена из кэша отчитывается так же.
   const again = build(dir, readFileSync(join(dir, "story.md"), "utf8")).report.scenes.find((s) => s.id === "p")!;
   assert.equal(again.cached, true);
@@ -276,4 +279,148 @@ The second target is small and fits at this scale.
   const s = report.scenes.find((x) => x.id === "s")!, p = report.scenes.find((x) => x.id === "p")!;
   assert.equal(s.pushes, undefined, `el2 at ×1.1 fits and is measured (${JSON.stringify(s.pushes)})`);
   assert.equal(p.pushes, undefined, `the second target at ×1.6 fits once measured without the first push-in's zoom (${JSON.stringify(p.pushes)})`);
+  assert.deepEqual(report.warnings.filter((w) => w.id === "push-crop"), [], "a push-in that fits raises no warning");
+});
+
+test("a push-in on a slide lights its target where the camera put it, whatever zoom fits the slide to the frame", async () => {
+  // Слайд вписан в кадр `zoom` на корне документа (в 1920 — полтора, в 640 — половина). Сдвиг камеры
+  // посчитан в точках экрана; поставленный без деления на этот `zoom`, он уводил кадр мимо цели, а
+  // подсветка вставала рядом с целью.
+  const browser = await chromium.launch();
+  try {
+    for (const [w, h] of [[1920, 1080], [640, 360]] as const) {
+      const dir = mkdtempSync(join(tmpdir(), "sc-geo-slide-"));
+      writeFileSync(join(dir, "story.md"), `# S\nlang: en\nvoice: {"engine":"stub","name":"silent","cps":15}\n`
+        + `frame: {"width":${w},"height":${h},"fps":25,"scale":1}\n\n## c · slides.compare\ntitle: Two sides\n`
+        + `left: Before :: one | two\nright: After :: three | four\nduration: 6\n\nThe left column.\n`);
+      const g = generateFrom(join(dir, "story.md"));
+      const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ id: string; effects?: unknown }>; theme: unknown };
+      const ctx = await browser.newContext({ viewport: { width: w, height: h } });
+      await ctx.addInitScript({ content: CLOCK });
+      await ctx.addInitScript({ content: STAGE });
+      const p = await ctx.newPage();
+      await p.goto(pathToFileURL(g.pages.c!).href);
+      await p.evaluate((sc) => window.__stage.mount(sc as never), { duration: 6, beats: 0, theme: pitch.theme,
+        effects: pitch.scenes[0]!.effects,
+        overlay: parseOverlay('{"camera":[{"at":0.5,"move":0.6,"hold":4,"target":".cols > :nth-child(1)","scale":1.3}]}') });
+      await p.evaluate(() => window.__clock.seek(3));
+      const got = await p.evaluate(() => {
+        const r = (e: Element): { l: number; t: number; r: number; b: number } => { const b = e.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom }; };
+        return { spot: r(document.querySelector("#__spot")!), target: r(document.querySelector(".cols > :nth-child(1)")!) };
+      });
+      const { spot, target } = got;
+      assert.ok(spot.l <= target.l + 2 && spot.t <= target.t + 2 && spot.r >= target.r - 2 && spot.b >= target.b - 2,
+        `${w}×${h}: the lit window encloses the pushed-in target (${JSON.stringify(got)})`);
+      assert.ok(spot.r - spot.l < (target.r - target.l) * 1.2, `${w}×${h}: the lit window is the target's, not a larger one beside it (${JSON.stringify(got)})`);
+      await ctx.close();
+    }
+  } finally { await browser.close(); }
+});
+
+test("a dolly push on a slide keeps a left-aligned title and its kicker inside the frame", async () => {
+  // Наезд масштабировал секцию от её середины на 16 %: заголовок по левому краю во всю ширину
+  // выходил за край, и надзаголовок читался «ext: swarm».
+  const dir = mkdtempSync(join(tmpdir(), "sc-geo-dolly-"));
+  writeFileSync(join(dir, "story.md"), `# D\nlang: en\ntheme: terminal\nvoice: {"engine":"stub","name":"silent","cps":15}\n`
+    + `frame: {"width":1920,"height":1080,"fps":25,"scale":1}\n\n## h · slides.hero\nkicker: text: swarm\n`
+    + `title: Titles assemble from particles\nmove: dolly\nduration: 4\n\nTitles assemble from particles.\n`);
+  const g = generateFrom(join(dir, "story.md"));
+  const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ effects?: unknown }>; theme: unknown };
+  const browser = await chromium.launch();
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript({ content: CLOCK });
+    await ctx.addInitScript({ content: STAGE });
+    const p = await ctx.newPage();
+    await p.goto(pathToFileURL(g.pages.h!).href);
+    await p.evaluate((sc) => window.__stage.mount(sc as never), { duration: 4, beats: 0, theme: pitch.theme, effects: pitch.scenes[0]!.effects });
+    await p.evaluate(() => window.__clock.seek(3.8));
+    const box = await p.evaluate(() => {
+      const r = (sel: string): { l: number; r: number } => { const b = document.querySelector(sel)!.getBoundingClientRect(); return { l: b.left, r: b.right }; };
+      return { kicker: r(".kicker"), title: r("h1") };
+    });
+    for (const [name, b] of Object.entries(box)) assert.ok(b.l >= 0 && b.r <= 1920, `the ${name} stays inside the frame at the end of the dolly (${JSON.stringify(b)})`);
+  } finally { await browser.close(); }
+});
+
+test("on a slide fitted to 1920 by its root zoom, whole text is reported neither cut nor outside the frame", async () => {
+  // Прямоугольники Chromium уже в точках кадра; умножение на увеличение корня (полтора в 1920)
+  // уводило правую треть слайда «за кадр», и проверка называла целый узел цепочки обрезанным.
+  const dir = mkdtempSync(join(tmpdir(), "sc-geo-cut-"));
+  writeFileSync(join(dir, "story.md"), `# C\nlang: en\nvoice: {"engine":"stub","name":"silent","cps":15}\n`
+    + `frame: {"width":1920,"height":1080,"fps":25,"scale":1}\n\n## c · slides.chain\ntitle: Lint reads the scenario\n`
+    + `nodes: story.md | lint | findings (acc)\nduration: 5\n\nIt answers with findings.\n`);
+  const g = generateFrom(join(dir, "story.md"));
+  const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ effects?: unknown }>; theme: unknown };
+  const browser = await chromium.launch();
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript({ content: CLOCK });
+    await ctx.addInitScript({ content: STAGE });
+    const p = await ctx.newPage();
+    await p.goto(pathToFileURL(g.pages.c!).href);
+    await p.evaluate((sc) => window.__stage.mount(sc as never), { duration: 5, beats: 1, starts: [0], theme: pitch.theme, effects: pitch.scenes[0]!.effects });
+    await p.evaluate(() => window.__clock.seek(4));
+    const cut = await p.evaluate(() => window.__stage.cutText(".node.acc"));
+    assert.deepEqual(cut, [], "the last node stands whole in the frame and is not reported cut");
+    const out = await p.evaluate(() => window.__stage.outsideSafe({ top: 0, bottom: 0, left: 0, right: 0 }));
+    assert.deepEqual(out, [], "nothing on the whole slide is reported outside the frame");
+  } finally { await browser.close(); }
+});
+
+test("a focus that arrives before its slide item appears is named; one after it is not", () => {
+  // Пункт слайда до своего момента скрыт: камера шла к пустому углу кадра, и сборка молчала.
+  const dir = mkdtempSync(join(tmpdir(), "sc-geo-unseen-"));
+  const early = build(dir, `${HEAD(640, 360)}
+## s · slides.steps
+title: Steps
+items: One :: first | Two :: second
+at: 0.5 4
+duration: 6
+spotlight: {"target":".steps li:nth-of-type(2) .step","at":"1","until":"3","scale":1}
+
+The second step comes late.
+`);
+  assert.deepEqual(early.report.warnings.filter((w) => w.id === "focus-unseen").map((w) => w.rule), ["FC-33"]);
+  const late = build(dir, `${HEAD(640, 360)}
+## s · slides.steps
+title: Steps
+items: One :: first | Two :: second
+at: 0.5 1
+duration: 6
+spotlight: {"target":".steps li:nth-of-type(2) .step","at":"2","until":"4","scale":1}
+
+The second step is there first.
+`);
+  assert.deepEqual(late.report.warnings.filter((w) => w.id === "focus-unseen"), []);
+});
+
+test("a dolly push does not jerk while items fly in: its scale only grows and its origin stays", async () => {
+  // Наезд мерил экранные прямоугольники пунктов, раздутые их входом: масштаб проседал, а середина
+  // прыгала, пока пункты влетали.
+  const dir = mkdtempSync(join(tmpdir(), "sc-geo-dolly2-"));
+  writeFileSync(join(dir, "story.md"), `# D\nlang: en\nvoice: {"engine":"stub","name":"silent","cps":15}\n`
+    + `frame: {"width":1920,"height":1080,"fps":25,"scale":1}\n\n## f · slides.features\ntitle: What changed\n`
+    + `items: One :: first | Two :: second | Three :: third\nenter: fly\nmove: dolly\nduration: 5\n\nThree things changed.\n`);
+  const g = generateFrom(join(dir, "story.md"));
+  const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as { scenes: Array<{ effects?: unknown }>; theme: unknown };
+  const browser = await chromium.launch();
+  try {
+    const ctx = await browser.newContext({ viewport: { width: 1920, height: 1080 } });
+    await ctx.addInitScript({ content: CLOCK });
+    await ctx.addInitScript({ content: STAGE });
+    const p = await ctx.newPage();
+    await p.goto(pathToFileURL(g.pages.f!).href);
+    await p.evaluate((sc) => window.__stage.mount(sc as never), { duration: 5, beats: 1, starts: [0], theme: pitch.theme, effects: pitch.scenes[0]!.effects });
+    const seen: Array<{ k: number; origin: string }> = [];
+    for (let t = 0.2; t < 4.9; t += 0.15) {
+      await p.evaluate((tt) => window.__clock.seek(tt), t);
+      seen.push(await p.evaluate(() => {
+        const kin = document.querySelector(".k-in") as HTMLElement;
+        return { k: Number(/scale\(([\d.]+)\)/u.exec(kin.style.transform)?.[1] ?? 1), origin: kin.style.transformOrigin };
+      }));
+    }
+    for (let i = 1; i < seen.length; i++) assert.ok(seen[i]!.k >= seen[i - 1]!.k - 1e-4, `the push never shrinks (${seen[i - 1]!.k} → ${seen[i]!.k})`);
+    assert.equal(new Set(seen.map((x) => x.origin)).size, 1, `the push keeps one centre (${[...new Set(seen.map((x) => x.origin))].join(" | ")})`);
+  } finally { await browser.close(); }
 });

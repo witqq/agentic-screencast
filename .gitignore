@@ -20,6 +20,9 @@ node_modules/
 # не то. Порождаемое лежит рядом с источником, и здесь источник один.
 .generated-*.json
 /example/slides/
+# Кадры, которые пишут команды frames из README в каталоге примера.
+/example/*.png
+/example/*-frames/
 
 # Собранное: порождается из src, в историю не входит
 dist/
@@ -37,3 +40,8 @@ agent_temp_files_local/
 # в историю.
 external/.venv/
 external/silero/v5_ru.pt
+
+# Системный мусор macOS.
+.DS_Store
+# Локальный бэклог, в репозиторий не входит.
+/BACKLOG.md

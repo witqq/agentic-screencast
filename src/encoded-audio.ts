@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, renameSync, rmSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { FFMPEG } from "./voice/audio.js";
+import { msg } from "./msg.js";
 
 export interface EncodedAudioLevel {
   /** True peak of the decoded AAC in the finished MP4, dBTP. */
@@ -30,7 +31,7 @@ function ffmpeg(args: string[]): string {
   const result = spawnSync(FFMPEG, ["-nostdin", "-hide_banner", ...args],
     { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
   if (result.error || result.status !== 0)
-    throw new Error(`encoded audio: ffmpeg failed: ${result.error?.message ?? result.stderr.trim().slice(-500)}`);
+    throw new Error(msg("audio.ffmpegFailed", { why: result.error?.message ?? result.stderr.trim().slice(-500) }));
   return result.stderr;
 }
 
@@ -41,12 +42,12 @@ function measure(file: string): Omit<EncodedAudioLevel, "corrected"> {
   const output = ffmpeg(["-i", file, "-map", "0:a:0", "-vn", "-af",
     "loudnorm=I=-14:TP=-1:LRA=11:print_format=json", "-f", "null", "-"]);
   const first = output.lastIndexOf("{"), last = output.lastIndexOf("}");
-  if (first < 0 || last <= first) throw new Error(`encoded audio: cannot read AAC loudness and true peak from ${file}`);
+  if (first < 0 || last <= first) throw new Error(msg("audio.unreadable", { file }));
   const data = JSON.parse(output.slice(first, last + 1)) as { input_i?: string; input_tp?: string };
   const integrated = data.input_i === "-inf" ? null : Number(data.input_i);
   const truePeak = data.input_tp === "-inf" ? null : Number(data.input_tp);
   if ((integrated !== null && !Number.isFinite(integrated)) || (truePeak !== null && !Number.isFinite(truePeak)))
-    throw new Error(`encoded audio: invalid AAC loudness or true peak from ${file}`);
+    throw new Error(msg("audio.invalid", { file }));
   return { integrated, truePeak };
 }
 

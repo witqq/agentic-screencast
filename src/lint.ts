@@ -14,7 +14,7 @@ import { foldLines, parseSource, SourceError, specOf, toPitch, type PitchScene }
 import { providerFor } from "./provider/index.js";
 import { SHOWN_COMMON } from "./visible.js";
 import { cameraEnd, cardHold } from "./overlay.js";
-import { THEMES, themeFingerprint, wholeThemeFingerprint, type ThemeVars } from "./theme.js";
+import { THEMES, themeFingerprint, themeLabel, wholeThemeFingerprint, type Scheme, type ThemeVars } from "./theme.js";
 import { fitScale } from "./camera.js";
 import { loupeLayout } from "./loupe.js";
 import { FORMATS } from "./format.js";
@@ -23,8 +23,11 @@ import { estimateBeats, spotlightOverlay } from "./spotlight.js";
 import { stepEnd } from "./speed.js";
 import { marksOf } from "./marks.js";
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
+import { finding, type Finding as RuleFinding } from "./rules.js";
+import { karaokeRestContrast } from "./brand.js";
 
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 
@@ -101,25 +104,46 @@ function clipLength(clip: string): number {
   return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + Number(m[3]) : 0;
 }
 
-export interface Finding { scene: string; index: number; rule: string; message: string }
+/** Находка по сцене: номер сцены и общий формат находки (правило базы, id, сообщение, подсказка). */
+export type Finding = { scene: string; index: number } & RuleFinding;
 
 /** Сцена длиннее — это уже не кадр, а несколько кадров под одной подписью. */
 const LONG = 25;
 
-const PAGE_MOTION = /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=|\bdata-(?:type|kinetic)\s*=/u;
+const PAGE_MOTION = /@keyframes|animation(?:-name)?\s*:|\.animate\(|requestAnimationFrame|\brenderAt\s*=/u;
+/** Набор и кинетика слоя по атрибутам страницы: движение только на странице, отданной слою меткой. */
+const LAYER_MOTION = /\bdata-(?:type|kinetic)\s*=/u;
+/** Атрибуты страницы, которые читает слой композиции. */
+const LAYER_ATTRS = /\bdata-(?:type|kinetic|at)\s*=|dataset\.(?:type|kinetic|at)\b/u;
+/** Метка страницы, отданной слою: `<html data-sc-page>`. */
+const MARKED = /<html\b[^>]*\sdata-sc-page\b/iu;
 
-/** Анимация в странице или в её локальных скриптах; внешняя сеть не подтверждает движение. */
-function pageMoves(file: string): boolean {
-  if (!existsSync(file)) return false;
+/** Текст страницы и её локальных скриптов; внешняя сеть не в счёт. */
+function pageTexts(file: string): { html: string; scripts: string[] } {
   const html = readFileSync(file, "utf8");
-  if (PAGE_MOTION.test(html)) return true;
+  const scripts: string[] = [];
   for (const match of html.matchAll(/<script\b[^>]*\bsrc\s*=\s*(?:"([^"]+)"|'([^']+)'|([^\s>]+))[^>]*>/giu)) {
     const ref = match[1] ?? match[2] ?? match[3] ?? "";
     if (!ref || ref.startsWith("/") || /^[a-z][a-z\d+.-]*:/iu.test(ref)) continue;
     const local = resolve(dirname(file), ref.split(/[?#]/u, 1)[0]!);
-    if (existsSync(local) && PAGE_MOTION.test(readFileSync(local, "utf8"))) return true;
+    if (existsSync(local)) scripts.push(readFileSync(local, "utf8"));
   }
-  return false;
+  return { html, scripts };
+}
+
+/** Анимация в странице или в её локальных скриптах; набор и кинетика слоя — только у помеченной. */
+function pageMoves(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const { html, scripts } = pageTexts(file);
+  const marked = MARKED.test(html);
+  return [html, ...scripts].some((t) => PAGE_MOTION.test(t) || (marked && LAYER_MOTION.test(t)));
+}
+
+/** Страница пользуется атрибутами слоя, но не отдана ему меткой: слой их не прочтёт. */
+function pageUnmarked(file: string): boolean {
+  if (!existsSync(file)) return false;
+  const { html, scripts } = pageTexts(file);
+  return !MARKED.test(html) && [html, ...scripts].some((t) => LAYER_ATTRS.test(t));
 }
 
 /** Ошибки компиляции фокуса приходят из общего движка; для lint сохраняем их числа и язык запуска. */
@@ -137,7 +161,11 @@ function spotlightFinding(why: string): string {
   return why;
 }
 
-export function lint(file: string): Finding[] {
+/**
+ * Находки сценария. `info.seconds` получает оценку длины ролика: сумма сцен по оценке речи минус
+ * перекрытия переходов — длину сверяют с брифом до первой сборки.
+ */
+export function lint(file: string, info?: { seconds?: number }): Finding[] {
   const src = parseSource(file);
   const raw = readFileSync(file, "utf8").split("\n");
   // Поля сцены проверяет её поставщик: опечатка в значении — ошибка сценария, как при сборке.
@@ -151,7 +179,7 @@ export function lint(file: string): Finding[] {
   // Вариант на другом языке: видимое поле без перевода — текст оригинала в чужом ролике.
   for (const u of src.untranslated ?? []) {
     if (u.scene < 0 && u.key === "title") {
-      out.push({ scene: "(film)", index: 0, rule: "untranslated", message: msg("lint.untranslatedFilm", { lang: src.variant ?? "" }) });
+      out.push({ scene: "(film)", index: 0, ...finding("untranslated", msg("lint.untranslatedFilm", { lang: src.variant ?? "" })) });
     } else if (u.scene >= 0) {
       const sc = src.scenes[u.scene]!;
       const shown = [...SHOWN_COMMON, ...(specOf(sc, src.providers ?? {}).shown ?? [])];
@@ -159,16 +187,46 @@ export function lint(file: string): Finding[] {
       // Накладка и фокус видны переводу только текстом: пометки, лупа и всплески без
       // единой надписи одинаковы на любом языке.
       if ((u.key === "overlay" || u.key === "spotlight") && !/"(text|title|subtitle|body)"\s*:/u.test(sc.fields[u.key] ?? "")) continue;
-      out.push({ scene: sc.id, index: u.scene + 1, rule: "untranslated", message: msg("lint.untranslatedScene",
-        { line: u.n, field: u.key, lang: src.variant ?? "" }) });
+      out.push({ scene: sc.id, index: u.scene + 1, ...finding("untranslated", msg("lint.untranslatedScene",
+        { line: u.n, field: u.key, lang: src.variant ?? "" })) });
     }
   }
+  // Авторство звука: инструмент своего звука не везёт, каждый файл музыки и эффектов откуда-то
+  // скачан, и строка о нём — название, автор, источник, лицензия — лежит в assets/CREDITS.md рядом
+  // со сценарием (visual-assets, «Checking a licence and writing the credit», шаг 5). Файл без
+  // строки — лицензия CC BY без указания автора или файл неизвестного происхождения.
+  {
+    const credits = [resolve(src.dir ?? ".", "assets", "CREDITS.md"), resolve(src.dir ?? ".", "CREDITS.md")].find((f) => existsSync(f));
+    const text = credits ? readFileSync(credits, "utf8") : "";
+    const sounds = new Map<string, string>();
+    const addSound = (file: string | undefined, scene: string): void => { if (file && !sounds.has(file)) sounds.set(file, scene); };
+    addSound((pitch as { music?: { file?: string } }).music?.file, "(film)");
+    for (const s of pitch.scenes) {
+      addSound((s as { music?: { file?: string } }).music?.file, s.id);
+      for (const c of (s as { sfx?: Array<{ file: string }> }).sfx ?? []) addSound(c.file, s.id);
+      addSound((s.transition as { sound?: string } | undefined)?.sound, s.id);
+    }
+    for (const [file, scene] of sounds) {
+      const name = file.split(/[\\/]/u).at(-1)!;
+      if (!text.includes(name)) {
+        out.push({ scene, index: scene === "(film)" ? 0 : pitch.scenes.findIndex((x) => x.id === scene) + 1,
+          ...finding("uncredited", msg("lint.uncredited", { file: name })) });
+      }
+    }
+  }
+  // Правило 51: субтитры — слова для тех, кто смотрит без звука. Сцена с речью без них — нарисованная
+  // (слайд, страница) без captions.everywhere: у видео подпись речи есть всегда. Явное
+  // `everywhere: false` — решение автора, его lint не оспаривает.
+  const unsubtitled: string[] = [];
+  let estimate = 0;
   pitch.scenes.forEach((s: PitchScene, i: number) => {
     const n = i + 1;
-    const add = (rule: string, message: string): void => { out.push({ scene: s.id, index: n, rule, message }); };
+    const add = (id: string, message: string): void => { out.push({ scene: s.id, index: n, ...finding(id, message) }); };
     const spec = specOf(s, src.providers ?? {});
     const spoken = (s.beats.length ? s.speechAt ?? 0 : 0) + s.beats.reduce((t, b) => t + Math.max(0.6, (b.speech ?? b.text).length / cps), 0);
     const duration = Math.max(s.duration ?? 0, spoken + (s.tail ?? pitch.tail ?? 0.4));
+    const tr = s.transition as { kind?: string; duration?: number } | undefined;
+    estimate += duration - (i > 0 && tr && tr.kind !== "cut" && tr.kind !== "leak" ? tr.duration ?? 0.6 : 0);
 
     // Правило 5: ширина двух строк берётся из той же зоны и темы, что у рендера.
     const frame = { width: Number(src.frame?.width ?? FORMATS.landscape.width), height: Number(src.frame?.height ?? FORMATS.landscape.height) };
@@ -177,6 +235,9 @@ export function lint(file: string): Finding[] {
       if (b.text.length > line * 2) {
         add("overloaded-line", msg("lint.overloadedLine", { beat: k + 1, chars: b.text.length, limit: line * 2 }));
       }
+      // Слово длиннее строки субтитра (путь, имя переменной, адрес) переносится посреди себя.
+      const long = b.text.split(/\s+/u).find((w) => w.length > Math.floor(line / 2));
+      if (long) add("long-word", msg("lint.longWord", { beat: k + 1, word: long, limit: Math.floor(line / 2) }));
     });
 
     // Правило 5: подпись и карточка не бывают на экране одновременно. Плашка
@@ -186,6 +247,7 @@ export function lint(file: string): Finding[] {
     const captionFrom = (spec.effects?.caption as { from?: unknown } | undefined)?.from;
     const captionShown = s.beats.length > 0 && (src.captions?.everywhere
       || (captionFrom !== undefined && Number.parseFloat(String(captionFrom)) < 9999));
+    if (s.beats.length && !captionShown && src.captions?.everywhere !== false) unsubtitled.push(s.id);
     const camera = (s.overlay?.camera ?? []).map((c) => [c.at, cameraEnd(c)] as const);
     const spotlit = (s.spotlight ?? []).length > 0;
     for (const card of s.overlay?.cards ?? []) {
@@ -317,18 +379,20 @@ export function lint(file: string): Finding[] {
     // этого не исправит: переснять нужно сам дубль.
     const marksFile = s.video ? resolve(src.dir, `${s.page}.marks.json`) : "";
     if (marksFile && existsSync(marksFile)) {
-      const recorded = (JSON.parse(readFileSync(marksFile, "utf8")) as { theme?: { id: string; name?: string; of?: string } }).theme;
+      const recorded = (JSON.parse(readFileSync(marksFile, "utf8")) as { theme?: { id: string; name?: string; scheme?: Scheme; of?: string } }).theme;
       const vars = s.theme ?? pitch.theme ?? {};
       const want = themeFingerprint(vars);
+      const wanted = want.name ? themeLabel(want.name, want.scheme) : undefined;
       // Дубль, снятый до отпечатка по впекаемой части, помнит отпечаток всей темы.
       const same = recorded && (recorded.of === "baked" ? recorded.id === want.id
         : recorded.id === wholeThemeFingerprint(vars) || (recorded.name !== undefined && recorded.name === want.name));
       if (!recorded) {
-        add("take-theme", msg("lint.takeThemeOld", { file: String(s.page), wanted: want.name ?? msg("lint.themeUnnamed"),
-          hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
+        add("take-theme", msg("lint.takeThemeOld", { file: String(s.page), wanted: wanted?.label ?? msg("lint.themeUnnamed"),
+          hint: wanted?.input ?? msg("lint.themeUnnamed") }));
       } else if (!same) {
-        add("take-theme", msg("lint.takeThemeMismatch", { file: String(s.page), recorded: recorded.name ?? msg("lint.themeOther"),
-          wanted: want.name ?? msg("lint.themeOther"), hint: want.name ? `"${want.name}"` : msg("lint.themeUnnamed") }));
+        add("take-theme", msg("lint.takeThemeMismatch", { file: String(s.page),
+          recorded: recorded.name ? themeLabel(recorded.name, recorded.scheme).label : msg("lint.themeOther"),
+          wanted: wanted?.label ?? msg("lint.themeOther"), hint: wanted?.input ?? msg("lint.themeUnnamed") }));
       }
     }
 
@@ -359,13 +423,22 @@ export function lint(file: string): Finding[] {
       || s.overlay?.glints?.length || s.overlay?.bursts?.length || s.overlay?.loupe?.length);
     const zoom = (s.effects?.zoom as { scale?: number } | undefined)?.scale ?? 1;
     // Страница, которая движется сама — CSS-анимацией, Web Animations, своим циклом кадров или по
-    // времени сцены (`window.renderAt`, набор `data-type`, кинетика `data-kinetic`), — не стоит: её
+    // времени сцены (`window.renderAt`, набор `data-type`, кинетика `data-kinetic` на странице с меткой `data-sc-page`), — не стоит: её
     // движение идёт по времени сцены так же, как слой композиции. Один `data-at` ничего не двигает:
     // слой лишь переводит якорь в секунды.
     const pageFile = !s.video ? resolve(src.dir, String(s.page)) : "";
     const animated = pageFile && pageMoves(pageFile);
     if (!spec.moving && duration > 5 && !moves && zoom <= 1 && !animated) {
       add("still-scene", msg("lint.stillPage", { duration: duration.toFixed(1) }));
+    }
+    // Своя страница автора с атрибутами слоя, но без метки: набор, кинетика и якоря не сработают.
+    if (s.provider === "page" && pageFile && pageUnmarked(pageFile)) add("page-unmarked", msg("lint.pageUnmarked"));
+    // Кинетика страницы по слитому имени рисовалась бы молча другим стилем: имя замены — в находке.
+    if (s.provider === "page" && pageFile && existsSync(pageFile)) {
+      for (const m of pageTexts(pageFile).html.matchAll(/data-kinetic\s*=\s*["']([\w-]+)["']/gu)) {
+        const use = retiredAs("text", m[1]!);
+        if (use) add("page-retired", msg("retired", { field: "data-kinetic", value: m[1]!, use }));
+      }
     }
     if (s.video && s.freezeAt !== undefined && !s.overlay?.camera?.length && !spotlit) {
       add("still-scene", msg("lint.stillVideo"));
@@ -408,6 +481,28 @@ export function lint(file: string): Finding[] {
       }
     }
 
+    // Правило 66: одно главное движение за раз. Наезд камеры поверх движения всего кадра (наезд,
+    // облёт, проход, рука слайда) — два главных движения сразу, и ни одно не ведёт взгляд; крупный
+    // титр, влетающий, пока едет камера, — то же самое.
+    const frameMove = (f.move ?? "").trim();
+    if (["push", "dolly", "pan", "orbit3d", "handheld"].includes(frameMove) && (s.overlay?.camera?.length || spotlit)) {
+      add("motion-stack", msg("lint.motionStack", { move: frameMove }));
+    }
+    for (const t of titles) {
+      const c = (s.overlay?.camera ?? []).find((c) => t.at < c.at + (c.move ?? 0.9) && c.at < t.at + 0.8);
+      if (c) add("motion-stack", msg("lint.motionStackTitle", { title: t.text, at: c.at.toFixed(1) }));
+    }
+    // Правило 66, вестибулярная безопасность: крупный наезд за короткое время — то, от чего зрителя
+    // укачивает. Мера — скорость приближения, ln(увеличение) за секунду движения; больше 1,2 (двукратный
+    // наезд быстрее 0,58 с) — резко. Увеличение, которое выберет кадр, оценивается умолчанием 1,65.
+    const harsh = [...(s.overlay?.camera ?? []).map((c) => ({ at: `${c.at.toFixed(1)}s`, scale: c.scale ?? 1.65, move: c.move ?? 0.9 })),
+      ...(s.spotlight ?? []).map((sp) => ({ at: String(sp.at), scale: sp.scale ?? 1.65, move: (sp as { move?: number }).move ?? 0.8 }))];
+    for (const c of harsh) {
+      const rate = Math.log(Math.max(1, c.scale)) / Math.max(0.05, c.move);
+      if (rate > 1.2) add("harsh-push", msg("lint.harshPush", { at: c.at, scale: c.scale, move: c.move,
+        slow: (Math.log(c.scale) / 1.2).toFixed(2) }));
+    }
+
     // Число на слайде называет источник и дату (film craft 12, 56): цифра без них — снимок,
     // выданный за текущее положение, или число, которое неоткуда проверить.
     if (spec.numbers) {
@@ -421,14 +516,38 @@ export function lint(file: string): Finding[] {
     if (duration > LONG) {
       add("long-scene", msg("lint.longScene", { duration: duration.toFixed(0), limit: LONG }));
     }
+    // Караоке на плашке: непроизнесённое слово приглушено прозрачностью темы и держит 4,5:1. Тема
+    // автора или бренда может его погасить; поставляемые темы держат порог (тест тем).
+    if (src.captions?.style === "karaoke" && src.captions.look === "plate" && s.beats.length) {
+      const c = karaokeRestContrast((s.theme ?? pitch.theme ?? {}) as Record<string, string>);
+      if (c !== null && c < 4.5) add("karaoke-contrast", msg("lint.karaokeContrast", { ratio: c.toFixed(2) }));
+    }
   });
+  if (info) info.seconds = Number(estimate.toFixed(1));
+  // Правило 63: удар кадра — удар трейлера со звуком на том же якоре; без звука он читается как
+  // сбой. Сцена с ударами, где звучать нечему — ни акцента сцены, ни звука перехода, ни музыки, —
+  // названа. Речь ударом не звучит.
+  const filmMusic = Boolean((pitch as { music?: unknown }).music);
+  const silentHits = pitch.scenes.filter((s) => {
+    const x = s as { flash?: unknown[]; shake?: unknown[]; rgb?: unknown[]; music?: unknown; sfx?: unknown[] };
+    const hits = (x.flash?.length ?? 0) + (x.shake?.length ?? 0) + (x.rgb?.length ?? 0);
+    const sound = filmMusic || Boolean(x.music) || (x.sfx?.length ?? 0) > 0 || Boolean((s.transition as { sound?: string } | undefined)?.sound);
+    return hits > 0 && !sound;
+  });
+  if (silentHits.length) {
+    out.push({ scene: "(film)", index: 0, ...finding("silent-hits", msg("lint.silentHits", { scenes: silentHits.slice(0, 4).map((s) => s.id).join(", ") })) });
+  }
+  // Немой ролик без речи (audio: false) субтитров и не ждёт: он читается картинкой и карточками.
+  if (unsubtitled.length && src.audio !== false) {
+    out.push({ scene: "(film)", index: 0, ...finding("no-subtitles", msg("lint.noSubtitles", { count: unsubtitled.length, scenes: unsubtitled.slice(0, 4).join(", ") })) });
+  }
   return out;
 }
 
 /** Признак клише облика: приём, взятый без причины (docs/visual-design.md). */
-export interface Sign { rule: string; scenes: string[]; message: string }
+export interface Sign { id: string; scenes: string[]; message: string }
 
-const DECORATIVE = new Set(["aurora", "mesh", "bokeh", "particles"]);
+const DECORATIVE = new Set(["aurora", "bokeh", "particles", "rays", "lamp", "meteors", "flicker", "beams", "warp", "vortex"]);
 const PLACEHOLDER_URL = /^(?:$|https?:\/\/)?(?:$|(?:www\.)?(?:example\.(?:com|org)|localhost|127\.0\.0\.1|your[-\w]*\.\w+|app\.com|placeholder|acme\.\w+))/iu;
 const EMOJI = /\p{Extended_Pictographic}/u;
 
@@ -447,12 +566,12 @@ export function clicheSigns(file: string): Sign[] {
   const src = parseSource(file);
   const pitch = toPitch(src);
   const out: Sign[] = [];
-  const sign = (rule: string, scenes: string[], message: string): void => { if (scenes.length) out.push({ rule, scenes, message }); };
+  const sign = (id: string, scenes: string[], message: string): void => { if (scenes.length) out.push({ id, scenes, message }); };
   const scenes = pitch.scenes.map((s, i) => ({ s, f: src.scenes[i]?.fields ?? {}, vars: s.theme ?? pitch.theme, spec: specOf(s, src.providers ?? {}) }));
   const trailer = scenes.some(({ spec }) => spec.trailer)
     || (src.look?.bars !== undefined && src.look?.grade === "teal-orange") || scenes.some(({ vars }) => genre(vars));
   if (!trailer) {
-    sign("hit-outside-trailer", scenes.filter(({ f }) => f.flash || f.shake).map(({ s }) => s.id),
+    sign("hit-outside-trailer", scenes.filter(({ f }) => f.flash || f.shake || f.rgb).map(({ s }) => s.id),
       msg("lint.clicheHit"));
     if ((src.look?.grain ?? 0) > 0) sign("grain", ["(film)"], msg("lint.clicheGrain"));
   }
@@ -460,8 +579,9 @@ export function clicheSigns(file: string): Sign[] {
   const sparkleCount = scenes.reduce((n, { s }) => n + (s.overlay?.bursts?.length ?? 0) + (s.overlay?.glints?.length ?? 0), 0);
   if (sparkleCount > 2) sign("many-sparkles", sparkles.map(({ s }) => s.id), msg("lint.clicheSparkles", { count: sparkleCount }));
   const kinds = new Map<string, string[]>();
-  for (const { s } of scenes) {
-    const k = (s.transition as { kind?: string } | undefined)?.kind;
+  for (const { s, f } of scenes) {
+    // Переходы потока (`flow: auto`) — одна система по смыслу стыка, а не три вкуса: считаются одним видом.
+    const k = src.flow === "auto" && !f.transition && s.transition ? "flow" : (s.transition as { kind?: string } | undefined)?.kind;
     if (k) kinds.set(k, [...(kinds.get(k) ?? []), s.id]);
   }
   if (kinds.size > 2) sign("transition-kinds", [...kinds.values()].flat(), msg("lint.clicheTransitions",
@@ -488,7 +608,8 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   const file = process.argv[2] ?? "story.md";
   // Ошибка сценария — словами, как у остальных команд, а не дампом стека.
   let findings: Finding[];
-  try { findings = lint(file); } catch (e) {
+  const info: { seconds?: number } = {};
+  try { findings = lint(file, info); } catch (e) {
     const err = e as { sourceError?: boolean; code?: string; message?: string };
     if (!err.sourceError && err.code !== "ENOENT") throw e;
     console.error(err.code === "ENOENT" ? msg("source.notFound", { path: file })
@@ -499,6 +620,6 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   const cliches = { count: signs.length, signs,
     ...(signs.length >= 4 ? { verdict: msg("lint.clicheVerdict") } : {}) };
   // Признаки клише не валят проверку: каждый бывает решением, их число — предупреждение.
-  console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches }, null, 1));
+  console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches, estimated: { seconds: info.seconds } }, null, 1));
   process.exit(findings.length ? 1 : 0);
 }

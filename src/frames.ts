@@ -21,11 +21,14 @@ import { generateFrom } from "./generate.js";
 import { assetsForCheck } from "./stage-assets.js";
 import { ffmpegColour } from "./theme.js";
 import { subtitleMax } from "./film.js";
+import { cameraPerspective } from "./camera.js";
+import { DEVICE_CSS, deviceScene, type Device } from "./device.js";
 import { layerSafe } from "./part-label.js";
-import { anchorSeconds, estimateBeats } from "./spotlight.js";
+import { anchorSeconds, estimateBeats, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { flatShare } from "./lint.js";
 import { specOf } from "./source.js";
 import { msg } from "./msg.js";
+import type { SceneOverlay } from "./overlay.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -35,7 +38,7 @@ const args = process.argv.slice(2);
 const arg = (k: string): string | undefined => { const i = args.indexOf(`--${k}`); return i >= 0 ? args[i + 1] : undefined; };
 const source = args[0];
 if (!source || source.startsWith("--")) {
-  console.error("frames.js <story.md> [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]");
+  console.error(msg("frames.usage"));
   process.exit(2);
 }
 const only = arg("scene");
@@ -56,7 +59,7 @@ try { g = generateFrom(resolve(source), { ...(only ? { onlyScene: only } : {}), 
 const SRC = dirname(g.pitchFile);
 const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as {
   scenes: Array<RenderScene & { id: string; provider: string; kind: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
-    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true }>;
+    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true; spotlight?: Spotlight[] }>;
   frame?: { width?: number; height?: number }; theme?: Record<string, string>; tail?: number;
   safe?: { top: number; bottom: number; left: number; right: number };
   emoji?: { dir: string }; dir?: string;
@@ -122,6 +125,16 @@ for (const s of pitch.scenes) {
   const clip = Math.max(0, pieceEnd - cut);
   const duration = Math.max(Number(s.duration ?? 0), spoken + Number(s.tail ?? pitch.tail ?? 0.4),
     s.video && !s.beats.length && s.duration === undefined ? clip : 0);
+  // Фокусы внимания становятся камерой и карточками так же, как в сборке, — по оценённым тактам.
+  // Без этого лист показывал сцену без наезда, который сборка рисует.
+  if (s.spotlight?.length) {
+    try {
+      s.overlay = spotlightOverlay(s.spotlight, s.overlay as SceneOverlay | undefined, { starts, ends, duration, video: Boolean(s.video) }).overlay;
+    } catch (e) {
+      console.error(msg("build.sceneError", { id: s.id, why: (e as Error).message }));
+      process.exit(2);
+    }
+  }
   const at = atBeat ? Math.max(0, Math.min(duration, anchorSeconds(atArg, starts.length ? starts : [0], duration, ends)))
     : atSecs ? atValue : atValue * duration;
   const file = only ? out : resolve(dir, `${s.id}.png`);
@@ -140,15 +153,43 @@ for (const s of pitch.scenes) {
   if (s.video) {
     const t = cut + (s.freezeAt ?? Math.min(at, Math.max(0, clip - 0.05)));
     source = Number(t.toFixed(2));
-    const fit = fitFilter(s.fit as Fit | undefined, W, H, ffmpegColour(theme["--sc-letterbox"]!));
-    if (s.beats.length || s.overlay) {
+    // Клип в рамке устройства — как в сборке: экран рамки на своём месте, корпус рисует слой, а
+    // области камеры переведены из долей клипа в доли кадра.
+    const device = (s as { device?: Device }).device;
+    const dev = device ? deviceScene(device, (() => {
+      const [cw, ch] = execFileSync(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height",
+        "-of", "csv=p=0:s=x", page], { encoding: "utf8" }).trim().split("x").map(Number);
+      return cw && ch ? cw / ch : undefined;
+    })(), W, H, s.overlay as SceneOverlay | undefined) : null;
+    const fill = ffmpegColour(theme["--sc-letterbox"]!);
+    const fit = dev ? `scale=${dev.layout.screen.w}:${dev.layout.screen.h},pad=${W}:${H}:${dev.layout.screen.x}:${dev.layout.screen.y}:color=${fill}`
+      : fitFilter(s.fit as Fit | undefined, W, H, fill);
+    if (dev) s.overlay = dev.overlay;
+    // Наезд над видео делает сборка фильтром кадра: превью ставит ту же камеру в её положение в
+    // этот момент — предметная половина слоя едет с картинкой, экранная стоит поверх.
+    const camera = s.overlay && (s.overlay as SceneOverlay).camera?.length
+      ? cameraPerspective((s.overlay as SceneOverlay).camera!, 30, [], at) : null;
+    if (s.beats.length || s.overlay || dev) {
       const temp = mkdtempSync(join(tmpdir(), "sc-frame-layer-"));
       try {
-        const overlayFile = resolve(temp, "overlay.png");
-        const { shots } = await renderScene({ ...s, ...stage, __overlayOnly: true } as RenderScene, { width: W, height: H, at });
-        writeFileSync(overlayFile, shots[0]!.buf);
-        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-i", overlayFile,
-          "-filter_complex", `[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto[v]`, "-map", "[v]", "-frames:v", "1", file]);
+        const layer = async (name: string, part?: "scene" | "screen"): Promise<string> => {
+          const f = resolve(temp, `${name}.png`);
+          const { shots } = await renderScene({ ...s, ...stage, __overlayOnly: true, ...(dev ? { __device: { html: dev.html, css: DEVICE_CSS } } : {}),
+            ...(part ? { __layerPart: part, __videoCamera: true } : {}) } as RenderScene,
+            { width: W, height: H, at });
+          writeFileSync(f, shots[0]!.buf);
+          return f;
+        };
+        if (camera) {
+          const under = await layer("scene", "scene"), over = await layer("screen", "screen");
+          execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-i", under, "-i", over,
+            "-filter_complex", `[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto,${camera}[in];[in][2:v]overlay=0:0:format=auto[v]`,
+            "-map", "[v]", "-frames:v", "1", file]);
+        } else {
+          const overlayFile = await layer("overlay");
+          execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-i", overlayFile,
+            "-filter_complex", `[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto[v]`, "-map", "[v]", "-frames:v", "1", file]);
+        }
       } finally { rmSync(temp, { recursive: true, force: true }); }
     } else {
       execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-ss", String(t), "-i", page, "-frames:v", "1", "-vf", fit, file]);

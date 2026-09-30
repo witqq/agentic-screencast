@@ -48,10 +48,10 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { providerFor, type KindSpec } from "./provider/index.js";
 import { parseOverlay, type SceneOverlay } from "./overlay.js";
-import { resolveTheme, type ThemeInput } from "./theme.js";
+import { resolveTheme, SCHEMES, type Scheme, type ThemeInput } from "./theme.js";
 import { parseSpeed, type SpeedStep } from "./speed.js";
 import { msg, useLang } from "./msg.js";
-import { parseTransition, type Transition } from "./transition.js";
+import { CUT, parseTransition, ZOOM, type Transition } from "./transition.js";
 import { anchorSeconds, estimateBeats, parseSpotlight, type Spotlight } from "./spotlight.js";
 import { parseStills, type Still } from "./stills.js";
 import { isMarkReference, marksOf, resolveMarks, trimMarks, type AutoZoom, type Trim } from "./marks.js";
@@ -60,6 +60,7 @@ import { parseDevice, type Device } from "./device.js";
 import { parseLook, type Look } from "./look.js";
 import { frameOf, parseFormat, parseZone, safeOf, type Safe, type Zone } from "./format.js";
 import { existsSync } from "node:fs";
+import { plainTitle } from "./provider/slides/markup.js";
 
 /**
  * Вид сцены — ПРОИЗВОЛЬНАЯ строка: его смысл знает поставщик материала,
@@ -204,6 +205,8 @@ export interface Source {
   frame?: Frame;
   encode?: Encode;
   theme?: Theme;
+  /** схема тем ролика: светлая или тёмная; без неё — схема темы по умолчанию */
+  scheme?: Scheme;
   pronounce?: unknown;
   lang?: string;
   captions?: Captions;
@@ -218,6 +221,8 @@ export interface Source {
   loudness?: number;
   /** false — ролик без звуковой дорожки (немой ролик под свою музыку или субтитры) */
   audio?: boolean;
+  /** `auto` — стыки без своего перехода получают переход по смыслу: ролик течёт, а не мигает затемнениями */
+  flow?: "auto";
   /** размытие движения камеры: подкадров на кадр и доля выдержки */
   motionBlur?: { samples: number; shutter: number };
   /** вид плёнки: грейд, виньетка, зерно, каше */
@@ -281,7 +286,17 @@ export interface Slide {
   /** где содержимое слайда стоит по высоте: сверху, посередине, снизу или разложено на всю высоту */
   align?: "top" | "center" | "bottom" | "fill";
   /** движение кадра целиком: медленный облёт, наезд или неподвижность */
-  move?: "drift" | "push" | "still";
+  move?: "drift" | "push" | "still" | "dolly" | "pan" | "orbit3d" | "handheld";
+  /** жизнь элементов после входа: покачивание, парение или дрожь */
+  alive?: "wiggle" | "float" | "jitter" | "pulse";
+  /** свечение, бегущее по рамке карточек */
+  glow?: "border";
+  /** кривая входов: стандартная, выразительная, пружина */
+  ease?: "standard" | "emphasized" | "expressive" | "spring" | "bouncy";
+  /** порядок входа пунктов: с начала, из центра, с краёв или вразброс */
+  wave?: "start" | "center" | "edges" | "random";
+  /** шаг между входами пунктов, секунды */
+  stagger?: number;
   /** крутить ли числа при появлении */
   count?: boolean;
   /** сколько тактов речи у сцены: от этого зависят умолчания моментов */
@@ -298,8 +313,27 @@ export interface Slide {
   split?: [number, number];
   /** параллакс: панели снимка (доли картинки) и их глубина 0…1, где 1 — ближе всего */
   panels?: Array<{ x: number; y: number; w: number; h: number; depth: number }>;
+  /** бегущая лента: число строк (вторая идёт навстречу) и скорость в точках кадра за секунду */
+  rows?: 1 | 2;
+  speed?: number;
   /** график из CSV: вид, строки «подпись — значение», подсвеченная строка */
-  chart?: { type: "bar" | "line"; rows: Array<{ label: string; value: number; shown: string }>; peak?: number };
+  chart?: { type: "bar" | "line" | "race"; rows: Array<{ label: string; value: number; shown: string }>; peak?: number;
+    /** гонка: периоды из шапки CSV и значения каждой строки по периодам */
+    race?: { periods: string[]; rows: Array<{ label: string; values: number[] }> } };
+  /** мини-графики у значений счётчика: ряд чисел на каждое значение */
+  spark?: number[][];
+  /** стена снимков: картинки, уже встроенные в страницу */
+  images?: Array<{ src: string; width: number; height: number }>;
+  /** картинка, которой залиты буквы заголовка */
+  fill?: { src: string; width: number; height: number };
+  /** как сменяется слово `{a|b}`: выезжает (умолчание) или перетекает, как жидкость */
+  swap?: "slide" | "morph";
+  /** плоская карта из точек вместо глобуса */
+  map?: "flat";
+  /** подпись окна терминала */
+  name?: string;
+  /** темп сцены: входы спокойнее или резче */
+  pace?: "calm" | "brisk" | "snap";
 }
 
 export interface Deck { slides: Slide[] }
@@ -360,6 +394,8 @@ export interface PitchScene {
   /** вспышки и тряска кадра на якорях сцены */
   flash?: Hit[];
   shake?: Hit[];
+  /** расслоение цвета кадра на якорях сцены */
+  rgb?: Hit[];
   /** рамка устройства вокруг материала сцены */
   device?: Device;
   /** тема этой сцены поверх темы ролика: слайды, страница и слой сцены рисуются ею */
@@ -382,6 +418,8 @@ export interface Pitch {
   scenes: PitchScene[];
   /** Явные части из авторского сценария, независимо от порождённого списка глав. */
   authoredParts?: string[];
+  /** Ролик для ленты (вертикаль или квадрат с зоной площадки): его первый кадр — превью и начало петли. */
+  feed?: boolean;
   tail?: number;
   /** посторонние поставщики: их объявил ролик, и проверкам они тоже нужны */
   providers?: Record<string, string>;
@@ -412,7 +450,7 @@ export interface Pitch {
  * Поля, допустимые у ЛЮБОЙ сцены: хвост тишины и временные аннотации
  * принадлежат композиции, а не конкретному поставщику материала.
  */
-export const COMMON: string[] = ["tail", "overlay", "duration", "part", "transition", "fade", "sfx", "music", "flash", "shake", "speechAt", "captions", "spotlight", "theme", "stills"];
+export const COMMON: string[] = ["tail", "overlay", "duration", "part", "transition", "fade", "sfx", "music", "flash", "shake", "rgb", "speechAt", "captions", "spotlight", "theme", "stills"];
 
 /**
  * Состав полей и их обязательность живут у ПОСТАВЩИКА и спрашиваются
@@ -424,7 +462,7 @@ export function specOf(scene: { provider: string; kind: string },
   providers: Record<string, string> = {}): KindSpec {
   const p = providerFor(scene.provider, providers);
   const kinds = p.kinds();
-  const spec = kinds[scene.kind];
+  const spec = Object.hasOwn(kinds, scene.kind) ? kinds[scene.kind] : undefined;
   if (!spec) {
     throw new SourceError(msg("provider.unknownKind", {
       provider: scene.provider, kind: scene.kind,
@@ -500,8 +538,8 @@ export function beatOfAnchor(a: string): number | null {
 }
 
 /** Поля шапки ролика: по ним подсказывается ближайшее к опечатке. */
-export const FILM_FIELDS = ["voice", "tail", "providers", "frame", "encode", "theme", "pronounce", "lang", "captions",
-  "pip", "progress", "music", "sfx", "loudness", "audio", "motionBlur", "format", "zone", "look", "emoji"];
+export const FILM_FIELDS = ["voice", "tail", "providers", "frame", "encode", "theme", "scheme", "pronounce", "lang", "captions",
+  "pip", "progress", "music", "sfx", "loudness", "audio", "flow", "motionBlur", "format", "zone", "look", "emoji"];
 
 /**
  * Расстояние правки с перестановкой соседей: сколько знаков вставить, убрать,
@@ -737,6 +775,8 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
   const text = readFileSync(file, "utf8");
   const lines = text.split("\n");
   const out: Source = { title: "", voice: null, scenes: [], dir: dirname(resolve(file)) };
+  let themeWritten: { line: number; input: ThemeInput } | undefined;
+  let schemeLine: number | undefined;
   let lookLine = 1;
   const spec = (sc: { provider: string; kind: string }): KindSpec => specOf(sc, out.providers ?? {});
   let scene: RawScene | null = null;
@@ -919,7 +959,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       const v = Number(s.fields.speechAt.replace(/s$/i, ""));
       if (!Number.isFinite(v) || v < 0 || v > 10) err(s.__line ?? 0, msg("source.speechAt", { id: s.id }));
     }
-    for (const k of ["flash", "shake"] as const) {
+    for (const k of ["flash", "shake", "rgb"] as const) {
       if (!s.fields[k]) continue;
       try { parseHits(s.fields[k], k); }
       catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
@@ -950,7 +990,7 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
       } catch (e) { err(s.__line ?? 0, msg("source.sceneReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.theme) {
-      try { sceneTheme(s.fields.theme, out.theme); }
+      try { sceneTheme(s.fields.theme, out.theme, out.scheme); }
       catch (e) { err(s.__line ?? 0, msg("source.sceneThemeReason", { id: s.id, why: String((e as Error).message) })); }
     }
     if (s.fields.device) {
@@ -1055,12 +1095,16 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         // она СРАЗУ: дальше по течению тема — всегда плоский набор, и ни
         // страница слайдов, ни слой композиции о поставляемых наборах
         // не знают.
+        // Тема разрешается после шапки: схема (`scheme: dark`) может стоять и ниже неё.
         else if (key === "theme") {
           const raw = value!.trim();
-          const written: ThemeInput = raw.startsWith("{")
-            ? (objectOf(raw, "theme") as ThemeInput) : raw;
-          try { out.theme = resolveTheme(written); }
-          catch (e) { err(n, String((e as Error).message)); }
+          themeWritten = { line: n, input: raw.startsWith("{") ? (objectOf(raw, "theme") as ThemeInput) : raw };
+        }
+        else if (key === "scheme") {
+          const v = value!.trim();
+          if (SCHEMES.includes(v as Scheme)) out.scheme = v as Scheme;
+          else err(n, msg("theme.scheme", { scheme: v, available: SCHEMES.join(", ") }));
+          schemeLine = n;
         }
         // Правила чтения и язык — свойства РОЛИКА. Прежде правила
         // выбирались по имени движка голоса, то есть инструмент решал
@@ -1088,6 +1132,9 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
         } else if (key === "audio") {
           if (value!.trim() !== "false" && value!.trim() !== "true") err(n, msg("source.audio"));
           out.audio = value!.trim() !== "false";
+        } else if (key === "flow") {
+          if (value!.trim() !== "auto") err(n, msg("source.flow"));
+          else out.flow = "auto";
         } else if (key === "motionBlur") {
           const raw = value!.trim();
           if (raw === "true") out.motionBlur = { samples: 6, shutter: 0.5 };
@@ -1187,8 +1234,10 @@ export function parseSource(file: string, opts: { lang?: string; format?: string
     }
   }
   if (!out.scenes.length) err(1, msg("source.noScenes"));
-  // Ролик без темы носит ночную тему из таблицы тем: запасных значений в коде рисования больше нет.
-  out.theme ??= resolveTheme(undefined);
+  // Ролик без темы носит тему по умолчанию из таблицы тем: запасных значений в коде рисования нет.
+  // Схема шапки выбирает светлый или тёмный набор названной темы.
+  try { out.theme = resolveTheme(themeWritten?.input, undefined, out.scheme); }
+  catch (e) { err(themeWritten?.line ?? schemeLine ?? 1, String((e as Error).message)); }
   return out;
 }
 
@@ -1205,11 +1254,12 @@ export const SLIDES_DIR = "slides";
  * переменных без имени ложится поверх темы ролика — чтобы сменить акцент одной сцены, не
  * переписывая тему.
  */
-export function sceneTheme(raw: string, film: Theme | undefined): Theme {
+export function sceneTheme(raw: string, film: Theme | undefined, scheme?: Scheme): Theme {
   const text = raw.trim();
   const written = (text.startsWith("{") ? objectOf(text, "theme") : text) as ThemeInput;
-  if (typeof written === "string" || written.preset !== undefined) return resolveTheme(written);
-  return resolveTheme(written, film ?? resolveTheme(undefined));
+  // Названная тема сцены носит схему ролика, если сцена не назвала свою (`{"preset","scheme"}`).
+  if (typeof written === "string" || written.preset !== undefined) return resolveTheme(written, undefined, scheme);
+  return resolveTheme(written, film ?? resolveTheme(undefined, undefined, scheme));
 }
 
 /**
@@ -1234,6 +1284,31 @@ const overlayAnchored = (raw: string): boolean => /"at"\s*:\s*"(?!@)/.test(raw);
  * своими полями — `zoom`, `spotFrom`, `focus`, — но выбирать умолчание
  * ядру не приходится.
  */
+/**
+ * Поток (`flow: auto`): каждый стык без своего перехода получает переход по смыслу, а не
+ * затемнение. Внутри главы следующая сцена толкает прежнюю по одной оси — вбок в широком кадре
+ * и вверх в высоком, как лента; на границе главы кадр хлёстом уходит в ту же сторону; в
+ * заставку главы и финал камера влетает; карта и титул трейлера врезаются склейкой. Куски одного дубля встык остаются склейкой без
+ * перехода: это одна съёмка. Переход, названный сценой, — решение автора, и поток его не трогает.
+ */
+function flowSeams(src: Source, scenes: PitchScene[]): void {
+  const frame = frameOf(src.format, src.frame) ?? { width: 1920, height: 1080 };
+  const axis = Number(frame.height) > Number(frame.width) ? "up" as const : "left" as const;
+  for (let i = 1; i < scenes.length; i++) {
+    const prev = scenes[i - 1]!, cur = scenes[i]!;
+    if (src.scenes[i]!.fields.transition) continue;
+    const joined = prev.video && cur.video && prev.page === cur.page && prev.trim?.to !== undefined && cur.trim
+      && Math.abs(prev.trim.to - cur.trim.from) <= 0.05;
+    if (joined) continue;
+    const newPart = Boolean(src.scenes[i]!.fields.part) || (cur.chapter !== undefined && cur.chapter !== prev.chapter);
+    const spec = specOf(src.scenes[i]!, src.providers ?? {});
+    // Карта и титул трейлера врезаются склейкой: удар вспышки и тряски не должен тонуть в пролёте.
+    cur.transition = spec.trailer ? { kind: CUT, duration: 0 } : spec.arrival ? { kind: ZOOM, duration: 0.7 }
+      : newPart ? { kind: "whip", duration: 0.5, direction: axis }
+      : { kind: "push", duration: 0.6, direction: axis };
+  }
+}
+
 export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
   // Части ролика: явные `part:` берут верх. Если автор назвал части сам, заставки глав и титры
   // (виды с `chapterFrom`) новых частей не открывают — иначе обзор с пятнадцатью частями получал в
@@ -1288,7 +1363,7 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       ...(f.transition ? { transition: parseTransition(f.transition) } : {}),
       ...(f.autoZoom ? { autoZoom: parseAutoZoom(f.autoZoom) } : {}),
       ...(f.device ? { device: parseDevice(f.device) } : {}),
-      ...(f.theme ? { theme: sceneTheme(f.theme, src.theme) } : {}),
+      ...(f.theme ? { theme: sceneTheme(f.theme, src.theme, src.scheme) } : {}),
       ...(f.spotlight ? { spotlight: parseSpotlight(f.spotlight) } : {}),
       ...(f.stills ? { stills: parseStills(f.stills, `scene ${s.id} stills`) } : {}),
       ...(f.sfx ? { sfx: parseSfx(f.sfx, src.dir, `scene ${s.id} sfx`, /./) } : {}),
@@ -1297,10 +1372,24 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
       ...(f.captions ? { captionsAt: f.captions.trim() as CaptionPosition } : {}),
       ...(f.flash ? { flash: parseHits(f.flash, "flash") } : {}),
       ...(f.shake ? { shake: parseHits(f.shake, "shake") } : {}),
+      ...(f.rgb ? { rgb: parseHits(f.rgb, "rgb") } : {}),
       ...(f.part ? { chapter: f.part }
-        : !explicitParts && spec.chapterFrom?.some((k) => f[k]) ? { chapter: spec.chapterFrom.map((k) => f[k]).find(Boolean)! } : {}),
+        : !explicitParts && spec.chapterFrom?.some((k) => f[k]) ? { chapter: plainTitle(spec.chapterFrom.map((k) => f[k]).find(Boolean)!) } : {}),
     };
   });
+  // Куски одного дубля встык (конец одного — начало следующего, одна запись) склеиваются без
+  // затемнения: правило 21 снимает живое приложение одним дублем, а затемнение на стыке выглядело
+  // перезагрузкой. Автор, назвавший `fade` или переход сам, решает сам.
+  for (let i = 1; i < scenes.length; i++) {
+    const prev = scenes[i - 1]!, cur = scenes[i]!;
+    const joined = prev.video && cur.video && prev.page === cur.page && prev.trim?.to !== undefined && cur.trim
+      && Math.abs(prev.trim.to - cur.trim.from) <= 0.05 && !src.scenes[i]!.fields.transition;
+    if (!joined) continue;
+    const fadeOf = (x: PitchScene): Record<string, unknown> => ((x.effects ??= {}).fade ??= {}) as Record<string, unknown>;
+    if (!src.scenes[i - 1]!.fields.fade) fadeOf(prev).out = 0;
+    if (!src.scenes[i]!.fields.fade) fadeOf(cur).in = 0;
+  }
+  if (src.flow === "auto") flowSeams(src, scenes);
   const pitch: Pitch = { scenes };
   if (explicitParts) pitch.authoredParts = src.scenes.flatMap((s) => s.fields.part ? [s.fields.part] : []);
   if (src.tail !== undefined) pitch.tail = src.tail;
@@ -1322,6 +1411,14 @@ export function toPitch(src: Source, slidesDir: string = SLIDES_DIR): Pitch {
   if (src.look) pitch.look = src.look;
   if (src.format) pitch.format = src.format;
   if (src.safe) pitch.safe = src.safe;
+  // Лента: первый кадр — превью и начало петли, и он показывает предмет (правило 64), а не чёрный
+  // вход; последний кадр переходит в первый без затемнения. Автор, назвавший fade, решает сам.
+  if (src.safe && src.zone !== "plain" && scenes.length) {
+    pitch.feed = true;
+    const fadeOf = (x: PitchScene): Record<string, unknown> => ((x.effects ??= {}).fade ??= {}) as Record<string, unknown>;
+    if (!src.scenes[0]!.fields.fade) fadeOf(scenes[0]!).in = 0;
+    if (!src.scenes.at(-1)!.fields.fade) fadeOf(scenes.at(-1)!).out = 0;
+  }
   if (src.reframe) pitch.reframe = src.reframe;
   if (src.lookNote) pitch.lookNote = src.lookNote;
   pitch.dir = src.dir;

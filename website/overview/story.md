@@ -710,32 +710,32 @@ kicker: Слайды
 kicker.en: Slides
 title: Слайды, которые не стоят на месте
 title.en: Slides that never stand still
-body: Двадцать видов, живые фоны и фразы, которые собираются на глазах.
-body.en: Twenty kinds, live backgrounds and phrases that assemble before your eyes.
-text: scramble
+body: 31 вид, живые фоны и фразы, которые собираются на глазах.
+body.en: 31 kinds, live backgrounds and phrases that assemble before your eyes.
+text: flap
 transition: {"kind":"push","duration":0.7,"sound":"audio/sfx/whoosh.ogg","snap":"music"}
 stills: b1.end :: заголовок собран, фон движется
 
-Слайды здесь тоже живые: на каждом дышит фон, пункты входят вместе с речью, а заголовок собирается на глазах.
+Слайды здесь тоже живые: фон или элементы движутся, пункты входят вместе с речью, а заголовок собирается на глазах.
 
 [en]
-Slides are alive too: every one has a breathing background, items enter with the narration, and the title assembles before your eyes.
+Slides are alive too: the background or the elements move, items enter with the narration, and the title assembles before your eyes.
 
 ## c05-count · slides.counter
 kicker: В наборе
 kicker.en: In the kit
 title: Слайды в цифрах
 title.en: Slides in numbers
-values: 20 :: видов слайдов | 14 :: стилей фразы | 18 :: способов входа | 6 :: живых фонов
-note: help slides, версия 1.2.0, 27 сентября 2026
-note.en: help slides, version 1.2.0, September 27, 2026
-values.en: 20 :: slide kinds | 14 :: phrase styles | 18 :: entrances | 6 :: live backgrounds
+values: 31 :: вид слайдов | 19 :: стилей фразы | 20 :: способов входа | 12 :: живых фонов
+note: help slides, версия 2.0.0, 30 сентября 2026
+note.en: help slides, version 2.0.0, September 30, 2026
+values.en: 31 :: slide kinds | 19 :: phrase styles | 20 :: entrances | 12 :: live backgrounds
 stills: b1.end :: все четыре числа докручены
 
-Двадцать видов слайдов, четырнадцать стилей фразы, восемнадцать способов входа и шесть живых фонов.
+В наборе 31 вид слайдов, 19 стилей фразы, 20 способов входа и 12 живых фонов.
 
 [en]
-Twenty slide kinds, fourteen phrase styles, eighteen entrances and six live backgrounds.
+The kit has 31 slide kinds, 19 phrase styles, 20 entrances and 12 live backgrounds.
 
 ## c05-kinds · slides.features
 kicker: Виды
@@ -744,7 +744,7 @@ title: Для каждого вида доказательства
 title.en: A kind for every kind of evidence
 items: 📋 Шаги :: загораются с речью | 📈 График :: из файла CSV | ⌨️ Код :: печатается сам | 🔀 До и после :: разделитель едет | 🖥️ Перспектива :: экран на WebGL | 🧱 Параллакс :: снимок на слоях
 items.en: 📋 Steps :: light up with the words | 📈 Chart :: from a CSV file | ⌨️ Code :: types itself | 🔀 Before and after :: a travelling divider | 🖥️ Perspective :: a screen in WebGL | 🧱 Parallax :: a screenshot in layers
-enter: flip
+enter: flip3d
 stills: b1.end :: шесть карточек видны, эмодзи нарисованы
 
 Шаги, график из CSV, код, который печатает себя, до и после, экран в перспективе и снимок, разложенный на слои.
@@ -924,23 +924,23 @@ kicker: Склейки и звук
 kicker.en: Cuts and sound
 title: Переходы и музыка, которая уступает словам
 title.en: Transitions, and music that gives way to words
-body: Двенадцать переходов WebGL, морф, жёсткая склейка и затемнение.
-body.en: Twelve WebGL transitions, a morph, a hard cut and a dip.
+body: 17 переходов WebGL, морф и жёсткая склейка.
+body.en: 17 WebGL transitions, a morph and a hard cut.
 transition: {"kind":"push","duration":0.7,"sound":"audio/sfx/whoosh.ogg","snap":"music"}
 
-Между сценами идут настоящие переходы на WebGL, между движущимися кадрами обеих сцен; вот все двенадцать.
+Между сценами доступны 17 переходов на WebGL, между движущимися кадрами обеих сцен; дальше — 12 примеров из этого набора.
 
 [en]
-Between scenes run real WebGL transitions, between the moving frames of both scenes; here are all twelve.
+The tool offers 17 WebGL transitions between the moving frames of both scenes; the next shots show 12 examples from that set.
 
 ## c07-t01 · video
 file: captures/auto.ru.webm
 file.en: captures/auto.webm
 from: @start
 to: @start+2.4
-transition: zoom-blur 0.7
-overlay: {"stickers":[{"at":0.7,"text":"zoom-blur","point":[0.12,0.9],"hold":1.5}]}
-overlay.en: {"stickers":[{"at":0.7,"text":"zoom-blur","point":[0.12,0.9],"hold":1.5}]}
+transition: zoom 0.7
+overlay: {"stickers":[{"at":0.7,"text":"zoom","point":[0.12,0.9],"hold":1.5}]}
+overlay.en: {"stickers":[{"at":0.7,"text":"zoom","point":[0.12,0.9],"hold":1.5}]}
 duration: 2.4
 
 ## c07-t02 · video
@@ -968,10 +968,10 @@ file: captures/auto.ru.webm
 file.en: captures/auto.webm
 from: @drag
 to: @back
-transition: iris 0.7
-overlay: {"stickers":[{"at":0.7,"text":"iris","point":[0.12,0.9],"hold":1.5}]}
+transition: mask 0.7
+overlay: {"stickers":[{"at":0.7,"text":"mask","point":[0.12,0.9],"hold":1.5}]}
 stills: @dragged :: карточка легла в «Готово»
-overlay.en: {"stickers":[{"at":0.7,"text":"iris","point":[0.12,0.9],"hold":1.5}]}
+overlay.en: {"stickers":[{"at":0.7,"text":"mask","point":[0.12,0.9],"hold":1.5}]}
 duration: 2.4
 
 ## c07-t05 · video
@@ -1011,9 +1011,9 @@ file: captures/board.ru.webm
 file.en: captures/board.webm
 from: @report
 to: @end
-transition: flash 0.7
-overlay: {"stickers":[{"at":0.7,"text":"flash","point":[0.12,0.9],"hold":1.5}]}
-overlay.en: {"stickers":[{"at":0.7,"text":"flash","point":[0.12,0.9],"hold":1.5}]}
+transition: leak 0.7
+overlay: {"stickers":[{"at":0.7,"text":"leak","point":[0.12,0.9],"hold":1.5}]}
+overlay.en: {"stickers":[{"at":0.7,"text":"leak","point":[0.12,0.9],"hold":1.5}]}
 duration: 2.4
 
 ## c07-t09 · video
@@ -1022,10 +1022,10 @@ file.en: captures/phone.webm
 from: @start
 to: @end
 device: phone
-transition: ripple 0.8
-overlay: {"stickers":[{"at":0.8,"text":"ripple","point":[0.12,0.9],"hold":1.5}]}
+transition: melt 0.8
+overlay: {"stickers":[{"at":0.8,"text":"melt","point":[0.12,0.9],"hold":1.5}]}
 stills: @done :: карточка ушла в «Готово» | @report :: отчёт на телефоне
-overlay.en: {"stickers":[{"at":0.8,"text":"ripple","point":[0.12,0.9],"hold":1.5}]}
+overlay.en: {"stickers":[{"at":0.8,"text":"melt","point":[0.12,0.9],"hold":1.5}]}
 duration: 2.6
 
 ## c07-t10 · video
@@ -1033,10 +1033,10 @@ file: captures/spot.ru.webm
 file.en: captures/spot.webm
 from: @start
 to: @end
-transition: dissolve 0.8
-overlay: {"stickers":[{"at":0.8,"text":"dissolve","point":[0.12,0.9],"hold":1.5}]}
+transition: dots 0.8
+overlay: {"stickers":[{"at":0.8,"text":"dots","point":[0.12,0.9],"hold":1.5}]}
 stills: @click :: клик пятном
-overlay.en: {"stickers":[{"at":0.8,"text":"dissolve","point":[0.12,0.9],"hold":1.5}]}
+overlay.en: {"stickers":[{"at":0.8,"text":"dots","point":[0.12,0.9],"hold":1.5}]}
 duration: 2.4
 
 ## c07-t11 · video
@@ -1058,10 +1058,10 @@ transition: push 0.7
 spotlight: #kpi-1 @ b1+0.8
 stills: b1+1 :: наезд на число скорости перед морфом
 
-Двенадцатый — push; а морф переносит в следующую сцену один элемент целиком: число скорости…
+Последний пример этой подборки — push; а морф переносит в следующую сцену один элемент целиком: число скорости…
 
 [en]
-The twelfth is push; and a morph carries one element whole into the next scene: the velocity number…
+The last example in this selection is push; and a morph carries one element whole into the next scene: the velocity number…
 
 ## c07-morph · page
 page: app/velocity.ru.html
@@ -1149,14 +1149,14 @@ tags.en: peak under −1 dBTP | narration alone too | a silent draft is left alo
 count: off
 stills: b1.end :: число и все три метки видны
 
-В конце сборка выравнивает громкость любого ролика со звуком до минус четырнадцати LUFS с пиком ниже минус одного dBTP.
-~ В конце сборка выравнивает громкость любого ролика со звуком до минус четырнадцати лафс с пиком ниже минус одного децибела.
+Цель микса — минус четырнадцать LUFS. Истинный пик AAC не выше минус одного dBTP; снижение пика может снизить громкость.
+~ Цель микса — минус четырнадцать лафс. Истинный пик эй-эй-си не выше минус одного децибела; снижение пика может снизить громкость.
 
 А ролику, который играет на странице без звука, дорожка не нужна вовсе: это одна строка шапки.
 
 [en]
-At the end the build brings any film with sound to minus fourteen LUFS, with its peak under minus one dBTP.
-~ At the end the build brings any film with sound to minus fourteen L-U-F-S, with its peak under minus one decibel true peak.
+The mix targets minus fourteen LUFS. Final AAC true peak must not exceed minus one dBTP; peak correction can reduce loudness.
+~ The mix targets minus fourteen L-U-F-S. Final A-A-C true peak must not exceed minus one decibel; peak correction can reduce loudness.
 
 And a film that plays muted on a page needs no sound track at all: that is one header line.
 
@@ -1433,10 +1433,10 @@ body: Onest и IBM Plex Sans
 body.en: Onest and IBM Plex Sans
 stills: b1.end :: тема frost, шрифт Onest
 
-Одиннадцать тем, у каждой свои шрифты с кириллицей, включая шрифт субтитров: двадцать четыре семейства едут вместе с инструментом.
+Двенадцать тем, у каждой свои шрифты с кириллицей, включая шрифт субтитров: двадцать четыре семейства едут вместе с инструментом.
 
 [en]
-Eleven themes, each with its own fonts, Cyrillic included, and its own subtitle face: twenty-four families ship with the tool.
+Twelve themes, each with its own fonts, Cyrillic included, and its own subtitle face: twenty-four families ship with the tool.
 
 ## c10-midnight · slides.chapter
 theme: midnight
@@ -1670,14 +1670,14 @@ page: pages/term-lint.ru.html
 page.en: pages/term-lint.html
 stills: b2.end :: находки lint с именами правил | b3.end-0.3 :: горизонтальный запуск без находок
 
-До сборки lint проверяет сценарий по двадцати правилам режиссуры и отдельно считает признаки шаблонного ролика.
+До сборки lint проверяет сценарий по правилам режиссуры и отдельно считает признаки шаблонного ролика.
 
 Карточка поверх субтитров, стоящая страница, наезд, который обрежет предмет, дубль в чужой теме.
 
 В показанном горизонтальном запуске находок нет.
 
 [en]
-Before the build, lint checks the scenario against twenty directing rules and counts the signs of a template film on the side.
+Before the build, lint checks the scenario against directing rules and counts the signs of a template film on the side.
 
 A card over the subtitles, a page that stands still, a push-in that would crop its subject, a take in another theme.
 

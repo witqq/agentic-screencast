@@ -8,6 +8,7 @@ import { spawnSync } from "node:child_process";
 import { pageProvider } from "./page.js";
 import { slidesProvider } from "./slides/index.js";
 import { videoProvider } from "./video.js";
+import { reportProvider } from "./report.js";
 import type { KindSpec, Provider } from "./types.js";
 import type { Film, RawScene } from "../source.js";
 import { msg } from "../msg.js";
@@ -23,6 +24,7 @@ export const BUILTIN: Record<string, Provider> = {
   [slidesProvider.name]: slidesProvider,
   [pageProvider.name]: pageProvider,
   [videoProvider.name]: videoProvider,
+  [reportProvider.name]: reportProvider,
 };
 
 export const isBuiltin = (name: string): boolean => Object.hasOwn(BUILTIN, name);
@@ -81,7 +83,7 @@ function external(command: string): Provider {
  */
 export function providerFor(name: string, declared: Record<string, string> = {}): Provider {
   if (isBuiltin(name)) return BUILTIN[name]!;
-  const command = declared[name];
+  const command = Object.hasOwn(declared, name) ? declared[name] : undefined;
   if (!command) {
     const known = [...Object.keys(BUILTIN), ...Object.keys(declared)].join(", ");
     throw new ProviderError(msg("provider.unknown", { name, known }));

@@ -14,6 +14,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { THEMES, type ThemeVars } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -23,7 +24,7 @@ type RGB = [number, number, number];
 const hex = (c: RGB): string => "#" + c.map((v) => Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, "0")).join("");
 export const parseHex = (s: string): RGB => {
   const m = /^#?([0-9a-f]{6})$/i.exec(s.trim());
-  if (!m) throw new Error(`expected a colour like #ff5a1f, got «${s}»`);
+  if (!m) throw new Error(msg("brand.colour", { value: s }));
   const n = parseInt(m[1]!, 16);
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 };
@@ -62,7 +63,7 @@ export const contrast = (a: RGB, b: RGB): number => {
  * сорока градусов к первому, иначе это оттенок того же цвета.
  */
 export function dominantColors(image: string): RGB[] {
-  if (!existsSync(image)) throw new Error(`image not found: ${image}`);
+  if (!existsSync(image)) throw new Error(msg("brand.noImage", { path: image }));
   const raw = execFileSync(FFMPEG, ["-nostdin", "-loglevel", "error", "-i", image, "-vf", "scale=96:96:flags=area",
     "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], { maxBuffer: 1 << 24 });
   const bins = Array.from({ length: 36 }, () => ({ w: 0, r: 0, g: 0, b: 0 }));
@@ -137,8 +138,8 @@ function recolour(theme: ThemeVars, swap: Array<[RGB, RGB]>): ThemeVars {
  */
 export function brandTheme(colors: RGB[], base = "neutral"): ThemeVars & { preset: string } {
   const theme = THEMES[base];
-  if (!theme) throw new Error(`unknown base theme «${base}»; available: ${Object.keys(THEMES).join(", ")}`);
-  if (!colors.length) throw new Error("no brand colour found: the picture is grey; name the colours with --colors");
+  if (!theme) throw new Error(msg("brand.unknownBase", { base, available: Object.keys(THEMES).join(", ") }));
+  if (!colors.length) throw new Error(msg("brand.grey"));
   const bg = parseHex(theme["--bg"]!);
   const acc = readableOn(colors[0]!, bg);
   // Акцент один (docs/visual-design.md): второй цвет темы — тихий, для надзаголовков и меток. Второй
@@ -160,4 +161,30 @@ export function brandTheme(colors: RGB[], base = "neutral"): ThemeVars & { prese
     "--sc-spot": rgba(acc, 0.95),
     "--sc-accent-soft": rgba(acc, 0.42),
   };
+}
+
+/** Цвет CSS с прозрачностью: #rrggbb, #rrggbbaa или rgb()/rgba(). */
+function parseRgba(css: string): { c: RGB; a: number } | null {
+  const h = /^#([0-9a-f]{6})([0-9a-f]{2})?$/iu.exec(css.trim());
+  if (h) { const n = parseInt(h[1]!, 16); return { c: [(n >> 16) & 255, (n >> 8) & 255, n & 255], a: h[2] ? parseInt(h[2], 16) / 255 : 1 }; }
+  const f = /^rgba?\(([^)]+)\)$/iu.exec(css.trim());
+  if (!f) return null;
+  const [r, g, b, a] = f[1]!.split(/[\s,/]+/u).filter(Boolean).map(Number);
+  return [r, g, b].every((v) => Number.isFinite(v)) ? { c: [r!, g!, b!], a: Number.isFinite(a) ? a! : 1 } : null;
+}
+const blend = (f: RGB, b: RGB, a: number): RGB => [0, 1, 2].map((i) => f[i]! * a + b[i]! * (1 - a)) as RGB;
+
+/**
+ * Контраст непроизнесённого слова караоке к плашке субтитров — худший из двух случаев кадра под
+ * полупрозрачной плашкой (чёрный и белый). Слово приглушено прозрачностью `--sc-karaoke-rest` и
+ * обязано держать 4,5:1, как основной текст. null — цвета темы не разобрать.
+ */
+export function karaokeRestContrast(vars: Record<string, string>): number | null {
+  const ink = parseRgba(vars["--sc-sub-ink"] ?? ""), bg = parseRgba(vars["--sc-sub-bg"] ?? "");
+  const rest = Number(vars["--sc-karaoke-rest"]);
+  if (!ink || !bg || !Number.isFinite(rest)) return null;
+  return Math.min(...([[0, 0, 0], [255, 255, 255]] as RGB[]).map((video) => {
+    const plate = blend(bg.c, video, bg.a);
+    return contrast(blend(ink.c, plate, rest * ink.a), plate);
+  }));
 }

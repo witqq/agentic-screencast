@@ -22,11 +22,12 @@ import { realpathSync } from "node:fs";
 import { COMMON } from "./source.js";
 import { BUILTIN, providerFor, type KindSpec } from "./provider/index.js";
 import { BACKGROUNDS } from "./provider/slides/index.js";
-import { THEME_NAMES } from "./theme.js";
+import { DEFAULT_SCHEME, SCHEMES, THEME_NAMES } from "./theme.js";
 import { LOOKS, GRADES } from "./look.js";
 import { DEVICE_KINDS } from "./device.js";
 import { LOUPE_PLACES } from "./overlay.js";
 import { SPOTLIGHT_KEYS } from "./spotlight.js";
+import { msg } from "./msg.js";
 
 /**
  * Все виды всех поставщиков — поставляемых и объявленных роликом.
@@ -174,7 +175,8 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
     // имена оформления агенту нужны до сборки. Они берутся из тех же списков,
     // по которым разбор отвергает незнакомое имя.
     "x-film": {
-      theme: { names: THEME_NAMES, note: "theme: <name> or {\"preset\":<name>,\"--var\":…}; agentic-screencast theme --from logo.png builds one from brand colours" },
+      theme: { names: THEME_NAMES, note: "theme: <name> or {\"preset\":<name>,\"scheme\":\"light\"|\"dark\",\"--var\":…}; agentic-screencast theme --from logo.png builds one from brand colours" },
+      scheme: { names: SCHEMES, defaults: DEFAULT_SCHEME, note: "scheme: light | dark in the header picks that scheme of every named theme in the film; without it each theme wears its default scheme; blockbuster has only dark" },
       background: { names: BACKGROUNDS, note: "slide field background, or the theme variable --bg-motion" },
       look: { names: Object.keys(LOOKS), grades: GRADES, note: "look: <name> or {\"grade\",\"grain\",\"vignette\",\"bars\"}" },
       device: { names: DEVICE_KINDS, note: "device: browser [url] | phone | frame — on video and slides.shot scenes" },
@@ -201,7 +203,7 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
  * теста: новое поле не выходит без описания того, как его писать.
  */
 export const FIELD_FORMATS: Record<string, string> = {
-  title: "text", kicker: "text over the title", body: "text", note: "text under the slide", cta: "button text", url: "text",
+  title: "text", kicker: "text over the title", body: "text", note: "a line under the slide (compare, chain, quote) or the source of its figures (number, counter, chart); other kinds refuse it", cta: "button text", url: "text",
   items: "Title :: text | Title :: text | …  (features: 🚀 Title :: text)",
   values: "1,240 :: label | 98% :: label", value: "300 · label", tags: "a | b | c",
   left: "Heading :: item | item", right: "Heading :: item | item",
@@ -210,28 +212,39 @@ export const FIELD_FORMATS: Record<string, string> = {
   image: "picture.png (beside the scenario)", after: "picture.png — the «after» state", labels: "Before | After",
   split: "0.8 0.2 — divider from, to", panels: "x y w h @ depth | … (fractions; depth 1 nearest)",
   point: "x y (fractions)", push: "1 1.16 — scale from, to", device: "browser [url] | phone | frame",
-  data: "file.csv (label,value per line)", type: "bar | line", peak: "max | a row number | a label",
+  data: "file.csv (label,value per line)", type: "bar | line | race (a bar chart race over a CSV «name,period,period,…»)", peak: "max | a row number | a label",
   code: "| then the lines (or file:)", file: "path (code: snippet.ts; video: take.webm)", lines: "3-14", highlight: "5 7-8",
-  cps: "characters per second, 5–400 (default: typing fits the scene)", name: "tab name",
-  move: "drift | push | still", count: "on | off", background: "grid | aurora | mesh | waves | particles | bokeh | none",
-  text: "kinetic style of the title [and the body]: fly scramble …", enter: "how items enter: rise | left | pop | flip | …",
-  label: "text", page: "pages/app.html", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
+  cps: "characters per second, 5–400 (default: typing fits the scene)", name: "tab name (code) or window title (shell)",
+  rows: "1 | 2 — rows of a marquee, the second one running the other way",
+  move: "drift | push | still | dolly | pan | orbit3d | handheld", count: "on | off", background: "grid | aurora | waves | particles | bokeh | rays | lamp | meteors | flicker | beams | warp | vortex | none",
+  text: "kinetic style of the title [and the body]: fly flap …", enter: "how items enter: rise | left | pop | flip3d | jolt | tilt3d | mask | bounce | …",
+  alive: "wiggle | float | jitter | pulse — the items' motion after they enter", glow: "border — a light runs round the cards' borders",
+  ease: "standard | emphasized | expressive | spring | bouncy — the curve of every entrance", wave: "start | center | edges | random — the order items come in",
+  stagger: "seconds between items, 0.03–1.5",
+  pace: "calm | brisk | snap — the scene's tempo: entrances take 1.4×, 0.7× or 0.45× their time",
+  swap: "slide | morph — how a {a|b} word in the title changes: rises (default) or flows like a liquid",
+  fill: "picture.png — poured into the letters of the title, drifting inside them",
+  images: "a.png | b.png | c.png | … — three or more screenshots for the wall",
+  map: "globe | flat — a turning globe (default) or a flat map of dots with the same arcs",
+  spark: "1 3 2 5 | 4 3 5 — a small line under each counter value, one series per value",
+  label: "text", report: "page.md — an agentic-report source, rebuilt for the scene", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
   focus: "CSS selector @ anchor | …", zoom: "scale, e.g. 1.2", spotFrom: "seconds when the spot starts", freezeAt: "seconds or @mark",
-  speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay)",
+  speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay); on slides.marquee, points a second, 20–600",
   autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36}", from: "clip second or @mark where the piece starts",
   to: "clip second or @mark where the piece ends",
   fit: "contain (default: the whole clip, bars of the theme's letterbox colour) or cover [x y]: fill the frame, keep the point x y (shares of the clip, 0.5 0.5 = centre)",
   tail: "seconds after the speech", overlay: "{\"cards\":[…],\"camera\":[…],\"titles\":[…],…}; at is seconds, b2+0.5, b3.end or 40%  (help overlay)",
-  duration: "seconds (a silent scene needs it)", part: "name of the part the scene starts", transition: "kind [seconds], cut, dip [seconds] [colour], or {\"kind\",\"duration\",\"sound\",\"snap\",\"element\",\"color\"}",
+  duration: "seconds (a silent scene needs it)", part: "name of the part the scene starts", transition: "kind [seconds], cut, dip [seconds] [colour], push|whip [seconds] [left|right|up|down], or {\"kind\",\"duration\",\"sound\",\"snap\",\"element\",\"color\",\"direction\",\"at\"}",
   fade: "none, seconds, or {\"in\":…,\"out\":…}: the fades at the scene's edges (default about 0.3 s each)",
   align: "top | center | bottom | fill: where a slide's content stands by height (help slides)",
   speechAt: "seconds from the scene's start where the narration begins (a hit first, the voice after it)",
   captions: "bottom | top | middle | auto: where this scene's subtitles stand, over captions.position  (help text)",
-  flash: "anchors «b2 | 1.5s» or [{\"at\",\"length\",\"strength\"}]: the frame lights up in the theme's flash colour and dies out  (help overlay)",
-  shake: "anchors «b2 | 1.5s» or [{\"at\",\"length\",\"strength\"}]: the frame jolts and settles  (help overlay)",
+  flash: "anchors «b2 | 1.5s | m16» or [{\"at\",\"length\",\"strength\"}]: the frame lights up in the theme's flash colour and dies out  (help overlay)",
+  shake: "anchors «b2 | 1.5s | m16» or [{\"at\",\"length\",\"strength\"}]: the frame jolts and settles  (help overlay)",
+  rgb: "anchors «b2 | 1.5s | m16» or [{\"at\",\"length\",\"strength\"}]: the colour channels split and come back together  (help overlay)",
   music: "stop [anchor] or {\"file\",\"at\",\"from\",\"level\",\"duck\",\"fadeIn\",\"fadeOut\"}: a new bed or a music stop from this scene  (help sound)",
   sfx: "[{\"at\":\"b2\",\"file\":\"click.wav\",\"gain\":-6,\"from\":0.2,\"length\":1,\"fadeOut\":0.2,\"duck\":12,\"duckAll\":false}]  (help sound)", spotlight: "selector @ b2 [.. b2.end] | … or JSON with area, card, slow, scale (1: no push-in), ring, dim  (help overlay)",
-  theme: "name or {\"preset\":name,\"--var\":value}", stills: "b2+0.3 :: what to check | 80% | @done",
+  theme: "name or {\"preset\":name,\"scheme\":\"light|dark\",\"--var\":value}", stills: "b2+0.3 :: what to check | 80% | @done",
 };
 
 /** Запись полей шапки ролика. */
@@ -239,10 +252,11 @@ export const FILM_FORMATS: Record<string, string> = {
   voice: "{\"engine\":\"stub|say|recorded|…\",\"name\":…,\"cps\":15}", tail: "seconds after each scene's speech",
   providers: "{\"name\":\"./provider.js\"}", frame: "{\"width\":1920,\"height\":1080,\"fps\":30,\"scale\":1}",
   encode: "{\"crf\":18,\"preset\":\"medium\",\"pix\":\"yuv420p\",\"audio\":\"192k\"}", theme: "name or {\"preset\":name,\"--var\":value}",
+  scheme: "light | dark — the scheme of every named theme in the film (default: each theme's own)",
   pronounce: "rules name", lang: "ru | en | …", captions: "{\"style\":\"bar|subtitle|karaoke\",\"everywhere\":true,\"srt\":true,\"size\":1.25,\"look\":\"outline|plate\",\"position\":\"bottom|top|middle|auto\"}",
   pip: "{\"file\":\"me.mp4\",\"corner\":…,\"size\":…,\"from\":…,\"to\":…}", progress: "{\"position\":\"top|bottom\",\"parts\":true,\"label\":\"edge|zone\"}",
   music: "{\"file\":\"bed.mp3\",\"level\":…,\"duck\":…,\"bpm\":…,\"offset\":…}", sfx: "[{\"at\":\"12.5s\"|\"m16\",\"file\":\"hit.wav\"}]", loudness: "LUFS target, -30…-8",
-  audio: "false — the film without a sound track", motionBlur: "true | {\"samples\":6,\"shutter\":0.5}",
+  audio: "false — the film without a sound track", flow: "auto — every seam without its own transition gets a connected one (help transitions)", motionBlur: "true | {\"samples\":6,\"shutter\":0.5}",
   format: "landscape | vertical | square",
   zone: "platform (default: the feed's buttons kept clear, Reels, Shorts, TikTok) | plain (watched outside a feed: even margins)",
   look: "name or {\"grade\",\"grain\",\"vignette\",\"bars\"}", emoji: "{\"dir\":\"emoji\"}",
@@ -260,7 +274,7 @@ export function kindBrief(name: string, declared: Record<string, string> = {}): 
   // Вид можно назвать и без поставщика (`parallax`), если имя однозначно.
   const bare = entries.filter((x) => x.kind === name);
   const e = entries.find((x) => nameOf(x) === name || `${x.provider}.${x.kind}` === name) ?? (bare.length === 1 ? bare[0] : undefined);
-  if (!e) throw new Error(`unknown kind «${name}»; known: ${entries.map(nameOf).join(", ")}, film`);
+  if (!e) throw new Error(msg("schema.unknownKind", { name, known: `${entries.map(nameOf).join(", ")}, film` }));
   const required = e.spec.required.map((g) => g.join(" or "));
   const line = (f: string): string => `  ${f}: ${FIELD_FORMATS[f] ?? "text"}`;
   return [`${nameOf(e)} — ${e.spec.about}`,
@@ -268,7 +282,8 @@ export function kindBrief(name: string, declared: Record<string, string> = {}): 
     ...(e.spec.silentOk ? [e.spec.video ? "may be silent" : "may be silent with duration"] : []),
     "fields:", ...e.spec.fields.map(line),
     "fields of every scene:", ...COMMON.map(line),
-    "film header: agentic-screencast schema film"].join("\n");
+    "film header: agentic-screencast schema film",
+    `rules for this kind: agentic-screencast craft ${e.provider === "slides" ? (e.spec.trailer ? "trailer" : "slides") : e.provider}`].join("\n");
 }
 
 // Сравниваются РАЗРЕШЁННЫЕ ПУТИ, а не URL со строкой пути: файловый URL

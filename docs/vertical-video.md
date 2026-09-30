@@ -183,6 +183,10 @@ A wide screen in a tall frame is either cropped or shrunk until labels become no
 - Zoom harder than in landscape — 1.25× to 5× on clicks and small details; two or three push-ins on
   the moments the narration names [22][36].
 - One panel at a time; keep the subject near the centre — far corners are cut first [22][36].
+- A push-in enlarges everything round its subject too: a page that fits the feed's safe zone at its
+  own size spills out of it under a 1.5× push. Lay out a page you write so the pushed subject and its
+  neighbours stay inside the zone at the push's scale; the build names text past the zone
+  (`safe-zone`, `help vertical`).
 - A large cursor and a visible click [22]; text overlays for context lost to the crop [14][22].
 - Split screen for wrong/right, picture-in-picture for the presenter [22][29].
 - Record at a resolution where labels stay sharp: zoom cannot rescue a blurred source; 720p+ gave

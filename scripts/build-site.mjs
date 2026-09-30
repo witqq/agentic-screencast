@@ -18,6 +18,19 @@ import { fileURLToPath } from "node:url";
 import { buildReport, generateSitemap } from "agentic-report";
 import { checkLandingMediaFile, loadLandingMediaManifest, sha256 } from "./check-site-static.mjs";
 
+// Подпись внизу каждой страницы сайта: продукт сделан с Moira. Тот же компактный футер, что у
+// лендинга agentic-report; запроса наружу он не делает, это одна ссылка.
+const attributionStyle = `<style data-site-attribution-style>
+.site-attribution{display:flex;justify-content:center;padding:1.5rem 1rem 2rem}.site-attribution a{display:inline-flex;align-items:center;border:1px solid color-mix(in srgb,currentColor 28%,transparent);border-radius:999px;padding:.42rem .78rem;color:inherit;font:600 .78rem/1.2 ui-sans-serif,system-ui,sans-serif;letter-spacing:.02em;text-decoration:none;opacity:.78}.site-attribution a:hover,.site-attribution a:focus-visible{opacity:1}.site-attribution a:focus-visible{outline:2px solid currentColor;outline-offset:3px}
+</style>`;
+const attributionFooter = `<footer class="site-attribution" data-site-attribution><a href="https://moira-mcp.com/" aria-label="Made with Moira">Made with Moira</a></footer>`;
+
+function withAttribution(source) {
+  if (!source.includes("</head>") || !source.includes("</body>")) throw new Error("compiled site page has no </head> or </body>");
+  if (source.includes("data-site-attribution")) throw new Error("compiled site page already carries the attribution");
+  return source.replace("</head>", `${attributionStyle}</head>`).replace("</body>", `${attributionFooter}</body>`);
+}
+
 // Публичный адрес лендинга: из него компилятор пишет canonical и OpenGraph, из canonical — sitemap.
 const publicUrl = "https://agentic-screencast.witqq.dev/";
 
@@ -93,6 +106,11 @@ try {
     url: publicUrl,
   });
   await generateSitemap({ directory: staging });
+  for (const path of await listFiles(staging)) {
+    if (!path.endsWith(".html")) continue;
+    const file = resolve(staging, ...path.split("/"));
+    await writeFile(file, withAttribution(await readFile(file, "utf8")));
+  }
   const compiler = await installedPackage("agentic-report");
   const files = [];
   for (const path of await listFiles(staging)) {

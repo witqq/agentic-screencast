@@ -12,7 +12,7 @@
 // движения камеры, карточки и шаги замедления по ИЗМЕРЕННЫМ тактам. Несколько
 // фокусов подряд становятся проездом камеры от цели к цели без возврата к
 // общему плану.
-import { CAMERA_STYLES, cardHold, parseOverlay, type OverlayCamera, type OverlayCard, type SceneOverlay } from "./overlay.js";
+import { cameraStyle, cardHold, parseOverlay, type OverlayCamera, type OverlayCard, type SceneOverlay } from "./overlay.js";
 import { msg } from "./msg.js";
 import type { SpeedStep } from "./speed.js";
 
@@ -86,7 +86,7 @@ export function parseSpotlight(raw: string): Spotlight[] {
     if (r.pan !== undefined && typeof r.pan !== "boolean") throw new Error(msg("overlay.trueFalse", { where: `${where}.pan` }));
     if (r.keep !== undefined && typeof r.keep !== "boolean") throw new Error(msg("overlay.trueFalse", { where: `${where}.keep` }));
     if (r.keep === true && r.until !== undefined) throw new Error(msg("spotlight.keepUntil", { where }));
-    if (r.style !== undefined && !CAMERA_STYLES[String(r.style)]) throw new Error(msg("overlay.options", { where: `${where}.style`, options: Object.keys(CAMERA_STYLES).join(" | ") }));
+    cameraStyle(r.style, `${where}.style`);
     if (r.dim !== undefined && (typeof r.dim !== "number" || r.dim < 0 || r.dim > 1)) throw new Error(msg("overlay.dim", { where: `${where}.dim` }));
     if (r.card !== undefined) {
       const c = r.card as Record<string, unknown>;
@@ -171,7 +171,7 @@ export function compileSpotlights(list: Spotlight[], o: {
   let extra = 0;
   list.forEach((f, i) => {
     if (o.video && !f.area) throw new Error(msg("spotlight.videoArea", { index: i }));
-    const style = f.style ? CAMERA_STYLES[f.style] : undefined;
+    const style = cameraStyle(f.style, `spotlight[${i}].style`);
     const move = f.move ?? style?.move ?? 0.8;
     const back = style?.return ?? 0.8;
     const at = Math.max(0, anchorSeconds(f.at, o.starts, o.duration, o.ends));

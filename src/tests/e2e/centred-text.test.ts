@@ -144,7 +144,7 @@ test("captions.position and a scene's captions field parse, refuse the unknown, 
   assert.throws(() => parseSource(story(`captions: {"position":"left"}`)), /captions\.position: expected bottom \| top \| middle/);
   assert.throws(() => parseSource(story("", "captions: side\n")), /captions: expected bottom \| top \| middle/);
   const clash = lint(story(`captions: {"style":"karaoke","position":"top"}\nprogress: {"position":"top","parts":true}`));
-  assert.ok(clash.some((f) => f.rule === "captions-top-progress"), JSON.stringify(clash));
+  assert.ok(clash.some((f) => f.id === "captions-top-progress"), JSON.stringify(clash));
   const apart = lint(story(`captions: {"style":"karaoke"}\nprogress: {"position":"top","parts":true}`, "captions: bottom\n"));
-  assert.ok(!apart.some((f) => f.rule === "captions-top-progress"));
+  assert.ok(!apart.some((f) => f.id === "captions-top-progress"));
 });

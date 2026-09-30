@@ -9,4 +9,4 @@
 export const SHOWN_COMMON = ["part", "overlay", "spotlight"] as const;
 
 /** Общие поля показа: длительность, хвост, переход, звуки. */
-export const STAGING_COMMON = ["tail", "duration", "transition", "fade", "sfx", "music", "flash", "shake", "speechAt", "captions", "theme", "stills"] as const;
+export const STAGING_COMMON = ["tail", "duration", "transition", "fade", "sfx", "music", "flash", "shake", "rgb", "speechAt", "captions", "theme", "stills"] as const;

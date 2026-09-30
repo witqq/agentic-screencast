@@ -425,7 +425,10 @@ recording; the analysis named it as the third reason the film was not cinematic.
 
 A push-in crops the take, so record at a resolution high enough that the tightest crop is still sharp.
 Do not pass a take through extra lossy encodes (webm → mp4 → film): every pass makes the picture
-muddier.
+muddier. For a supported scene over a take recorded with `recordTake`, the build re-runs the take
+script and the browser zooms the live page, keeping text sharp; keep that script runnable from its
+folder. Check the scene conditions in `help capture` and the build's `live-camera` warnings: when
+live recording is unavailable or fails, the push-in stretches the recorded pixels.
 
 **Counter-example.** A cut assembled from Playwright webm takes, re-encoded before assembly and again by
 the build, looked muddy in every push-in.
@@ -488,7 +491,7 @@ contrast, and in vertical films the words were a third of the size the platforms
 The quiet default is no transition at all: scenes fade through their own fades. Use one or two kinds per
 film and pick them for what the cut means — a change of place or topic (`cube`, `whip`, `push`), the same
 thing carried to its detail (`morph`), a hard cut on the beat in a trailer (`cut`), a pause into black or
-white before a title (`dip`). Keep `dissolve` off text: it shreds letters mid-cut.
+white before a title (`dip`). Keep `dots` and `pixelate` off text: they shred letters mid-cut.
 
 **Counter-example.** A comic action trailer built before `cut` existed went through black between every
 two shots of its first acts — each scene faded out and in — and read soft where a trailer lives on hard
@@ -587,7 +590,7 @@ and the design rules of agentic-report now allow an entrance on one or two secti
 A real interface is shown flat and at its natural scale; an orbit, a tilt or a screenshot floating in 3D
 is for a frame labelled as an illustration, at most once a film. The camera starts on the whole and
 travels to the detail the narration names. A transition says what the cut means (rule 52); `glitch` is
-chromatic aberration, `ripple` and a glowing `iris` are decoration, `cube` and `zoom-blur` belong to a
+chromatic aberration, a glowing circle `mask` from a point is decoration, `cube` and `zoom` belong to a
 change of place.
 
 **Counter-example.** The page research lists the tilted dashboard and the screenshot in an invented
@@ -659,5 +662,5 @@ a reader who asked for less motion (`web --poster`). Rule 9 still holds: a frame
 the viewer, so the one motion stays.
 
 **Counter-example.** Every slide carried a breathing glow, a drifting grid and a travelling sheen at once,
-and a live aurora, mesh or bokeh behind them in half the themes — three constant motions in one frame
+and a live aurora, particles or bokeh behind them in half the themes — three constant motions in one frame
 where rule 9 asks for one.

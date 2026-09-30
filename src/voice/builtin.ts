@@ -15,6 +15,7 @@ import { durationOf, ff, FFMPEG, FFPROBE } from "./audio.js";
 import { envKey } from "./env.js";
 import { recorded } from "./recorded.js";
 import { CHANNELS, SAMPLE_RATE, type SynthResult, type VoiceData, type VoiceEngine } from "./types.js";
+import { msg } from "../msg.js";
 
 export { durationOf };
 
@@ -52,7 +53,7 @@ const speechkit: VoiceEngine = {
     });
     if (!res.ok) {
       const detail = (await res.text()).slice(0, 300);
-      throw new Error(`SpeechKit отказал (${res.status}): ${detail}`);
+      throw new Error(msg("speechkit.refused", { status: res.status, detail }));
     }
     const raw = `${out}.pcm`;
     writeFileSync(raw, Buffer.from(await res.arrayBuffer()));

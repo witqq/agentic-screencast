@@ -24,7 +24,7 @@ proof is text, source or a documented check. A section need not repeat an entire
 | 1 | First screen: one scenario becomes the film | the promise on a real app | 1 | Silent `c00-cold` excerpt, slot `showcase` |
 | 2 | A real product, clicked for real | live capture with a living cursor | 3 | Silent `c03-auto` excerpt, slot `live` |
 | 3 | The camera knows where to look | spotlight, pan, loupe, marks, time inside the shot | 4 | Silent `c04-chain` excerpt, slot `focus` |
-| 4 | Slides that never stand still | twenty kinds, kinetic text, live backgrounds | 2 | Four distinct feature examples in text |
+| 4 | Slides that never stand still | 31 kinds, kinetic text, live backgrounds | 2 | Three cards of slide roles in text |
 | 5 | Words stay readable | subtitles that move off the subject, titles, callouts, stickers | 5 | Caption placement contract in text |
 | 6 | Cuts, sound and a voice | transitions, ducking, music by parts and chosen voices | 6, 7, 8 | Three-step account of the sound path |
 | 7 | A trailer, too | trailer cards, a title card, hard cuts and dips, hits | 2 (card, titlecard), 4 (flash, shake), 6 (cut, dip) | Link to the overview scenario |
@@ -45,9 +45,10 @@ need not turn every topic into the same card. Product claims stay checkable agai
 **1. One text file becomes the film.**
 en: Give your agent the product and the point. It writes one scenario — scenes, fields and the
 narration as prose — and one command renders, voices and assembles the MP4. Change a sentence and
-only that beat is rebuilt.
+only that beat is voiced again; unchanged scenes stay in the cache.
 ru: Дайте агенту продукт и мысль. Он пишет один сценарий — сцены, поля и речь прозой, — и одна
-команда рисует, озвучивает и собирает MP4. Поменяли фразу — пересобирается только её такт.
+команда рисует, озвучивает и собирает MP4. Поменяли фразу — заново озвучивается только её такт;
+неизменённые сцены берутся из кэша.
 
 **2. A real product, clicked for real.**
 en: The agent drives your running app through Playwright while it records. The cursor travels on a
@@ -66,11 +67,11 @@ ru: Одна строка — `spotlight: #total @ b2` — наезжает, к�
 нарисуются от руки, а время может остановиться внутри кадра.
 
 **4. Slides that never stand still.**
-en: Twenty kinds — steps, timeline, chart from a CSV, code that types itself, before and after, a
-screen in perspective — on live backgrounds, with fourteen ways to assemble a phrase. Every frame
+en: 31 kinds — steps, timeline, chart from a CSV, code that types itself, before and after, a
+screen in perspective — on live backgrounds, with 19 ways to assemble a phrase. Every frame
 is a function of time, so a rebuilt frame is the same frame.
-ru: Двадцать видов — шаги, линия времени, график из CSV, набираемый код, до и после, экран в
-перспективе — на живых фонах, с четырнадцатью способами собрать фразу. Каждый кадр — функция
+ru: 31 вид — шаги, линия времени, график из CSV, набираемый код, до и после, экран в
+перспективе — на живых фонах, с 19 способами собрать фразу. Каждый кадр — функция
 времени, поэтому пересобранный кадр совпадает с прежним.
 
 **5. Words on screen.**
@@ -82,11 +83,13 @@ ru: Караоке-субтитры читаются на любом кадре 
 своими словами.
 
 **6. Cuts, sound and a voice.**
-en: Twelve WebGL transitions and a morph that carries one element into the next scene. Music ducks
-under every beat of speech, changes by part and stops before a punchline; the film comes out at
-−14 LUFS. Narration by SpeechKit, your own recorded voice, or a free silent draft.
-ru: Двенадцать переходов WebGL и морф, переносящий элемент в следующую сцену. Музыка приседает под
-каждым тактом речи, меняется по частям и обрывается перед панчлайном; ролик выходит на −14 LUFS.
+en: 17 WebGL transitions and a morph that carries one element into the next scene. Music ducks
+under every beat of speech, changes by part and stops before a punchline; the mix targets
+−14 LUFS and the final AAC is checked against a −1 dBTP true-peak ceiling. Narration by SpeechKit,
+your own recorded voice, or a free silent draft.
+ru: 17 переходов WebGL и морф, переносящий элемент в следующую сцену. Музыка приседает под
+каждым тактом речи, меняется по частям и обрывается перед панчлайном; микс нацелен на −14 LUFS,
+а готовый AAC проверяется по потолку истинного пика −1 dBTP.
 Голос — SpeechKit, ваша собственная запись или бесплатный немой черновик.
 
 **7. A trailer, too.**
@@ -96,11 +99,11 @@ ru: Слова врезаются со вспышкой и тряской, жё�
 проступающий из размытия. Тот же файл — другой жанр.
 
 **8. A look, not a pile of colours.**
-en: Eleven themes style slides and the overlay together, each with one accent, its own fonts in Latin
+en: Twelve themes style slides and the overlay together, each with one accent, its own fonts in Latin
 and Cyrillic and its own subtitle face; the default is a quiet `neutral`, not a fashion. A theme from
 your logo, a chapter in another theme, a graded film look — and `lint` counts the signs of a
 template film before you build.
-ru: Одиннадцать тем оформляют слайды и слой вместе, у каждой один акцент, свои шрифты на латинице и
+ru: Двенадцать тем оформляют слайды и слой вместе, у каждой один акцент, свои шрифты на латинице и
 кириллице и свой шрифт субтитров; по умолчанию — тихая `neutral`, а не мода. Тема по вашему
 логотипу, глава в другой теме, цветокоррекция всего ролика — и `lint` до сборки считает признаки
 шаблонного ролика.
@@ -116,10 +119,10 @@ ru: `format: vertical` делает ролик 1080×1920 в 30 кадров п�
 телефоне не прочесть.
 
 **10. Checked before you watch.**
-en: Twenty director rules catch two texts at once, a still page or a clip enlarged past sharpness
+en: The scenario linter catches two texts at once, a still page or a clip enlarged past sharpness
 before the build. A sheet shows every scene without a build, control frames land beside the film,
 and the build report names a cut line, an overflowing slide or small text.
-ru: Двадцать режиссёрских правил до сборки ловят два текста сразу, стоящую страницу или клип,
+ru: Анализ сценария до сборки ловит два текста сразу, стоящую страницу или клип,
 увеличенный дальше резкости. Лист показывает каждую сцену без сборки, контрольные кадры ложатся
 рядом с роликом, а отчёт сборки называет обрезанную строку, переполненный слайд или мелкий текст.
 
@@ -155,6 +158,5 @@ overview brief. The page's written claims about voice and music describe what th
 while the landing examples themselves play without sound.
 
 The page uses the existing agentic-report Markdown vocabulary: a real example immediately after
-the promise, sections in the order of the argument, one four-card comparison of slide roles,
-steps for sound and checks, source links for the knowledge base and one first-film action. The
-public Moira workflow remains outside the page while that workflow is deferred.
+the promise, sections in the order of the argument, one three-card comparison of slide roles,
+steps for sound and checks, source links for the knowledge base and one first-film action.

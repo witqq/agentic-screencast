@@ -44,7 +44,7 @@ export const FORMAT_NAMES = Object.keys(FORMATS);
 
 export function parseFormat(raw: string): string {
   const name = raw.trim();
-  if (!FORMATS[name]) throw new Error(msg("format.unknown", { name, available: FORMAT_NAMES.join(", ") }));
+  if (!Object.hasOwn(FORMATS, name)) throw new Error(msg("format.unknown", { name, available: FORMAT_NAMES.join(", ") }));
   return name;
 }
 

@@ -12,11 +12,16 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import { parseStills } from "../../stills.js";
 import { rawOf } from "../support.js";
+import { selfHash } from "../../self-hash.js";
 
 const ffmpeg = createRequire(import.meta.url)("ffmpeg-static") as string;
 const ENTRY = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "agentic-screencast.js");
 
-test("a scene names its stills and the build writes them beside the film at the named moments", () => {
+test("a scene names its stills and the build writes them beside the film at the named moments", (t) => {
+  // Хеш исходников инструмента входит в ключ каждого сегмента: правка `src` между двумя сборками
+  // обязана пересобрать сцены. Поэтому проверка кэша ниже имеет смысл, только если исходники за
+  // время теста не менялись; иначе смена ключей — правильное поведение, а не дефект.
+  const self = selfHash();
   const dir = mkdtempSync(join(tmpdir(), "sc-stills-"));
   writeFileSync(join(dir, "page.html"), `<!doctype html><html><body style="margin:0;background:#203040"><h1 id="t" style="color:#fff;margin:80px">Stills</h1></body></html>`);
   execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=s=320x180:r=10:d=4", "-c:v", "libx264", "-pix_fmt", "yuv420p", join(dir, "take.mp4")]);
@@ -78,6 +83,10 @@ stills: @done :: the take is done, even if @done appears in the note | @done+0.2
   // тот же — пропал сегмент кэша.
   const keys = (out: string): string => (JSON.parse(out) as { scenes: Array<{ id: string; cached: boolean; key: string }> }).scenes
     .map((s) => `${s.id}:${s.key}${s.cached ? "(cached)" : ""}`).join(" ");
+  if (selfHash() !== self) {
+    t.skip("the tool's sources changed during the test, so every segment key changed with them");
+    return;
+  }
   assert.equal((JSON.parse(again.stdout) as { scenes: Array<{ cached: boolean }> }).scenes.every((s) => s.cached), true,
     `naming stills does not re-render scenes — first ${keys(r.stdout)}, again ${keys(again.stdout)}`);
 });

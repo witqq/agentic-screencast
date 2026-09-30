@@ -12,11 +12,11 @@ import { spawnSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { msg } from "./msg.js";
 
 const command = process.argv[2];
 if (!command) {
-  console.error("provider-check.js <программа>\n"
-    + "пример: provider-check.js 'python3 /путь/provider.py'");
+  console.error(msg("providerCheck.usage"));
   process.exit(2);
 }
 

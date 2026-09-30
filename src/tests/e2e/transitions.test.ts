@@ -3,13 +3,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
-import { KINDS, KIND_NAMES, parseTransition, renderTransition } from "../../transition.js";
-import { timeline } from "../../assemble.js";
+import { chromium } from "playwright";
+import { KINDS, KIND_NAMES, parseTransition, renderMorph, renderTransition } from "../../transition.js";
+import { assembleVideo, timeline } from "../../assemble.js";
 import { parseFade } from "../../source.js";
 import { recordingPath } from "../../voice/recorded.js";
 import { resolveTheme } from "../../theme.js";
@@ -34,7 +35,9 @@ const rgb = (file: string): Buffer => execFileSync(ffmpeg, ["-loglevel", "error"
 
 test("the transition field accepts a name, a name with length, or an object, and refuses the rest", () => {
   assert.deepEqual(parseTransition("cube"), { kind: "cube", duration: 0.8 });
-  assert.deepEqual(parseTransition("iris 1.2"), { kind: "iris", duration: 1.2 });
+  assert.deepEqual(parseTransition("mask 1.2"), { kind: "mask", duration: 1.2 });
+  // Слитое имя отвергается с названием замены.
+  assert.throws(() => parseTransition("iris 1.2"), /iris.*mask/u);
   assert.equal(parseTransition('{"kind":"whip","duration":0.5,"snap":"music"}').snap, "music");
   assert.throws(() => parseTransition("crossfade"), /unknown kind/);
   assert.throws(() => parseTransition("cube 5"), /0.2–2 seconds/);
@@ -75,17 +78,139 @@ test("every kind differs from a plain blend, and geometric kinds move the pictur
   }
 });
 
+test("push and whip take a direction, zoom takes a point or an element", () => {
+  assert.deepEqual(parseTransition("push 0.6 up"), { kind: "push", duration: 0.6, direction: "up" });
+  assert.equal(parseTransition('{"kind":"whip","direction":"right"}').direction, "right");
+  assert.deepEqual(parseTransition('{"kind":"zoom","at":"0.7 0.3"}').at, [0.7, 0.3]);
+  assert.equal(parseTransition('{"kind":"zoom","element":".feat"}').element, ".feat");
+  assert.throws(() => parseTransition("push 0.6 sideways"), /not a direction/);
+  assert.throws(() => parseTransition('{"kind":"cube","direction":"up"}'), /not a direction/);
+  assert.throws(() => parseTransition('{"kind":"zoom","at":"2 0"}'), /two fractions/);
+});
+
+test("a push goes where its direction says", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-trans-dir-"));
+  const a = frames(join(dir, "a"), "red", 8), b = frames(join(dir, "b"), "blue", 8);
+  // Доля красного (уходящая сцена) в полосе кадра на середине перехода.
+  const redIn = (m: Buffer, x0: number, x1: number, y0: number, y1: number): number => {
+    let red = 0, all = 0;
+    for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+      const i = (y * W + x) * 3;
+      all++;
+      if (m[i]! > m[i + 2]! + 60) red++;
+    }
+    return red / all;
+  };
+  const left = rgb((await renderTransition({ kind: "push", a, b, width: W, height: H, out: join(dir, "l") })).frames[3]!);
+  assert.ok(redIn(left, 0, W / 5, 0, H) > 0.5 && redIn(left, W * 4 / 5, W, 0, H) < 0.1, "left: the old scene leaves by the left edge");
+  const up = rgb((await renderTransition({ kind: "push", a, b, width: W, height: H, out: join(dir, "u"), direction: "up" })).frames[3]!);
+  assert.ok(redIn(up, 0, W, 0, H / 5) > 0.5 && redIn(up, 0, W, H * 4 / 5, H) < 0.1, "up: the old scene leaves by the top edge");
+});
+
 test("the webgl mark comes only from the WebGL branch", async () => {
   const dir = mkdtempSync(join(tmpdir(), "sc-trans-ff-"));
   const a = frames(join(dir, "a"), "red", 6), b = frames(join(dir, "b"), "blue", 6);
-  const ff = await renderTransition({ kind: "wipe", a, b, width: W, height: H, out: join(dir, "ff"), engine: "ffmpeg" });
+  const out = join(dir, "ff");
+  mkdirSync(out);
+  writeFileSync(join(out, "00000.png"), "an unfinished WebGL frame");
+  const ff = await renderTransition({ kind: "wipe", a, b, width: W, height: H, out, engine: "ffmpeg" });
   assert.equal(ff.renderer, "ffmpeg");
   assert.equal(ff.frames.length, 6);
+  assert.equal(rgb(ff.frames[0]!).length, W * H * 3, "fallback overwrites partial WebGL output");
+});
+
+test("the ffmpeg light leak preserves the sequential scenes and adds the theme's light", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-leak-ff-"));
+  const n = 9, split = Math.ceil(n / 2);
+  const a = frames(join(dir, "a"), "red", split);
+  const blue = frames(join(dir, "b"), "blue", n - split);
+  blue.forEach((file, i) => {
+    const to = join(dir, "a", `${String(split + i + 1).padStart(5, "0")}.png`);
+    renameSync(file, to);
+    a.push(to);
+  });
+  const theme = { ...resolveTheme(undefined), "--tr-flash": "#00ff00", "--tr-iris": "#000000" };
+  const out = join(dir, "t");
+  mkdirSync(out);
+  writeFileSync(join(out, "00000.png"), "an unfinished WebGL frame");
+  const got = await renderTransition({ kind: "leak", a, b: a, width: W, height: H,
+    out, engine: "ffmpeg", theme });
+  assert.equal(got.renderer, "ffmpeg");
+  assert.equal(got.frames.length, n, "no frames are added or overlapped");
+  // Sample inside a grid cell: its white line already has little room to gain light.
+  const pixel = ((Math.floor(H / 2) + 7) * W + Math.floor(W / 2) + 7) * 3;
+  const center = (p: Buffer): number[] => [...p.subarray(pixel, pixel + 3)];
+  const source = a.map((f) => center(rgb(f))), shown = got.frames.map((f) => center(rgb(f)));
+  for (let k = 0; k < n; k++) {
+    assert.ok(Math.abs(shown[k]![0]! - source[k]![0]!) <= 2 && Math.abs(shown[k]![2]! - source[k]![2]!) <= 2,
+      `frame ${k} keeps its original red and blue channels rather than blending the scenes`);
+  }
+  assert.ok(shown[4]![1]! > source[4]![1]! + 80, "the center of the transition gains green light");
+  assert.ok(shown[0]![1]! < shown[4]![1]! - 50 && shown.at(-1)![1]! < shown[4]![1]! - 50,
+    "the light recedes at both ends");
+  const transparent = join(dir, "alpha");
+  mkdirSync(transparent);
+  const first = join(transparent, "00001.png"), second = join(transparent, "00002.png");
+  execFileSync(ffmpeg, ["-loglevel", "error", "-i", a[0]!, "-vf", "format=rgba,colorchannelmixer=aa=0.5", first]);
+  copyFileSync(first, second);
+  const alpha = [first, second];
+  const translucent = await renderTransition({ kind: "leak", a: alpha, b: alpha, width: W, height: H,
+    out: join(dir, "translucent"), engine: "ffmpeg", theme });
+  for (const file of translucent.frames) {
+    const rgba = execFileSync(ffmpeg, ["-loglevel", "error", "-i", file, "-f", "rawvideo", "-pix_fmt", "rgba", "-"]);
+    assert.ok(Math.abs(rgba[(pixel / 3) * 4 + 3]! - 128) <= 1, "light preserves the source alpha");
+  }
+});
+
+test("a joint leak report names the rendered interval across the scene boundary", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-leak-time-"));
+  const cache = join(dir, "cache");
+  mkdirSync(cache);
+  const segments = ["red", "blue"].map((color) => {
+    const file = join(dir, `${color}.mp4`);
+    execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", `color=c=${color}:s=${W}x${H}:r=10:d=3`, file]);
+    return file;
+  });
+  for (const duration of [0.6, 0.7]) {
+    const out = join(dir, `film-${duration}.mp4`);
+    const result = await assembleVideo({ scenes: [{ id: "a", seg: segments[0]!, frames: 30 },
+      { id: "b", seg: segments[1]!, frames: 30, transition: { kind: "leak", duration } }],
+    enc: { fps: 10, width: W, height: H, crf: 18, preset: "ultrafast", pix: "yuv420p" }, cache, self: "test", out });
+    const k = Math.round(duration * 10), start = 3 - Math.ceil(k / 2) / 10;
+    assert.equal(result.transitions[0]!.at, start);
+    assert.equal(result.transitions[0]!.duration, duration);
+    assert.equal(lumas(out).length, 60, "the joint transition keeps the total frame count");
+  }
+});
+
+test("a morph fallback replaces partial WebGL frames with exactly the requested blend", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-morph-ff-"));
+  const a = frames(join(dir, "a"), "red", 1)[0]!, b = frames(join(dir, "b"), "blue", 1)[0]!;
+  const out = join(dir, "t");
+  mkdirSync(out);
+  writeFileSync(join(out, "00000.png"), "an unfinished WebGL frame");
+  // Model an unavailable WebGL context while exercising the real FFmpeg fallback.
+  t.mock.method(chromium, "launch", async () => ({
+    newPage: async () => ({ setContent: async () => {}, evaluate: async () => false }),
+    close: async () => {},
+  }));
+  const box = { left: 0, top: 0, width: W, height: H };
+  try {
+    const got = await renderMorph({ aBg: a, bBg: b, aFull: a, bFull: b, ra: box, rb: box,
+      width: W, height: H, n: 5, out });
+    assert.equal(got.renderer, "ffmpeg");
+    assert.equal(got.frames.length, 5);
+    const pixel = (52 * W + 87) * 3;
+    const start = rgb(got.frames[0]!), middle = rgb(got.frames[2]!), end = rgb(got.frames[4]!);
+    assert.ok(start[pixel]! > start[pixel + 2]!, "the fallback starts with the outgoing scene");
+    assert.ok(end[pixel]! < end[pixel + 2]!, "the fallback ends with the incoming scene");
+    assert.ok(Math.abs(middle[pixel]! - middle[pixel + 2]!) < 50, "the middle mixes the scenes");
+  } finally { t.mock.restoreAll(); }
 });
 
 test("the timeline overlaps scenes by their transitions", () => {
   const t = timeline([{ frames: 60 }, { frames: 50, transition: { kind: "cube", duration: 0.8 } },
-    { frames: 40, transition: { kind: "iris", duration: 0.5 } }], 20);
+    { frames: 40, transition: { kind: "mask", duration: 0.5 } }], 20);
   assert.deepEqual(t.starts, [0, 60 / 20 - 16 / 20, (60 - 16 + 50 - 10) / 20]);
   assert.equal(t.total, (60 + 50 + 40 - 16 - 10) / 20);
 });
@@ -133,7 +258,7 @@ A page follows on a cube.
 
 ## three · video
 file: clip.mp4
-transition: iris 0.6
+transition: mask 0.6
 duration: 3
 
 ${line}

@@ -19,6 +19,7 @@
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -226,7 +227,7 @@ export function mixFilm(opts: {
   for (const span of spans) {
     const m = span.music;
     const src = pcm(m.file, m.from ?? 0);
-    if (!src.length) throw new Error(`music: ${m.file} decodes to no sound`);
+    if (!src.length) throw new Error(msg("mix.silentMusic", { file: m.file }));
     const pauseDb = m.level ?? -26;
     const duck = m.duck ?? 20;
     const base = pauseDb - levelDb(src);
@@ -290,6 +291,14 @@ export function mixFilm(opts: {
   const done = JSON.parse(after.slice(after.lastIndexOf("{"), after.lastIndexOf("}") + 1)) as Record<string, string>;
   report.loudness = { target, measured: Number(done.input_i), input: Number(json.input_i) };
   return report;
+}
+
+/** Доли музыки внутри отрезка ролика [from, from + length), в секундах от его начала. */
+export function beatsWithin(from: number, length: number, bpm: number, offset = 0): number[] {
+  const len = 60 / bpm, out: number[] = [];
+  for (let n = Math.max(0, Math.ceil((from - offset) / len)); offset + n * len < from + length; n++)
+    out.push(Number((offset + n * len - from).toFixed(3)));
+  return out;
 }
 
 /** Секунда доли номер n музыки с темпом bpm и сдвигом первой доли. */

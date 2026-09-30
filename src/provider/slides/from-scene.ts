@@ -13,6 +13,7 @@ import { BACKGROUNDS } from "./styles.js";
 import { parseDevice } from "../../device.js";
 import { highlight, lineSet } from "./code.js";
 import { KINETIC } from "../../overlay.js";
+import { retiredAs } from "../../retired.js";
 import { ENTERS } from "./Slide.js";
 import { msg } from "../../msg.js";
 
@@ -65,8 +66,8 @@ function pair(v: string, what: string, lo: number, hi: number): [number, number]
   return [n[0]!, n[1]!];
 }
 
-/** «а | б | в» → ["а","б","в"] */
-const list = (v: string): string[] => v.split("|").map((s) => s.trim()).filter(Boolean);
+/** «а | б | в» → ["а","б","в"]; «\\|» внутри пункта — сама черта (конвейер в команде терминала). */
+const list = (v: string): string[] => v.split(/(?<!\\)\|/u).map((s) => s.replace(/\\\|/gu, "|").trim()).filter(Boolean);
 
 /** «Заголовок :: пункт | пункт» → {title, items} либо {title, text} */
 function column(v: string, id: string): Column {
@@ -89,6 +90,15 @@ function column(v: string, id: string): Column {
  * Строки CSV: запятая разделяет поля, кавычки защищают запятую внутри подписи.
  * Первая строка — заголовок, если её второе поле не число.
  */
+/** Движения камеры по кадру слайда (`move`). */
+export const MOVES = ["drift", "push", "still", "dolly", "pan", "orbit3d", "handheld"];
+/** Жизнь элементов после входа (`alive`). */
+export const ALIVE = ["wiggle", "float", "jitter", "pulse"];
+/** Кривые входов (`ease`). */
+export const EASES = ["standard", "emphasized", "expressive", "spring", "bouncy"];
+/** Порядок входа пунктов (`wave`). */
+export const WAVES = ["start", "center", "edges", "random"];
+
 export function csvRows(text: string): string[][] {
   const rows: string[][] = [];
   for (const line of text.split(/\r?\n/u)) {
@@ -111,16 +121,36 @@ export function csvRows(text: string): string[][] {
 /** График: CSV «подпись,значение» рядом со сценарием, вид столбцов или линии, подсвеченная строка. */
 function chartOf(f: Record<string, string>, dir: string, id: string): NonNullable<Slide["chart"]> {
   const type = (f.type ?? "bar").trim();
-  if (type !== "bar" && type !== "line") throw new SourceError(msg("slides.options", { id, field: "type", options: "bar | line" }));
+  if (type !== "bar" && type !== "line" && type !== "race")
+    throw new SourceError(msg("slides.options", { id, field: "type", options: "bar | line | race" }));
   const path = resolve(dir, f.data!);
   if (!existsSync(path)) throw new MissingMaterialError(msg("slides.dataMissing", { id, file: f.data! }), "data", f.data!);
   const num = (v: string): number => Number(v.replace(/[\s_\u00a0\u202f]/gu, ""));
   let rows = csvRows(readFileSync(path, "utf8"));
+  if (type === "race") {
+    // Гонка: шапка «имя,2020,2021,…» называет периоды, каждая строка — «подпись,значение,значение,…».
+    const [head, ...body] = rows;
+    const periods = (head ?? []).slice(1);
+    if (periods.length < 2 || periods.length > 40 || body.length < 2 || body.length > 16)
+      throw new SourceError(msg("slides.chartRace", { id }));
+    const race = body.map((r, i) => {
+      const cells = r.slice(1);
+      const values = cells.map(num);
+      if (r.length !== periods.length + 1 || !r[0]?.trim()
+        || cells.some((cell) => !cell.replace(/[\s_\u00a0\u202f]/gu, ""))
+        || values.some((v) => !Number.isFinite(v) || v < 0))
+        throw new SourceError(msg("slides.chartRaceRow", { id, row: i + 2, count: periods.length, value: r.join(",") }));
+      return { label: r[0]!, values };
+    });
+    const last = race.map((r) => ({ label: r.label, value: r.values.at(-1)!, shown: String(r.values.at(-1)) }));
+    return { type, rows: last, race: { periods, rows: race } };
+  }
   if (rows.length && !Number.isFinite(num(rows[0]![1] ?? ""))) rows = rows.slice(1);
   if (rows.length < 2 || rows.length > 24) throw new SourceError(msg("slides.chartRows", { id, count: rows.length }));
   const out = rows.map((r, i) => {
     const value = num(r[1] ?? "");
-    if (r.length < 2 || !Number.isFinite(value)) throw new SourceError(msg("slides.chartRow", { id, row: i + 1, value: r.join(",") }));
+    if (r.length < 2 || !r[0]?.trim() || !r[1]?.replace(/[\s_\u00a0\u202f]/gu, "") || !Number.isFinite(value))
+      throw new SourceError(msg("slides.chartRow", { id, row: i + 1, value: r.join(",") }));
     if (value < 0) throw new SourceError(msg("slides.chartValue", { id, row: i + 1, value }));
     return { label: r[0]!, value, shown: r[2] || r[1]! };
   });
@@ -147,6 +177,8 @@ export function slideOf(s: RawScene, dir = "."): Slide {
   if (f.background) {
     // Опечатка в имени фона давала молча пустой фон: слайд проходил и check, и lint.
     const bg = f.background.trim();
+    const bgUse = retiredAs("background", bg);
+    if (bgUse) throw new SourceError(msg("retired", { field: `scene ${s.id}: background`, value: bg, use: bgUse }));
     if (!BACKGROUNDS.includes(bg)) throw new SourceError(msg("slides.background", {
       id: s.id, value: bg, hint: didYouMean(bg, BACKGROUNDS), available: BACKGROUNDS.join(", ") }));
     slide.background = bg;
@@ -160,9 +192,32 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.align = a as Slide["align"];
   }
   if (f.move) {
-    if (!["drift", "push", "still"].includes(f.move.trim()))
-      throw new SourceError(msg("slides.options", { id: s.id, field: "move", options: "drift | push | still" }));
+    if (!MOVES.includes(f.move.trim()))
+      throw new SourceError(msg("slides.options", { id: s.id, field: "move", options: MOVES.join(" | ") }));
     slide.move = f.move.trim() as Slide["move"];
+  }
+  const choice = <K extends "alive" | "glow" | "ease" | "wave" | "swap" | "pace">(k: K, options: readonly string[]): void => {
+    if (!f[k]) return;
+    const v = f[k]!.trim();
+    if (!options.includes(v)) throw new SourceError(msg("slides.options", { id: s.id, field: k, options: options.join(" | ") }));
+    slide[k] = v as Slide[K];
+  };
+  choice("alive", ALIVE);
+  choice("glow", ["border"]);
+  choice("ease", EASES);
+  choice("wave", WAVES);
+  choice("swap", ["slide", "morph"]);
+  // Глобус — умолчание: хранится только плоская карта.
+  if (f.map) {
+    const v = f.map.trim();
+    if (!["globe", "flat"].includes(v)) throw new SourceError(msg("slides.options", { id: s.id, field: "map", options: "globe | flat" }));
+    if (v === "flat") slide.map = "flat";
+  }
+  choice("pace", ["calm", "brisk", "snap"]);
+  if (f.stagger) {
+    const v = Number(f.stagger.trim().replace(/s$/i, ""));
+    if (!Number.isFinite(v) || v < 0.03 || v > 1.5) throw new SourceError(msg("slides.stagger", { id: s.id }));
+    slide.stagger = v;
   }
   if (f.count) {
     if (!["on", "off"].includes(f.count.trim()))
@@ -170,20 +225,37 @@ export function slideOf(s: RawScene, dir = "."): Slide {
     slide.count = f.count.trim() === "on";
   }
   if (f.text) {
-    // «fly» — так собирается заголовок; «fly scramble» — заголовок и текст.
+    // «fly» — так собирается заголовок; «fly flap» — заголовок и текст.
     const [title, body, ...extra] = f.text.trim().split(/\s+/);
     for (const k of [title, body]) {
+      const use = k ? retiredAs("text", k) : undefined;
+      if (use) throw new SourceError(msg("retired", { field: `scene ${s.id}: text`, value: k!, use }));
       if (k && !(KINETIC as readonly string[]).includes(k)) throw new SourceError(msg("slides.textStyle", { id: s.id, options: KINETIC.join(" | "), value: k }));
     }
     if (extra.length) throw new SourceError(msg("slides.textCount", { id: s.id }));
     slide.text = { ...(title ? { title } : {}), ...(body ? { body } : {}) };
   }
   if (f.enter) {
-    if (!(ENTERS as readonly string[]).includes(f.enter.trim()))
+    // Несколько входов через пробел раздаются пунктам по порядку.
+    const list = f.enter.trim().split(/\s+/);
+    for (const e of list) {
+      const use = retiredAs("enter", e);
+      if (use) throw new SourceError(msg("retired", { field: `scene ${s.id}: enter`, value: e, use }));
+    }
+    if (list.some((e) => !(ENTERS as readonly string[]).includes(e)))
       throw new SourceError(msg("slides.options", { id: s.id, field: "enter", options: ENTERS.join(" | ") }));
-    slide.enter = f.enter.trim();
+    slide.enter = list.join(" ");
   }
   if (f.items) slide.items = items(f.items);
+  if (s.kind === "globe" && slide.items) {
+    // «Город :: широта долгота»: первый — откуда летят дуги.
+    for (const [i, it] of slide.items.entries()) {
+      const n = (it.text ?? "").split(/\s+/).map(Number);
+      if (n.length !== 2 || !(Math.abs(n[0]!) <= 90) || !(Math.abs(n[1]!) <= 180))
+        throw new SourceError(msg("slides.globePoint", { id: s.id, index: i + 1, value: it.text ?? "" }));
+    }
+    if (slide.items.length < 2) throw new SourceError(msg("slides.globePoint", { id: s.id, index: 1, value: "at least two cities" }));
+  }
   if (f.point) slide.focus = pair(f.point, msg("slides.where", { id: s.id, field: "point" }), 0, 1);
   if (f.push) slide.zoom = pair(f.push, msg("slides.where", { id: s.id, field: "push" }), 1, 2);
   if (f.device) slide.device = parseDevice(f.device);
@@ -234,11 +306,23 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       const where = msg("slides.where", { id: s.id, field: `panels[${i + 1}]` });
       if (!m) throw new SourceError(msg("slides.panelForm", { where }));
       const [x, y, w, h, depth] = m.slice(1).map(Number) as [number, number, number, number, number];
+      if ([x, y, w, h, depth].some((value) => !Number.isFinite(value)))
+        throw new SourceError(msg("slides.panelForm", { where }));
       if (x < 0 || y < 0 || w <= 0 || h <= 0 || x + w > 1 || y + h > 1) throw new SourceError(msg("slides.panelOutside", { where }));
       if (depth < 0 || depth > 1) throw new SourceError(msg("slides.panelDepth", { where }));
       return { x, y, w, h, depth };
     });
     if (slide.panels.length > 8) throw new SourceError(msg("slides.panelCount", { id: s.id }));
+  }
+  if (f.rows) {
+    if (!["1", "2"].includes(f.rows.trim()))
+      throw new SourceError(msg("slides.options", { id: s.id, field: "rows", options: "1 | 2" }));
+    slide.rows = Number(f.rows.trim()) as 1 | 2;
+  }
+  if (f.speed) {
+    const v = Number(f.speed.trim());
+    if (!Number.isFinite(v) || v < 20 || v > 600) throw new SourceError(msg("slides.speed", { id: s.id }));
+    slide.speed = v;
   }
   if (f.at) slide.at = f.at.split(/\s+/);
   // Material lookup is last: an unfinished file must not hide an invalid independent field.
@@ -252,7 +336,20 @@ export function slideOf(s: RawScene, dir = "."): Slide {
       ...(f.name ? { name: f.name } : f.file ? { name: basename(f.file) } : {}) };
   }
   if (s.kind === "chart") slide.chart = chartOf(f, dir, s.id);
+  if (f.spark) {
+    // «1 3 2 5 8 | 4 3 5»: ряд на каждое значение счётчика по порядку.
+    slide.spark = f.spark.split("|").map((part) => part.trim().split(/[\s,]+/u).filter(Boolean).map(Number));
+    if (slide.spark.some((row) => row.length < 2 || row.some((v) => !Number.isFinite(v))))
+      throw new SourceError(msg("slides.spark", { id: s.id }));
+  }
   if (f.image) slide.image = image(f.image, dir, s.id);
+  if (f.fill) slide.fill = image(f.fill, dir, s.id);
+  if (s.kind === "shell" && f.name) slide.name = f.name;
+  if (f.images) {
+    // Стена снимков: от трёх картинок, иначе колонки повторяют одно и то же.
+    slide.images = list(f.images).map((file) => image(file, dir, s.id));
+    if (slide.images.length < 3) throw new SourceError(msg("slides.wallImages", { id: s.id }));
+  }
   if (f.after) slide.after = image(f.after, dir, s.id);
   return slide;
 }

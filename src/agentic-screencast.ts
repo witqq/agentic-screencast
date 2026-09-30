@@ -44,6 +44,8 @@ import { KINETIC } from "./overlay.js";
 import { brandTheme, dominantColors, parseHex } from "./brand.js";
 import { parseFormat } from "./format.js";
 import { THEME_GROUPS } from "./theme.js";
+import { craft, TOPICS } from "./craft.js";
+import { handover } from "./handover.js";
 
 /** Токены группы строками по ширине справки. */
 const wrapTokens = (keys: readonly string[]): string => {
@@ -60,7 +62,7 @@ const rest = process.argv.slice(3);
 {
   const i = rest.indexOf("--lang");
   if (i >= 0) {
-    if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error("--lang: name a language, e.g. --lang ru"); process.exit(2); }
+    if (!rest[i + 1] || rest[i + 1]!.startsWith("-")) { console.error(msg("cli.langMissing")); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_LANG = rest[i + 1];
     process.env.AGENTIC_SCREENCAST_LANG = rest[i + 1];
     useLang(rest[i + 1]);
@@ -70,7 +72,7 @@ const rest = process.argv.slice(3);
   // pageVertical у страницы либо кадрирует её исходник и видеоклипы.
   const f = rest.indexOf("--format");
   if (f >= 0 && process.argv[2] !== "new") {
-    if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error("--format: name one, e.g. --format vertical"); process.exit(2); }
+    if (!rest[f + 1] || rest[f + 1]!.startsWith("-")) { console.error(msg("cli.formatMissing")); process.exit(2); }
     process.env.AGENTIC_SCREENCAST_FILM_FORMAT = rest[f + 1];
     rest.splice(f, 2);
   }
@@ -98,9 +100,25 @@ Usage:
   agentic-screencast voices [--voice-json '{...}']
   agentic-screencast voice-check [command]
   agentic-screencast provider-check <command>
+  agentic-screencast handover [story.md] [--film draft.mp4]
+  agentic-screencast craft [<topic>] [--json]
   agentic-screencast paths
   agentic-screencast version
 A command that reads a scenario also takes its path first: lint story.md.
+
+handover is the gate before the film goes to the owner: lint of the scenario,
+a non-empty MP4 and its full-film report (built after the scenario's last
+edit, no audit issue, no warning), its stills on disk and checklist.md
+without an open box. A build --only report cannot pass. It prints
+{verdict: "pass"|"fail", checks: [{name, passed, findings}]} and exits 1 on
+fail; --film names the film, otherwise the newest report beside the scenario.
+
+craft <topic> prints the 3–7 film-craft rules for the decision at hand — a scene
+kind (slides, page, video, report, trailer), a technique (spotlight, speed,
+captions, transitions, sound, vertical, capture, stills, theme, numbers…), a
+genre (product-demo, explainer, pitch, reel, release) or a finding's id
+(still-scene): each with its FC number, title and statement from
+docs/film-craft.md. craft alone lists the topics.
 
 Guides: agentic-screencast help video | help capture | help overlay
         agentic-screencast help slides | help vertical | help text
@@ -116,8 +134,23 @@ docs/scenario-playbook.md.
 
 Scene kinds come from providers: slides.<kind> (slides.chapter opens a
 film or a part; help slides lists them all), page (a saved
-or self-contained HTML page), video (a finished clip or a live take — help
-capture). agentic-screencast schema <kind> prints a kind's fields.
+or self-contained HTML page), report (a page agentic-report builds from its
+Markdown source), video (a finished clip or a live take — help capture).
+agentic-screencast schema <kind> prints a kind's fields.
+
+  report  report: page.md — a report, presentation or landing written for
+          agentic-report, rebuilt from its source for every scene, so the
+          film shows the latest edit. Needs agentic-report >=0.20.0 in the
+          project (npm i -D agentic-report) and the Node version it requires. The
+          camera frames its blocks by id (#section-id) or
+          [data-review-target=…]; target, mustRead, zoom, spotFrom and focus
+          work as on a page. The page keeps its own motion: its data-type
+          and data-at mean agentic-report's roles, not typing. The scene
+          builds the page without its top bar and what opens from it
+          (topbar, review, schemeToggle, themeSwitcher: false) unless the
+          report's metadata names those keys itself. The compiler reads the
+          original source without modifying it, preserving its block targets
+          across identical scene builds.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).
@@ -132,18 +165,40 @@ capture). agentic-screencast schema <kind> prints a kind's fields.
           Animations and requestAnimationFrame loops run on the scene's
           clock — the build seeks them to every frame's time — so a page you
           write is the way to an effect the tool lacks, and lint does not
-          call such a page still. To draw by the narration, define
+          call such a page still. The layer reads data-at, data-type and
+          data-kinetic only on a page marked <html data-sc-page>; another
+          tool's page keeps its own meaning of those names, and lint names an
+          unmarked page that uses them (page-unmarked); a data-kinetic merged into
+      another style is named with the one to write (page-retired). To draw by the
+          narration, define
           window.renderAt(t) in the page: the build calls it with the
           scene's second before every frame. data-at on any element names
           its moment in the anchors of the speech (b2, b2+0.3, b3.end); the
           layer turns it into seconds when the scene mounts, so renderAt
           reads plain numbers:
+            <html data-sc-page> …
             <li data-at="b2">Voice</li><li data-at="b3+0.4">Frames</li>
             <script>window.renderAt = (t) => {
               for (const e of document.querySelectorAll("[data-at]"))
                 e.style.opacity = Math.min(1, Math.max(0, (t - e.dataset.at) / 0.4));
             };</script>
           A new voice or pace moves every element with its words.
+          data-draw on an SVG shape (or on an svg holding shapes) draws its
+          stroke like a pen from its data-at over the named seconds
+          (data-draw="1.5"; empty — 1.2 s): a diagram line, an arrow, a
+          signature. data-morph="M… (the second shape)" on an SVG path
+          flows it into that shape over 0.9 s from its data-at; draw both
+          shapes with the same commands and number of points. data-beam on
+          an SVG shape runs a glowing segment an eighth of its length along
+          it from its data-at, one lap in the named seconds (empty — 2 s):
+          data flowing along a link. Typed text (data-type, a card's
+          reveal: type, typed titles and callouts) comes in at the uneven
+          pace of a hand — a pause after a space, a longer one after a comma
+          and a full stop — and still ends when an even pace would.
+          A <video> element in a page does not follow the scene clock. For
+          clips side by side (a split screen, one moment in three formats)
+          extract their frames with ffmpeg into the page's folder and swap
+          an <img> in renderAt(t) — frame = floor(t × fps).
   video   file: clip; from/to cut a piece (seconds or @marks, and every
           clip second of the scene then counts from from); fit: contain
           (default: whole clip, bars of the theme's letterbox colour) or
@@ -285,7 +340,17 @@ focused action — it stands while the cursor stays in its middle and glides
 after it when it leaves.
 "follow":"cursor" on a hand-authored overlay.camera move over a take
 starts following after that move, even when the pointer is outside its named
-area. A take recorded
+area. A camera over a take is performed by the browser, not by stretching the
+video: when every move of a video scene's overlay.camera, spotlight or
+autoZoom names an area and none follows the cursor (no speed, freezeAt,
+device, cover fit or vertical reframe on the scene), the build re-runs the
+script that recorded the take (the marks file keeps its path, arguments and
+folder) with the scene's camera, anchored to the take's marks, and uses
+<take>.<scene>.cam.webm. Small text stays sharp at any push-in; an
+unchanged camera never re-records, and a failed re-run falls back to the
+video push-in with a live-camera warning. So keep the take script runnable
+from its folder, and let it record its takes without side effects on each
+run. AGENTIC_SCREENCAST_NO_LIVE_CAMERA=1 turns this off. A take recorded
 before actions were stored pushes in at each click. In a vertical cut of a
 landscape take, the crop also scales a small subject and follows that path;
 inspect the finished phone frame to confirm the interface remains readable.
@@ -334,18 +399,55 @@ seconds go stale; lint places it by an estimate, the build by the measured
 speech. On a take, "@mark" names a moment of the recording.
 
 Pointer points are ordered by at; x/y are fractions of the final
-frame from 0 to 1. The pointer eases between points. click:true draws a
+frame from 0 to 1. The pointer eases between points along a slight arc, as
+a hand moves a mouse, the arc bending to alternate sides. click:true draws a
 0.65-second ripple at that point; it does not click the underlying UI.
 For real UI actions, use agentic-screencast help capture instead. A manual
 pointer on imported footage is only a graphic annotation, not synchronized
-interaction.
+interaction. On a page or a slide the pointer can also handle the page:
+  "magnet":".button" on a point — the element leans towards the pointer (a
+    quarter of the distance) while it is within an eighth of the frame, the
+    pull of a button before the press
+  "drag":"#card" on a point — the pointer picks the element up there and
+    carries it to the next point, where it stays; lifted in flight, the
+    cursor pressed. The last point has nowhere to carry to
+
+Actions make the page answer a press without its own script — the page is a
+snapshot or a slide, so its scripts do not run on the film's clock:
+overlay: {"actions":[{"at":"b2","target":"#autosave","kind":"toggle","glide":".knob"},
+  {"at":"b3","target":"#tab-details","kind":"tab"},
+  {"at":"b4","target":"#menu","kind":"open"},
+  {"at":"b5","target":"#list","kind":"reorder","order":[3,1,2]}]}
+  toggle   a checkbox or radio flips its checked state; another element flips
+           aria-pressed or aria-checked; class also flips that class
+  tab      the tab gets aria-selected and the class active (or class), its
+           siblings lose them, and panels named by aria-controls swap
+  open     a details element opens; another gets aria-expanded and the class
+           open (or class), and the panel named by aria-controls shows
+  close    the same, closing
+  class    flips the named class — any change your page's CSS knows
+  reorder  the target's children take the new order (numbers from 1)
+glide names elements that travel to their new places over 0.6 s on a spring
+instead of jumping (the FLIP technique); reorder glides the children by
+itself. The state at any second is rebuilt from the page's own state, so a
+frame taken from the middle equals the same frame of a full build. Put a
+pointer click on the same moment: the press and its effect land together.
+
+  "torch":[{"at":"b2","hold":3,"size":0.25}] — the frame darkens in the
+    theme's dimming colour and a circle of light, size a share of the frame
+    width, follows the pointer: exploring a dark or dense interface
+  "thinking":[{"at":"b2","hold":1.6,"target":"#answer","text":"Thinking…","lines":3}]
+    — "AI is thinking": a sheen runs along the line and skeleton bars
+    shimmer; laid over target it hides the answer from the scene's start until
+    it leaves, so the answer appears in its place (over an area nothing is hidden); without one it stands as a
+    card in the middle of the frame. lines 0–5 (default 3), hold from 0.6 s
 
 Cards support position: corners, center, or near-focus; reveal:"type" and
 motion:"rise"|"pop"|"glide"|"fly". enter/exit are seconds; hold is optional and
 its minimum grows with text and typing time. Leave 0.35 seconds between cards.
 motion:"fly" with from:"left"|"right"|"top"|"bottom" brings the card in from
-beyond that edge, overshoots, settles, and leaves the same way; from is
-accepted only with fly.
+beyond that edge, overshoots, settles, and leaves the same way, blurred
+along its travel while it moves fast; from is accepted only with fly.
 
 For a held explanation, freezeAt selects a real frame of a video clip:
 
@@ -433,7 +535,9 @@ spotlight: #n1 @ b1 | {"target":"#n2","at":"b2","scale":1} | #n3 @ b3
 
 On a video scene name an area and optionally slow or stop the clip while
 the camera holds: {"area":[0.3,0.2,0.3,0.3],"at":"b2","slow":0.4} or
-"slow":"stop". On a slide, el3 names the third element that appears. blur
+"slow":"stop". On a slide, el3 names the slide's third block in reading order,
+counting its heading (the heading block, its kicker and its title come
+first), so prefer the part's own selector — help slides lists them. blur
 and desaturate work on pages and slides; on video the rest only dims. A
 card is placed beside the subject and lives inside the focus window; the
 hold grows until it can be read. keep:true on a focus stays pushed in until
@@ -477,15 +581,25 @@ blurred the same way: the camera is computed on sub-frames of each frame of
 the clip and they are blended, so the camera's motion blurs and a held
 frame stays as sharp as without it.
 
+A push-in over a live take recorded with recordTake is performed by the
+browser on a re-recording of the take (help capture): text stays sharp at
+any scale. Over any other clip the build moves a sub-pixel window across the
+video: smooth, but small text in a strong push-in is softer, so record such
+a clip large.
+
 Hits on any scene — a slide, a page or a clip:
 flash: b2 | 1.5s
 shake: [{"at":"b2","length":0.4,"strength":1.5}]
+rgb: m16
 flash lights the whole frame in the scene theme's flash colour (--tr-flash)
 at its anchor and lets it die out over length (default 0.35 s, strength 0.85
 of full light); shake jolts the frame in two directions and settles over
 length (default 0.35 s; strength 1 moves it 1.5% of the frame width), zooming
-in just enough that no edge shows. Anchors are the scene's: b2, b2.end+0.3,
-40%, 1.5s. Both are drawn in one pass over the joined film, so they look the
+in just enough that no edge shows; rgb splits the colour channels — one
+slides right and another left by 1.2% of the frame width at strength 1 — and
+brings them back together over length (default 0.3 s). Anchors are the scene's: b2, b2.end+0.3,
+40%, 1.5s — or a music beat of the film, m16, when the header's music has a
+tempo, so the hit lands in the rhythm rather than in the speech. All three are drawn in one pass over the joined film, so they look the
 same on a slide and on captured footage; the build report lists them under
 hits. Put a sound on the same anchor (sfx) — a hit without one reads as a
 glitch.`;
@@ -543,7 +657,8 @@ titles.style: rise | slam | type | split, or any phrase style of help slides
 lifts the whole title, split brings its words in one by one — while in text:
 and a card's reveal they are the phrase styles. The frame dims and blurs under a
 title so it reads over a busy interface. position: center | top | bottom.
-lower: a name plate at the bottom left or right (side). callouts: a label
+lower: a name plate at the bottom left or right (side) that slides in
+blurred along its travel. callouts: a label
 with an arrow whose end lies inside the subject (side: auto | left | right |
 top | bottom picks where the label stands). Each callout must name exactly
 one subject field: target is a CSS selector on a page; area is
@@ -563,11 +678,26 @@ Hand-drawn marks, glints and bursts ride with the subject under the camera:
     head only after its shaft): smooth, slightly uneven like a hand, thin at
     its ends and fuller in the middle; a circle goes a little past its start
     instead of closing on it. Without from an arrow comes in from the free side.
+    A mark stays hold seconds (default 2.5) and fades; name a longer hold for a
+    mark that must stand while the narration explains it.
     On a video scene "area":"@total" aims a mark, a loupe, a camera move or a
     spotlight at the element the take recorded with take.mark("total",
     locator), placed as the clip lies in the frame (fit, device); moments
     inside overlay ("at":"@saved") are marks too
   "glints":[{"at":5,"target":".card"}] — a band of light crosses the subject once
+  "boops":[{"at":"b2","target":"#send","kind":"pop"}] — the element on the page
+    jolts and springs back: pop, shake, jelly or nod; ties a cause to its effect;
+    pulse makes it breathe — brighter and a little larger on each 1.2 s
+    breath — for hold seconds (default 3): "press here", "listening"
+  "pings":[{"at":1,"target":"#dot","hold":2}] — rings spread from the subject,
+    like radar; also "area" or "point"
+  "toasts":[{"at":1,"icon":"✅","title":"Build finished","body":"film.mp4 is
+    ready","hold":4}] — notifications slide into the top-right corner, blurred
+    along the slide; older ones step back and shrink, three stay visible; each
+    toast's hold has a reading minimum, and a late one lengthens its scene
+  "ease":"spring" — the entrance curve of the scene's titles, lower thirds,
+    callouts, stickers and toasts: standard | emphasized | expressive |
+    spring | bouncy (default: a strong ease-out); exits always accelerate
   "bursts":[{"at":6,"kind":"confetti","target":"#done","seed":3},
             {"at":6,"kind":"sparks","point":[0.5,0.4]}]
     confetti fly up, spin and fall; sparks streak out and fade within a
@@ -623,16 +753,45 @@ kind and seconds (0.2–2), or an object:
 transition: {"kind":"whip","duration":0.6,"sound":"audio/whoosh.ogg","snap":"music"}
 
 The scenes overlap by the transition's length: the next scene starts that
-much earlier, so the film gets shorter by it. The outgoing scene keeps a
+much earlier, so the film gets shorter by it — except leak, which lays its
+light over the last frames of one scene and the first of the next and keeps
+the film's length. The outgoing scene keeps a
 silent tail at least as long as the transition, so no word ends under the
 next picture, and no fade to black is drawn on that edge. Frames are mixed
 by a WebGL shader in the rendering browser; if WebGL is unavailable the
-build falls back to ffmpeg xfade and says so in its report
-(transitions[].renderer). The light of wipe, iris and flash, the shade of
-turning faces and the fill between them come from the theme of the incoming
-scene; ffmpeg cannot light in a theme colour, so without WebGL flash falls
-back to a plain dissolve. sound plays an accent just before the cut; snap
-"music" lengthens the outgoing scene so the cut lands on a music beat.
+build falls back to ffmpeg and says so in its report
+(transitions[].renderer). The light of wipe, mask, melt and leak, the shade
+of turning faces and the fill between them come from the theme of the
+incoming scene. Without WebGL, leak keeps its theme-coloured light over the
+same frames without overlapping scenes; other kinds use ffmpeg xfade.
+transitions[].at is the first transition frame, including the frames before
+the seam for leak. Merged names are refused with the one to write:
+dissolve is dots, zoom-blur is zoom, flash is leak, ripple is melt, iris is
+mask (without an element). sound plays an accent just before the cut; snap
+"music" lengthens the outgoing scene so the cut lands on a music beat: the
+middle of the transition, where the eye sees the change, is placed two frames
+before the beat, which reads as on the beat (a pre-hit).
+
+push and whip take a direction — where the outgoing scene goes: left
+(default), right, up or down: transition: push 0.6 up, or
+{"kind":"whip","direction":"right"}. Keep one axis through a sequence: the
+viewer reads it as one camera travelling. zoom flies the camera into a point
+of the outgoing scene and lands in the next one: {"kind":"zoom","at":"0.7 0.3"}
+(fractions of the frame) or {"kind":"zoom","element":".feat:nth-child(2)"} —
+the centre of that element at the end of a drawn scene, found by the build.
+mask grows the next scene out of an element of the outgoing one — a button
+opening into the screen it leads to: {"kind":"mask","element":"#open"}
+opens a window from that element's rectangle to the whole frame, and
+{"kind":"mask","at":"0.7 0.3"} from a small square around a point.
+
+flow: auto in the film header gives every seam without its own transition a
+connected one instead of two fades, so the film runs as one stream: the
+next scene pushes the previous one along one axis (sideways in a wide
+frame, up in a tall one, like a feed), a new part whips on the same axis,
+the camera flies (zoom) into a chapter or the outro, and a trailer card or
+title card slams in on a hard cut. Pieces of one take joined edge to edge stay a plain join, and a
+scene's own transition always wins — name morph where two scenes share an
+element.
 
 Kinds:
 ${Object.entries(TRANSITIONS).map(([name, k]) => `  ${name.padEnd(10)} ${k.about}`).join("\n")}
@@ -640,12 +799,12 @@ ${Object.entries(TRANSITIONS).map(([name, k]) => `  ${name.padEnd(10)} ${k.about
 A shared element moves between two drawn scenes (slides or pages):
 transition: {"kind":"morph","element":"#total","duration":1}
 The element — present in both scenes under the same selector — travels in one
-piece from its place in the first scene to its place in the second and
+piece on a slight arc, blurred in flight, from its place in the first scene to its place in the second and
 takes the second look halfway through, so different text layouts do not
 double while the background dissolves under it. Exactly one visible match
 is selected in each scene, even when a hidden view repeats its selector;
 the build renders both scenes' frames with and without it to do so. Without
-WebGL it becomes a plain dissolve, and the report says ffmpeg.
+WebGL it becomes a plain crossfade, and the report says ffmpeg.
 Any CSS selector works. On generated slides the number of slides.number is
 .huge, a counter's value .ctr-v (.ctr:nth-child(2) .ctr-v for the second),
 a title h1, a chart's bars .chart-bar, a code window .code-win.
@@ -664,7 +823,7 @@ Without a transition every scene fades in and out through its own fades
 sets both, fade: {"in":0,"out":0.6} sets each. A cut drops the two fades at
 its seam by itself.
 
-dissolve breaks the frame into noise blocks and shreds text mid-cut. Which
+dots and pixelate break the frame into pieces and shred text mid-cut. Which
 kinds suit which film: docs/film-craft.md, rule 52. See also help sound.`;
 const SOUND_HELP = `Sound: music, accents and narration mixed together
 
@@ -759,15 +918,30 @@ Shipped themes:
                Tektur titles, Fira Sans text, Martian Mono code
   synthwave    genre: games and music only — violet night, neon magenta and
                cyan, capital kickers; Unbounded titles, Exo 2 text, JetBrains Mono
+  terminal     a developer console: graphite, one green prompt, amber labels
+               and marks, sharp corners; Martian Mono titles, JetBrains Mono
+               text and code, Onest subtitles
   blockbuster  genre: a parody action trailer only — black, chrome titles in
                Roman capitals, gold and fire, sparks; Forum titles (in the
                spirit of Trajan, the poster font), Oswald text, Fira Sans
                subtitles, JetBrains Mono code
 
+Every theme but blockbuster has a light and a dark scheme: scheme: light or
+scheme: dark in the header picks it for every named theme of the film (a
+scene can name its own with theme: {"preset":"noir","scheme":"dark"}, and a
+live take with recordTake's theme: {"preset":…,"scheme":…}). Without it each
+theme wears its default: neutral, frost, calm-paper and daylight are light,
+the others dark; blockbuster is dark only, and scheme: light with it is a parse
+error. The role colours of both schemes (background, surfaces, text, borders,
+the accents, the statuses) come from one palette file shared with
+agentic-report (assets/palettes/shared-palettes.json, docs/theme-tokens.md), so
+a film and a report page in the same theme and scheme wear the same colours.
+
 Every theme but the two genre ones has one accent: plates, card edges and the
 lower-third bar are that one colour, and the second colour is a quiet one for
 kickers and labels. The genre themes keep their two neon or metal colours on
-purpose, for the film whose genre they are.
+purpose, for the film whose genre they are; blueprint (blue and signal yellow)
+and terminal (green prompt, amber labels) are two-colour by design.
 
 Which theme, background and film look suit a film, and which of them read as
 generated clichés: docs/visual-design.md.
@@ -846,15 +1020,26 @@ body: One scenario file, real footage, honest checks.
 duration: 5
 
 Each kind is a scene header slides.<kind>. The classic five: chapter
-(title, body), compare (left, right), chain (nodes, back), quote (parts) and
-number (value or values, label, tags); schema <kind> shows how to write each.
+(title, body), compare (left, right), chain (nodes, back; once every node
+stands, a pulse of light runs from node to node), quote (parts; a large
+quote mark in the accent, the source as a label, the words typing in at the
+uneven pace of the one answering) and number
+(value or values, label, tags); schema <kind> shows how to write each.
 Beyond them the full-frame kinds are:
 
-  hero      headline rising word by word; body, optional image behind
+  hero      headline rising word by word; body, optional image behind;
+            fill: picture.png pours the picture into the letters of the
+            headline, drifting slowly inside them — the name "made of" the
+            product; take a picture of strong colour without small text: a
+            light screenshot turns the letters pale and its words show as
+            fragments inside them
   steps     items: Title :: text | …  — lit one by one with the narration
   features  items: 🚀 Title :: text | …  — two to six cards flipping in
-  timeline  items: 2024 :: text | …  — a line that draws itself to each stop
-  counter   values: 1,240 :: label | 98% :: label — odometer digits, % ring
+  timeline  items: 2024 :: text | …  — a line that draws itself to each stop,
+            a glowing head leading it
+  counter   values: 1,240 :: label | 98% :: label — odometer digits, % ring;
+            spark: 3 5 4 8 12 | 90 94 98 draws a small line under each value
+            (a series per value) that ends in a flash: "and it is growing"
   beforeafter  image: old.png, after: new.png, labels: Before | After,
             split: 0.8 0.2 — two states in one frame, before left of a
             divider that travels across, after right of it
@@ -867,9 +1052,16 @@ Beyond them the full-frame kinds are:
             and without WebGL the page shows the flat screenshot
   chart     data: sales.csv (label,value per line), type: bar | line,
             peak: max | a row number | a label — bars grow, a line draws
-            itself left to right, the peak lights up; data.ru: for a translation
-  code      code: a\\nb or file: snippet.ts, lines: 3-14, highlight: 5 7-8,
-            cps: 40 (default: typing fits the scene), name: shown in the tab
+            itself left to right, the peak lights up; data.ru: for a translation.
+            type: race runs a bar chart race over a CSV «name,2020,2021,…» —
+            2–40 periods, 2–16 rows — the bars re-sort as the periods pass,
+            "who leads over time"
+  code      code: a\\nb or file: snippet.ts, lines: 3-14, highlight: 5 7-8
+            (line numbers of the file, as shown in the gutter; .ln:nth-child(n)
+            counts the shown lines from the first of lines:),
+            cps: 40 (default: typing ends before the second beat, where the
+            narration names a line, or by two thirds of the scene), name: shown
+            in the tab
   photo     image: pic.jpg, point: 0.6 0.4, push: 1 1.16 — slow push-in
   shot      image: screen.png, device: browser app.example.com | phone | frame —
             a screenshot in a frame floating in 3D; a tall one scrolls
@@ -883,16 +1075,109 @@ Beyond them the full-frame kinds are:
   titlecard title: The last / pâté, kicker: This autumn, body: Coming soon —
             the film's title in spaced capitals of the theme's accent with a
             sheen, revealed from a blur, a flare across the frame; " / " breaks
-            the title into lines
+            the title into lines; the body is a date or a place, also set in
+            capitals, so a command or an address (case matters) belongs in a
+            slides.outro or the narration instead
+
+Living kinds keep moving while the voice speaks:
+  marquee   items: 🟣 Linear | 🟢 Notion | …, rows: 2, speed: 110 — an endless
+            strip of logos or short labels, the second row the other way;
+            "many use it and the list goes on"
+  stack     items: ⭐ Title :: text | … — a deck of cards; on each item's
+            moment the top card flies off and the deck springs forward
+  orbit     items: 🟣 Linear | … — icons circling the kicker and title in the
+            middle, one orbit up to six, two beyond (the outer one reversed)
+  chat      items: you :: question | Agent :: answer | … — bubbles pop in turn
+            (you, user, me on the right); before each answer a sheen runs across
+            "Thinking…" over skeleton bars
+  carousel  items: 🎬 Title :: text | … — cards standing in a real 3D ring that
+            turns to each card on its moment; the front card is bright with
+            an accent edge, the side ones fade back
+  globe     items: Berlin :: 52.5 13.4 | Tokyo :: 35.7 139.7 | … — a WebGL
+            globe of dots; arcs fly from the first city to the others in
+            turn and ping where they land, the city's name beside it; map:
+            flat lays the same dots, arcs and pings on a flat map that does
+            not turn — global, yet every city readable at once
+  layers    image: screen.png, panels: 0.1 0.2 0.4 0.3 @ 1 | … — an exploded
+            view: the panels lift off the screenshot to their depth while
+            the camera tilts round the stack, and settle back flat by the end
+  bento     items: 🚀 Title :: text | … — a bento grid, the first cell large
+            and the last ones wide so the grid closes, each tilting in from depth
+  wall      images: a.png | b.png | c.png | … (three or more) — a wall of
+            screenshots tilted in 3D, its four columns sliding past each
+            other, the title over it: "the product is big, many screens"
+  cloud     items: 🟣 Linear | 🟢 Notion | … — labels on a turning sphere,
+            the near ones large and bright, the far ones small, dim and soft:
+            everything around the product, in depth
+  shell     items: $ npm test :: ✔ 302 passed | ✔ build ready, name: zsh —
+            a terminal that works: a command types itself after the prompt,
+            a spinner turns while it runs, then its output appears (the part
+            after ::); an item without $ is an output line; ✔ lines take the
+            theme's success colour and ✘ lines its failure colour; the lines
+            scroll up when they do not fit; a line wider than the window is
+            cut at its edge, so shorten a long real line with … rather than
+            rewording it. A command types at the pace of a
+            hand and faster when its block would not finish before the next
+            one; give each command its own beat moment (at:) so it lands with
+            the words that name it. A | inside an item (a pipe in a command)
+            is written \\|
+A title may rotate a word: title: Built for {teams|agents|you} — each word
+holds 2.2 s, the next rises from below, and the line stops on the last;
+swap: morph makes the words flow into each other like a liquid instead.
+A title may mark a word as a pen would once the title stands: ==word== lays a
+marker stroke under it, ((word)) circles it by hand, ~~word~~ strikes it out
+— the key word, or "the old way". The marks draw one after another, 0.7 s
+after the title appears; part names and subtitles read the title without them,
+and so does a title assembled by a phrase style (text:), which shows its words
+without the marks.
+When to use each: docs/motion-design.md, "Effect vocabulary".
 
 Items appear one by one: each on its own beat when the speech has enough beats, otherwise at an even pace across the speech, unless at: names moments.
 text: the phrase style of the headline and body — ${KINETIC.join(" | ")}
 — assembles them word by word or letter by letter on the scene's time,
 every unit already in its final place, so lines never re-wrap. Titles and a
-card's reveal take the same styles (help text).
-enter: how the items come in — rise | lift | word | left | right | pop | wipe |
-flip | track | line | tilt | zoom | fade | spin | fly | drop | swing | unfold
-(each kind has its own default).
+card's reveal take the same styles (help text). By words: rise, spin, fly,
+slide, zoom, bounce (fast ones smear along their path); glitch — words
+enter jerking sideways with the theme's two accents split apart, and glitch
+again for an instant every 2.6 s; beat — one word on each beat of the film's
+music (music.bpm, found in the file when not named; 120 per minute without
+music), and the phrase twitches on every later beat; aurora — words rise and
+a gradient of the two accents flows through the letters; sparkle — words rise
+and small stars flash around the phrase; swarm — thousands of dots fly in from
+all around and settle into the letters, then the text stands. By letters:
+drop, wave, split, flip, blur, swirl; flap — each letter clicks through
+characters like a split-flap board and stops on its own (decoding, an update,
+a departure); arc — the letters take their places on an arc and stay curved.
+Names merged into another by meaning are refused with the name to write:
+scramble is flap, shuffle is fly.
+enter: how the items come in — rise | word | left | right | pop | wipe |
+track | line | tilt | zoom | fade | spin | fly | swing | jolt | flip3d |
+tilt3d | mask | bounce | fan (each kind has its own default); several
+names, enter: pop flip3d rise, are handed to the items in turn. rise comes
+up from a light haze and settles; jolt
+slams in with overshoot and a dying tremor; flip3d and tilt3d are real 3D
+turns from depth; mask raises a line from under its own lower edge; bounce
+drops an item that bounces like a ball, each bounce lower; fan opens a group
+like a hand of cards from one point below. Fast entrances carry motion blur
+along their direction, as a camera shutter would; parts of feature, bento,
+step, counter and timeline cards follow their card a frame or two late.
+Merged names are refused with the one to write: lift is rise, unfold is
+wipe, drop is bounce, flip is flip3d.
+Choreography and life of the items, on any kind:
+  wave: start | center | edges | random — the order the items come in; their
+        moments stay the speech's, only who takes each one changes
+  stagger: 0.12 — seconds between items, from the first item's moment
+  ease: standard | emphasized | expressive | spring | bouncy — the curve of
+        every entrance; with it, larger elements also take longer, as mass does
+  alive: wiggle | float | jitter | pulse — motion after the entrance: a small
+        rocking, a slow float, a hand-drawn boil (12 changes a second), or a
+        breath that swells each item a little every 1.2 s; without it an item
+        only breathes by a point and a half
+  pace: calm | brisk | snap — the scene's tempo: every entrance takes 1.4×,
+        0.7× or 0.45× its time; calm for a solemn line, snap for a trailer
+  glow: border — a light runs round the border of cards (features, stack,
+        bento, chips) every four seconds
+Feature cards and the stack stand in 3D and turn slowly towards the light.
 A slide fits its content between the top of the frame, the subtitle band and
 the part label, shrinking it down to 72%; what still does not fit is named
 in the build report (the scene's "overflow", in grid points) and on stderr:
@@ -901,15 +1186,43 @@ align: top | center | bottom | fill places the content by height: under
 the head, in the middle between the head and the rule, just above the rule,
 or spread over the whole height. A vertical or square frame centres by
 default, so a short slide leaves no empty third above the subtitles.
-move: drift | push | still sets the whole-frame camera (drift is a slow 3D
-orbit with the background moving less than the foreground). count: off
-keeps a number from rolling. background: grid | aurora | mesh | waves |
-particles | bokeh | none overrides the theme's live background; WebGL
-backgrounds fall back to grid and mark the page when WebGL is missing.
+move: drift | push | still | dolly | pan | orbit3d | handheld sets the
+whole-frame camera: drift is a slow orbit with the background moving less
+than the foreground; dolly a strong push-in that starts slow, rushes and
+settles; pan a sideways travel across the scene; orbit3d a real 3D tilt
+that swings round the frame; handheld a living hand-held camera (layered
+tremor without repetition). Shakes on a hit are the scene's shake. count: off
+keeps a number from rolling. background: grid | aurora | waves | particles |
+bokeh | rays | lamp | meteors | flicker | beams | warp | vortex | none
+overrides the theme's live background (mesh is aurora and spotlight is lamp
+now — the parser names them): rays fan light down
+from the top; lamp lights a bar over the title and opens a cone of light
+below it in the first 1.6 s; meteors streak across a starry sky; flicker is a
+grid of cells lighting up in their own rhythms with rare sparks; beams run
+light along curved paths (flow, data, AI); warp flies through stars out of
+the centre; vortex draws particles along spirals into the middle (a call to
+action). WebGL backgrounds fall back to grid and
+mark the page when WebGL is missing.
+Aiming a spotlight, a mark or a loupe at a part of a slide takes the part's
+own selector: compare .cols > :nth-child(1) (left) and (2) (right); chain
+.node, the accented one .node.acc, the third .chain > :nth-child(3) .node;
+steps .steps li:nth-of-type(2) .step; features .feat:nth-child(2); bento
+.bento-cell:nth-child(2); timeline .tl-item:nth-child(2); counter
+.ctr:nth-child(2) and its figure .ctr .ctr-v; number .huge; chart
+.chart-bar or .chart-col:nth-child(3); code .ln:nth-child(7) (line 7),
+.ln.hl (the highlighted lines), .code-win (the window); shell
+.term-block:nth-child(2) (the second command with its output); chat
+.bubble; quote .quote; cloud .cloud; orbit .orb. The title is h1, the kicker
+.kicker. A target of a line that is typed must be typed when the focus
+arrives: code finishes typing before the second beat by itself.
+
 Every slide carries an ambient layer of its own — a breathing glow, a
 drifting grid, a travelling sheen — items keep a faint float after they
 appear, and held cards breathe; all of it is a function of scene time, so a
-frame taken from the middle equals the same frame of a full build.
+frame taken from the middle equals the same frame of a full build. That
+layer is faint on purpose and does not count as motion: a slide holding
+three seconds with nothing new is a still stretch (still-stretch). Give a
+long beat its next item (at:), a focus (spotlight) or a camera move.
 
 The classic kinds now enter with meaning: compared columns slide in from
 their sides, chain nodes pop and arrows draw, quotes wipe in, numbers roll.
@@ -941,7 +1254,10 @@ the browser takes the first it can play and H.264 stays last as the fallback.
   --width     scale down, never up; height follows the aspect
   --quality   high (default) | balanced | small — the same step gives the
               three codecs a comparable picture
-  --mute      drop the sound: a muted autoplaying loop needs none
+  --mute      drop the sound: a muted autoplaying loop needs none. A film
+              whose sound track is digital silence (a stub-voiced draft
+              without music: peak at or under -80 dBFS) leaves without a
+              track by itself, with audio: false and a muted loop snippet
   --poster    the second shown before playback (JPEG and WebP)
   --chapters  a WebVTT chapter file; by default film.chapters.vtt, which the
               build writes beside a film that has parts, joins as a track
@@ -953,10 +1269,23 @@ the browser takes the first it can play and H.264 stays last as the fallback.
               first six), 12 frames a second, its own palette, --gif-width
               (default 640); the report gives its size in bytes
 
+Each <source> type names the codecs read from the file's own headers — the
+H.264 and AV1 profile and level, the AAC profile — so a small film does not
+claim a level a browser may refuse.
+
 Every output is checked, not trusted: codec, frame size and duration against
 the film, frame similarity (SSIM) against the film at the same size, and for
 MP4 the index at the start of the file so playback starts before the download
-ends. The report is JSON on stdout.`;
+ends. The report is JSON on stdout.
+
+Beside the files web writes film.web.json, a manifest for the page that shows
+the film: size, duration, whether it has sound, the posters, the sources in
+order of preference with their type and bytes, the chapter track and its
+language, the thumbnails and the GIF — every path relative to the manifest, so
+the folder moves as a whole. A page builder reads it instead of guessing file
+names; agentic-report takes it as ::video{from="web/film.web.json"} (or the
+folder). The language is --lang, otherwise the one the build wrote into
+film.report.json.`;
 const VERTICAL_HELP = `Vertical and square films, and the agent's helpers
 
 # My short
@@ -1010,13 +1339,15 @@ Helpers that save a full build:
       brief decides where the film is watched) and the phone pace, cps 13
   agentic-screencast frames --source story.md [--at 0.8|80%|2.4s|b2+0.5] [--scene id | --except id]
       one frame per scene on a labelled sheet, or one still with --scene;
-      --except omits one scene from the sheet. The two flags cannot be combined. Beats are
+      --except omits one scene from the sheet. The two flags cannot be combined.
+      A bare number in --at is a share of the scene (0.8 = 80%), seconds take
+      an s (2.4s) — unlike stills:, where a bare number is seconds. Beats are
       estimated from the text, nothing is synthesised; the film-wide layers
       (progress bar, part label, presenter) are not drawn. A drawn scene
       whose frame has a flat empty band a third of its height or more is
       listed in "empty" (film craft 58). A video scene
       shows a frame of the piece it plays (from/to), labelled with the scene
-      second and the source second it came from
+      second and the source second it came from, with its camera in place
   agentic-screencast sheet clip.mp4 [--count 12 | --every 2] [--from 5 --to 20]
       a contact sheet of a raw clip with the second of every frame, to pick
       the pieces (from/to) of downloaded or recorded material before writing
@@ -1027,7 +1358,12 @@ Helpers that save a full build:
       control frames of the finished film: a moment named like the rest of
       the scenario — a beat (b2, b2+0.3, b2.end-0.5), a share of the scene
       (80%), seconds (1.5) or a take's mark (@done) — and after :: what to
-      check there (a note cannot contain |). bN.end is the end of that
+      check there (a note cannot contain |). Text a note quotes in «…» or
+      "…" must be visible in that frame — on the page, in the subtitles,
+      cards or titles; the build reads the frame and names a still whose
+      quote is missing (still-note). A video scene's own picture and the
+      text inside an image (a screenshot on a slide) are not read, only
+      the text drawn on the page and the layer over it: quote only that. bN.end is the end of that
       beat's speech; a share counts the whole scene, its outgoing transition
       included. every 1s (0.25–10 s) samples the scene at that step from its
       start, for what happens between named moments — a page change in the
@@ -1042,8 +1378,10 @@ Helpers that save a full build:
       "start" and "end" in the film, transitions' overlaps included,
       "nativePortrait" for a page selected through pageVertical,
       "legibility" — the smallest text of each focus's subject at the
-      middle of its hold, in frame pixels, against the 48 px a phone reads
-      on a 1080 frame (stderr names every subject under it),
+      middle of its hold, in frame pixels, against the floor of the film's
+      shape: 48 px on the short side of 1080 for a vertical or square film
+      (a phone), 28 px for a landscape one (a screen); stderr names every
+      subject under it,
       "cached", "frames", "overflow" of a slide that does not fit, the
       "spotlights", "pushes" and "loupes" as placed, "cut" — lines of a
       focus target the frame cuts, also named on stderr — "small" — lines of
@@ -1055,15 +1393,43 @@ Helpers that save a full build:
       frames, chapter cues and coded issues),
       "hits" (flashes and shakes), "transitions",
       "timing" (where the build spent its time), "segments" (each scene's
-      cached clip and its checksum), "warnings" (muxer and audit findings).
+      cached clip and its checksum), "warnings" (findings per scene: a
+      push-in that crops its subject (push-crop), a lowered loupe
+      (loupe-scale), a subtitle that took three lines (caption-lines), page
+      text past the feed's safe zone (safe-zone), an empty band a third of
+      the frame (empty-area), small focus text (legibility), a focus arriving on
+      an element not on screen yet (focus-unseen), small page text
+      in a vertical film (small), cut lines (cut), overflowing slides
+      (overflow), a stretch standing still three seconds (still-stretch),
+      flashing more than three times a second (flashing), clicks of a take
+      after the speech ends (silent-action), a still in a scene's fade
+      (still-in-fade), a feed film's dark first frame (loop-start); and the
+      file's audit and muxer issues). Adjacent pieces of one take join edge
+      to edge without a fade, and a feed film's first scene opens and its
+      last scene ends without one, unless the scene names fade.
+      A finding here and in lint is {rule, id, message, hint}: id names the
+      check, rule the knowledge-base rule behind it (FC-58 is rule 58 of
+      docs/film-craft.md, VA-5 step 5 of "Checking a licence and writing
+      the credit" in docs/visual-assets.md — read it for why and how), hint
+      what to change.
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
-  agentic-screencast lint story.md [--lang ru]
-      director rules, each named by its id in the JSON it prints: a card
+  agentic-screencast lint story.md [--lang ru] [--format vertical|square]
+      --format measures the scenario as that build would reframe it (run it
+      for every format you build: a beat that fits a landscape subtitle can
+      overflow a phone one). Director rules; each finding in the JSON
+      it prints is {scene, index, rule, id, message, hint}, rule naming the
+      film-craft rule (FC-N) behind it: a card
       while the caption runs (two-text-layers), a beat longer than two
-      subtitle lines (overloaded-line), a page that stands still
-      (still-scene), a scene over 25 s (long-scene), a top title over an
+      subtitle screens of two lines (overloaded-line), a word longer than
+      one subtitle line — a path, a variable (long-word), narrated scenes
+      showing no subtitles, drawn ones without captions.everywhere
+      (no-subtitles), flash, shake or rgb in a scene with no sfx, transition
+      sound or music to sound them (silent-hits), a page that stands still
+      (still-scene), a page using the layer's attributes without the
+      <html data-sc-page> mark (page-unmarked), a scene over 25 s
+      (long-scene), a top title over an
       interface (title-over-interface), a transition on the first scene
       (first-transition), focuses whose camera moves collide, estimated
       from the beats (spotlight-collision), a focus held over a still clip
@@ -1079,14 +1445,31 @@ Helpers that save a full build:
       (piece-crosses-mark), a flat empty third of a clip's frame in more
       than 30% of its frames (empty-area), an abrupt screen change inside
       a take's piece where it has no mark (scene-jump), a number, counter or
-      chart slide whose note names no source and date (number-source), and
-      with --lang the visible fields a translation left out (untranslated).
+      chart slide whose note names no source and date (number-source), a
+      theme that dims unspoken karaoke words under 4.5:1 on the plate
+      (karaoke-contrast), two lead movements at once — a camera push over
+      a slide's own move (push, dolly, pan, orbit3d, handheld) or a title
+      flying in while the camera moves (motion-stack), a push-in faster
+      than ln(scale) per 1.2 s that makes viewers queasy (harsh-push),
+      a music or sound file with no line in
+      assets/CREDITS.md beside the scenario (uncredited), and with --lang the visible fields a translation
+      left out (untranslated).
+      A scenario that does not parse — an unknown field or value, or a name
+      merged into another (text: scramble, which says to write flap) —
+      stops lint with that one error before any finding: fix it and run
+      lint again.
+      "estimated": {"seconds"} is the film's length from the narration's
+      estimated pace and the scenes' own durations, less the transitions'
+      overlaps — compare it with the brief's length before the first build.
       Beside the findings the JSON counts the signs of a template film in
-      "cliches" — they do not fail lint, since each can be a decision:
-      flash or shake outside a trailer (hit-outside-trailer), film grain
+      "cliches" as {id, scenes, message}, without a rule — they do not fail
+      lint, since each can be a decision:
+      flash, shake or rgb outside a trailer (hit-outside-trailer), film grain
       outside a trailer (grain), more than two bursts and glints
       (many-sparkles), more than two kinds of transition (transition-kinds),
-      an aurora, mesh, bokeh or particles background (decorative-background),
+      a decorative live background — aurora, bokeh, particles, rays, lamp,
+      meteors, flicker, beams, warp, vortex
+      (decorative-background),
       a browser frame with no real address (placeholder-address), a kicker
       in capitals (kicker-caps), emoji icons in features (emoji-icons), the
       same enter on every slide (same-entrance); four or more add a verdict
@@ -1283,7 +1666,27 @@ switch (cmd) {
     else if (topic === "voice") console.log(VOICE_HELP);
     else if (topic === "web") console.log(WEB_HELP);
     else if (!topic) console.log(HELP);
-    else { console.error(`Unknown help topic: ${topic}\n\n${HELP}`); process.exit(2); }
+    else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
+    break;
+  }
+  case "handover": {
+    // Одни ворота перед сдачей: lint, отчёт последней сборки, контрольные кадры и чеклист.
+    try {
+      const result = handover(sourceArg(), arg("film"));
+      console.log(JSON.stringify(result, null, 1));
+      process.exit(result.verdict === "pass" ? 0 : 1);
+    } catch (e) { console.error((e as Error).message); process.exit(2); }
+    break;
+  }
+  case "craft": {
+    // Правила базы по теме решения: текст — из docs/film-craft.md, здесь только выбор.
+    const topic = rest.find((x) => !x.startsWith("-"));
+    if (!topic) { console.log(msg("craft.topics", { topics: Object.keys(TOPICS).join(", ") })); break; }
+    try {
+      const rules = craft(topic);
+      if (rest.includes("--json")) console.log(JSON.stringify({ topic, rules }, null, 1));
+      else console.log(rules.map((r) => `${r.rule} · ${r.title}\n  ${r.text}`).join("\n\n"));
+    } catch (e) { console.error((e as Error).message); process.exit(2); }
     break;
   }
   case "version":
@@ -1443,18 +1846,18 @@ switch (cmd) {
     const dir = resolve(HERE, "..", "templates");
     const genres = readdirSync(dir).filter((f) => f.endsWith(".md") && f !== "README.md" && f !== "checklist.md").map((f) => f.replace(/\.md$/, ""));
     if (!genre || !genres.includes(genre)) {
-      console.error(`agentic-screencast new <genre> [--lang ru] [--format vertical|square] [--out story.md]\ngenres: ${genres.join(", ")}`);
+      console.error(msg("cli.newUsage", { genres: genres.join(", ") }));
       process.exit(2);
     }
     const out = resolve(arg("out", "story.md"));
-    if (existsSync(out)) { console.error(`${out} already exists; name another file with --out`); process.exit(2); }
+    if (existsSync(out)) { console.error(msg("cli.exists", { path: out })); process.exit(2); }
     let text = readFileSync(resolve(dir, `${genre}.md`), "utf8");
     // Язык ролика — сразу в шапке: от него зависят надзаголовки слайдов, переносы и правила
     // чтения. Заготовки в угловых скобках — указания пишущему на любом языке; их заменяют текстом.
     // Общий разбор снял `--lang` в окружение варианта сценария; у `new` он значит язык заготовки.
     const lang = process.env.AGENTIC_SCREENCAST_FILM_LANG;
     if (lang !== undefined) {
-      if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/u.test(lang)) { console.error(`--lang: expected a language tag such as ru or en-GB, got «${lang}»`); process.exit(2); }
+      if (!/^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$/u.test(lang)) { console.error(msg("cli.langTag", { lang })); process.exit(2); }
       text = text.replace(/^lang: .*$/m, `lang: ${lang}`);
     }
     const format = arg("format");
@@ -1517,7 +1920,7 @@ switch (cmd) {
     // ошибок для человека.
     const from = arg("from"), colors = arg("colors");
     if (!from && !colors) {
-      console.error("agentic-screencast theme --from logo.png [--base neutral] | --colors \"#ff5a1f,#1f6fff\"");
+      console.error(msg("cli.themeUsage"));
       process.exit(2);
     }
     try {
@@ -1547,6 +1950,6 @@ switch (cmd) {
     break;
   }
   default:
-    console.error(`Unknown command: ${cmd}\n\n${HELP}`);
+    console.error(`${msg("cli.unknownCommand", { cmd: String(cmd) })}\n\n${HELP}`);
     process.exit(1);
 }

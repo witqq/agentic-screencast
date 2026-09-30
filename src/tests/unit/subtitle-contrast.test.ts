@@ -4,7 +4,7 @@
 // всё, что может оказаться под ней на пёстром кадре.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { THEMES, THEME_NAMES } from "../../theme.js";
+import { themeVariants } from "../../theme.js";
 
 type RGB = [number, number, number];
 const parse = (c: string): { rgb: RGB; a: number } => {
@@ -20,8 +20,8 @@ const lum = (c: RGB): number => { const f = (v: number): number => { const s = v
 const contrast = (a: RGB, b: RGB): number => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x! + 0.05) / (y! + 0.05); };
 
 test("subtitles keep readable contrast over a white, a black and so any busy frame in every theme", () => {
-  for (const name of THEME_NAMES) {
-    const t = THEMES[name]!;
+  for (const { name: theme, scheme, vars: t } of themeVariants()) {
+    const name = `${theme} ${scheme}`;
     const bg = parse(t["--sc-sub-bg"]!), ink = parse(t["--sc-sub-ink"]!);
     assert.ok(bg.a >= 0.88, `${name}: the subtitle backing is dense like the caption plate (alpha ${bg.a})`);
     for (const under of [[255, 255, 255], [0, 0, 0], [128, 128, 128]] as RGB[]) {

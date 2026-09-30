@@ -186,14 +186,14 @@ try {
     const text = await page.locator("main").innerText();
     // Числа, которые называет страница, — числа продукта.
     for (const [n, what, re] of [
-      [slideKinds, "slide kinds", lang === "en" ? /(\w+) slide kinds/u : /(\S+) видов слайдов/u],
+      [slideKinds, "slide kinds", lang === "en" ? /(\w+) slide kinds/u : /(\S+) вид(?:а|ов)? слайдов/u],
       [KINETIC.length, "phrase styles", lang === "en" ? /(\w+) ways to assemble/u : /(\S+) способов собрать/u],
       [Object.keys(TRANSITIONS).length, "transitions", lang === "en" ? /(\w+) WebGL transitions/u : /(\S+) переходов WebGL/u],
       [THEME_NAMES.length, "themes", lang === "en" ? /(\w+) themes/u : /(\S+) тем[\s—,]/u],
     ]) {
       const m = re.exec(text);
       if (!m) failures.push(`${lang}: the page does not state the number of ${what}`);
-      else if (m[1].toLowerCase() !== said(lang, n).toLowerCase()) failures.push(`${lang}: the page says «${m[1]}» ${what}, the product has ${n}`);
+      else if (![said(lang, n).toLowerCase(), String(n)].includes(m[1].toLowerCase())) failures.push(`${lang}: the page says «${m[1]}» ${what}, the product has ${n}`);
     }
     for (const t of THEME_NAMES) if (!new RegExp(`\\b${t}\\b`, "u").test(text)) failures.push(`${lang}: theme ${t} is not named`);
     // Каждая названная команда есть в CLI, каждое поле — в сценарии.

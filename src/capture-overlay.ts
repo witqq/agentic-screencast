@@ -24,6 +24,7 @@ export function installCaptureOverlay(arg: { theme?: Record<string, string>; fon
   type CaptureState = {
     position: { x: number; y: number } | null; trace: TraceEvent[]; moves: MoveEvent[];
     focus?: (el: Element, opts: { scale: number; ms: number; dim: boolean }) => void;
+    focusArea?: (area: [number, number, number, number], opts: { scale: number; ms: number; dim: boolean }) => void;
     unfocus?: (ms: number) => void;
     key?: (label: string) => void;
   };
@@ -240,6 +241,34 @@ export function installCaptureOverlay(arg: { theme?: Record<string, string>; fon
     window.cancelAnimationFrame(follow);
     trackSpot();
     if (spot) spot.style.opacity = opts.dim ? "1" : "0";
+  };
+  // Наезд на область кадра, а не на элемент: так сборка исполняет камеру сценария при пересъёмке
+  // дубля. Область — доли окна; подсветка переезжает туда, где область окажется после наезда.
+  state.focusArea = (area, opts) => {
+    mount();
+    const body = document.body;
+    const vw = window.innerWidth, vh = window.innerHeight;
+    const W = Math.max(document.documentElement.scrollWidth, vw), H = Math.max(document.documentElement.scrollHeight, vh);
+    const r = { left: area[0] * vw, top: area[1] * vh, width: area[2] * vw, height: area[3] * vh };
+    const cx = r.left + r.width / 2 + window.scrollX, cy = r.top + r.height / 2 + window.scrollY;
+    const k = opts.scale;
+    const clamp = (v: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, v));
+    const tx = clamp(window.scrollX + vw / 2 - cx * k, window.scrollX + vw - W * k, window.scrollX);
+    const ty = clamp(window.scrollY + vh / 2 - cy * k, window.scrollY + vh - H * k, window.scrollY);
+    body.style.transformOrigin = "0 0";
+    body.style.transition = `transform ${opts.ms}ms ${ease}`;
+    body.style.transform = `translate(${tx.toFixed(2)}px,${ty.toFixed(2)}px) scale(${k})`;
+    window.cancelAnimationFrame(follow);
+    followed = null;
+    if (spot) {
+      const pad = 10;
+      const x = (r.left + window.scrollX) * k + tx - window.scrollX, y = (r.top + window.scrollY) * k + ty - window.scrollY;
+      spot.style.transition = `transform ${opts.ms}ms ${ease}, width ${opts.ms}ms ${ease}, height ${opts.ms}ms ${ease}, opacity 200ms`;
+      spot.style.transform = `translate(${Math.round(x - pad)}px,${Math.round(y - pad)}px)`;
+      spot.style.width = `${Math.round(r.width * k + pad * 2)}px`;
+      spot.style.height = `${Math.round(r.height * k + pad * 2)}px`;
+      spot.style.opacity = opts.dim ? "1" : "0";
+    }
   };
   state.unfocus = (ms) => {
     const body = document.body;

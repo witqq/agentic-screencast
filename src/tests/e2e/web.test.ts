@@ -103,6 +103,10 @@ duration: 4
   assert.equal(r.status, 0, r.stderr.slice(-400));
   const report = JSON.parse(r.stdout) as { chapters: Array<{ name: string; start: number; end: number }>; chaptersFile: string; duration: number };
   const w = encodeForWeb(join(dir, "film.mp4"), { out: join(dir, "web"), formats: ["h264"], thumbs: 1 });
+  const manifest = JSON.parse(readFileSync(w.manifest, "utf8")) as { chapters?: string; lang?: string };
+  assert.equal(manifest.chapters, basename(w.chapters!), "the manifest names the chapter track");
+  // Язык глав — язык ролика из отчёта сборки, без --lang у web.
+  assert.equal(manifest.lang, "en", "the manifest takes the film's language from its build report");
   // Главы: реплики начинаются в моменты глав из отчёта сборки.
   const vtt = readFileSync(w.chapters!, "utf8");
   const stamp = (s: string): number => { const [h, m, x] = s.split(":"); return Number(h) * 3600 + Number(m) * 60 + Number(x); };
@@ -136,4 +140,66 @@ duration: 4
   const html = readFileSync(w.html, "utf8");
   assert.match(html, /<track kind="chapters" src="film\.chapters\.vtt"/u);
   assert.match(html, /<track kind="metadata" src="film\.thumbs\.vtt"/u);
+});
+
+test("the web manifest names every file a page needs, relative to itself and in the order of preference", () => {
+  const film = clip();
+  const out = join(film, "..", "web");
+  const r = encodeForWeb(film, { out, formats: ["h264", "vp9"], thumbs: 1, lang: "ru" });
+  assert.equal(r.manifest, join(out, "film.web.json"));
+  const m = JSON.parse(readFileSync(r.manifest, "utf8")) as { version: number; film: string; audio: boolean; lang: string;
+    duration: number; width: number; height: number; poster: { jpg: string; webp: string };
+    sources: Array<{ src: string; type: string; format: string; bytes: number }>; thumbnails: { sprite: string; vtt: string }; chapters?: string };
+  assert.equal(m.version, 1);
+  assert.equal(m.film, "film");
+  assert.equal(m.lang, "ru");
+  assert.equal(m.audio, true);
+  assert.deepEqual([m.width, m.height], [640, 360]);
+  assert.ok(Math.abs(m.duration - 3) < 0.1);
+  // Порядок предпочтения, а не порядок заказа: VP9 раньше H.264, как в сниппете <video>.
+  assert.deepEqual(m.sources.map((s) => s.format), ["vp9", "h264"]);
+  for (const s of m.sources) {
+    const o = r.outputs.find((x) => x.format === s.format)!;
+    assert.equal(s.type, o.type);
+    assert.equal(s.bytes, o.bytes);
+    assert.equal(s.src, basename(s.src), "paths are relative to the manifest");
+    assert.ok(existsSync(join(out, s.src)));
+  }
+  for (const p of [m.poster.jpg, m.poster.webp, m.thumbnails.sprite, m.thumbnails.vtt]) assert.ok(existsSync(join(out, p)), p);
+  assert.equal(m.chapters, undefined, "a film without chapters names none");
+});
+
+// Строка кодеков — из заголовков самого файла: у маленького ролика уровень AV1 — 0, а не 4.0,
+// угаданный по высоте кадра (замечание agentic-report). Независимое свидетельство — ffprobe.
+test("the codecs in a type are read from the file: AV1 and H.264 levels match what ffprobe reads", () => {
+  const film = clip();
+  const r = encodeForWeb(film, { out: join(film, "..", "web"), formats: ["av1", "h264"], width: 480, thumbs: 0 });
+  const probe = (file: string, stream: string): string[] => execFileSync(ffprobe, ["-v", "quiet", "-select_streams", stream,
+    "-show_entries", "stream=profile,level", "-of", "csv=p=0", file], { encoding: "utf8" }).trim().split(",");
+  for (const o of r.outputs) {
+    const [, level] = probe(o.file, "v:0");
+    const [aac] = probe(o.file, "a:0");
+    assert.equal(aac, "LC");
+    const want = o.format === "av1" ? `av01.0.${level!.padStart(2, "0")}M.08` : `avc1.6400${Number(level).toString(16).padStart(2, "0")}`;
+    assert.equal(o.type, `video/mp4; codecs="${want}, mp4a.40.2"`, `${o.format} type names the file's own profile and level`);
+  }
+  const av1 = r.outputs.find((o) => o.format === "av1");
+  if (av1) assert.match(av1.type, /av01\.0\.0[0-4]M\.08/u, "a 480-wide AV1 needs a low level, not 4.0 (08)");
+});
+
+// `audio` значит «есть звук»: ролик на беззвучном голосе без музыки несёт дорожку цифровой тишины
+// (−91 dBFS), и web выпускает его без дорожки, с audio: false и сниппетом muted loop.
+test("a film whose sound track is digital silence leaves without a track and with audio: false", () => {
+  const dir = mkdtempSync(join(tmpdir(), "sc-web-silent-"));
+  const film = join(dir, "film.mp4");
+  execFileSync(ffmpeg, ["-loglevel", "error", "-f", "lavfi", "-i", "testsrc2=size=320x180:rate=30:duration=2",
+    "-f", "lavfi", "-i", "anullsrc=r=48000:cl=stereo", "-c:v", "libx264", "-c:a", "aac", "-shortest", film]);
+  assert.ok(streams(film).includes("audio"), "the source carries a silent track, as a stub build does");
+  const r = encodeForWeb(film, { out: join(dir, "web"), formats: ["h264", "vp9"], thumbs: 0 });
+  for (const o of r.outputs) {
+    assert.ok(!streams(o.file).includes("audio"), `${o.format} has no sound track`);
+    assert.doesNotMatch(o.type, /mp4a|opus/u, `${o.format} type names no audio codec`);
+  }
+  assert.equal((JSON.parse(readFileSync(r.manifest, "utf8")) as { audio: boolean }).audio, false);
+  assert.match(readFileSync(r.html, "utf8"), /muted loop/u);
 });

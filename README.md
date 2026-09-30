@@ -25,6 +25,8 @@ npx playwright install chromium
 
 On Linux, Chromium may also require operating-system packages. Playwright can install them with `npx playwright install --with-deps chromium` when you have the required system permissions.
 
+From a source checkout, `npm install` builds `dist/` and `npm link` puts the `agentic-screencast` command on `PATH`, which the skill expects. Without the link, run the same CLI as `node dist/agentic-screencast.js`.
+
 ## Capture real browser actions
 
 Use the public `agentic-screencast/capture` module. `recordTake` owns a browser; `capturePage` attaches to an existing Playwright page. The `prepare` callback runs before recording, so authentication and private setup do not appear in the video. Actions operate on Playwright locators, which auto-wait and scroll. The cursor follows real pointer movement, and the click ripple starts on the actual `pointerdown` event. No timestamp or frame coordinate is authored.
@@ -47,7 +49,7 @@ await recordTake({
 
 A take can also push in on an element, place an explanation card beside it while the real action runs, name a moment for the scenario to refer to, and wait for an asynchronous result without a guessed delay. `type` refuses password fields; perform credential entry in `prepare`. [The runnable local example](example/live-capture.mjs) shows the complete flow without a live service, and `agentic-screencast help capture` is the API guide. The output WebM is a normal `video` scene input.
 
-Capture writes `<take>.marks.json` beside the WebM. Named moments and element rectangles let the scenario address a recorded action with `@name`; `cameraMoves` records focus and unfocus motion already visible in the take, so `lint` can distinguish it from an unexplained screen change.
+Capture writes `<take>.marks.json` beside the WebM. Named moments and element rectangles let the scenario address a recorded action with `@name`; `cameraMoves` records focus and unfocus motion already visible in the take, so `lint` can distinguish it from an unexplained screen change. The marks file also names the script that recorded the take. When the scene supports live camera recording, the build re-runs that script with the camera performed in the browser, keeping small text sharp. `help capture` lists the supported scenes and the fallback to a push-in over the recorded pixels.
 
 ## Build a video
 
@@ -115,6 +117,7 @@ Speech sets the length of a scene; slides, pages and recorded clips are the pict
 | Transitions between scenes | `agentic-screencast help transitions` |
 | Music, sound accents and loudness | `agentic-screencast help sound` |
 | Themes, fonts and colour grading | `agentic-screencast help themes`; which look a film should have and which clichés to avoid — [the visual-design guide](docs/visual-design.md) |
+| Motion: order, curves, springs, transitions, named effects, composition recipes by genre | [the motion-design guide](docs/motion-design.md) |
 | Narration: engines, pace, pronunciation, your own voice | `agentic-screencast help voice` |
 | A film for a web page | `agentic-screencast help web` |
 | The machine-readable contract of every scene kind | `agentic-screencast schema` |

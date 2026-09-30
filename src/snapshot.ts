@@ -33,6 +33,7 @@ import { chromium, type BrowserContext, type Page } from "playwright";
 import { writeFileSync, mkdirSync, readFileSync, existsSync, statSync } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { msg } from "./msg.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -59,7 +60,7 @@ function env(name: string): string {
     const line = body.find((l) => l.startsWith(`${name}=`) && !l.startsWith("#"));
     if (line) return line.slice(name.length + 1).trim().replace(/^["']|["']$/g, "");
   }
-  throw new Error(`нет переменной ${name}: положите её в окружение или в .env проекта`);
+  throw new Error(msg("snapshot.noVariable", { name }));
 }
 
 /**
@@ -138,7 +139,7 @@ const base = cfg.base ?? "http://localhost:8080";
 const seenIds = new Set<string>();
 for (const screen of cfg.screens) {
   if (seenIds.has(screen.id)) {
-    console.error(`два экрана с одним id: ${screen.id} — второй снимок затёр бы первый`);
+    console.error(msg("snapshot.duplicateId", { id: screen.id }));
     process.exit(2);
   }
   seenIds.add(screen.id);
@@ -156,7 +157,7 @@ if (cfg.signIn) {
     headers: { "Content-Type": "application/json", ...cfg.signIn.headers },
     ...(cfg.signIn.json ? { body: JSON.stringify(cfg.signIn.json) } : {}),
   });
-  if (!res.ok) throw new Error(`вход не прошёл: HTTP ${res.status} — снимать нечего`);
+  if (!res.ok) throw new Error(msg("snapshot.loginFailed", { status: res.status }));
   // Куки берутся из ответа как есть: имя сессии — договор приложения,
   // а не инструмента. Настройка может назвать нужные поимённо; без списка
   // переносятся все, что пришли.

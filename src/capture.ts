@@ -7,12 +7,14 @@ import { chromium, type BrowserContext, type BrowserContextOptions, type Locator
   type Page } from "playwright";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, renameSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
 import { cardHold, parseOverlay, type OverlayCard } from "./overlay.js";
 import { installCaptureOverlay } from "./capture-overlay.js";
 import { aliasedFonts } from "./fonts.js";
 import { resolveTheme, themeFingerprint, type ThemeInput, type ThemeVars } from "./theme.js";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -53,6 +55,32 @@ export interface TakeMarks {
   cameraMoves?: Array<{ from: number; to: number }>;
   /** прямоугольники элементов у отметок, названных с локатором: `take.mark(name, locator)` */
   rects?: Record<string, TakeRect>;
+  /** скрипт, который записал дубль: по нему сборка переснимает дубль с камерой сценария */
+  script?: { path: string; args: string[]; cwd: string };
+  /** отпечаток плана камеры, которую браузер исполнил при этой записи (пересъёмка сборкой) */
+  cameraPlan?: string;
+}
+
+/**
+ * Камера сценария для пересъёмки дубля: сборка переводит наезды сцены во время дубля, привязывает
+ * каждый к отметке (`anchor` — имя отметки или `@start`, `offset` — секунды после неё) и передаёт
+ * план окружением `AGENTIC_SCREENCAST_TAKE_CAMERA`. Браузер исполняет наезды во время записи —
+ * настоящее увеличение страницы, чёткое и плавное, а не растянутые точки видео.
+ */
+export interface LiveCameraPlan {
+  /** дубль, который переснимается (как его называет скрипт) */
+  source: string;
+  /** куда писать пересъёмку */
+  output: string;
+  hash: string;
+  /** срез пустого начала прежней записи: по нему ставятся наезды до первой отметки */
+  trimmed: number;
+  cues: Array<{ anchor: string; offset: number; area: TakeRect; scale: number; move: number; hold: number; back: number; keep: boolean; dim: boolean }>;
+}
+
+function livePlan(): LiveCameraPlan | undefined {
+  const raw = process.env.AGENTIC_SCREENCAST_TAKE_CAMERA;
+  return raw ? JSON.parse(raw) as LiveCameraPlan : undefined;
 }
 
 /** Прямоугольник элемента в долях кадра: [слева, сверху, ширина, высота]. */
@@ -136,7 +164,7 @@ const afterActionMs = 720;
 
 function outputPath(path: string): string {
   if (!path.toLowerCase().endsWith(".webm"))
-    throw new Error("Playwright screencast output must end in .webm");
+    throw new Error(msg("capture.webm"));
   return resolve(path);
 }
 
@@ -200,10 +228,16 @@ function cardHtml(card: OverlayCard, viewport: { width: number; height: number }
  * are generated from actual locator actions, including its auto-scroll. */
 export async function capturePage(page: Page, options: CaptureOptions): Promise<CapturePage> {
   const capOptions = options;
-  if (page.isClosed()) throw new Error("Cannot capture a closed page");
-  const output = outputPath(options.output);
+  if (page.isClosed()) throw new Error(msg("capture.closed"));
+  // Пересъёмка сборкой: названный дубль пишется в свой файл с камерой сценария, остальные дубли
+  // того же скрипта — во временный, чтобы пересъёмка одного не перезаписала другие.
+  const plan = livePlan();
+  const requested = outputPath(options.output);
+  const baking = plan && resolve(plan.source) === requested ? plan : undefined;
+  const output = !plan ? requested : baking ? resolve(baking.output)
+    : join(tmpdir(), `sc-discard-${process.pid}-${Date.now()}-${basename(requested)}`);
   const size = options.size ?? page.viewportSize();
-  if (!size) throw new Error("Capture requires a fixed page viewport or explicit size");
+  if (!size) throw new Error(msg("capture.viewport"));
   mkdirSync(dirname(output), { recursive: true });
   // Install before capture and again in every navigated document. The visual
   // click is painted on pointerdown, not Playwright's pre-action annotation.
@@ -213,7 +247,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   // продукта; отпечаток темы в файле отметок считается по самой теме.
   const fonts = aliasedFonts(theme);
   const layer = { theme: fonts.theme, fontCss: fonts.css, ...(options.click ? { click: options.click } : {}) };
-  if (options.click && !["ripple", "spot", "echo"].includes(options.click)) throw new Error("click: expected ripple | spot | echo");
+  if (options.click && !["ripple", "spot", "echo"].includes(options.click)) throw new Error(msg("capture.clickStyle"));
   const initScript = await page.addInitScript(installCaptureOverlay, layer);
   await page.evaluate(installCaptureOverlay, layer);
   // addInitScript covers future documents only; setup may already have loaded
@@ -276,7 +310,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   const moveTo = async (target: Locator, fraction = 0.5): Promise<{ x: number; y: number }> => {
     await target.scrollIntoViewIfNeeded();
     const box = await target.boundingBox();
-    if (!box) throw new Error("Capture target has no visible bounding box");
+    if (!box) throw new Error(msg("capture.noBox"));
     const viewport = page.viewportSize() ?? size;
     const x = Math.max(0, Math.min(viewport.width - 1, box.x + box.width * fraction));
     const y = Math.max(0, Math.min(viewport.height - 1, box.y + box.height / 2));
@@ -338,15 +372,15 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   const ready = async (target: Locator): Promise<void> => {
     await target.waitFor({ state: "visible" });
     await target.scrollIntoViewIfNeeded();
-    if (!(await target.isEnabled())) throw new Error("Capture target is disabled");
+    if (!(await target.isEnabled())) throw new Error(msg("capture.disabled"));
   };
   const settle = async (options?: CaptureAction): Promise<void> => {
     if (options?.until) await options.until.waitFor({ state: "visible" });
     await page.waitForTimeout(afterActionMs);
   };
   const active = (): void => {
-    if (finished) throw new Error("Capture already finished");
-    if (pageErrors.length) throw new Error(`page error during the take: ${pageErrors[0]}`);
+    if (finished) throw new Error(msg("capture.finished"));
+    if (pageErrors.length) throw new Error(msg("capture.pageError", { why: String(pageErrors[0]) }));
   };
   const overlayCall = async (fn: string, ...args: unknown[]): Promise<void> => {
     await page.evaluate(([name, rest]) => {
@@ -354,13 +388,32 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       st?.[name as string]?.(...(rest as unknown[]));
     }, [fn, args] as const);
   };
+  // Камера сценария: наезд на область в свой момент — после отметки или от начала записи.
+  const timers: Array<ReturnType<typeof setTimeout>> = [];
+  const runCue = (c: LiveCameraPlan["cues"][number]): void => {
+    if (finished) return;
+    const from = now();
+    void overlayCall("focusArea", c.area, { scale: c.scale, ms: Math.round(c.move * 1000), dim: c.dim }).catch(() => {});
+    cameraMoves.push({ from, to: from + c.move });
+    if (c.keep) return;
+    timers.push(setTimeout(() => {
+      if (finished) return;
+      const back = now();
+      void overlayCall("unfocus", Math.round(c.back * 1000)).catch(() => {});
+      cameraMoves.push({ from: back, to: back + c.back });
+    }, Math.round((c.move + c.hold) * 1000)));
+  };
+  const schedule = (c: LiveCameraPlan["cues"][number], at: number): void => {
+    timers.push(setTimeout(() => runCue(c), Math.max(0, Math.round(at * 1000 - (Date.now() - zero)))));
+  };
+  for (const c of baking?.cues ?? []) if (c.anchor === "@start") schedule(c, baking!.trimmed + c.offset);
   const keyLabel = (key: string): string => key.split("+").map((k) => ({ Meta: "⌘", Control: "Ctrl", Shift: "⇧",
     Alt: "⌥", Enter: "Enter ⏎", Escape: "Esc", ArrowUp: "↑", ArrowDown: "↓", ArrowLeft: "←", ArrowRight: "→",
     Backspace: "⌫", Tab: "Tab ⇥", " ": "Space" } as Record<string, string>)[k] ?? (k.length === 1 ? k.toUpperCase() : k)).join("+");
   const focus = async (target: Locator, options: FocusOptions = {}): Promise<void> => {
     active();
     const scale = options.scale ?? 1.7;
-    if (!(scale >= 1.2 && scale <= 3)) throw new Error("focus scale must be 1.2–3");
+    if (!(scale >= 1.2 && scale <= 3)) throw new Error(msg("capture.focusScale"));
     const ms = Math.round((options.move ?? 0.9) * 1000);
     await target.scrollIntoViewIfNeeded();
     const from = now();
@@ -383,7 +436,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     anchor?: { x: number; y: number; width: number; height: number }): Promise<void> => {
     active();
     if (card.position === "near-focus" && !anchor)
-      throw new Error("near-focus requires withFocusCard(target, card, action)");
+      throw new Error(msg("capture.nearFocus"));
     const checked = parseOverlay(JSON.stringify({ cards: [{ at: 0, ...card }] })).cards![0]!;
     const ms = Math.ceil(cardHold(checked) * 1000);
     const viewport = page.viewportSize() ?? size;
@@ -421,7 +474,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       active();
       const viewport = page.viewportSize() ?? size;
       if (!(x >= 0 && y >= 0 && x < viewport.width && y < viewport.height))
-        throw new Error(`clickAt(${x}, ${y}) is outside the ${viewport.width}×${viewport.height} viewport`);
+        throw new Error(msg("capture.clickOutside", { x, y, width: viewport.width, height: viewport.height }));
       await act("click", options?.target ?? null, async () => {
         await moveToPoint(x, y);
         if (options?.target) await deliver(options.target, x, y);
@@ -432,14 +485,14 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     async range(target, fraction, options) {
       active();
       if (!Number.isFinite(fraction) || fraction < 0 || fraction > 1)
-        throw new Error("Range fraction must be between 0 and 1");
+        throw new Error(msg("capture.rangeFraction"));
       if ((await target.getAttribute("type"))?.toLowerCase() !== "range")
-        throw new Error("Capture range() requires input[type=range]");
+        throw new Error(msg("capture.rangeInput"));
       await ready(target);
       await act("range", target, async () => {
         await moveTo(target, fraction);
         const box = await target.boundingBox();
-        if (!box) throw new Error("Capture range has no visible bounding box");
+        if (!box) throw new Error(msg("capture.rangeBox"));
         await target.click({ position: { x: Math.max(2, Math.min(box.width - 2, box.width * fraction)),
           y: box.height / 2 } });
       });
@@ -451,7 +504,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     async type(target, value, options) {
       active();
       if ((await target.getAttribute("type"))?.toLowerCase() === "password")
-        throw new Error("Do not record password entry; authenticate before capture starts");
+        throw new Error(msg("capture.password"));
       await ready(target);
       await act("type", target, async () => {
         await moveTo(target);
@@ -477,7 +530,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       active();
       await target.scrollIntoViewIfNeeded();
       const box = await target.boundingBox();
-      if (!box) throw new Error("Focus card target has no visible bounding box");
+      if (!box) throw new Error(msg("capture.cardBox"));
       await withCard({ ...card, position: "near-focus" }, action, box);
     },
     focus,
@@ -491,11 +544,12 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     },
     mark(name, target) {
       active();
-      if (!/^[A-Za-z][\w-]*$/.test(name)) throw new Error(`mark name «${name}»: letters, digits, - and _`);
+      if (!/^[A-Za-z][\w-]*$/.test(name)) throw new Error(msg("capture.markName", { name }));
       marks[name] = (Date.now() - zero) / 1000;
+      for (const c of baking?.cues ?? []) if (c.anchor === `@${name}`) schedule(c, marks[name]! + c.offset);
       if (!target) return Promise.resolve();
       const done = rectOf(target).then((r) => {
-        if (!r) throw new Error(`mark ${name}: the element has no visible bounding box`);
+        if (!r) throw new Error(msg("capture.markBox", { name }));
         rects[name] = r;
       });
       pending.push(done);
@@ -504,6 +558,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
     async finish() {
       if (finished) return output;
       finished = true;
+      for (const t of timers) clearTimeout(t);
       await Promise.all(pending);
       await page.waitForTimeout(350);
       const recorded = await page.evaluate(() => {
@@ -517,7 +572,7 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       await initScript.dispose();
       await page.screencast.stop();
       page.off("pageerror", onError);
-      if (statSync(output).size === 0) throw new Error(`Empty screencast: ${output}`);
+      if (statSync(output).size === 0) throw new Error(msg("capture.empty", { path: output }));
       const trimmed = capOptions.trimStart === false ? 0 : trimBlankStart(output);
       const viewport = page.viewportSize() ?? size;
       const round = (v: number): number => Math.round(v * 1000) / 1000;
@@ -545,9 +600,13 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
           ...(a.rect ? { rect: a.rect.map(round) as TakeRect } : {}) })),
         cameraMoves: cameraMoves.map((move) => ({ from: round(Math.max(0, move.from - trimmed)),
           to: round(Math.max(0, move.to - trimmed)) })),
-        ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}) };
+        ...(Object.keys(rects).length ? { rects: Object.fromEntries(Object.entries(rects).map(([k, v]) => [k, v.map(round) as TakeRect])) } : {}),
+        // Скрипт, который можно запустить снова ради одного дубля. Файл теста под node:test —
+        // не такой скрипт: его повторный запуск прогнал бы весь тест, а не переснял дубль.
+        ...(process.argv[1] && !process.env.NODE_TEST_CONTEXT ? { script: { path: resolve(process.argv[1]), args: process.argv.slice(2), cwd: process.cwd() } } : {}),
+        ...(baking ? { cameraPlan: baking.hash } : {}) };
       writeFileSync(`${output}.marks.json`, JSON.stringify(file, null, 1));
-      if (pageErrors.length) throw new Error(`page error during the take: ${pageErrors[0]}`);
+      if (pageErrors.length) throw new Error(msg("capture.pageError", { why: String(pageErrors[0]) }));
       return output;
     },
   };
@@ -560,7 +619,7 @@ export async function recordTake(
 ): Promise<string> {
   const viewport = options.viewport ?? { width: 1280, height: 720 };
   const scale = options.scale ?? 1;
-  if (!(scale >= 1 && scale <= 4)) throw new Error("recordTake scale: expected 1–4 device pixels per CSS pixel");
+  if (!(scale >= 1 && scale <= 4)) throw new Error(msg("capture.scale"));
   // Кадры записи Chromium отдаёт в CSS-пикселях: множитель контекста (deviceScaleFactor) делает
   // страницу чётче, но запись остаётся размером с viewport, а запрошенный больший размер кладёт
   // картинку в угол. Рисовать в пикселях устройства весь браузер заставляет только флаг запуска.

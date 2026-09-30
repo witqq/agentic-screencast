@@ -133,7 +133,7 @@ test("every new kind and every live background keeps moving after everything has
   const { chromium } = await import("playwright");
   const browser = await chromium.launch();
   try {
-    for (const b of ["aurora", "mesh", "waves"]) {
+    for (const b of ["aurora", "rays", "waves"]) {
       const s = backs.find((x) => x.id === `bg-${b}`)!;
       const page = await browser.newPage();
       await page.goto(`file://${join(String(s.__src), String(s.page))}`);
@@ -156,7 +156,7 @@ test("a frame taken first in a fresh page equals the same frame of a sequential 
   }
 });
 
-test("every kinetic style moves mid-entry and settles into the plain layout", async () => {
+test("every kinetic style moves mid-entry and settles into the plain layout, or keeps its look where that is the style", async () => {
   const titles = KINETIC.map((k) => `## k-${k} · slides.hero\ntitle: Every phrase lands\ntext: ${k}\nbackground: none\nmove: still\nduration: 6\n`);
   const { list } = scenes(HEAD + `## plain · slides.hero\ntitle: Every phrase lands\nbackground: none\nmove: still\nduration: 6\n\n` + titles.join("\n"));
   const plain = await frameAt(list[0]!, 5);
@@ -166,7 +166,16 @@ test("every kinetic style moves mid-entry and settles into the plain layout", as
     // слова стоят на своих местах. Буквы отдельными узлами теряют кернинг пар,
     // отсюда небольшой допуск.
     assert.ok(diff(mid, settled) > 0.4, `${String(s.id)}: the phrase is moving at 0.6 s (${diff(mid, settled).toFixed(3)})`);
-    assert.ok(diff(settled, plain) < 0.35, `${String(s.id)}: settled phrase matches the plain title (${diff(settled, plain).toFixed(3)})`);
+    // Дуга и живой градиент — облик, а не вход: собранная фраза остаётся изогнутой или переливается.
+    if (["k-aurora", "k-arc"].includes(String(s.id))) {
+      assert.ok(diff(settled, plain) > 0.35, `${String(s.id)}: the settled phrase keeps its look (${diff(settled, plain).toFixed(3)})`);
+    } else if (String(s.id) === "k-sparkle") {
+      // Искры вспыхивают вокруг стоящих слов: кадр чуть отличается от простого заголовка, но не раскладкой.
+      const d = diff(settled, plain);
+      assert.ok(d > 0.1 && d < 0.8, `${String(s.id)}: words stand in place and sparks flash around them (${d.toFixed(3)})`);
+    } else {
+      assert.ok(diff(settled, plain) < 0.35, `${String(s.id)}: settled phrase matches the plain title (${diff(settled, plain).toFixed(3)})`);
+    }
   }
 });
 

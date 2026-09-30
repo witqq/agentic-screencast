@@ -25,6 +25,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { createRequire } from "node:module";
+import { msg } from "./msg.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -49,9 +50,9 @@ const psnrOf = (a: Buffer, b: Buffer): number => {
     const result = spawnSync(FFMPEG, ["-nostdin", "-hide_banner", "-i", first, "-i", second,
       "-lavfi", "psnr", "-f", "null", "-"], { encoding: "utf8" });
     if (result.error) throw result.error;
-    if (result.status !== 0) throw new Error(`ffmpeg PSNR failed: ${result.stderr}`);
+    if (result.status !== 0) throw new Error(msg("verify.psnrFailed", { why: result.stderr }));
     const m = result.stderr.match(/average:([0-9.]+|inf)/);
-    if (!m) throw new Error(`ffmpeg did not report PSNR: ${result.stderr}`);
+    if (!m) throw new Error(msg("verify.psnrMissing", { why: result.stderr }));
     return m[1] === "inf" ? Infinity : Number(m[1]);
   } finally {
     rmSync(dir, { recursive: true, force: true });

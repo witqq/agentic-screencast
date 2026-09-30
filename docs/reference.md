@@ -68,6 +68,12 @@ Capture writes `<take>.marks.json` beside the WebM: named moments, rectangles
 of marked elements and `cameraMoves`, the intervals of focus and unfocus motion
 already painted into the take. A scenario addresses a moment or element as `@name`;
 `lint` accounts for camera motion when looking for an unexplained screen change.
+The marks file also names the script that recorded the take. A camera over the
+take in a video scene is then performed by the browser: the build re-runs that
+script with the scene's camera anchored to the take's marks and uses the
+re-recording `<take>.<scene>.cam.webm`, so small text stays sharp in a push-in;
+an unchanged camera does not re-record. The conditions and the fallback are in
+`help capture`.
 
 ## Environment variables
 
@@ -80,6 +86,9 @@ already painted into the take. A scenario addresses a moment or element as `@nam
 | `LANG` | system language; used if `AGENTIC_SCREENCAST_LANG` is not set | — |
 | `AGENTIC_SCREENCAST_FILM_LANG` | the scenario variant in another language; the command's `--lang ru` sets it | language of the scenario header |
 | `AGENTIC_SCREENCAST_FILM_FORMAT` | the build format of a horizontal scenario with reframing; the command's `--format vertical` sets it | format of the scenario header |
+| `AGENTIC_SCREENCAST_NO_LIVE_CAMERA` | `1` — a camera over a live take scales the video instead of re-recording the take with the browser performing it | the browser performs it |
+| `AGENTIC_SCREENCAST_TAKE_CAMERA` | set by the build, not by hand: the camera plan a re-run take script performs in the browser (which take, where to write it, the moves anchored to marks) | not set: the script records as usual |
+| `NODE_TEST_CONTEXT` | set by `node --test`; a take recorded under it does not store its script, so the build never re-runs a test file | not set |
 | `AGENTIC_SCREENCAST_BARE` | `1` — build without the layer over the material (highlights, captions, cards): this way the check compares the framing of the material itself | the layer is drawn |
 | `AGENTIC_SCREENCAST_JOBS` | how many scenes are drawn at once; each by its own browser from the first frame to the last, but under shared load the Chromium rasteriser may round a pixel differently (PSNR no lower than 56 dB against a one-at-a-time build), so a byte-exact rebuild uses `1`; the report field `timing` shows where the time went | a third of the cores, no more than four |
 | `AGENTIC_SCREENCAST_DEBUG` | `1` — a build failure is printed with the Node stack; without it, as one line `build failed: …` that names the scene and the reason | one line |
@@ -122,7 +131,13 @@ npx playwright install chromium            # ~180 MB
 
 # 2. tell the tool where to keep the cache and output
 export AGENTIC_SCREENCAST_HOME="$PWD/.agentic-screencast"
+
+# 3. put the agentic-screencast command on PATH for agents and shells
+npm link
 ```
+
+Without `npm link` a checkout has no `agentic-screencast` command, and an agent following the
+skill will not find it; `node dist/agentic-screencast.js` runs the same CLI.
 
 Local free synthesis (Silero) and the intelligibility gate live
 separately — they depend on torch, and that is an environment of about 600 MB.
@@ -160,7 +175,10 @@ has the frame timeline and explicit `part:` names; `audit.measured` has the deco
 video frame count, final video and audio stream durations, stream presence and
 WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
 mismatch with measured values; the same findings appear in `warnings` and on
-the error stream. An empty issues list means these encoded properties match
+the error stream. Every entry of `warnings` — and every `lint` finding — has the
+form `{rule, id, message, hint}`: `id` names the check, `rule` the knowledge-base
+rule behind it (`FC-58` is rule 58 of `docs/film-craft.md`, `VA-5` step 5 of the licence
+section of `docs/visual-assets.md`), `hint` what to change. An empty issues list means these encoded properties match
 within one video frame and AAC packet padding, not that the film has been
 watched or its captions judged. A film with no parts has no chapter file;
 rebuilding one without parts removes an older file at that output path.
@@ -168,7 +186,7 @@ rebuilding one without parts removes an older file at that output path.
 **While you are tuning a scene, build it alone:**
 
 ```bash
-npx agentic-screencast build --source story.md --only s03 --out try.mp4
+npx agentic-screencast build --source story.md --only e1 --out try.mp4
 ```
 
 A full film of a couple of dozen scenes takes minutes to build, one scene takes seconds,
@@ -177,8 +195,8 @@ and the segment is exactly the same one that will go into the finished file.
 Preview a frame without synthesising speech with `frames`:
 
 ```bash
-npx agentic-screencast frames --source story.md --scene s03 --out s03.png
-npx agentic-screencast frames --source story.md --except s03 --out sheet.png
+npx agentic-screencast frames --source story.md --scene e1 --out e1.png
+npx agentic-screencast frames --source story.md --except e1 --out sheet.png
 ```
 
 `--scene` generates only the selected scene; `--except` makes a sheet of the
@@ -241,23 +259,35 @@ The tool brings three providers with it:
 | `slides.compare` | "without / with" comparison in two columns | `left`, `right` |
 | `slides.chain` | diagram with arrows and a return-arrow caption | `nodes` |
 | `slides.number` | a large quantity with a caption | `values` or `value` |
-| `slides.quote` | a verbatim quote of someone else's answer | `parts` |
-| `slides.hero` | opening statement: the title rises word by word, an image may serve as background | `title` |
+| `slides.quote` | a verbatim quote of someone else's answer: a large quote mark, the source as a label, the words typing in | `parts` |
+| `slides.hero` | opening statement: the title rises word by word, an image may serve as background or be poured into the letters (`fill`) | `title` |
 | `slides.steps` | steps lighting up one by one following the speech | `items` |
 | `slides.features` | a grid of two to six capabilities with icons | `items` |
-| `slides.timeline` | milestones on a line that is drawn out to each one | `items` |
-| `slides.counter` | numbers counting up like a counter, shares as a ring | `values` or `value` |
+| `slides.timeline` | milestones on a line that is drawn out to each one, a glowing head leading it | `items` |
+| `slides.counter` | numbers counting up like a counter, shares as a ring, a small trend line under each (`spark`) | `values` or `value` |
 | `slides.beforeafter` | two states of an interface in one frame: "before" on the left, "after" on the right, the divider moves | `image` and `after` |
 | `slides.perspective` | a snapshot on a screen in perspective (WebGL): camera fly-around, glare, reflection | `image` |
 | `slides.parallax` | a snapshot splits into panels at different depths, nearer ones drift more | `image` and `panels` |
-| `slides.chart` | a chart from a "label,value" CSV: bars grow, the line is drawn, the peak is highlighted | `data` |
+| `slides.chart` | a chart from a "label,value" CSV: bars grow, the line is drawn, the peak is highlighted; `type: race` runs a bar chart race over the periods of a CSV | `data` |
 | `slides.code` | code being typed with highlighting; from a scenario string or a file | `code` or `file` |
 | `slides.photo` | an image with a slow push-in to a point and a caption | `image` |
 | `slides.shot` | a screenshot in a browser or phone frame, floating in 3D | `image` |
 | `slides.outro` | final card: title, line, call to action, address | `title` |
 | `slides.card` | trailer card: one to three words filling the frame, flying in with a flash and shake | `title` |
 | `slides.titlecard` | the film's name in widely spaced capitals with glare and bloom | `title` |
+| `slides.marquee` | an endless strip of logos or labels, one row or two in opposite directions | `items` |
+| `slides.stack` | a deck of cards: on each item the top one flies off and the deck moves up | `items` |
+| `slides.orbit` | icons circling the title on one or two orbits | `items` |
+| `slides.chat` | chat bubbles in turn; before each answer a sheen runs across "Thinking…" over skeleton bars | `items` |
+| `slides.carousel` | cards in a real 3D ring that turns to each item | `items` |
+| `slides.globe` | a WebGL globe of dots: arcs from the first city to the others, a ping and a label; `map: flat` lays them on a flat map | `items` |
+| `slides.layers` | an exploded view: panels of a snapshot lift off to their depth while the camera tilts, then settle flat | `image` and `panels` |
+| `slides.bento` | a bento grid: a large first cell, the last ones wide so the grid closes, the rest small, each tilting in from depth | `items` |
+| `slides.wall` | a wall of screenshots tilted in 3D, its columns sliding past each other under the title | `images` |
+| `slides.cloud` | labels or icons on a turning sphere, the near ones large and bright | `items` |
+| `slides.shell` | a working terminal: commands type after the prompt, a spinner turns, output appears | `items` |
 | `page` | a ready page: an interface snapshot or your own layout | `page` |
+| `report` | a page agentic-report builds from its original Markdown for every scene, preserving its block targets and source; its top bar, review, scheme toggle and theme switcher are off unless the report's metadata names those keys; needs agentic-report >=0.20.0 in the project | `report` |
 | `video` | a ready video file instead of a drawn page | `file` |
 
 For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 frame.
@@ -274,6 +304,8 @@ return arrow; for the quantity, `label` and `tags`; for a screen scene, `zoom`,
 `spotFrom` and `focus`. What each slide field does — entrances, frame motion,
 live background, device frame — is described by `agentic-screencast help slides`;
 the film look, brand colours and the theme of part of a film — by `agentic-screencast help themes`.
+How these theme tokens correspond to agentic-report's, so a film and a report page share one look,
+is in [the theme-tokens map](theme-tokens.md).
 
 `items` entries are written like the columns: `Title :: explanation | …`; an emoji
 at the start of an entry becomes its icon. If `at` has not named the moments, the entries
@@ -305,7 +337,12 @@ freeze frame in one scenario, and the [self-contained example](../example/idea-v
 a saved page with a push-in by CSS selector and the caption "illustration".
 
 A manual pointer `overlay.pointer` with `click:true` draws a ripple but does not press
-the button in the source recording: record real actions with Playwright capture.
+the button in the source recording: record real actions with Playwright capture. On a
+saved page or a slide the overlay can make the page answer instead: `overlay.actions`
+switch a toggle, a tab or a menu and reorder a list with its elements gliding to their
+places, the pointer's `drag` carries an element, `overlay.thinking` lays "AI is thinking"
+over the answer's place and `overlay.torch` follows the pointer with a circle of light
+(`agentic-screencast help overlay`).
 For a scene with `freezeAt` the build measures the brightness spread in every `area` region
 on the frozen frame and fails if a region is almost empty: the failure names
 the scene and the measured contrast.
@@ -327,7 +364,7 @@ and they mean their own thing in each field — here are all of them:
 | `parts` | `caption :: text` pairs separated by `\|`; the quote text goes as is | `answer :: step accepted` |
 | `tags` | a plain list separated by `\|` | `what it is \| why \| how to start` |
 | `back` | one line: the caption of the return arrow | `nobody holds the frame` |
-| `note` | one line: a note below the content | `a rendering of the answer, not a capture` |
+| `note` | one line below the content: compare, chain and quote; on number, counter and chart the source of the figures; other kinds refuse it | `a rendering of the answer, not a capture` |
 
 `at` gives the moments elements appear, as **anchors**:
 
@@ -417,13 +454,17 @@ theme: calm-paper
 | `frame` | frame width and height, frames per second, `scale` | 1920×1080, 25, 1 |
 | `encode` | video quality and audio bitrate | crf 18, veryfast, yuv420p, 192k |
 | `theme` | the name of a shipped theme or styling variables: they go to the page root and to the overlay | `neutral` |
+| `scheme` | `light` or `dark`: the scheme of every named theme in the film; its role colours come from the palette file shared with agentic-report | each theme's own |
 | `format` | format preset: `landscape`, `vertical` (1080×1920, 30 frames, with the platforms' safe zone), `square` | — |
 | `look` | film look: grade, vignette, grain, letterbox — by name or as JSON | — |
 
 The list of themes with their fonts, the theme contract variables and the rules of partial
 overrides (`theme: {"preset":"noir","--acc":"#7aa2ff"}`) are printed by `agentic-screencast
 help themes`. An unknown theme name and an object without `preset` that lacks a
-variable are parse errors that name what is available and what is missing.
+variable are parse errors that name what is available and what is missing. Every theme but
+`blockbuster` has a light and a dark scheme; a scene names its own with
+`theme: {"preset":"noir","scheme":"dark"}`, and an unknown scheme or one a theme lacks is a
+parse error that lists the schemes it has.
 
 **Vertical and square in one line.** The header `format: vertical` sets a
 1080×1920 frame, 30 frames per second and the platforms' safe zone; `format: square` sets
@@ -506,6 +547,9 @@ a refusal is a non-zero exit code and the reason in words on the error stream.
   and there is nothing to generate. This is how `page` and `video` work.
 - The page must be a **pure function of time**: the moments elements appear
   are written in `data-at` as anchors, and the compositing layer resolves them.
+  The layer reads `data-at`, `data-type` and `data-kinetic` only on a page
+  marked `<html data-sc-page>`; another tool's page keeps its own meaning of
+  those names.
 - The page declares **the number of its schedule elements** with the
   `data-slidecast-elements` attribute on the body. By it the order check tells
   "the page did not render completely" from "this is intended"; a page
@@ -536,8 +580,11 @@ npx agentic-screencast verify                    # four checks of the render cor
 npx agentic-screencast script --source story.md  # readable scenario to the output stream
 npx agentic-screencast schema                    # description of scene fields, JSON Schema
 npx agentic-screencast scenes --source story.md  # the source's scenes as JSON
+npx agentic-screencast craft spotlight          # film-craft rules for a decision, with FC numbers
 npm test                                     # the product's test suite
 ```
+
+`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail. A `build --only` report cannot pass.
 
 `schema` prints a machine-readable description of a scene, `scenes` prints the scenes
 of the parsed scenario in the same form. Together they give another agent

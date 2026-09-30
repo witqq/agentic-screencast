@@ -1,11 +1,66 @@
 /** Timed annotations shared by rendered pages and imported video clips. */
 import { msg } from "./msg.js";
+import { retiredAs } from "./retired.js";
 export interface OverlayPoint {
   at: number;
   /** Position as a fraction of the final frame, not source-video pixels. */
   x: number;
   y: number;
   click?: boolean;
+  /** предмет страницы, который тянется к указателю, пока тот рядом, — магнит перед нажатием */
+  magnet?: string;
+  /**
+   * предмет страницы, который указатель берёт в этой точке и несёт до следующей: там предмет
+   * остаётся лежать — перетаскивание карточки, файла, ползунка
+   */
+  drag?: string;
+}
+
+/**
+ * Действие на странице в момент `at`: то, что делает нажатие, без скрипта самой страницы.
+ *
+ *   toggle   тумблер или флажок переключается (`checked`, `aria-checked`, `aria-pressed`)
+ *   tab      вкладка выбирается, её соседки гаснут, панели по `aria-controls` меняются
+ *   open     меню или раскрывашка открывается (`open`, `aria-expanded`, панель по `aria-controls`)
+ *   close    то же, закрывается
+ *   class    у предмета переключается названный класс — любая перемена, которую знает вёрстка
+ *   reorder  дети предмета встают в новом порядке `order`
+ *
+ * Перемена раскладки после действия не прыгает: предметы `glide` (у `reorder` — дети предмета)
+ * переезжают со старых мест на новые за 0,6 с — приём FLIP.
+ */
+export const ACTION_KINDS = ["toggle", "tab", "open", "close", "class", "reorder"] as const;
+export interface OverlayAction {
+  at: number;
+  target: string;
+  kind: (typeof ACTION_KINDS)[number];
+  /** у `class` — какой класс переключить; у `tab` и `open` — класс выбранного (умолчание: active, open) */
+  class?: string;
+  /** у `reorder`: новый порядок детей, номера с единицы */
+  order?: number[];
+  /** CSS-селектор предметов, которые переезжают на новые места плавно */
+  glide?: string;
+}
+
+/** Прожектор: всё темнеет, светлый круг идёт за указателем накладки. */
+export interface OverlayTorch {
+  at: number;
+  hold: number;
+  /** диаметр круга, доля ширины кадра */
+  size?: number;
+}
+
+/**
+ * «ИИ думает»: строка с бегущим по ней бликом и мерцающие полосы скелетона на месте будущего
+ * ответа. С предметом (`target`, `area`) скелетон ложится поверх него и сходит, открывая ответ.
+ */
+export interface OverlayThinking extends OverlayAnchor {
+  at: number;
+  hold: number;
+  /** строка, по которой бежит блик; умолчание — «Thinking…» */
+  text?: string;
+  /** сколько полос скелетона, 0–5; умолчание — 3 */
+  lines?: number;
 }
 
 /**
@@ -14,11 +69,18 @@ export interface OverlayPoint {
  *   по словам:  rise — всплывают из размытия; spin — вкручиваются из точки;
  *               fly — влетают с разных сторон, крутясь; slide — выезжают слева
  *               с наклоном; zoom — оседают из крупного плана; bounce —
- *               выпрыгивают с пружиной; shuffle — у каждого слова свой вход
- *   по буквам:  drop — падают с отскоком; wave — пробегают волной; scramble —
- *               проявляются из перебора знаков; split — сходятся от краёв;
+ *               выпрыгивают с пружиной;
+ *               glitch — входят сбоем с расслоением цвета и сбоят снова каждые
+ *               2,6 с; beat — слово за словом бьют в доли музыки, и фраза
+ *               вздрагивает на каждой следующей доле; aurora — всплывают, и по
+ *               буквам течёт живой градиент двух акцентов темы; sparkle —
+ *               всплывают, вокруг фразы вспыхивают и гаснут искры; swarm —
+ *               тысячи точек слетаются из хаоса в буквы, и фраза проступает
+ *   по буквам:  drop — падают с отскоком; wave — пробегают волной;
+ *               split — сходятся от краёв;
  *               flip — раскрываются снизу; blur — проступают из размытия;
- *               swirl — слетаются по спирали
+ *               swirl — слетаются по спирали; flap — перещёлкиваются, как табло
+ *               вокзала; arc — встают на дугу и так на ней и стоят
  *
  * Единицы стоят на своих местах в окончательной раскладке и двигаются
  * только трансформацией, поэтому строки не перекладываются.
@@ -33,8 +95,16 @@ export const CAMERA_STYLES: Record<string, { move: number; return: number }> = {
   snappy: { move: 0.45, return: 0.5 },
 };
 
-export const KINETIC = ["rise", "spin", "fly", "slide", "zoom", "bounce", "shuffle",
-  "drop", "wave", "scramble", "split", "flip", "blur", "swirl"] as const;
+/** Resolve only a declared camera style, with the caller's authoring field in the error. */
+export function cameraStyle(value: unknown, where: string): { move: number; return: number } | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !Object.hasOwn(CAMERA_STYLES, value))
+    throw new Error(msg("overlay.options", { where, options: Object.keys(CAMERA_STYLES).join(" | ") }));
+  return CAMERA_STYLES[value];
+}
+
+export const KINETIC = ["rise", "spin", "fly", "slide", "zoom", "bounce", "glitch", "beat", "aurora", "sparkle", "swarm",
+  "drop", "wave", "split", "flip", "blur", "swirl", "flap", "arc"] as const;
 export type Kinetic = (typeof KINETIC)[number];
 
 export interface OverlayCard {
@@ -170,6 +240,31 @@ export interface OverlayGlint extends OverlayAnchor {
   hold?: number;
 }
 
+/** Отклик предмета на событие: он вздрагивает и пружиной возвращается — «буп». */
+export interface OverlayBoop {
+  at: number;
+  /** CSS-селектор предмета на странице */
+  target: string;
+  kind: "pop" | "shake" | "jelly" | "nod" | "pulse";
+  /** у пульса: сколько секунд предмет дышит */
+  hold?: number;
+}
+
+/** Пинг: из точки расходятся кольца, как сигнал радара. */
+export interface OverlayPing extends OverlayAnchor {
+  at: number;
+  hold?: number;
+}
+
+/** Уведомление: карточка въезжает в угол, прежние уходят назад стопкой. */
+export interface OverlayToast {
+  at: number;
+  title: string;
+  body?: string;
+  icon?: string;
+  hold?: number;
+}
+
 /** Всплеск в момент успеха: конфетти или искры из предмета; раскладку задаёт зерно. */
 export interface OverlayBurst extends OverlayAnchor {
   at: number;
@@ -195,6 +290,8 @@ export interface OverlayLoupe extends OverlayAnchor {
 }
 
 export interface SceneOverlay {
+  /** кривая входа титров, плашек, выносок, наклеек и уведомлений сцены */
+  ease?: (typeof OVERLAY_EASES)[number];
   pointer?: OverlayPoint[];
   cards?: OverlayCard[];
   camera?: OverlayCamera[];
@@ -206,6 +303,12 @@ export interface SceneOverlay {
   glints?: OverlayGlint[];
   bursts?: OverlayBurst[];
   loupe?: OverlayLoupe[];
+  boops?: OverlayBoop[];
+  pings?: OverlayPing[];
+  toasts?: OverlayToast[];
+  actions?: OverlayAction[];
+  torch?: OverlayTorch[];
+  thinking?: OverlayThinking[];
 }
 
 /** Время чтения короткой надписи: секунда на то, чтобы увидеть, плюс 15 знаков в секунду. */
@@ -267,19 +370,35 @@ export function parseOverlay(json: string, moment?: (anchor: string) => number):
   try { return parseOverlayBody(json); } finally { momentOf = undefined; }
 }
 
+/** Кривые входа примитивов накладки (`overlay.ease`) — те же имена, что у входов слайда. */
+export const OVERLAY_EASES = ["standard", "emphasized", "expressive", "spring", "bouncy"] as const;
+
 function parseOverlayBody(json: string): SceneOverlay {
   let value: unknown;
   try { value = JSON.parse(json); }
   catch { throw new Error(msg("source.jsonObject", { field: "overlay" })); }
   if (!object(value)) throw new Error(msg("source.jsonObject", { field: "overlay" }));
-  keys(value, ["pointer", "cards", "camera", "titles", "lower", "callouts", "stickers", "marks", "glints", "bursts", "loupe"], "overlay");
+  keys(value, ["pointer", "cards", "camera", "titles", "lower", "callouts", "stickers", "marks", "glints", "bursts", "loupe",
+    "boops", "pings", "toasts", "ease", "actions", "torch", "thinking"], "overlay");
   const overlay: SceneOverlay = {};
+  if (value.ease !== undefined) {
+    if (!(OVERLAY_EASES as readonly unknown[]).includes(value.ease))
+      throw new Error(msg("overlay.ease", { options: OVERLAY_EASES.join(" | ") }));
+    overlay.ease = value.ease as SceneOverlay["ease"];
+  }
   if (value.pointer !== undefined) {
     if (!Array.isArray(value.pointer)) throw new Error(msg("overlay.array", { where: "overlay.pointer" }));
     let last = -1;
     overlay.pointer = value.pointer.map((raw: unknown, i: number): OverlayPoint => {
       if (!object(raw)) throw new Error(msg("overlay.object", { where: `overlay.pointer[${i}]` }));
-      keys(raw, ["at", "x", "y", "click"], `overlay.pointer[${i}]`);
+      keys(raw, ["at", "x", "y", "click", "magnet", "drag"], `overlay.pointer[${i}]`);
+      for (const key of ["magnet", "drag"] as const) {
+        if (raw[key] !== undefined && (typeof raw[key] !== "string" || !raw[key].trim()))
+          throw new Error(msg("overlay.cssSelector", { where: `overlay.pointer[${i}].${key}` }));
+      }
+      // Предмет несут до следующей точки: у последней нести некуда.
+      if (raw.drag !== undefined && i === (value.pointer as unknown[]).length - 1)
+        throw new Error(msg("overlay.dragEnd", { where: `overlay.pointer[${i}].drag` }));
       const at = momentAt(raw.at, `overlay.pointer[${i}]`);
       if (at <= last) throw new Error(msg("overlay.pointerOrder"));
       last = at;
@@ -290,7 +409,9 @@ function parseOverlayBody(json: string): SceneOverlay {
       if (raw.click !== undefined && typeof raw.click !== "boolean")
         throw new Error(msg("overlay.boolean", { where: `overlay.pointer[${i}].click` }));
       return { at, x: raw.x as number, y: raw.y as number,
-        ...(raw.click === undefined ? {} : { click: raw.click as boolean }) };
+        ...(raw.click === undefined ? {} : { click: raw.click as boolean }),
+        ...(typeof raw.magnet === "string" ? { magnet: raw.magnet.trim() } : {}),
+        ...(typeof raw.drag === "string" ? { drag: raw.drag.trim() } : {}) };
     });
   }
   if (value.cards !== undefined) {
@@ -307,6 +428,8 @@ function parseOverlayBody(json: string): SceneOverlay {
         throw new Error(msg("overlay.bodyLength", { where: `overlay.cards[${i}].body` }));
       if (raw.position !== undefined && !["top-left", "top-right", "bottom-left", "bottom-right", "center", "near-focus"].includes(String(raw.position)))
         throw new Error(msg("overlay.unknownPosition", { where: `overlay.cards[${i}].position` }));
+      const revealUse = typeof raw.reveal === "string" ? retiredAs("text", raw.reveal) : undefined;
+      if (revealUse) throw new Error(msg("retired", { field: `overlay.cards[${i}].reveal`, value: String(raw.reveal), use: revealUse }));
       if (raw.reveal !== undefined && !["fade", "type", ...KINETIC].includes(String(raw.reveal)))
         throw new Error(msg("overlay.options", { where: `overlay.cards[${i}].reveal`, options: `fade | type | ${KINETIC.join(" | ")}` }));
       if (raw.motion !== undefined && !["rise", "pop", "glide", "fly"].includes(String(raw.motion)))
@@ -368,9 +491,7 @@ function parseOverlayBody(json: string): SceneOverlay {
       // Увеличение 1 — подсветка без наезда: кадр стоит, вокруг цели темнеет и встаёт рамка.
       if (scale !== undefined && (typeof scale !== "number" || !Number.isFinite(scale) || scale < 1 || scale > 3))
         throw new Error(msg("overlay.cameraScale", { where: `overlay.camera[${i}].scale` }));
-      if (raw.style !== undefined && !CAMERA_STYLES[String(raw.style)])
-        throw new Error(msg("overlay.options", { where: `overlay.camera[${i}].style`, options: Object.keys(CAMERA_STYLES).join(" | ") }));
-      const style = raw.style !== undefined ? CAMERA_STYLES[String(raw.style)] : undefined;
+      const style = cameraStyle(raw.style, `overlay.camera[${i}].style`);
       const move = raw.move === undefined ? style?.move ?? 0.9 : time(raw.move, `overlay.camera[${i}].move`);
       const back = raw.return === undefined ? style?.return ?? 0.9 : time(raw.return, `overlay.camera[${i}].return`);
       if (move < 0.35 || back < 0.35 || move > 4 || back > 4)
@@ -423,6 +544,8 @@ function parseOverlayBody(json: string): SceneOverlay {
   const oneOf = <T extends string>(raw: Record<string, unknown>, key: string, allowed: readonly T[], where: string): T | undefined => {
     const v = raw[key];
     if (v === undefined) return undefined;
+    const use = (key === "style" || key === "reveal") && typeof v === "string" ? retiredAs("text", v) : undefined;
+    if (use) throw new Error(msg("retired", { field: `${where}.${key}`, value: String(v), use }));
     if (!allowed.includes(v as T)) throw new Error(msg("overlay.options", { where: `${where}.${key}`, options: allowed.join(" | ") }));
     return v as T;
   };
@@ -551,6 +674,34 @@ function parseOverlayBody(json: string): SceneOverlay {
     // Блик идёт по предмету или области: у точки нет ширины, и полосе нечего пересечь.
     return { at: momentAt(raw.at, where), ...anchor(raw, where, true), hold: raw.hold === undefined ? 1.1 : time(raw.hold, where) };
   });
+  const boops = list("boops");
+  if (boops) overlay.boops = boops.map((raw: unknown, i: number): OverlayBoop => {
+    const where = `overlay.boops[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "target", "kind", "hold"], where);
+    if (typeof raw.target !== "string" || !raw.target.trim()) throw new Error(msg("overlay.cssSelector", { where: `${where}.target` }));
+    const kind = oneOf(raw, "kind", ["pop", "shake", "jelly", "nod", "pulse"] as const, where) ?? "pop";
+    return { at: momentAt(raw.at, where), target: raw.target.trim(), kind,
+      ...(kind === "pulse" ? { hold: raw.hold === undefined ? 3 : time(raw.hold, where) } : {}) };
+  });
+  const pings = list("pings");
+  if (pings) overlay.pings = pings.map((raw: unknown, i: number): OverlayPing => {
+    const where = `overlay.pings[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "target", "area", "point", "hold"], where);
+    return { at: momentAt(raw.at, where), ...anchor(raw, where, true), hold: raw.hold === undefined ? 2 : time(raw.hold, where) };
+  });
+  const toasts = list("toasts");
+  if (toasts) overlay.toasts = toasts.map((raw: unknown, i: number): OverlayToast => {
+    const where = `overlay.toasts[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "title", "body", "icon", "hold"], where);
+    if (typeof raw.title !== "string" || !raw.title.trim()) throw new Error(msg("overlay.text", { where: `${where}.title` }));
+    return { at: momentAt(raw.at, where), title: raw.title.trim(),
+      ...(typeof raw.body === "string" && raw.body.trim() ? { body: raw.body.trim() } : {}),
+      ...(typeof raw.icon === "string" && raw.icon.trim() ? { icon: raw.icon.trim() } : {}),
+      ...(raw.hold !== undefined ? { hold: time(raw.hold, where) } : {}) };
+  });
   const bursts = list("bursts");
   if (bursts) overlay.bursts = bursts.map((raw: unknown, i: number): OverlayBurst => {
     const where = `overlay.bursts[${i}]`;
@@ -578,9 +729,65 @@ function parseOverlayBody(json: string): SceneOverlay {
     return { at: momentAt(raw.at, where), ...anchor(raw, where, true), ...(scale !== undefined ? { scale } : {}),
       ...(size !== undefined ? { size } : {}), ...(place ? { place } : {}), hold: raw.hold === undefined ? 2.5 : time(raw.hold, where) };
   }), "loupe");
+  const actions = list("actions");
+  if (actions) overlay.actions = actions.map((raw: unknown, i: number): OverlayAction => {
+    const where = `overlay.actions[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "target", "kind", "class", "order", "glide"], where);
+    if (typeof raw.target !== "string" || !raw.target.trim()) throw new Error(msg("overlay.cssSelector", { where: `${where}.target` }));
+    const kind = oneOf(raw, "kind", ACTION_KINDS, where);
+    if (!kind) throw new Error(msg("overlay.options", { where: `${where}.kind`, options: ACTION_KINDS.join(" | ") }));
+    if (raw.class !== undefined && (typeof raw.class !== "string" || !/^-?[_a-zA-Z][\w-]*$/.test(raw.class)))
+      throw new Error(msg("overlay.className", { where: `${where}.class` }));
+    if (kind === "class" && raw.class === undefined) throw new Error(msg("overlay.className", { where: `${where}.class` }));
+    let order: number[] | undefined;
+    if (raw.order !== undefined || kind === "reorder") {
+      if (kind !== "reorder") throw new Error(msg("overlay.orderOnlyReorder", { where: `${where}.order` }));
+      const o = raw.order;
+      // Новый порядок — перестановка номеров 1…n: каждый ребёнок назван ровно один раз.
+      if (!Array.isArray(o) || o.length < 2 || o.some((v) => !Number.isInteger(v) || v < 1 || v > o.length)
+        || new Set(o).size !== o.length) throw new Error(msg("overlay.order", { where: `${where}.order` }));
+      order = o as number[];
+    }
+    if (raw.glide !== undefined && (typeof raw.glide !== "string" || !raw.glide.trim()))
+      throw new Error(msg("overlay.cssSelector", { where: `${where}.glide` }));
+    return { at: momentAt(raw.at, where), target: raw.target.trim(), kind,
+      ...(typeof raw.class === "string" ? { class: raw.class } : {}), ...(order ? { order } : {}),
+      ...(typeof raw.glide === "string" ? { glide: raw.glide.trim() } : {}) };
+  });
+  const torch = list("torch");
+  if (torch) overlay.torch = ordered(torch.map((raw: unknown, i: number): OverlayTorch => {
+    const where = `overlay.torch[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "hold", "size"], where);
+    const size = raw.size === undefined ? undefined : Number(raw.size);
+    if (size !== undefined && !(size >= 0.08 && size <= 0.6)) throw new Error(msg("overlay.torchSize", { where: `${where}.size` }));
+    const hold = raw.hold === undefined ? 3 : time(raw.hold, where);
+    if (hold < 0.8) throw new Error(msg("overlay.cameraHold", { where: `${where}.hold` }));
+    return { at: momentAt(raw.at, where), hold, ...(size !== undefined ? { size } : {}) };
+  }), "torch");
+  // Прожектор идёт за указателем: без пути указателя свету некуда идти.
+  if (overlay.torch?.length && !overlay.pointer?.length) throw new Error(msg("overlay.torchPointer"));
+  const thinking = list("thinking");
+  if (thinking) overlay.thinking = ordered(thinking.map((raw: unknown, i: number): OverlayThinking => {
+    const where = `overlay.thinking[${i}]`;
+    if (!object(raw)) throw new Error(msg("overlay.object", { where }));
+    keys(raw, ["at", "hold", "text", "lines", "target", "area", "point"], where);
+    if (raw.point !== undefined) throw new Error(msg("overlay.thinkingPoint", { where }));
+    const t = text(raw, "text", 40, where, true);
+    const lines = raw.lines === undefined ? undefined : Number(raw.lines);
+    if (lines !== undefined && !(Number.isInteger(lines) && lines >= 0 && lines <= 5))
+      throw new Error(msg("overlay.thinkingLines", { where: `${where}.lines` }));
+    const hold = raw.hold === undefined ? 1.6 : time(raw.hold, where);
+    if (hold < 0.6) throw new Error(msg("overlay.thinkingHold", { where: `${where}.hold` }));
+    return { at: momentAt(raw.at, where), hold, ...anchor(raw, where, false), ...(t ? { text: t } : {}),
+      ...(lines !== undefined ? { lines } : {}) };
+  }), "thinking");
   if (!overlay.pointer?.length && !overlay.cards?.length && !overlay.camera?.length
     && !overlay.titles?.length && !overlay.lower?.length && !overlay.callouts?.length && !overlay.stickers?.length
-    && !overlay.marks?.length && !overlay.glints?.length && !overlay.bursts?.length && !overlay.loupe?.length)
+    && !overlay.marks?.length && !overlay.glints?.length && !overlay.bursts?.length && !overlay.loupe?.length
+    && !overlay.boops?.length && !overlay.pings?.length && !overlay.toasts?.length
+    && !overlay.actions?.length && !overlay.thinking?.length)
     throw new Error(msg("overlay.empty"));
   return overlay;
 }
@@ -592,5 +799,9 @@ export function overlayEnd(overlay: SceneOverlay): number {
     ...(overlay.camera?.map(cameraEnd) ?? []),
     ...[...(overlay.titles ?? []), ...(overlay.lower ?? []), ...(overlay.callouts ?? []),
       ...(overlay.stickers ?? []), ...(overlay.marks ?? []), ...(overlay.glints ?? []),
-      ...(overlay.bursts ?? []), ...(overlay.loupe ?? [])].map((item) => item.at + (item.hold ?? 0) + 0.35));
+      ...(overlay.bursts ?? []), ...(overlay.loupe ?? []), ...(overlay.pings ?? []),
+      ...(overlay.torch ?? []), ...(overlay.thinking ?? [])].map((item) => item.at + (item.hold ?? 0) + 0.35),
+    ...(overlay.actions ?? []).map((a) => a.at + 0.6),
+    ...(overlay.boops ?? []).map((b) => b.at + (b.hold ?? 0.7)),
+    ...(overlay.toasts ?? []).map((toast) => toast.at + (toast.hold ?? 4) + 0.4));
 }

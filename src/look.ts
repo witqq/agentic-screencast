@@ -39,7 +39,7 @@ export const LOOKS: Record<string, Look> = {
 export function parseLook(raw: string): Look {
   const text = raw.trim();
   if (!text.startsWith("{")) {
-    const found = LOOKS[text];
+    const found = Object.hasOwn(LOOKS, text) ? LOOKS[text] : undefined;
     if (!found) throw new Error(msg("look.unknown", { name: text, available: Object.keys(LOOKS).join(", ") }));
     return { ...found };
   }

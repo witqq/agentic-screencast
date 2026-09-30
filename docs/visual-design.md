@@ -103,13 +103,13 @@ the subject [3].
 - **Numbers that count up everywhere; "10 000+".** Cure: one new number counts, the rest stand [3].
 - **Chromatic aberration, a glowing monolith, bloom as a filter, "PLAY REEL".** Costume, not
   content [1].
-- **Cube, whip and zoom-blur cuts, confetti at success, a film grain on everything.** Cure: a cut
+- **Cube, whip and zoom cuts, confetti at success, a film grain on everything.** Cure: a cut
   means a change of place or topic (film craft 52); success is shown by the result itself [3].
 - **A constant pulse.** Cure: one constant motion, slow and quiet, that never crosses text [3].
 
 ### Backgrounds
 
-- **Particles, a "plexus" graph, aurora, mesh, bokeh behind the title "for depth".** The AI-startup
+- **Particles, a "plexus" graph, aurora, a mesh gradient, bokeh behind the title "for depth".** The AI-startup
   look [1]. Cure: an even surface or a faint grid; a WebGL background only where motion is the
   subject.
 - **Grain over an empty gradient.** Cure: grain only over footage or a large fill beside real
@@ -155,7 +155,7 @@ The same mechanisms produce film-specific clichés. Each is a field an agent rea
 - emoji icons in `slides.features`, a release built as a grid of emoji cards;
 - a screenshot floating in 3D inside a browser frame with traffic-light buttons (`slides.shot`,
   `slides.perspective`, `device: browser`) with a placeholder address;
-- a live background as "depth": aurora, mesh, bokeh, particles;
+- a live background as "depth": aurora, bokeh, particles, rays, lamp, meteors, flicker, beams, warp, vortex;
 - a "cinematic" look in one line (`look: cinematic` — teal-orange grade, grain, vignette) on a product
   demo;
 - creator-style subtitles: capitals, a yellow word, a pop on every word;
@@ -215,6 +215,25 @@ applies to films as well.
 | Igloo Inc | `#b6bac5` / `#383e4e` | one metaphor, the camera from whole to detail | a preloader, aberration |
 
 Closest to a product that is a process: Temporal, Warp, Inngest, n8n [4].
+
+## Choosing the scheme
+
+Every shipped theme but `blockbuster` comes in a light and a dark scheme (`scheme: light|dark` in the
+header, `help themes`); the two share the theme's fonts, shapes and accent hue, and their colours are
+the same ones agentic-report uses for a page in that theme and scheme.
+
+**The material chooses, not the mood.** A film made of live takes wears the scheme the product was
+recorded in: the take bakes its cursor, cards and spotlight in the recorded theme, and a light
+interface under a dark overlay reads as two films. A film embedded in a report or a landing wears
+that page's scheme, so the player does not light up or go dark in the middle of the page.
+
+**Dark is not "premium".** A dark theme with neon is the techno-futurism cliché of 2026 [1]; a dark
+scheme earns its place with dark material — a terminal, a night dashboard, footage shot in the dark —
+and then it is warm graphite, not night blue [3]. Without such a reason, keep each theme's default.
+
+**One scheme per film.** A scene in the other scheme is a cut in light that the viewer notices; give it
+a reason — a terminal take in a light film, a quoted dark screen — and name the scheme on that scene
+only (`theme: {"preset":"terminal","scheme":"dark"}`).
 
 ## Norms with numbers
 

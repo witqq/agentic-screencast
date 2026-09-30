@@ -3,8 +3,8 @@
 The tool carries a knowledge base as well as code. An agent reads it before it writes a film, so the
 film follows directing rules, genre practice and platform numbers instead of the agent's taste. This
 file lists that knowledge document by document: what each one answers, its main claims with their
-numbers, and how a landing or the overview film can show the claim. Every number below was checked
-against the document on 2026-09-27; the bracketed source numbers are the document's own.
+numbers, and how a landing or the overview film can show the claim. The numbers come from the named
+documents; the bracketed source numbers are the document's own.
 
 ## The skill — the path from a request to a film
 
@@ -18,8 +18,12 @@ against the document on 2026-09-27; the bracketed source numbers are the documen
   language, look, transitions, material and structure all belong to the owner. The agent infers
   what the request answers and asks the rest in at most three structured questions.
 - **Voice rules.** Drafts are always silent on `stub`. A system voice is never a default and needs
-  the owner's explicit permission. Before drafting, the agent measures the final voice's pace.
+  the owner's explicit permission. The draft's pace starts from the measured estimates of the
+  built-in voices in `help voice`; the agent measures a scene with the chosen voice only when it
+  needs a closer estimate.
 - **A technique table.** For each technique it says when to use it and when not.
+- **Motion before the scenario's effects.** The agent reads the motion-design guide before choosing
+  entrances, transitions and effects, and starts from the recipe named by the genre's Motion paragraph.
 - **A short checklist.** `new` writes a checklist with one box per step, then the technique menu and
   the film-craft rules as lists to consult. The film is handed over only when `grep -c "\- \[ \]" checklist.md` prints 0.
 
@@ -77,6 +81,8 @@ subtitles moved to the top) or rule 9 (a still slide vs a living one). A counter
   - release (a promise within 8 s, 45–90 s);
   - a branch result (missing → appeared → can do → holds → controlled → where to get it).
 - **"In the tool" lines** translate each rule into scenes; every genre has a skeleton (`new`).
+- **A Motion paragraph per genre** points to composition recipes in `docs/motion-design.md` and
+  names the appropriate energy, transitions and effects to avoid.
 
 *How to show:* the six genre skeletons as tiles, each opening its first frame; a trailer's music
 stop heard before the title.
@@ -151,17 +157,37 @@ licence line.
   pictures, words, numbers; a synonym is not a cure.
 - **Norms with numbers:** one accent, tracking not tighter than −0.03em (−0.025em in Cyrillic),
   display weight ≤ 720 in Cyrillic, WCAG AA 4.5:1 for body text, four or more signs — an average film.
-- **In the tool:** eleven themes with `neutral` as the default, a numeric theme test, `lint`
+- **In the tool:** twelve themes with `neutral` as the default, a numeric theme test, `lint`
   counting the signs of a template.
 
 *How to show:* the same slide in the old night theme with a two-colour plate and capital kicker,
 then in `neutral`; the lint count of a template scenario (eight signs) beside a considered one (zero).
 
+## Motion design — order, timing and compositions
+
+`docs/motion-design.md`
+
+- **Order before decoration.** The stable frame arrives first, the important content last; related
+  objects form groups and waves, and only one movement leads attention at a time.
+- **Curves and physics.** Entrances decelerate, exits accelerate; springs suit handled objects,
+  and larger or longer moves take more time. `wave`, `stagger`, `ease` and `pace` express these choices.
+- **Transitions state a relation.** A shared object uses `morph`, a process follows one axis,
+  a detail takes `zoom`, an element opens with `mask`; `flow: auto` connects unauthored seams.
+- **An effect vocabulary with boundaries.** Living cards, streams, chat, maps, terminal output,
+  kinetic type and light each say something; the guide distinguishes built-in fields from effects
+  written on a page whose animations follow the scene clock.
+- **Eight composition recipes**, with reasons and cases to leave them out: the product opening,
+  an AI answer, a setting, the proving number, an ecosystem, a developer tool, a trailer and a release.
+  Use the genre's Motion paragraph to choose the starting recipe.
+
+*How to show:* one recipe's devices joining into a single scene, with each moment labelled by what
+it tells the viewer; compare it with every effect arriving together.
+
 ## The film checklist — nothing skipped
 
 `templates/checklist.md`
 
-One box per step, nine in all, each closed once with evidence (a file, a frame, a number) or `n/a`
-with a reason; below them the menu of 27 techniques and the list of film-craft rules to consult.
+Ten boxes across the eight steps, each closed once with evidence (a file, a frame, a number) or `n/a`
+with a reason; below them the menu of 32 techniques and the list of film-craft rules to consult.
 
 *How to show:* a checklist scrolling, every box ticked with its evidence.

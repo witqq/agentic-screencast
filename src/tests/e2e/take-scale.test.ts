@@ -38,7 +38,7 @@ test("lint names a clip enlarged to fill the frame, and passes one recorded at t
   }
   const story = join(dir, "story.md");
   writeFileSync(story, `# S\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n## a · video\nfile: small.mp4\n\n## b · video\nfile: full.mp4\n`);
-  const found = lint(story).filter((f) => f.rule === "take-small");
+  const found = lint(story).filter((f) => f.id === "take-small");
   assert.deepEqual(found.map((f) => f.scene), ["a"]);
   assert.match(found[0]!.message, /432×768 .* enlarged 2\.50×/);
 });
