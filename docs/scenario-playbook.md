@@ -19,6 +19,12 @@ translation of a rule into scenes, not a claim of the source.
 Every genre has a skeleton scenario in [`templates/`](../templates/) that builds with the free
 `stub` voice. Copy one next to your material and replace the placeholders.
 
+## Turn the explanation into visible actions
+
+Use the [directed-scenes guide](directed-scenes.md) when the story explains a mechanism: it maps questions to ready Report compositions and gives worked films for the first edit of inherited values, palette-color resolution and delivery through a queue. Write the change as an action at a speech beat, then choose an existing effect that makes its relationship visible. A copied value should arrive at its new owner; a queued event should reach its consumer; a changed setting should produce a visible result. A succession of static boxes with spoken explanations leaves that work to the viewer.
+
+Whenever a system interface appears, first show it whole, then focus and zoom into the part the narration names. Apply this in every format, including a portrait short, a screenshot or a presentation. Keep a recognisable location during the approach. Automatic portrait conversion of landscape pages and marked capture footage supplies the opening overview; a native portrait page needs an authored overview before its details. See the [buildable interface scene](../example/interface-overview/README.md).
+
 ## Rules every genre shares
 
 - **The first seconds decide.** Every source asks for the main thing at once; the window ranges
@@ -530,7 +536,8 @@ types, structure (hook → value → proof → payoff), length by purpose, pace 
 vertical-video guide, "Story shape of a short", and what a phone can read in its sections on safe
 zones and text; read them in full. Skeleton: [`templates/reel.md`](../templates/reel.md); its
 `pages/result.svg` stands in for the product's result — a portrait capture (1080×1920) fills the
-frame, a landscape one is cropped round its centre, so keep its subject there.
+frame. A landscape interface page first appears whole and then approaches its detail;
+an ordinary unmarked landscape video keeps its existing crop, so keep its subject there.
 
 **Motion.** The hook is recipe 1 in its vertical form: the result first, filling the frame, with the
 claim as an overlay title — larger than the subtitles and not a copy of the narration. A result that

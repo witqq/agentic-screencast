@@ -22,7 +22,7 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraPerspective, fitScale, markAutomaticCamera, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
+import { cameraPerspective, fitScale, markAutomaticCamera, overviewWindowExpressions, overviewWindowPose, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
@@ -685,9 +685,11 @@ async function main() {
           width: c.area[2] * opts.width, height: c.area[3] * opts.height }];
         if (!s.video) return []; // Page targets are measured in the actual cropped render below.
         const t = Math.min(s.duration! - 1 / opts.fps, c.at + (c.move ?? 0.9) + c.hold / 2);
-        const pose = windowPose(cameraCues, t, takePath, share);
+        const pose = s.autoZoom || marksOf(resolve(SRC, String(s.page)))
+          ? overviewWindowPose(cameraCues, t, takePath, share, s.duration!) : windowPose(cameraCues, t, takePath, share);
         const height = opts.height * pose.z;
-        const top = Math.max(0, Math.min(height - opts.height, pose.y * height - opts.height / 2));
+        const top = height < opts.height ? (height - opts.height) / 2
+          : Math.max(0, Math.min(height - opts.height, pose.y * height - opts.height / 2));
         // Portrait captions span the viewport width. Protect the focused element's vertical
         // band even as the horizontal window follows it or the recorded cursor.
         return [{ left: 0, top: c.area[1] * height - top, width: opts.width,
@@ -703,7 +705,7 @@ async function main() {
             const got = await renderScene({ ...s, stills: undefined, emoji: assets.emoji, __stickers: assets.stickers,
             ...(stageSafe ? { safe: stageSafe } : {}), __src: SRC, beats: s.beats.length, starts, theme } as RenderScene,
               { ...opts, ...(crop ? { width: crop.width, height: crop.height, scale: k * (opts.scale ?? 1),
-                crop: { width: opts.width / k } } : {}), at: s.duration! / 2, probes: targets });
+                crop: { width: opts.width / k, overview: true } } : {}), at: s.duration! / 2, probes: targets });
             const shot = got.shots[0]!;
             // A focus may be measured at another moment than this screenshot; its crop window
             // then has another x. Protect its vertical band across the whole portrait lane.
@@ -863,7 +865,7 @@ async function main() {
         mkdirSync(screenDir, { recursive: true });
         const scale = (opts.height / src.height) * (opts.scale ?? 1);
         const a = await draw({ ...material, __layerPart: "scene" },
-          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
+          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height, overview: true }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
         legibleGot = a.legible ?? [];
         cutsGot = a.cuts ?? [];
         unseenGot = a.unseen ?? [];
@@ -1045,6 +1047,7 @@ async function main() {
         const sub = opts.motionBlur ? opts.motionBlur.samples : 1;
         const camera = cut ? null : cameraPerspective(overlay?.camera ?? [], opts.fps * sub, cursorPath);
         const windowCues = overlay?.camera ?? [];
+        const uiOverview = Boolean(cut && (s.autoZoom || marksOf(resolve(SRC, String(s.page)))));
         const windowShare = cut ? (opts.width / opts.height) / (cut.width / cut.height) : 1;
         // Верх полосы субтитров в кадре сцены: его знает экранная половина слоя.
         let floor = opts.height;
@@ -1052,7 +1055,8 @@ async function main() {
           mkdirSync(dir, { recursive: true });
           const own = cut && part === "screen";
           const { shots, floor: line } = await draw({ ...s, ...stage, ...device, overlay: own ? screenOverlay(overlay) : overlay,
-            __overlayOnly: true, __layerPart: part, __videoCamera: true, beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
+            __overlayOnly: true, __layerPart: part, __videoCamera: true,
+            ...(uiOverview && part === "scene" ? { __uiOverview: true, __cropWidth: fw * windowShare } : {}), beats: s.beats.length, starts, theme: s.theme ?? pitch.theme },
           cut && part === "scene" ? { ...opts, width: cut.width, height: cut.height } : opts);
           shots.forEach((shot, index) => writeFileSync(
             `${dir}/${String(index).padStart(5, "0")}.png`, shot.buf));
@@ -1087,9 +1091,24 @@ async function main() {
           const window = cut ? `${windowScale},crop=${opts.width}:${opts.height}`
             + `:'${windowFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledWidth : "iw")}'`
             + `:'${windowYFilter(windowCues, cursorPath, windowShare, dynamicWindow ? scaledHeight : "ih")}'` : "";
+          const context = uiOverview ? overviewWindowExpressions(windowCues, cursorPath, windowShare, s.duration) : null;
+          const contextGraph = (input: string, output: string): string => {
+            const sw = `trunc(${fw}*${opts.height / fh}*(${context!.z})/2)*2`;
+            const sh = `trunc(${opts.height}*(${context!.z})/2)*2`;
+            const position = (axis: "x" | "y", size: string, frame: number): string =>
+              `if(lte((${size}),${frame}),(${frame}-(${size}))/2,-max(0,min((${size})-${frame},(${context![axis]})*(${size})-${frame}/2)))`;
+            return `${input}scale=w='${sw}':h='${sh}':eval=frame:flags=lanczos[ui];`
+              + `color=c=${fill}:s=${opts.width}x${opts.height}:r=${opts.fps}:d=${s.duration}[canvas];`
+              + `[canvas][ui]overlay=x='${position("x", sw, opts.width)}':y='${position("y", sh, opts.height)}':eval=frame:shortest=1:format=auto${output};`;
+          };
           const inputs = needsOverlay && (camera || cut) ? [...frames(sceneDir), ...frames(screenDir)]
             : needsOverlay ? frames(screenDir) : [];
-          const videoFilter = cut
+          const videoFilter = context
+            ? needsOverlay
+              ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto[material];`
+                + contextGraph("[material]", "[in]") + `[in][2:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
+              : ["-filter_complex", `[0:v]${base}[material];` + contextGraph("[material]", "[in]") + `[in]${fade}[v]`, "-map", "[v]"]
+            : cut
             ? needsOverlay
               ? ["-filter_complex", `[0:v]${base}[bg];[bg][1:v]overlay=0:0:shortest=1:format=auto,${window}[in];`
                 + `[in][2:v]overlay=0:0:shortest=1:format=auto,${fade}[v]`, "-map", "[v]"]
@@ -1108,11 +1127,14 @@ async function main() {
             const plain = byFractions(loupe);
             if (!cut) return { loupe, rect: plain, floor };
             const b = loupe.area ?? [loupe.point![0], loupe.point![1], 0, 0];
-            const pose = windowPose(windowCues, loupe.at, cursorPath, windowShare);
+            const pose = uiOverview ? overviewWindowPose(windowCues, loupe.at, cursorPath, windowShare, s.duration)
+              : windowPose(windowCues, loupe.at, cursorPath, windowShare);
             const scaledWide = Math.round(wide * pose.z / 2) * 2;
             const scaledHeight = Math.round(opts.height * pose.z / 2) * 2;
-            const x = Math.max(0, Math.min(scaledWide - opts.width, pose.x * scaledWide - opts.width / 2));
-            const y = Math.max(0, Math.min(scaledHeight - opts.height, pose.y * scaledHeight - opts.height / 2));
+            const x = scaledWide < opts.width ? (scaledWide - opts.width) / 2
+              : Math.max(0, Math.min(scaledWide - opts.width, pose.x * scaledWide - opts.width / 2));
+            const y = scaledHeight < opts.height ? (scaledHeight - opts.height) / 2
+              : Math.max(0, Math.min(scaledHeight - opts.height, pose.y * scaledHeight - opts.height / 2));
             return { loupe, rect: { left: b[0] * scaledWide - x, top: b[1] * scaledHeight - y,
               width: b[2] * scaledWide, height: b[3] * scaledHeight }, floor };
           });

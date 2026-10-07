@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { REPORT_COMPOSITION_BRIDGE } from "./report-composition.js";
 // Проверка признака слайда по кадру: объём текста, кегли, графический
 // элемент, подложка. Значения снимаются с документа на остановленном
 // кадре, поэтому проверка машинная, а не на глаз.
@@ -26,7 +27,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // у них нет ни импортов, ни экспортов, поэтому компилятор оставляет их
 // обычными скриптами, без обёртки модуля.
 const CLOCK = readFileSync(resolve(HERE, "browser", "clock.js"), "utf8");
-const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8");
+const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8") + "\n" + REPORT_COMPOSITION_BRIDGE;
 // Пороги приёмки объявляет ПОСТАВЩИК материала: слайд разрежен и его
 // текст читают, экран плотен и от него нужно узнавание, а чужой материал
 // вправе мерить себя своими числами. Проверка их не выдумывает и не

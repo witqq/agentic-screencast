@@ -39,6 +39,12 @@ skills/agentic-screencast in this repository and make a one-minute film about ou
 The universal core lives in `src/`. The scenarios, snapshots, recordings and commands of a
 particular film belong to the external consumer project; this repository does not store them.
 
+## Directed compositions and interface orientation
+
+The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and eight actions (`reveal`, `focus`, `connect`, `transfer`, `copy`, `replace`, `compare`, `camera`). A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
+
+Show every system interface whole before focusing on a part, in landscape, portrait, square, still images and presentations alike. Automatic portrait conversion of a landscape page, or a capture video identified by `autoZoom` or capture marks, contains the whole source frame first and then moves smoothly to its detail. It does not postpone narration or source actions. With no focus, the overview remains. Native portrait layouts need an authored orientation shot; ordinary unmarked video keeps its existing framing. The [interface example](../example/interface-overview/README.md) shows the complete sequence.
+
 ## Recording real actions
 
 The `agentic-screencast/capture` module records real actions in the browser:
@@ -294,7 +300,8 @@ For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 fra
 It is selected when the film is vertical, including with `build --format vertical`;
 otherwise `page` is used. Translate file choices with `page.en` and
 `pageVertical.en` when the film has an English variant. Without `pageVertical`,
-a landscape page keeps the usual moving crop in a vertical build. The selected
+a landscape page begins with the complete source viewport in a vertical build,
+then moves smoothly to the assigned detail; without a focus it remains whole. The selected
 portrait page also appears in `frames` and the recording preview; a missing
 selected file is an error, not a reason to use the landscape file.
 

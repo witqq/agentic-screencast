@@ -117,6 +117,10 @@ interface StageScene {
   __noZoom?: boolean;
   /** ширина окна кадрирования в точках страницы (сборка в другом формате): столько видно при k = 1 */
   __cropWidth?: number;
+  /** Establish the complete captured viewport before entering a portrait detail. */
+  __uiOverview?: boolean;
+  /** Film the selected Report composition as a complete stage, excluding page prose. */
+  __compositionFrame?: boolean;
   /** Наезд над видео делает сборка: слой остаётся в координатах кадра. */
   __videoCamera?: boolean;
   /** рамка устройства вокруг клипа: разметка и оформление приходят от сборки готовыми */
@@ -156,6 +160,7 @@ interface ClockApi {
 }
 
 interface Window {
+  __scOverviewPhase?: (time: number, duration: number, firstFocus?: number) => number;
   __clock?: ClockApi;
   __stage: StageApi;
   /** Ночная тема из таблицы тем: сборка вписывает её в начало слоя для сцены, пришедшей без темы. */

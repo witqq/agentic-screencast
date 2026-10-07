@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { REPORT_COMPOSITION_BRIDGE } from "./report-composition.js";
 // Порядок появления элементов слайда.
 //
 // Признак кадра меряет УСТОЯВШЕЕСЯ состояние и потому слеп к тому, как
@@ -32,7 +33,7 @@ import { msg } from "./msg.js";
 // на любом порядке — проверка зеленела бы, ничего не проверив.
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLOCK = readFileSync(resolve(HERE, "browser", "clock.js"), "utf8");
-const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8");
+const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8") + "\n" + REPORT_COMPOSITION_BRIDGE;
 
 const file = process.argv[2];
 if (!file) {

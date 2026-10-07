@@ -15,6 +15,14 @@ longer" [1], and design systems keep extra-long tokens (700–1000 ms) for large
 The shape of the curves, the order of entry and "the longer the path, the longer the move" carry over
 to video unchanged. At 30 fps one frame is about 33 ms.
 
+## Compose a scene with the tools already available
+
+For a mechanism involving code, values or ownership, start with the [directed-scenes recipes](directed-scenes.md). Report supplies the layout and named objects; its timed `copy`, `transfer`, `replace`, `connect`, `compare`, `focus`, `reveal` and `camera` actions show what happens beside the relevant code. Screencast binds them to measured speech. This gives you a moving explanation without writing a new HTML animation for each film.
+
+Use existing effects actively where they carry the scene: `slides.perspective` establishes a product in depth, `slides.layers` separates its parts, `tilt3d` introduces a related group, `dolly` brings the viewer closer, and `push`, `zoom` or `morph` connects successive views. Choose a visible movement for the scene's change and let it settle where reading begins. The worked recipes show inheritance, theme-color resolution and event delivery with those effects.
+
+For every system UI, establish the whole interface first, in any frame format, then move to the relevant part. A portrait opening on a cropped control loses the control's location. Automatic portrait conversion provides that overview for landscape pages and marked captures; a native portrait layout needs the same sequence authored explicitly. This is a shot choice, not another approval or validation stage.
+
 ## What makes a film dull
 
 A dull frame rarely lacks effects. It lacks order in time: everything arrives at once or with the

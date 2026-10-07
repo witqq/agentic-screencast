@@ -123,6 +123,7 @@ docs/film-craft.md. craft alone lists the topics.
 Guides: agentic-screencast help video | help capture | help overlay
         agentic-screencast help slides | help vertical | help text
         agentic-screencast help transitions | help sound | help themes | help voice | help web
+        agentic-screencast help composition
 Use the stub voice for cost-free checks. See README.md for the scenario and extension contracts.`;
 const VIDEO_HELP = `Scenes, the build and its checks: what each command does
 
@@ -150,7 +151,14 @@ agentic-screencast schema <kind> prints a kind's fields.
           (topbar, review, schemeToggle, themeSwitcher: false) unless the
           report's metadata names those keys itself. The compiler reads the
           original source without modifying it, preserving its block targets
-          across identical scene builds.
+          across identical scene builds. With a local Report build exposing
+          composition/object/cue, bN actions bind to this scene's measured
+          speech: reveal, focus, connect, copy, transfer, replace, compare,
+          camera. Frame a specific [data-composition-id="..."] with zoom: 1
+          and spotFrom: 999s so object actions carry the explanation.
+          A composition target fits the whole stage with room for captions;
+          surrounding page prose is kept outside the filmed picture.
+          help composition gives complete recipes and existing effects.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).
@@ -207,6 +215,12 @@ agentic-screencast schema <kind> prints a kind's fields.
           overlay); duration on a silent clip cuts it or holds its last frame;
           device puts it in a browser or phone frame or a plain framed
           window (help slides).
+
+For every system interface and aspect ratio: establish the complete application
+screen first, then focus or zoom into a part whose location is known. Reserve
+an opening beat for the whole screen and name detail focus at b2 or later.
+Native portrait material needs the same orientation. help composition maps
+this into worked scenes, with existing 3D, camera and animation effects.
 
 Building:
   build --source story.md --out film.mp4   the whole film; scenes that did
@@ -1310,18 +1324,26 @@ inside the zone, so a line is shorter than under plain.
 
 A landscape film made vertical without a rewrite:
   agentic-screencast build story.md --format vertical --out short.mp4
-Slides are drawn anew in portrait. A page is rendered in its own landscape
-frame at full density and cut by a 9:16 window that follows the spotlight
-target unless the scene names pageVertical: pages/phone.html. That HTML is
-drawn directly in the portrait viewport, without the landscape crop; a
-missing selected file fails the build. A clip or frozen frame is cut by a
-window that glides between focus areas and recorded clicks. With autoZoom,
-a small named action grows inside that window; follow:"cursor" keeps that
-subject visible until the pointer reaches it, then follows the pointer out
-of the central zone. Captions, titles and cards are
-laid out again inside the vertical safe zone; a card near focus moves to the
-top. Letterbox bars from look are left out and the build report says so; a
-clip in a device frame is re-laid in the portrait frame instead of cut.
+Slides are drawn anew in portrait. A page keeps its landscape viewport at
+full density: the opening camera fits the complete screen into the tall frame,
+then smoothly enters the spotlight's detail path. The overview holds at least
+the smaller of 1.2 seconds and a fifth of the scene, and waits for a later first
+focus; travel takes up to 0.9 seconds, bounded by a fifth of the scene. Without
+focus a capture stays in its full view. The source clock and opening actions
+are unchanged. A frozen frame uses this same page-camera path.
+pageVertical: pages/phone.html instead renders that HTML directly in the
+portrait viewport; a missing selected file fails. Establish its complete
+native screen before details as well.
+Reframed capture takes identified by .marks.json or autoZoom use the opening
+full view too. Then autoZoom enlarges a small action and follow:"cursor" holds
+its subject until the pointer reaches it, before following the pointer out of
+the central zone. Ordinary unmarked supplied clips keep their existing crop
+path; establish an unmarked UI recording with contain/device or an explicit
+whole-screen opening. Captions, titles and cards are laid out again inside
+the vertical safe zone; a card near focus moves to the top. Letterbox bars
+from look are left out and the report says so; a device clip is re-laid.
+See help composition and example/interface-overview for whole → travel → detail
+and Report mechanisms timed to narration, without added checking gates.
 
 Translations live in the same scenario: title.ru:, key.ru: fields
 (kicker.ru:, overlay.ru:, voice.ru: in the header) and a [ru] narration block per scene with the same
@@ -1665,6 +1687,7 @@ switch (cmd) {
     else if (topic === "sound") console.log(SOUND_HELP);
     else if (topic === "voice") console.log(VOICE_HELP);
     else if (topic === "web") console.log(WEB_HELP);
+    else if (topic === "composition") console.log(readFileSync(resolve(HERE, "..", "docs", "directed-scenes.md"), "utf8"));
     else if (!topic) console.log(HELP);
     else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
     break;

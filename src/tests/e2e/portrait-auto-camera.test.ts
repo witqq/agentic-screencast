@@ -95,18 +95,18 @@ test("encoded portrait frames enlarge a narrow action and follow its recorded cu
     "-an", "-c:v", "libx264", "-pix_fmt", "yuv420p", clip]);
   writeFileSync(`${clip}.marks.json`, JSON.stringify({ trimmed: 0, marks: {}, clicks: [],
     actions: [{ kind: "type", t: 0.6, end: 2.5, rect: [0.15, 0.4, 0.08, 0.2] }],
-    path: [{ t: 0, x: 0.19, y: 0.5 }, { t: 1.2, x: 0.19, y: 0.5 },
+    path: [{ t: 0, x: 0.19, y: 0.5 }, { t: 2, x: 0.19, y: 0.5 },
       { t: 2.7, x: 0.86, y: 0.5 }, { t: 4, x: 0.86, y: 0.5 }] }));
-  const make = (follow: boolean): string => {
+  const make = (follow: boolean, bare = true): string => {
     const pitch = join(dir, follow ? "follow.json" : "fixed.json");
-    const out = join(dir, follow ? "follow.mp4" : "fixed.mp4");
+    const out = join(dir, !bare ? "layered.mp4" : follow ? "follow.mp4" : "fixed.mp4");
     writeFileSync(pitch, JSON.stringify({ audio: false, theme: "midnight",
       frame: { width: 180, height: 320, fps: 10, scale: 1 }, reframe: { width: 640, height: 360 },
       scenes: [{ id: "take", page: "take.mp4", video: true, duration: 4, beats: [], caption: "",
         autoZoom: { scale: 1.8, ...(follow ? { follow: "cursor" } : {}) },
         effects: { fade: { in: 0, out: 0 } } }] }));
     const result = spawnSync(process.execPath, [BUILD, "--pitch", pitch, "--out", out],
-      { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, "work"), AGENTIC_SCREENCAST_BARE: "1" } });
+      { cwd: dir, encoding: "utf8", env: { ...process.env, AGENTIC_SCREENCAST_HOME: join(dir, "work"), AGENTIC_SCREENCAST_BARE: bare ? "1" : "0" } });
     assert.equal(result.status, 0, result.stderr.slice(-800));
     return out;
   };
@@ -123,7 +123,13 @@ test("encoded portrait frames enlarge a narrow action and follow its recorded cu
     }
     return count;
   };
-  const early = frame(follow, 1.1), late = frame(follow, 3.3), fixedLate = frame(fixed, 3.3);
+  const layered = make(true, false);
+  const overview = frame(follow, 0.4), early = frame(follow, 1.7), late = frame(follow, 3.3), fixedLate = frame(fixed, 3.3);
+  assert.ok(colored(overview, "red") > 1000 && colored(overview, "blue") > 1000,
+    "the opening frame establishes both sides of the recorded interface");
+  assert.ok(colored(frame(layered, 0.4), "red") > 1000 && colored(frame(layered, 0.4), "blue") > 1000,
+    "the annotation layer keeps the full screen visible during overview instead of prematurely dimming it");
+  assert.ok(colored(overview, "green") < 1000, "the first frame is an overview rather than a premature close-up");
   assert.ok(colored(early, "green") > 2000, "the narrow action is visibly enlarged in the encoded portrait frame");
   assert.ok(colored(late, "blue") > 1200, "the blue destination stays visible after the cursor moves right");
   assert.ok(colored(late, "blue") > colored(fixedLate, "blue") * 4 + 600,

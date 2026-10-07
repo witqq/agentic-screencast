@@ -184,6 +184,9 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
     // Параметры фокуса и лупы лежат внутри строковых полей `spotlight` и `overlay`; их области
     // значений и то, как сборка подгоняет геометрию, агенту нужны до сборки.
     "x-attention": {
+      interfaceOverview: {
+        note: "Establish the complete application viewport before any detail in every format. Automatic portrait conversion of pages and capture takes fits the opening screen, then blends into the focus path without changing source time; native portrait pages need authored orientation. help composition gives recipes.",
+      },
       spotlight: {
         fields: SPOTLIGHT_KEYS,
         shape: ["rounded", "circle"],
@@ -227,10 +230,10 @@ export const FIELD_FORMATS: Record<string, string> = {
   images: "a.png | b.png | c.png | … — three or more screenshots for the wall",
   map: "globe | flat — a turning globe (default) or a flat map of dots with the same arcs",
   spark: "1 3 2 5 | 4 3 5 — a small line under each counter value, one series per value",
-  label: "text", report: "page.md — an agentic-report source, rebuilt for the scene", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
+  label: "text", report: "page.md — rebuilt by agentic-report; composition cues use measured bN narration anchors; a composition target fits the complete stage with room for captions (help composition)", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
   focus: "CSS selector @ anchor | …", zoom: "scale, e.g. 1.2", spotFrom: "seconds when the spot starts", freezeAt: "seconds or @mark",
   speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay); on slides.marquee, points a second, 20–600",
-  autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36}", from: "clip second or @mark where the piece starts",
+  autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36,\"follow\":\"cursor\"}; portrait conversion establishes the full capture before entering the focus path", from: "clip second or @mark where the piece starts",
   to: "clip second or @mark where the piece ends",
   fit: "contain (default: the whole clip, bars of the theme's letterbox colour) or cover [x y]: fill the frame, keep the point x y (shares of the clip, 0.5 0.5 = centre)",
   tail: "seconds after the speech", overlay: "{\"cards\":[…],\"camera\":[…],\"titles\":[…],…}; at is seconds, b2+0.5, b3.end or 40%  (help overlay)",

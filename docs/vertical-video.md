@@ -176,10 +176,9 @@ rather than one shot [14].
 
 ## Showing a product interface in 9:16
 
-A wide screen in a tall frame is either cropped or shrunk until labels become noise [22][36].
+Establish the complete application screen before any detail, in vertical films as in every other format. The overview gives the viewer a map; the later close-up makes its subject readable. A permanent crop loses location, while a permanent whole-screen view can make labels too small [22][36]. Use the [directed-scene recipes](directed-scenes.md#show-the-whole-interface-before-a-detail) to connect those two views.
 
-- Record a vertical region (608×1080, 810×1440) for narrow panels or mobile apps, or record the
-  whole screen and reframe each scene on its subject [22].
+- Record the complete relevant application viewport first, then reframe on its subject [22]. A narrow panel capture needs a whole-screen establishing view so its location is known.
 - Zoom harder than in landscape — 1.25× to 5× on clicks and small details; two or three push-ins on
   the moments the narration names [22][36].
 - One panel at a time; keep the subject near the centre — far corners are cut first [22][36].
@@ -223,11 +222,8 @@ arithmetic from the typography above. So:
 
 1. When the interface is yours to render, lay it out for the phone instead of zooming it: a phone-
    width viewport (360–390 CSS px, text ≥ 16 px) reflows the app by itself.
-2. Otherwise crop to the region being discussed and move the camera between regions; never shrink
-   the whole desktop into the frame (Tella, Screen Studio, Camtasia practice) [49][61][62]. Hold the
-   camera still while text is read.
-3. Open with the whole window for about a second as a map, not to be read, then go into detail —
-   overview first, detail on demand [54].
+2. In every case open with the whole window as a map, then go into detail: overview first, detail on demand [54]. Keep that location understandable during the move and after navigation to another screen.
+3. Crop to the region being discussed after the overview and move between regions (Tella, Screen Studio, Camtasia practice) [49][61][62]. The whole-screen shot gives orientation; the close-up holds still while text is read.
 4. A magnifier for one small detail while the context stays [62]; stacked strips of one wide UI when
    two parts must be seen together.
 5. A device frame costs width — every pixel of bezel is lost text size; leave it off desktop UIs.
@@ -263,7 +259,9 @@ The portrait page replaces the landscape page in a vertical build instead of bei
 Lay it out in frame pixels so the text the viewer must read reaches at least 48 px, then
 inspect `frames --format vertical` and the final film: the report's size alone does not
 prove that subtitles leave the page visible. A live take of your own product recorded at
-a phone-width viewport reflows instead of being zoomed (`help capture`). For
+a phone-width viewport reflows instead of being zoomed (`help capture`). For automatic landscape-to-portrait conversion, pages and capture takes first fit their complete source viewport into the frame, then smoothly enter the existing focus path; opening actions keep their recorded times. Captions remain at output size. An unmarked supplied clip keeps its previous crop behavior, so establish a UI clip explicitly with `contain` or `device`. See [automatic vertical overview](directed-scenes.md#automatic-vertical-overview) and the [buildable example](../example/interface-overview/README.md).
+
+For
 a landscape take used in a portrait film, `autoZoom: {"follow":"cursor"}`
 uses its recorded actions and pointer path to scale a specific subject and
 hold that subject until the pointer reaches it; the crop then follows the

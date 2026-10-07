@@ -145,6 +145,12 @@ agentic-screencast scenes --source story.md
 agentic-screencast script --source story.md
 ```
 
+## Compose explanations and interface scenes
+
+[Directed scenes](docs/directed-scenes.md), also available as `agentic-screencast help composition`, maps a viewer's question to five ready Report compositions and eight timed actions. A report scene binds those actions to measured narration: values copy, move, change and reach their consumer beside the relevant code. The [three complete examples](example/directed-compositions/README.md) combine them with existing perspective, dolly, 3D entrances and transitions. Use coordinated local Report and Screencast builds for this vocabulary.
+
+Every system interface first appears as its complete application screen in any format, then the film moves to a detail whose location has been established. Automatic portrait conversion of pages and capture takes now fits the whole opening screen and smoothly enters the detail path without removing initial actions. Captions stay at output size. The [interface overview example](example/interface-overview/README.md) shows the full screen, travel and close-up. Native portrait pages still need the same authored introduction; unmarked supplied clips keep their existing crop path.
+
 ## Record narration
 
 The `recorded` engine addresses each take by beat text. The recording UI binds only to loopback and stores normalized 48 kHz mono WAV files in the configured data directory.
