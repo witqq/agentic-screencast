@@ -1,12 +1,12 @@
-# Film craft: rules and the mistakes that produced them
+# Film craft: directing rules and counterexamples
 
-This document answers one question: which directing rules must a watchable film keep, and why. Every rule here was paid for: it is followed by the counter-example that made it necessary, taken from real review rounds. Read it before writing a scenario — the rules are short, the counter-examples are what make them stick. What each field and command does, with its numbers, is in `agentic-screencast help <topic>`; story shapes per genre are in [the scenario playbook](scenario-playbook.md); the path from a request to a film is in [the skill](../skills/agentic-screencast/SKILL.md).
+This document answers one question: which directing rules must a watchable film keep, and why. Rules include concrete counterexamples that show the mistake and its consequence. Read the relevant rules before writing the scenario and use the examples to understand their scope. What each field and command does, with its numbers, is in `agentic-screencast help <topic>`; story shapes per genre are in [the scenario playbook](scenario-playbook.md); the path from a request to a film is in [the skill](../skills/agentic-screencast/SKILL.md).
 
 ## 1. The genre: a short film, not a screen recording
 
 A feature film about a product is watched without sound, without a presenter, and without accompanying notes. It has a theme, a beginning, a middle and an end, and afterwards the viewer knows what appeared and why it matters.
 
-**Counter-example.** The first cut was a pile of inserts — "here is a showcase, here is another showcase" — with drawn before/after cards in between. The reviewer's verdict: *"the process and the through-line are not clear"* and *"I never asked for intermediate slides with cards and the rest."* In this failed cut, drawn inserts replaced the working product instead of explaining it. Use live product footage for observable behavior; a directed mechanism, code scene or comparison may explain what that footage cannot expose, then reconnect it to the visible result. The opening poster is one possible device, not the only permitted drawn scene. The rule is about a film of a working product; a pitch, an explainer of an idea or a trailer is made of drawn material by nature, and its playbook section says how.
+**Counter-example.** A sequence of disconnected showcases and generic before/after cards hides the process and replaces the working product with drawn inserts. Show observable behavior in live footage; use a directed mechanism, code scene or comparison to explain what the footage cannot expose, then reconnect it to the visible result. A poster is one possible opening, not a restriction on other drawn scenes. This guidance applies to films of working products; a pitch, idea explainer or trailer may use drawn material throughout.
 
 ## 2. The subject comes from the source, never from imagination
 
@@ -14,25 +14,25 @@ Before writing a single line of narration, read what the work actually did: the 
 
 Never pass a mockup off as a real run: a prototype, a drawn interface or an untested result is labelled as such in the frame itself.
 
-**Counter-example.** The scenario claimed *"the animation no longer lives in the demo code — now it lives in the document"*, a before/after story invented out of nothing. The branch had in fact added animation playback to a product that had none at all. The reviewer: *"where does that phrase come from? do you even understand what the task was?"* A whole cut had to be discarded.
+**Counter-example.** Inventing a before/after claim such as "animation moved from demo code into the document" when the evidence only shows newly added playback changes the subject of the film. Describe the capability the inspected code actually implements.
 
 ## 3. Parts follow a meaningful order and preserve context
 
 Parts follow in a meaningful order. Close the current question and make the next relation legible: preserve a shared object, carry a result into the next scene, retain a landmark or return to an overview when location would otherwise be lost. Returning after every part is not mandatory. The order for a film about a branch's result — missing, appeared, can do, holds, controlled, where to get it — is in [the playbook](scenario-playbook.md), section "A branch result or a new feature".
 
-**Counter-example.** Shots were ordered by how convenient they were to record, so capability demos, an admin panel and a diagnostic report alternated with no logic. The viewer could not tell whether the film was still describing the same thing.
+**Counter-example.** Alternating capability demos, an admin panel and a diagnostic report by recording convenience obscures their relationship. Order them by the viewer's question and preserve a shared object or landmark.
 
 ## 4. Narration is one continuous text, cut afterwards
 
 Write the whole narration first, in whole sentences that pick each other up by pronoun, conjunction or repeated key word. Only then split it across shots.
 
-**Counter-example.** Captions were composed shot by shot and came out as labels: "Trajectory", "Entry", "Loop closed". The reviewer: *"you stuffed it with telegraphic lines and an incomprehensible narrative."* The fix was not better labels but a written through-text of twenty-one sentences.
+**Counter-example.** Isolated labels such as "Trajectory", "Entry" and "Loop closed" do not form an explanation. Write connected narration before assigning its sentences to shots.
 
 ## 5. One text layer at a time
 
 A bottom caption plate lives on overview and motion shots; a card lives only on a held frame with a highlight. They never appear together, and never more than two lines are on screen. Subtitles are different: they are the speech for viewers without sound and stay on, so a card must not be laid over them (rule 34). Reading time on a landscape screen is roughly fifteen characters per second plus a second to take the line in; a phone reads slower — see [the vertical-video guide](vertical-video.md), "Architecture and real interfaces on a phone".
 
-**Counter-example.** A shot carried a bottom caption and a side card at once: *"there are cards and subtitles at the bottom — it is not clear what to read."*
+**Counter-example.** A bottom caption and a side explanation card demand competing reading. Choose the explanation layer for the moment and keep speech subtitles clear.
 
 ## 6. A caption must not cover what it describes
 
@@ -42,7 +42,7 @@ For a flat but important control, name it as the scene target and use
 image detail. Open the final frame in every format, since the subject can move
 inside a portrait crop.
 
-**Counter-example.** A debug window sat on top of the very animation the shot was about: *"and the debug window covers the animations?"* Tooling windows are moved to the edge of the frame before the take.
+**Counter-example.** A debug window over the animation hides the evidence. Move the window to a free region before recording and inspect the composed frame.
 
 ## 7. The camera explains where and how to look
 
@@ -50,65 +50,62 @@ Overview, push-in, freeze, highlight with dimming, slow motion and pull-out are 
 
 Zoom and pan inside the product where possible, so the frame shows a live editor rather than a cropped recording.
 
-**Counter-example.** The first cut was assembled from static pieces: the camera never moved and no state was ever emphasised. The request that followed described the missing rhythm exactly: *"the frame freezes, the camera starts moving around it with zoom, focusing attention and lighting up regions, and then returns to the overview — with slow-motion tricks and so on."*
+**Counter-example.** Static pieces with no emphasis make the viewer discover the subject unaided. Use a purposeful focus, camera move, freeze or slow motion where it reveals the relation, then settle for reading.
 
 ## 8. Freezing alone is not a rhythm
 
 A film that only ever freezes becomes a slideshow of stills. Retiming (`speed`) is the second device, and it belongs in the scenario, not in a hand-run `ffmpeg` command outside it.
 
-**Counter-example.** *"Freezing, for example, is not enough — I want slow-motion tricks too."*
+**Counter-example.** Repeated freezes with no change of pace turn action into a slideshow. Combine purposeful holds with retiming where slowing the actual movement helps perception.
 
 ## 9. Motion develops the explanation; holds give time to understand
 
 A scene develops through visible actions, relations or discoveries. Use the existing slide, object and camera effects actively to make those changes tangible. After a change, keep the result still when the viewer needs to read, locate or compare it. A whole-interface opening is a purposeful hold. A static page beneath unrelated narration is the failure this lesson addresses; continuous ambient motion is not a substitute for explanation. The tool's slides provide an ambient layer (`help slides`), but a scene may also deliberately settle.
 
-**Counter-example.** *"Generating boring static slides is a bad option; all diagrams, slides and static things must be alive, must capture the viewer's attention and carry them through the whole film — it is a video, not a dull presentation."* Measured, the quiet parts of a slide were nearly identical frame to frame (PSNR 56–62 dB between frames 0.4 s apart); with an ambient layer the same points measure 16–34 dB.
+**Counter-example.** An unchanged slide beneath unrelated narration does not demonstrate a mechanism. Develop its relevant state or relation. Frame differences of 56–62 dB PSNR at a 0.4 s interval indicate nearly identical pixels; 16–34 dB with ambient movement indicates pixel change, but neither measurement proves understanding.
 
 ## 10. The look is a named theme, not a pile of hand-set variables
 
 One word in the header styles slides, captions and cards together. Hand-tuning a variable here and there produces a film whose parts disagree.
 
-**Counter-example.** *"The style of all the static elements you draw is very crude and sloppy — this is a big problem."* Captions came from one palette and cards from another, and a light theme still drew a dark chapter background with dark text on it, because the chapter's colours were written into the rules instead of coming from the theme.
+**Counter-example.** Captions from one palette and cards from another make the film incoherent; hardcoded dark text on a dark chapter can also destroy contrast. Use the named theme's tokens for each role.
 
 ## 11. Cover the inventory, not the convenient parts
 
 List the capabilities from the code first. Then give every line either a shot number or a written reason for its absence. Control surfaces, per-item playback, error reports and behaviour under load are part of the inventory.
 
-**Counter-example.** *"Some functionality and some kinds of animation are not told or shown at all."* An inventory compiled afterwards revealed twelve effect presets, per-selection playback, single-behaviour playback, queue editing and the "not played" report — none of which had appeared in the film.
+**Counter-example.** Showing only convenient presets can omit per-selection playback, single-behaviour playback, queue editing or failure reports. Map the complete capability inventory to shots or explicit exclusions.
 
 ## 12. Show what it holds under load
 
 A film about a capability must say how much of it the product survives. Use a load document, keep the product's own frame counter visible in that shot, and take the numbers from the recording. Every number on screen names its unit, and a figure that changes names its date — "as of <date>"; a number the recording does not show is not put on screen.
 
-**Counter-example.** *"What is still missing is a demonstration of performance under load."*
+**Counter-example.** A capability film without a real load example provides no evidence of its capacity. Show the load and the product's measured frame counter with units and date.
 
 ## 13. The animation being filmed must itself be worth filming
 
 Movement is broad: displacements in hundreds of points, scale from a fraction to one, rotations in tens of degrees. Two frames half a second apart must differ visibly. Nothing overlaps, in rest or in motion or while breathing. Text does not turn upside down. Every declared behaviour is verified to actually play before the take.
 
-**Counter-examples**, each a separate review round: *"half the animations don't work"*; *"why is the spring so weak"* (it settled in half a second with no overshoot); *"the shares presentation — you can't see anything moving at all"* (a slide's scene does not start by itself; the stand starts it); *"the slides look crooked, and so do the elements on them"* (endless 1.5° micro-rotations); *"is it intended that the cards on one slide are drawn upside down?"* (a 180° turn); *"the spring ends up on top of the line where another animation is"*; *"the chart columns run into the title"*; *"the circles in the ring overlap each other"*; *"orbits are a completely unreadable animation"* (small loops read as jitter).
+**Counter-example.** A spring that settles in 0.5 s without visible overshoot can look inert; a slide whose show is never started does not animate. Endless 1.5° rotations read as jitter, a 180° turn makes text upside down, and a weak orbit makes small loops unreadable. Overlapping springs, chart columns crossing a title and intersecting orbit items obscure their subjects. Confirm playback, separation and useful amplitude at the actual viewing size.
 
 ## 14. Verify by measurement, not impression
 
 Check the finished file: duration, frame size, presence or absence of an audio track; the promised motion plays on its intended interval (compare two frames 0.4–0.5 s apart there); intentional orientation and reading holds keep a readable completed state; changing captions match their intended moments; each card appears, holds and leaves when the scenario asks it to; no element overlaps another in key frames; claimed numbers match the recording.
 
-**Counter-example.** A cut was handed over in which the spring did not move and one slide stood still; the reviewer found it, not the author. And then, plainly: *"enough scenarios — show me the finished video with all my remarks fixed."*
+**Counter-example.** A promised spring that never moves or an unintentionally static slide can pass a scenario review. Inspect the finished file and the interval where the action should happen.
 
 ## 15. Ask before building
 
 Theme, length, narration mode, language, pace and depth belong to the person who asked for the film. Offer the options as a structured choice instead of guessing.
 
-**Counter-example.** *"Make sure the skill and the help describe all the product's functionality, including the different narration modes on request, and that before building the video the agent asks the user about the nuances and offers a choice among all possible options, if the user did not state them and they are not clear from the context."*
+**Counter-example.** Guessing narration mode, length, depth or look can produce the wrong film even when it renders correctly. Infer settled choices from the request and ask only about choices still open.
 
 ## 16. A caption must say what is on screen right now
 
 A caption is not a slogan. It names the thing the viewer is looking at this second, in the words the
 product itself uses, so that the frame and the line confirm each other.
 
-**Counter-example.** A round of captions read "the document does not change", "three tracks in one
-beat", "the limit starts here" while the frame showed tiles, a roadmap and a load grid. The reviewer:
-*"what meaning do your captions carry — zero, it's nonsense."* The fix is not better wording but a
-different rule: write the caption from the frame, not from the plan.
+**Counter-example.** Captions such as "the document does not change", "three tracks in one beat" or "the limit starts here" over unrelated tiles, a roadmap or a load grid have no visible referent. Write each caption from the actual frame.
 
 ## 17. Stop time inside the shot, do not cut to a still
 
@@ -117,18 +114,14 @@ frame with everything else dimmed, time resumes. Cutting the freeze into its own
 jump, detaches the card from the moment it explains, and leaves the rest of that scene standing
 still because its material ran out.
 
-**Counter-example.** Seven separate "freeze scenes" were cut into a film; measured, two of them had
-whole seconds with identical frames, and the reviewer saw cards "off to the side that nobody looks
-at". Stopping time inside a clip and moving the camera over it are `speed` holds and `overlay.camera`
-(`agentic-screencast help overlay`).
+**Counter-example.** Seven separate freeze scenes detach explanations from the actions they interpret and can leave seconds of exhausted footage standing still. Use speed holds and overlay.camera within the continuous shot.
 
 ## 18. Dimming is the point of a highlight
 
 A neon rectangle over footage says nothing by itself; what directs the eye is the rest of the frame
 going dark. If the tool draws only the ring, the shot reads as decoration.
 
-**Counter-example.** *"Why is there no dimming and no time stops, as I asked?"* — the overlay drawn
-over imported video had its dim deliberately disabled, and nobody noticed until the film was watched.
+**Counter-example.** A neon ring with dimming disabled decorates the footage without directing attention. Keep the chosen highlight's dim visible and clear of the evidence.
 
 ## 19. Screen recording has its own frame budget — measure it
 
@@ -170,9 +163,7 @@ await page.evaluate(rect => window.__showCapture.frame(rect, { padding: 120, dur
 await page.evaluate(id => window.__showCapture.play(id), steps[2].id);
 ```
 
-**Counter-example.** *"Different scenes render the same browser scene, but the reloads are visible and it
-looks bad."* — every showcase was a separate document chosen by a URL parameter, so each scene began with a
-page load.
+**Counter-example.** A URL-selected showcase loaded for each scene introduces reloads and blank frames. Open the application once and drive its showcases in place.
 
 ## 22. Time marks must come from the recording, not from the wall clock
 
@@ -184,8 +175,7 @@ film ends up describing one thing while showing another.
 Take the zero from the moment the recording starts, or write a visible marker into the frame and find it in
 the footage.
 
-**Counter-example.** A caption said "twenty-four tiles rearrange into a ring" over a shot of the roadmap:
-the cut was six seconds late, exactly the time the document took to load.
+**Counter-example.** Cutting six seconds late because the script clock starts after loading puts a caption about tiles forming a ring over a roadmap. Align marks with the recording's actual zero.
 
 ## 23. When debug chrome is to be hidden, hide it AFTER it exists, and verify it is gone
 
@@ -194,8 +184,7 @@ before the panels mount matches nothing: inject it after the application has dra
 text back and fail the shoot if the panel names are still there. Either way no panel may lie over the
 figures under discussion (rule 6).
 
-**Counter-example.** *"And the debug window covers the animations?"* — the rule was applied three seconds
-after load, while the panels appeared later.
+**Counter-example.** A hide rule applied three seconds after load can still run before a debug panel mounts. Apply it after the panel exists and verify the panel no longer covers the subject.
 
 ## 24. A card arrives as an object, not as a sticker
 
@@ -203,8 +192,7 @@ Fading a card in leaves it looking pasted onto the footage. Give it `motion: "fl
 from: it enters from beyond the frame, overshoots, settles, and leaves the same way. Keep the card beside
 the highlighted region, never on top of it; one text layer at a time is rule 5.
 
-**Counter-example.** *"The cards are not tied to the scene at all, they are drawn somewhere in the corners"*
-and *"there are both cards and subtitles, it is not clear what to read"*.
+**Counter-example.** A card floating in an arbitrary corner has no relation to its subject, and competing cards and captions make reading ambiguous. Attach the card spatially to the held subject and use one explanation layer.
 
 ## 25. A video scene with speech is cut to the speech, not to the clip
 
@@ -219,8 +207,7 @@ recorded motion. Size the hold from the measured final voice and inspect both
 the held frame and the action after it. A scene using `autoZoom` cannot also
 use `speed`: put the introductory pause into its recorded take instead.
 
-**Counter-example.** A thirteen-second load shot became seven seconds in the film, and the wave over the
-tiles never finished.
+**Counter-example.** A thirteen-second action cut to seven seconds because its narration ends early loses the animation's result. Set sufficient scene duration and inspect the action through completion.
 
 ## 26. Requirements come from the owner, not from the agent's taste
 
@@ -232,18 +219,15 @@ Write down only what the owner said, and mark every line with where it came from
 against a requirement, look at the source: a requirement with no quote behind it is a guess, and guesses do
 not earn a red mark.
 
-**Counter-example.** *"There was no requirement to remove debug windows from the frame."* Two rounds of the
-film had been shot with the panels deliberately hidden, and the control panel — one of the branch's main
-results — never appeared at all.
+**Counter-example.** Hiding a control panel without a requirement can remove a main product capability from the film. Follow the owner's actual requirements and keep the panel clear of the evidence.
 
 ## 27. Take stock of the products and the showcases before writing a scenario
 
 Rule 11 counts what the product can do; this one counts where it lives. A branch usually touches more than the surface the agent happened to open. Count them first: how many
 applications, how many prepared documents, how many kinds of the thing the film is about. Put the count in a
-table with a column "was it in the previous film", and let the scenario answer for every row.
+table with a planned shot or explicit exclusion for each row.
 
-**Counter-example.** *"And where did the presentation demo go — you have lost half of the aspects."* The
-first film covered eight showcases of one product and none of the other, because nobody had listed them.
+**Counter-example.** Covering eight showcases in one application while omitting the presentation application loses part of the subject. List all affected surfaces and map them to shots.
 
 ## 28. One chapter, one document
 
@@ -254,8 +238,7 @@ slides are the showcases — and drive it with camera moves and slide switches.
 Building such a document is cheap when the showcases already export their shapes and their recorded scenes:
 the gala document imports them whole, so a fix in a showcase reaches the film by itself.
 
-**Counter-example.** A scenario assigned three showcase documents to one chapter; shooting it honestly meant
-three reloads, and the chapter had to be rebuilt around one document instead.
+**Counter-example.** Three showcase documents in one chapter require three reloads. Put the chapter's material in one document and navigate it in place.
 
 ## 29. Fail the shoot on a page error
 
@@ -266,9 +249,7 @@ where nobody watching a film will ever see it.
 `recordTake` already fails a take on a page error; a shooting script of your own subscribes to page errors
 and throws. It costs one line and catches the class of defect that no frame comparison finds.
 
-**Counter-example.** A showcase of nine kinds of animation played none of them for three whole builds: one
-card was driven both by a step value and by a numeric fade on the same property, the show refused to compile
-the conflict, and the frames looked like an intentional still.
+**Counter-example.** Driving one property both by a step value and a numeric fade can prevent an animation from compiling. Static frames alone disguise this as a pause; fail the take on the page error and fix the conflict.
 
 ## 30. The tool's demo assets are not product footage
 
@@ -276,8 +257,7 @@ Fixtures carry a demo picture, a joke asset, a placeholder name. They are meant 
 test document, and they read as sloppiness in a film meant for an audience. Build the film's document
 without them, or replace them with something the product would really contain.
 
-**Counter-example.** The pitch slide of a product film carried a joke meme photograph — the fixture's demo
-asset, passed through into the deck.
+**Counter-example.** A fixture's joke photograph carried into a product pitch reads as careless product content. Replace fixture assets with appropriate material before capture.
 
 ## 31. After the build, check every caption against its frame
 
@@ -288,8 +268,7 @@ and stops trusting the rest.
 After the build, put the frame and its caption side by side for every scene. That is the only check that
 catches a sentence which was true of an earlier take.
 
-**Counter-example.** A caption promised a picture arriving from beyond the slide edge; the picture had been
-removed from that document two builds earlier.
+**Counter-example.** A caption about an image entering from beyond the slide edge is false if that image is absent from the current document. Compare each finished frame with its line.
 
 ## 32. Everything drawn wears the theme — and so does a live take
 
@@ -298,10 +277,7 @@ token of it, each theme stores every token, and a part of a film can wear its ow
 bakes its cursor, clicks, key caps and highlight into its pixels, so it is recorded in the theme of
 the scene that will show it (`recordTake({ theme })`), and `lint` names a take recorded in another.
 
-**Counter-example.** *"Half of the effects and interface elements and built-in blocks ignore the
-theme's style."* A scanner over the drawing code found colours and sizes written in place, a
-transition flashed in fixed colours between two themed scenes, and a brand theme kept the base blue
-in its rings and progress bar.
+**Counter-example.** Hardcoded colors and sizes leave rings, progress bars and transitions in the base style inside a brand theme. Use theme tokens throughout, including live takes.
 
 ## 33. An attention tool shows the whole subject
 
@@ -310,10 +286,7 @@ that pushes the subject past the frame edge all point at the wrong thing. Choose
 scale so the whole subject stays in view; how the tool fits a lens, a circle and a push-in, and how it
 reports what it had to lower, is in `agentic-screencast help text` and `help overlay`.
 
-**Counter-example.** *"Some loupes and other things clearly need parameters: even in the video you
-can see that areas are highlighted and zoomed strangely, cropping or enlarging the wrong pieces."*
-A loupe over a KPI card showed "day / 480 / last week" instead of "Orders today 12,480"; another cut
-the top off the very bar the narration named.
+**Counter-example.** A loupe that shows "day / 480 / last week" instead of "Orders today 12,480", or cuts the top off the named bar, omits its own evidence. Fit the complete target and use a push-in when the lens cannot hold it.
 
 ## 34. Nothing covers the line of speech
 
@@ -321,14 +294,13 @@ A loupe, a card or a title low in the frame is drawn over the subtitles as easil
 else. The bottom band belongs to speech: bottom-anchored text stands above it, and the loupe keeps
 above it when it fits.
 
-**Counter-example.** A loupe fixed to show a whole bar grew downwards and hid the middle of the
-subtitle for four and a half seconds: "A loup… evening peak".
+**Counter-example.** A loupe growing into the subtitle band can hide speech for 4.5 s. Keep its final bounds above that band or choose another placement.
 
 ## 35. Two subtitle lines, measured in every language and format
 
 "Two lines" is a promise about the screen, not about characters. A vertical line holds about a
-quarter of a landscape one, and Cyrillic is wider than Latin: a chunk cut for landscape English ran
-to three and four lines in the Russian vertical film and climbed onto the slide. Look at every
+quarter of a landscape one, and Cyrillic is wider than Latin: a chunk sized for landscape English can occupy
+three or four lines in Russian portrait and overlap the slide. Look at every
 language and every format of the film.
 
 ## 36. Frame-anchored text shares one step
@@ -337,9 +309,7 @@ Cards, lower thirds, titles and subtitles stand one step of the theme from the s
 every plate has the same inner padding. Mixed measures read as carelessness long before anyone can
 say what is wrong.
 
-**Counter-example.** *"Some elements show inconsistent padding and alignment."* A top title stood at
-13% of the frame instead of one step from the zone; a right-hand lower third in a vertical build sat
-65 points outside the zone because two rules each reset one of its sides.
+**Counter-example.** A top title at 13% of the frame and a lower third 65 px outside the portrait safe zone do not share a spacing system. Anchor each role to the same theme step and resolve both sides together.
 
 ## 37. Name the moments to check in the scenario
 
@@ -355,8 +325,7 @@ takes carry the old look in their pixels; rebuilding the film does not touch the
 list every such input with where it came from and how it is remade, remake it, and check that its
 file changed.
 
-**Counter-example.** A tour of all themes kept showing an old theme sheet, old takes and an old
-vertical cut after the product itself had been restyled.
+**Counter-example.** A theme tour can display an obsolete theme sheet or a take with baked-in old colors even after the scenario is rebuilt. Regenerate the affected inputs in the chosen look.
 
 ## 39. The sheet you look at must not hide what you look at
 
@@ -369,8 +338,7 @@ Find the single strongest result of the work and give it the film's most promine
 best-lit shot. Covering the inventory does not mean equal weight: a headline result that appears for
 two seconds among eighteen clips has buried the film's point.
 
-**Counter-example.** The analysis of a failed cut named its second cause plainly: the branch's
-strongest result was barely shown, lost among synthetic showcases of equal length.
+**Counter-example.** A headline result shown for two seconds among eighteen equal-length synthetic clips loses its importance. Give that result more prominent framing and reading time.
 
 ## 41. The inventory serves the story, not the other way round
 
@@ -378,9 +346,7 @@ The capability table decides what must appear, not the order or the rhythm. If t
 one clip per table line joined by hard cuts, it is a catalogue: group the capabilities into story
 beats and lead from one to the next.
 
-**Counter-example.** A film of eighteen clips with hard cuts, its scenario subordinated to a coverage
-checklist, was judged *"not a short dynamic trailer with a full story from start to end — just a set
-of scenes."*
+**Counter-example.** One hard-cut clip per capability-table row produces a catalogue, even with complete coverage. Group related capabilities into story beats and connect the changes.
 
 ## 42. Stage the feature in content that looks like real use
 
@@ -388,9 +354,7 @@ Show the capability in documents that look like the boards and decks people real
 content, real layouts — not in synthetic grids of identical shapes. An animation that reflects no real
 use case reads as a tech test, not as a product.
 
-**Counter-example.** *"The animations are ugly and do not reflect real use cases"*, and earlier:
-*"where are the wow demos that look like real boards and presentations, so it is visible how it all
-works in the context of real products?"*
+**Counter-example.** A grid of identical shapes with no realistic content demonstrates a renderer test, not a useful product scenario. Stage the feature in boards or presentations that resemble actual use.
 
 ## 43. The filmed material is designed too
 
@@ -398,8 +362,7 @@ The theme styles what the tool draws; the product material in frame needs the sa
 deliberate palette that agrees with itself and with the film's theme, a contemporary look, and varied
 kinds of motion. Clashing colours or many identical animations read as crude, whatever the camera does.
 
-**Counter-example.** *"Why are some colours not coordinated?"* and *"why are all the animations the
-same?"* — a stress document played five hundred copies of one movement in unmatched colours.
+**Counter-example.** Five hundred copies of one movement in unrelated colors make a stress document visually crude. Coordinate the palette and vary motion by its purpose.
 
 ## 44. Captions and cards speak in the film's chosen voice
 
@@ -407,9 +370,7 @@ Write captions in engaging, natural language appropriate to the film. A trailer 
 no forced triads ([the visual-design guide](visual-design.md), "Words on screen"). Vary the cards' form and entrance so they do not become
 one repeated template.
 
-**Counter-example.** *"The captions must be interesting and written in normal language, as if this
-were a game trailer telling about new features."* The analysis of the cut found the text descriptive
-rather than trailer-like and every card alike.
+**Counter-example.** Identical descriptive cards do not carry a trailer's energy or a mechanism's precision. Use the chosen voice, name visible facts and vary card form where the meaning changes.
 
 ## 45. Vary the camera; one repeated move is a tic
 
@@ -417,8 +378,7 @@ The camera vocabulary of rule 7 is a set to choose from, not a routine. Mix devi
 push-in, pan across, slow motion, a freeze with a walk, a pull-out — and pick each for what the moment
 needs.
 
-**Counter-example.** Every shot of a failed cut used the same move → hold → return over a cropped flat
-recording; the analysis named it as the third reason the film was not cinematic.
+**Counter-example.** Repeating move → hold → return over the same cropped recording makes the camera mechanical. Choose each gesture for the moment rather than repeating one routine.
 
 ## 46. Keep the picture sharp: record big, encode once
 
@@ -429,8 +389,7 @@ script and the browser zooms the live page, keeping text sharp; keep that script
 folder. Check the scene conditions in `help capture` and the build's `live-camera` warnings: when
 live recording is unavailable or fails, the push-in stretches the recorded pixels.
 
-**Counter-example.** A cut assembled from Playwright webm takes, re-encoded before assembly and again by
-the build, looked muddy in every push-in.
+**Counter-example.** Encoding Playwright WebM to MP4 and then encoding it again in the film compounds loss and makes push-ins muddy. Keep the original take and encode the final film once.
 
 ## 47. Every remark stays on a list until the frames show it fixed
 
@@ -438,9 +397,7 @@ Keep every remark from every review round in one checklist with its quote, and b
 next cut check each line against the frames. A remark the tool cannot satisfy is not dropped: extend
 the tool, or say so, before shooting — not in the middle of the shoot.
 
-**Counter-example.** *"Why do you ignore half of my remarks and not improve the engine?"* — remarks from
-earlier rounds had quietly fallen out of later cuts, and the tool was being extended while the takes
-were already being shot.
+**Counter-example.** Dropping earlier remarks from the current checklist lets the same defect survive into another cut. Keep each unresolved remark until a frame shows it fixed, and resolve tool limitations before shooting.
 
 ## 48. When cuts keep failing, rethink the concept
 
@@ -448,8 +405,7 @@ If successive cuts only fix defects and the owner still says it is not a film, s
 to the story, the genre and the material. Frame-difference checks cannot tell a cinematic film from a
 dull one; only watching it against the intended genre can.
 
-**Counter-example.** Six versions in twenty hours each repaired the defects of the last, the concept was
-never revisited, and every measured check was green while the owner called the result unwatchable.
+**Counter-example.** Repairing local defects across six versions can leave the same weak concept while every mechanical check is green. Reconsider story, genre and material when the whole film still fails its purpose.
 
 ## 49. The quality bar depends on the audience
 
@@ -457,8 +413,7 @@ A home-made player page is fine for an internal introductory film; for an extern
 player, and write the audience into the brief so the choice is made up front. The voice is not a matter
 of audience: it follows the skill's section Voice for every film.
 
-**Counter-example.** A trial film made from the skill was judged good enough as an internal intro, but
-not for outsiders: the voice and the player page were the first things to replace.
+**Counter-example.** An internal introductory player may be inadequate for an external audience. Choose the player for the stated audience; obtain the voice choice independently.
 
 ## 50. Camera moves need time — lint estimates it, the build measures it
 
@@ -466,8 +421,7 @@ A camera move needs time to arrive, hold and leave; `help overlay` gives the min
 `lint` estimates the timing from the beats and the build measures the real one; confirm each move in the
 stills.
 
-**Counter-example.** A trial film's focus moves collided with an overlay, which only the build revealed.
-The check had to be run on the finished frames, not on the scenario.
+**Counter-example.** Focus moves that collide with an overlay can appear valid at estimated narration times. Inspect their positions using the final measured speech.
 
 ## 51. Subtitles: readable first, big enough, one accent at most
 
@@ -481,9 +435,7 @@ the tool draws) — and within two lines. Colour carries at most one word per li
 keyword, in a colour that still reads against its backing. Sources and numbers:
 [the subtitles research](research/subtitles.md).
 
-**Counter-example.** The first subtitles were 41 px in a 1080p frame — under 4% of its height —
-on a plate two-thirds transparent: over a light product page white text sat on grey below readable
-contrast, and in vertical films the words were a third of the size the platforms' own captions use.
+**Counter-example.** 41 px subtitles in a 1080p frame occupy under 4% of its height; a two-thirds-transparent plate over a light UI gives white-on-grey text insufficient contrast. Use a readable final size and backing, especially in portrait.
 
 ## 52. Transitions express the relation between scenes
 
@@ -492,9 +444,7 @@ a simple film as a starting grammar, then expand it when another relation needs 
 thing carried to its detail (`morph`), a hard cut on the beat in a trailer (`cut`), a pause into black or
 white before a title (`dip`). Keep `dots` and `pixelate` off text: they shred letters mid-cut.
 
-**Counter-example.** A comic action trailer built before `cut` existed went through black between every
-two shots of its first acts — each scene faded out and in — and read soft where a trailer lives on hard
-cuts; the agent that made it named this the first thing the tool lacked.
+**Counter-example.** Fading through black at every seam softens an action trailer that needs hard cuts. Choose cut for a beat and reserve dip or fade for a meaningful boundary.
 
 ## 53. Move the subtitles, never pad the content
 
@@ -504,11 +454,7 @@ in on the subject — never add empty space under the page to clear a band for t
 scroll through the product's real content or move the camera; a scroll that needs invented space below
 the content is the sign that the subtitles are in the wrong place.
 
-**Counter-example.** A vertical film of a chat product added a 60vh grey block under the page and
-scrolled the panels up above the subtitle band. On the phone the lower third of most frames was an empty
-grey area, the interface looked cut off, and the filler took more room than the product. The owner's
-verdict: the filler must not exist — the whole frame is the phone's screen, the subtitles a narrow band
-over its least important part.
+**Counter-example.** A 60vh grey filler under a phone interface wastes the lower third and cuts the product off. Move the subtitles or reframe real content without inventing padding.
 
 ## 54. Cut a piece from mark to mark
 
@@ -516,10 +462,7 @@ Name the start and the end of every shot in the take with `take.mark()`, the end
 navigation or scroll that changes the screen, and cut the scene with `from: @start` and `to: @end`.
 Seconds counted by hand from a mark go stale the moment the take is recorded again.
 
-**Counter-example.** Pieces cut as "the mark plus four seconds" kept their numbers when a take was
-re-recorded; the shot about the steps ran into the next page, and a caption about the steps stood for
-3.5 seconds over the wrong screen. The same film's `scrollIntoView` scrolled past the diagram into the
-next page inside one shot, which no single still caught.
+**Counter-example.** A slice defined as a mark plus four seconds becomes stale after re-recording and can leave a caption over the next screen for 3.5 s. Mark both boundaries and keep navigation outside the slice.
 
 ## 55. A three-second probe take before the whole take
 
@@ -528,9 +471,7 @@ into a scene, and look at one frame at full size. The size of the recorded pictu
 product chose at that width, and the fonts are all visible there, and all of them are expensive to
 discover after a full take (`help capture` says how a take's pixels are sized).
 
-**Counter-example.** A phone layout recorded at a 432×768 viewport with a device scale factor of 2.5
-came out as a small picture in a corner of the 1080×1920 frame. It was found only after two full
-recordings, and repaired with a hand-made browser launch around `capturePage`.
+**Counter-example.** A 432×768 CSS viewport recorded with device scale factor 2.5 can produce a small picture in a 1080×1920 output when recording scale is misconfigured. Verify viewport, output scale and font size on a short probe before the whole take.
 
 ## 56. Every factual clause of the narration is checked against its source
 
@@ -540,10 +481,7 @@ role is named as one ("the test user"), and a translated request is marked as a 
 as if it was said. A derived number is marked as derived, an unknown one is said in words, and a time
 names its time zone.
 
-**Counter-example.** A narration said "eight steps" where the eight counted the start and the end, and
-"first it asked" where the question came in the same message as the proposal; a scripted test role was
-called "the person", and a translated request was quoted as spoken. Each was a small untruth the owner
-found in the finished film.
+**Counter-example.** Calling start and end markers "eight steps", describing simultaneous proposals and questions as sequential, presenting a test role as a real person, or quoting a translation as the original misstates evidence. Preserve the source's counts, order and status.
 
 ## 57. Review at the size the viewer sees, and between the stills
 
@@ -551,9 +489,7 @@ Watch a vertical film at the size of a phone screen, and look at a few frames at
 as thumbnails of a contact sheet. Stills catch named moments; to catch what happens between them, sample
 every scene at about one frame a second (`stills: every 1s`).
 
-**Counter-example.** A review of 180–360 px contact-sheet stills passed a film whose lower third was an
-empty grey block — obvious on a phone, invisible on thumbnails — and single-moment stills missed a page
-change in the middle of a shot.
+**Counter-example.** 180–360 px contact-sheet thumbnails can hide an empty grey lower third that is obvious on a phone, while single stills miss navigation between them. Inspect full-size frames and sample the interval.
 
 ## 58. One subject per frame, large, in every format
 
@@ -567,10 +503,7 @@ cannot add a subject that is not there. The catalogue of composition clichés �
 cards, a grid symmetric everywhere, an infographic as the main image — is in
 [the visual-design guide](visual-design.md).
 
-**Counter-example.** Every genre skeleton the tool shipped except the trailer opened on a text slide with
-no product in it, so every film started from one would open on a title and two lines of copy. The same
-defect on pages — "a title and two pill buttons without the product" — was the first thing the owner
-named in the four landing prototypes of the agentic-report research.
+**Counter-example.** A title and two lines of copy without the product make an opening interchangeable with another product's. Place the real product or result beside the claim.
 
 ## 59. An entrance serves reading
 
@@ -579,9 +512,7 @@ holds for reading — about 15 characters a second plus a second (rule 5), about
 entrance for what it says: a column from its side, a step after the one before it. Kinetic text emphasizes selected moments rather than becoming an automatic entrance on every heading. A deliberately typographic film may use it recurrently; preserve reading and vary its role. The 0.7 s and 2 s come from pages and are a
 starting point for films; the frames decide.
 
-**Counter-example.** An early landing draft faded up every block the same way and animated
-the letters of every title; its review named the motion noise that hid the one entrance that mattered,
-and the design rules of agentic-report now allow an entrance on one or two sections only.
+**Counter-example.** Fading every block up and animating every title's letters hides the entrance that matters. Use quiet reading states and choose kinetic emphasis for relevant moments.
 
 ## 60. Establish the whole interface and preserve its truth
 
@@ -590,9 +521,7 @@ travels to the detail the narration names. A transition says what the cut means 
 chromatic aberration, a glowing circle `mask` from a point is decoration, `cube` and `zoom` belong to a
 change of place.
 
-**Counter-example.** The page research lists the tilted dashboard and the screenshot in an invented
-browser window among the clearest signs of a generated page; the tool's `slides.perspective` and
-`device: browser` produce exactly that frame when the address is a placeholder and nothing labels it.
+**Counter-example.** A tilted dashboard in browser chrome with a placeholder address misrepresents its provenance. Establish the real interface whole, use its real address, and label a reconstruction as illustrative.
 
 ## 61. A sound accent follows the law of a colour accent
 
@@ -600,9 +529,7 @@ One accent per moment that means something. A default nobody chose — a system 
 everything, a hit on every card outside a trailer — tells the viewer that nobody chose. The mix rules are
 in [the sound guide](sound.md); the voice rules are in the skill.
 
-**Counter-example.** The trailer practice the playbook collects says it outright: "one well-placed hit is
-strong, four are a parody"; busy editing and distracting music are among the things that hurt
-understanding.
+**Counter-example.** Four identical hits where one decisive accent would suffice sound like a parody. Let accents mark meaningful moments and preserve the narration.
 
 ## 62. The subtitle face is chosen, and the word lights by colour only
 
@@ -612,18 +539,14 @@ trailer cards of one to three words, not to subtitles. The face is the theme's o
 (`--sub-font`): a sans of medium or semibold weight with full Cyrillic, chosen for the theme's mood and
 kept for the whole film.
 
-**Counter-example.** Subtitles used to be set in the theme's text face, so a film in `calm-paper` got
-serif subtitles in Literata — the face the subtitles research advises against over moving footage — and
-the first subtitles were 41 px in a 1080p frame (rule 51).
+**Counter-example.** Using a theme's serif body face, such as Literata, for subtitles over moving footage impairs reading. Use the chosen subtitle sans face at readable size and light the keyword by color.
 
 ## 63. Choose film treatment for the subject and protect evidence
 
 Choose treatment from the intended atmosphere, pace and material. Preserve colors in evidence whose meaning depends on color: `teal-orange` can regrade a real interface into colors it does not have. Grain may add texture to footage or drawn material when the texture earns its encoding cost. `flash` and `shake` give a chosen impact weight, typically with sound on the same anchor; they are strongest in trailers but are not reserved by genre name alone; `overlay.bursts` marks one moment of success, not
 confetti on every card. A clean digital frame looks raw in a trailer and honest in a demo.
 
-**Counter-example.** Grain made as noise in every pixel did not compress: six seconds of slides weighed
-53 MB instead of 1.6 MB and an eighty-second showcase 783 MB — the price of a look nobody needed on a
-product film.
+**Counter-example.** Per-pixel noise can make six seconds of slides weigh 53 MB instead of 1.6 MB and an eighty-second showcase weigh 783 MB. Choose texture for a purpose and inspect its encoding cost.
 
 ## 64. The first three seconds show the product
 
@@ -634,9 +557,7 @@ problem over a real frame of the product (`slides.hero` with the screen as its `
 one-second teaser of the result. The playbook records how the sources disagree on the length of the
 opening window.
 
-**Counter-example.** The skeletons of the product demo, the explainer, the pitch, the release and the
-reel all opened on a text slide, so the first seconds of every film built from them belonged to any
-product.
+**Counter-example.** A product demo, explainer, pitch, release or reel opening only on a text slide shows no distinctive evidence. Put the product or its result in the opening frame.
 
 ## 65. The film ends on its result
 
@@ -644,9 +565,7 @@ The last frame is the result the film promised, with one short next step over it
 button on an empty background. A trailer ends on one title card; a short vertical film leads its last
 frame back into its first.
 
-**Counter-example.** The playbook lists "several end titles" among the mistakes of trailers, and the first
-pass of a landing page ended on a box with two buttons, which its review replaced with a closing scene
-of the product.
+**Counter-example.** Several end titles or an empty box with two buttons weakens the close. End over the promised result with one next step, or one title card for a trailer.
 
 ## 66. Coordinate motion around an understandable focus
 
@@ -654,6 +573,4 @@ A page lets its reader reduce motion; a film cannot. Give a frame a clear hierar
 readable final state; the karaoke word does not scale; a film for a page ships a poster the page shows to
 a reader who asked for less motion (`web --poster`). Rule 9 asks the scene to develop, while allowing a stable result and purposeful reading holds.
 
-**Counter-example.** Every slide carried a breathing glow, a drifting grid and a travelling sheen at once,
-and a live aurora, particles or bokeh behind them in half the themes — three constant motions in one frame
-that distracted from the intended focus.
+**Counter-example.** A breathing glow, drifting grid, travelling sheen and live particles behind the same slide create unrelated constant motion. Coordinate movement around the intended focus and quiet it for reading.

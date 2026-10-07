@@ -4,7 +4,7 @@ Agentic Screencast ships no music and no sound effects. A film names the files i
 only mixes them with the narration — it ducks the music under every beat of speech, keeps accents
 from covering words, and normalises the result. This guide says where to find free music and
 sounds, how to choose them for a genre and a pace, how to check the licence, and how to wire them
-into a scenario. Researched on 2026-09-24; bracketed numbers point to the sources at the end. This
+into a scenario. Bracketed numbers point to the sources at the end. This
 is not legal advice: for a commercial release, show the owner the credits file.
 
 ## How the tool mixes
@@ -178,7 +178,7 @@ The transition carries a short accent.
 ```
 
 Credits for this example: "Impact Moderato" Kevin MacLeod (incompetech.com), CC BY 4.0; Interface
-Sounds by Kenney (kenney.nl), CC0. The download links were checked on 2026-09-24; the Kenney link
+Sounds by Kenney (kenney.nl), CC0. The Kenney download link
 contains a version stamp and may change — open the pack page [83] if it fails.
 
 ## Sources
@@ -220,4 +220,4 @@ contains a version stamp and may change — open the pack page [83] if it fails.
 87. Richard Pryn — How to structure your trailer music. https://richardpryn.com/how-to-structure-trailer-music/
 88. Wikipedia — Stutter edit. https://en.wikipedia.org/wiki/Stutter_edit
 
-Source numbers follow the research notes shared with the [visual-assets guide](visual-assets.md).
+Source numbers share the reference index with the [visual-assets guide](visual-assets.md).

@@ -5,8 +5,7 @@ sizes, pace, legibility — with sources. How the tool builds a vertical film (f
 a landscape scenario, the checks) is in `agentic-screencast help vertical`. A condensed, sourced guide
 for building 9:16 films with Agentic Screencast. Every rule carries a
 reference to the numbered sources at the end; where a platform publishes no official number, the
-spread of third-party measurements is given instead of a single invented value. Researched on
-2026-09-24.
+spread of third-party measurements is given instead of a single invented value.
 
 ## One master for every platform
 
@@ -197,7 +196,7 @@ Establish the complete application screen before any detail, in vertical films a
 
 A film for colleagues — a task, a design review, a presentation — that explains a system's
 architecture or walks through its real interface, watched on a phone. The frame is 1080 px wide
-and every pixel of it has to carry text large enough to read. Researched on 2026-09-26; the pixel
+and every pixel of it has to carry text large enough to read. The pixel
 numbers convert points and visual angles for a 6.1-inch phone showing the film full screen at
 about 36 cm (1 iOS point ≈ 2.75 px of the frame, 1° ≈ 104 px) — that conversion is ours, not the
 sources'. In a messenger the film often plays inline, in a bubble narrower than the screen, which
@@ -368,4 +367,4 @@ of a vertical short is `agentic-screencast new reel` ([`templates/reel.md`](../t
 63. https://help.descript.com/hc/en-us/articles/12920160974477-Aspect-ratio-and-video-settings — 9:16 canvas and reframing (via snippet).
 64. https://architecturediagram.ai/blog/system-design-interview-diagrams — top-to-bottom system diagrams (via snippet).
 
-Numbers are kept as the sources state them; source numbering follows the research notes.
+Source numbers identify the references supporting each claim.

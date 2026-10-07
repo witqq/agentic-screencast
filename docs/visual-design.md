@@ -4,9 +4,7 @@ This document answers: how a film should look so that the viewer does not read i
 machine, seen before" — which visual clichés to avoid and what to do instead, the numeric norms of
 type and colour, and what distinguishes a considered frame from an average one. How to set a theme,
 its fonts and a film look is in `agentic-screencast help themes`; where free pictures and fonts come
-from is in [the visual-assets guide](visual-assets.md). The knowledge comes from the design research
-behind agentic-report, the sibling tool that builds pages, compiled on 2026-09-27 and translated here
-from pages to film; bracketed numbers point to the sources at the end. Where a norm was measured on web
+from is in [the visual-assets guide](visual-assets.md). The guidance covers film composition and applicable page-design principles; bracketed numbers point to the sources at the end. Where a norm was measured on web
 pages and not yet on films, it says so.
 
 ## Why a film looks generated
@@ -32,10 +30,9 @@ its transition, its film look — is what every film made with the tool shares. 
 a fashion makes every film average at once. The shipped defaults are therefore quiet, and every loud
 choice is the author's decision for a reason.
 
-**Bans do not create quality.** Four landing prototypes passed every ban and the "cover the logo" test
-and were still called "clumsy, not premium" by their owner [3]. A list of clichés only cuts away the
+**Bans do not create quality.** A page or film can pass every prohibition and the "cover the logo" test while still lacking a clear hierarchy or convincing material [3]. A list of clichés only cuts away the
 template; quality needs a positive standard — material, depth, composition and considered motion.
-Film craft 48 records the same lesson for films.
+Film craft 48 gives the corresponding recommendation for a film whose concept does not serve its purpose.
 
 **Interpreting the signs.** The source proposes a four-sign threshold [1], but a count cannot establish the quality of a film. Each sign can also be an intentional choice. Judge whether the material, hierarchy, movement and reading work for this subject; do not remove effects simply to reduce the count. `agentic-screencast lint` counts the signs a scenario shows in its `cliches`
 field, and `agentic-screencast frames` names an ordinary drawn frame with an empty third in `empty`
@@ -272,15 +269,13 @@ the author checks the frames against what they meant:
 
 ## Sources
 
-1. Design research for agentic-report's landing, 2026-09-27: twelve groups, 329 notes on clichés,
-   premium signs, motion, WebGL, media and themed presentation, with the quotes cited above (Adam
+1. Agentic Report art-direction reference: clichés, visual hierarchy, motion, WebGL, media and themed presentation, with the cited sources (Adam
    Wathan on `bg-indigo-500`, the "averaging" essay, the 2026 aesthetics).
 2. Adam Wathan (creator of Tailwind CSS), public apology for the indigo-500 default of Tailwind UI,
    August 2025.
-3. agentic-report design guide, 2026-09-27: art direction, design rules (one accent, tight tracking,
+3. Agentic Report design references: art direction, design rules (one accent, tight tracking,
    landing order, card sameness, surfaces, uniform entrances, real material, numbers with units), the
-   themes reference, the first-pass lessons and 37 landing defect classes, and the
-   audit of its themes.
+   themes reference and concrete design counterexamples.
 4. Reference sites measured on their live pages in September 2026: linear.app, vercel.com, stripe.com,
    temporal.io, resend.com, cursor.com, raycast.com, warp.dev, anthropic.com, framer.com, clerk.com,
    inngest.com, n8n.io, igloo.inc, lusion.co.

@@ -5,7 +5,7 @@ an emoji set and the themes' fonts (see "Emoji as images" and "Fonts"). The agen
 fetches the rest itself, records their licence, and places them beside the scenario so the render
 never needs the network. This guide says where to look, what each source allows, and
 how to wire a file into a scene. Music and sound effects have [their own guide](sound.md).
-Researched on 2026-09-24; bracketed numbers point to the sources at the end. This is not legal
+Bracketed numbers point to the sources at the end. This is not legal
 advice: for a commercial release, show the owner the credits file and any doubtful item.
 
 ## Three questions before any file enters a scene
@@ -131,7 +131,7 @@ sheet shows its frames with their seconds, so the pieces are chosen from what is
 
 ## Icons
 
-| Set | Licence | SVG URL (checked 2026-09-24) |
+| Set | Licence | SVG URL |
 |---|---|---|
 | Lucide | ISC [19] | `https://cdn.jsdelivr.net/npm/lucide-static@latest/icons/<name>.svg` |
 | Heroicons | MIT [20] | `https://cdn.jsdelivr.net/npm/heroicons@2/24/outline/<name>.svg` |
@@ -244,9 +244,8 @@ duration: 5
 - **Bundled with the tool** — the themes' font families (`assets/fonts`, Latin and Cyrillic,
   OFL-1.1, listed in `assets/fonts/README.md`) are embedded into every rendered page, so no font
   needs to be installed and no network is used. A theme names them in `--display`, `--sans` and
-  `--mono`; to use another bundled family, name it there (`agentic-screencast help themes`). How
-  they were chosen — Cyrillic checked in the Google Fonts catalogue and the font files themselves,
-  and why Bebas Neue, Space Grotesk, Orbitron and Fraunces are out (no Cyrillic) — is in
+  `--mono`; to use another bundled family, name it there (`agentic-screencast help themes`). Cyrillic coverage, licence conditions and font selection guidance,
+  including the lack of Cyrillic in Bebas Neue, Space Grotesk, Orbitron and Fraunces, are in
   [the fonts research](research/fonts.md).
 - **Google Fonts** — open licences (mostly OFL), commercial use on any surface; text rendered into
   an image is an image, not the font [43][44]. The OFL needs no credit in a film, but a modified
@@ -340,4 +339,4 @@ Icons: Lucide (ISC), Tabler Icons (MIT)
 83. https://www.mediawiki.org/wiki/API:Search
 84. https://www.mediawiki.org/wiki/Help:CirrusSearch#Filetype
 
-Source numbers follow the research notes; the sound sources are cited in the sound guide.
+Source numbers identify the references supporting each claim; sound sources are listed in the sound guide.

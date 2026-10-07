@@ -5,9 +5,7 @@ product and not a slideshow? Its first half gives the principles that separate a
 dull one — order, timing, curves, springs, transitions, rhythm — with the numbers practitioners use.
 Its second half is a vocabulary of named effects (a logo marquee, a toast stack, an orbit of icons,
 a chat that types) and how to get each one in Agentic Screencast today, followed by recipes that
-combine them for a genre or a kind of scene. It was researched on 2026-09-29 and 2026-09-30 from
-design-system documentation, practitioners' articles and component libraries, not from
-frame-by-frame breakdowns; bracketed numbers point to the sources at the end.
+combine them for a genre or a kind of scene. Its sources are design-system documentation, practitioners' articles and component libraries; bracketed numbers point to the sources at the end.
 
 Most timing numbers below come from interface guidelines, where a person clicks and waits. A viewer
 of a film clicks nothing, so durations may run longer — marketing and explainer animation "can be
@@ -405,7 +403,7 @@ CSS animations, Web Animations and `window.renderAt(t)` run on the scene's clock
 
 *In the tool:* `whip`, `zoom`, `wipe`, `cube`, `flip`, `glitch`, `dip`, `push`, `melt`, `leak`, `clock`,
 `curl`, `tiles`, `blur`, `mask`, `dots`, `pixelate`, `morph`, `cut`, and `flow: auto` for a whole film (`help transitions`). Choose by the
-table in "Transitions" above. Two of the new ones state a relation: `mask` grows the next scene out
+table in "Transitions" above. Two of these state a relation: `mask` grows the next scene out
 of an element of the first, and `curl` turns a page — the next item of a list, a new version.
 `leak` is a light over the cut that keeps the film's length. The rest — liquid `melt`, `tiles`,
 `dots`, `pixelate`, `clock`, soft-focus `blur` — are dissolves with a character [78][79][90]; none
@@ -420,7 +418,7 @@ of them states a relation between scenes, so choose them for the character of th
   `vortex` draws them into the middle [90]; `warp` flies through them [92].
 - **Light from above** — a solemn reveal: rays from the top [93], a lamp that lights a cone over the
   title [89], a slanted spotlight that finds the headline [90]. *In the tool:* `rays` and `lamp`; the
-  slanted spotlight was merged into `lamp`, which does the same job.
+  `lamp` background also supplies a slanted spotlight.
 - **Meteors** — depth and energy [94]. *In the tool:* `meteors`.
 - **Sheen across a card** — "new, premium", once after it lands [68]. *In the tool:*
   `overlay.glints`.
@@ -552,8 +550,6 @@ slow, small and rare, with a still reference in frame [33][30]. Nothing may flas
 in any second [87] — the build names it (`flashing`).
 
 ## Sources
-
-All sources were opened and checked on 2026-09-29; sources 88–94 on 2026-09-30.
 
 1. Emil Kowalski — review-animations/STANDARDS.md (GitHub) — https://github.com/emilkowalski/skills/blob/main/skills/review-animations/STANDARDS.md.
 2. IBM Carbon — motion.json, duration and curve tokens, DTCG (GitHub) — https://github.com/carbon-design-system/carbon/blob/main/packages/motion/src/dtcg/motion.json.

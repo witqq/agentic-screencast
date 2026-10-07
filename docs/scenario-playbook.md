@@ -3,10 +3,10 @@
 This document answers: what story shape, length, hook and close fit the film's genre. It is a
 condensed guide to the story shapes that work for each kind of film, taken from published practice
 rather than invented, and translated into Agentic Screencast scenes. It complements
-[film craft](film-craft.md), which records the rules learned from our own review rounds (one text
+[film craft](film-craft.md), which explains directing rules and concrete counterexamples (one text
 layer at a time, the camera vocabulary, stopping time inside the shot, measuring the result);
 those are not repeated here. Vertical films for Reels, Shorts and TikTok have
-[their own guide](vertical-video.md). Researched on 2026-09-24; bracketed numbers point to the
+[their own guide](vertical-video.md). Bracketed numbers point to the
 sources at the end.
 
 Read the sources with two caveats. Most length and pace numbers are measured on English, and no
@@ -321,7 +321,7 @@ the product in every card — and no hits (`lint` names hits with nothing to sou
 ### The action trailer and its parody
 
 A film trailer in the Hollywood action manner, and the comic trailer that borrows it — a grand
-voice and hits on every card about something trivial. Researched on 2026-09-26; most sources are
+voice and hits on every card about something trivial. Sources are primarily
 practice write-ups by trailer editors and composers, and "(via snippet)" marks a claim taken from
 search results because the page itself did not open.
 
@@ -332,7 +332,7 @@ than 20,000 films of 2000–2016 the mean is 114 s [49]; a teaser runs about 20�
 20–30 s, the climax 15–20 s, and 5–8 s go to the title, the button and the date — our scaling of
 two-minute schemes [33][53].
 
-**Micro-teaser.** Since the mid-2010s many trailers open with a 5–10 s preview of themselves — the
+**Micro-teaser.** A trailer can open with a 5–10 s preview of itself — the
 wildest shot, a hit, the title — so the viewer does not scroll on [48][51].
 
 **Loud only after quiet.** The music stop is "perhaps the most useful trick of a trailer editor":
@@ -370,10 +370,7 @@ close-ups with push-ins, whip pans and white flashes, ending on a wide of the he
 split screen around a ticking clock (via snippet) [67]; a shaking camera on two or three hits of the
 climax, not everywhere — even a fraction of a second has to show something (via snippet) [68].
 
-**The voice.** "In a world…" sets up the world in a few words; after Don LaFontaine's death in 2008
-trailer voice-over became rare, and trailers rely on music, sound and lines from the film [69][48].
-So a grand voice now reads as a parody by itself. The opening shrank to "This summer", followed by a
-call for the viewer to do what the heroes do (via snippet) [70].
+**The voice.** "In a world…" establishes a grand narrative tone and can make a comic trailer read as parody [69][48]. Music, sound and lines from the film can carry the story without a narrator. A brief opening such as "This summer" can lead into a call for the viewer to do what the heroes do (via snippet) [70].
 
 **The comic trailer.** Bathos — the high style applied to a trivial subject — is its engine [71];
 the mock-heroic swells heroic qualities over a trifle [72]. The delivery must be serious: a wink

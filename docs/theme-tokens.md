@@ -5,8 +5,7 @@ film and a report page made for the same product can wear one look. Both tools k
 in a theme as named CSS variables and ship themes under the same names; this table maps the variables
 that mean the same thing. Our full contract is `THEME_KEYS` in `src/theme.ts` (`help themes`);
 agentic-report's is `THEME_TOKENS` in its `src/authoring/theme-tokens.ts` (`schema --scope theme`).
-The table is a working agreement between the two products, checked against both sources on
-2026-09-29.
+The table maps the roles defined by these two source contracts.
 
 ## Themes
 
