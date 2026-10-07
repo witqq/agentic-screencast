@@ -5,7 +5,7 @@ contracts and the environment variables. [`README.ru.md`](../README.ru.md) is it
 
 [English README](../README.md) | [Russian version](../README.ru.md)
 
-License: **GPL-3.0-or-later** (see `LICENSE`). It was chosen because
+License: **GPL-3.0-or-later** (see `LICENSE`):
 `ffmpeg-static` ships as a dependency and is distributed under GPL-3.0;
 a weaker license would create a mismatch between the license file and what
 the user actually receives on installation.
@@ -41,7 +41,7 @@ particular film belong to the external consumer project; this repository does no
 
 ## Discover tools and stage the material
 
-Start with the [knowledge map](knowledge.md), [directing](directing.md) and [combinations](combinations.md): material, viewer understanding and feeling, development, staging, coordinated actions, then tools. The [complete atlas](atlas.md) lists the runtime vocabulary and every packaged scenario and template. It preserves the original craft rules, counterexamples and research as linked references.
+Start with the [knowledge map](knowledge.md), [directing](directing.md) and [combinations](combinations.md): material, viewer understanding and feeling, development, staging, coordinated actions, then tools. The [complete atlas](atlas.md) lists the runtime vocabulary and every packaged scenario and template. It links to craft rules, concrete counterexamples and supporting evidence.
 
 ```sh
 agentic-screencast atlas --out ./tool-atlas
@@ -102,6 +102,8 @@ an unchanged camera does not re-record. The conditions and the fallback are in
 | `AGENTIC_SCREENCAST_HOME` | data directory: sound and frame cache, voice recordings, default output | `./.agentic-screencast` |
 | `FFMPEG` | path to ffmpeg, if the one shipped as a dependency does not suit you | from `node_modules` |
 | `CLOUD_KEY` | Yandex SpeechKit key; read from the environment or from `.env` | — |
+| `SPEECHKIT_REQUEST_INTERVAL_MS` | minimum pause after a SpeechKit response body completes, milliseconds, integer 0–60000; environment or `.env` | `0` |
+| `SPEECHKIT_MAX_ATTEMPTS` | total attempts for transient SpeechKit HTTP/transport failures, integer 1–5; environment or `.env` | `3` |
 | `AGENTIC_SCREENCAST_LANG` | the language in which the tool talks to the person | from `LANG`, otherwise `en` |
 | `LANG` | system language; used if `AGENTIC_SCREENCAST_LANG` is not set | — |
 | `AGENTIC_SCREENCAST_FILM_LANG` | the scenario variant in another language; the command's `--lang ru` sets it | language of the scenario header |
@@ -692,7 +694,7 @@ Requirements that must not be violated:
   recording from the cache while looking successful.
 
 The fingerprint is mixed into the cache key **only when it is non-empty**. So
-the appearance of the subcommand did not invalidate a single line already synthesised.
+an empty fingerprint preserves the key of already synthesised lines.
 
 Conformance to the contract is checked by a program, not taken on trust:
 `agentic-screencast voice-check <command>` runs eight requirements against someone else's
@@ -835,11 +837,18 @@ Where to get it:
 2. Grant it the **`ai.speechkit-tts.user`** role (or higher).
 3. Create an **API key** for this account — that is the `CLOUD_KEY`.
 4. The folder identifier is **not needed**: with API-key authorisation the service
-   uses the service account's folder (verified by a live call).
+   uses the service account's folder.
 
 The `kuznetsov` voice is not listed in the documentation's voice table, but the API
-accepts it. The full list was checked by live calls and lives in the shipped
-engine.
+accepts it. The shipped engine lists its supported voices; use `voices` for that list.
+
+### SpeechKit request pacing and recovery
+
+SpeechKit requests run sequentially within a process, including response-body consumption. `SPEECHKIT_REQUEST_INTERVAL_MS` sets a minimum completion-to-start pause; it can help when a service accepts spaced requests but fails on consecutive ones. Choose the interval from observation or the account's actual limits. A gateway timeout alone does not establish a quota problem.
+
+`SPEECHKIT_MAX_ATTEMPTS` limits the total attempts, including the first. The engine retries HTTP 429, 500, 502, 503 and 504, and fetch/body-read transport failures. It waits 1.5, 3, 6 and 12 seconds between successive attempts; `Retry-After` may extend that pause, capped at 60 seconds. Other HTTP failures, including authentication and invalid input, fail immediately. Set `1` to disable retries. Final HTTP diagnostics include the request ID when the service supplies it.
+
+Both settings come from the environment or `.env`, outside voice data. Changing them preserves the sound cache key. Resume the same build with unchanged narration, voice and cache after resolving a service failure; completed beats need no new synthesis. Separate CLI processes have separate queues, so concurrent builds do not enforce a shared account rate.
 
 ## An interface snapshot as a page
 

@@ -26,6 +26,12 @@ stream or encoded sound measurement. The sections
 below cover what the help does not: where the files come from, how to choose them and how to
 credit them.
 
+## Network narration: pacing and recovery
+
+Read `help voice` or [the SpeechKit transport reference](reference.md#speechkit-request-pacing-and-recovery) for request pacing and retry settings. If consecutive calls fail while spaced calls work, set `SPEECHKIT_REQUEST_INTERVAL_MS` to the measured interval in the environment or `.env`. Keep transport settings outside voice JSON so paid beat cache keys remain unchanged. Resume with the same text, voice and cache; do not rebuild cached speech to diagnose a service failure.
+
+HTTP 429 indicates a folder quota error; HTTP 504 alone does not establish that cause. Check the account's current limits instead of inferring them from a successful pause. [SpeechKit quotas and error guidance](https://aistudio.yandex.ru/en/docs/speechkit/qa/all).
+
 ## Where to find music
 
 | Source | Licence | Credit | Commercial | Notes |

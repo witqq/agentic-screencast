@@ -1519,6 +1519,19 @@ const VOICE_HELP = `Narration modes: synthesis, a recorded human, or silence
 
 voice: {"engine":"speechkit","name":"kuznetsov","speed":1.2}
 
+SpeechKit transport settings are read from the environment or .env:
+  SPEECHKIT_REQUEST_INTERVAL_MS  0 by default, integer 0–60000; a minimum
+      pause after a response body finishes before the next request starts
+  SPEECHKIT_MAX_ATTEMPTS  3 by default, integer 1–5; total attempts for
+      HTTP 429/500/502/503/504 or fetch/body-read transport failures
+Requests are serialized within one process. Retries wait 1.5 s, then 3 s,
+then 6 s and 12 s; Retry-After can extend the pause up to 60 s.
+Other HTTP errors are not retried. Set max attempts to 1 to disable retries.
+These settings do not belong in voice JSON and do not change paid audio
+cache keys. Restart the same build with unchanged text, voice and cache.
+Separate CLI processes do not share this queue; avoid concurrent synthesis
+with the same account when diagnosing service failures.
+
 Shipped engines:
 
   stub       silence of the right length; free, for drafts and checks
