@@ -2412,6 +2412,10 @@ window.__stage = (() => {
     const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
     if (scene.__compositionFrame) {
       const wrapper = rawRect(el.zoom);
+      // Scrolling to a later composition moves the body's viewport origin.
+      // The fit is computed in viewport pixels, so reset that origin for this
+      // frame rather than scaling around its pre-scroll mount position.
+      el.zoom.style.transformOrigin = `${(-wrapper.left / rootZoom).toFixed(2)}px ${(-wrapper.top / rootZoom).toFixed(2)}px`;
       const x = (base.left - wrapper.left) / rootZoom, y = (base.top - wrapper.top) / rootZoom;
       const w = base.width / rootZoom, h = base.height / rootZoom;
       el.zoom.style.clipPath = `polygon(${x}px ${y}px,${x+w}px ${y}px,${x+w}px ${y+h}px,${x}px ${y+h}px)`;

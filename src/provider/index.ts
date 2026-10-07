@@ -20,11 +20,13 @@ export class ProviderError extends Error {
   readonly providerError = true;
 }
 
+// Source parsing and providers depend on one another. Read imported bindings
+// when the registry is used, after module initialization, not while loading it.
 export const BUILTIN: Record<string, Provider> = {
-  [slidesProvider.name]: slidesProvider,
-  [pageProvider.name]: pageProvider,
-  [videoProvider.name]: videoProvider,
-  [reportProvider.name]: reportProvider,
+  get slides() { return slidesProvider; },
+  get page() { return pageProvider; },
+  get video() { return videoProvider; },
+  get report() { return reportProvider; },
 };
 
 export const isBuiltin = (name: string): boolean => Object.hasOwn(BUILTIN, name);

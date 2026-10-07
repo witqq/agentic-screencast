@@ -2003,6 +2003,9 @@ function glow(t) {
 }
 
 window.renderAt = (t) => {
+  // Before stage.mount, speech anchors are names, not measured seconds. No
+  // timeline-dependent effect can calculate its state until the host binds them.
+  if ([...document.querySelectorAll('[data-at]')].some((el) => !Number.isFinite(Number(el.dataset.at)))) return;
   enter(t);
   glow(t);
   count(t);

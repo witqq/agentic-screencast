@@ -3,6 +3,7 @@
 // Запуск: build.js --pitch pitch.json --out video.mp4 [--voice baya]
 import { FLASH_DEFAULT, RGB_DEFAULT, SHAKE_DEFAULT, hitsFilter, type FilmHit, type Hit } from "./effects.js";
 import { fitFilter, type Fit } from "./fit.js";
+import { screenOverlay, reframedPageOptions, takeOverlay } from "./frame-composition.js";
 import { renderScene, encode, DEFAULTS, ENCODE } from "./render.js";
 import { speechFor } from "./speech.js";
 import { selfHash } from "./self-hash.js";
@@ -22,7 +23,7 @@ import { createRequire } from "node:module";
 import { msg, useLang } from "./msg.js";
 import { overlayEnd, parseOverlay, type SceneOverlay } from "./overlay.js";
 import { filmTimeOf, speedFilter, type SpeedStep } from "./speed.js";
-import { cameraPerspective, fitScale, markAutomaticCamera, overviewWindowExpressions, overviewWindowPose, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
+import { cameraPerspective, fitScale, overviewWindowExpressions, overviewWindowPose, windowFilter, windowNeedsZoom, windowPose, windowYFilter, windowZoomFilter } from "./camera.js";
 import { detectTempo } from "./tempo.js";
 import { loupeLayout, withLoupes, type LoupeAt } from "./loupe.js";
 import { stageAssets } from "./stage-assets.js";
@@ -38,7 +39,7 @@ import { anchorSeconds, compileSpotlights, spotlightOverlay, type Spotlight } fr
 import { stillName, stillSteps, stillTime, type Still } from "./stills.js";
 import { autoBand, bandShare } from "./capband.js";
 import { liveCamera } from "./live-camera.js";
-import { actionZoomCues, autoZoomCues, marksOf, trimMarks, type AutoZoom, type Trim } from "./marks.js";
+import { marksOf, trimMarks, type AutoZoom, type Trim } from "./marks.js";
 import { DEVICE_CSS, deviceMarkup, deviceScene, type Device, type DeviceLayout } from "./device.js";
 import type { Look } from "./look.js";
 import type { Safe } from "./format.js";
@@ -570,17 +571,8 @@ async function main() {
       // take. Keep the automatic subject box inside that width so a small element can grow;
       // an explicitly named size remains the author's choice.
       const portraitShare = pitch.reframe ? (opts.width / opts.height) / (pitch.reframe.width / pitch.reframe.height) : 1;
-      const auto = pitch.reframe && s.autoZoom.size === undefined
-        ? { ...s.autoZoom, size: Math.min(0.36, portraitShare / 2) } : s.autoZoom;
-      // Дубль, записавший действия с элементами, наезжает по действиям; прежний — по кликам.
-      const cues = take?.actions?.length ? actionZoomCues(take.actions, clicks, auto) : autoZoomCues(clicks, auto);
-      try {
-        const ordered = [...(s.overlay?.camera ?? []).map((cue) => ({ cue, automatic: false })),
-          ...cues.map((cue) => ({ cue, automatic: true }))].sort((a, b) => a.cue.at - b.cue.at);
-        const checked = parseOverlay(JSON.stringify({ ...s.overlay, camera: ordered.map(({ cue }) => cue) }));
-        checked.camera?.forEach((cue, index) => { if (ordered[index]!.automatic) markAutomaticCamera(cue); });
-        s.overlay = checked;
-      } catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
+      try { s.overlay = takeOverlay(s.overlay, take, s.autoZoom, portraitShare); }
+      catch (e) { console.error(msg("build.autoZoomCollision", { id: s.id, why: (e as Error).message })); process.exit(2); }
       s.__autoZoom = clicks.length;
     }
     // Наезд над живым дублем исполняет браузер: сборка переснимает дубль его же скриптом с камерой
@@ -759,20 +751,6 @@ async function main() {
     // его безопасной зоне. Камеры, выносок и стикеров в ней нет: они привязаны к предмету
     // и едут вместе с окном в предметной половине. Карточка «у фокуса» встаёт наверх:
     // середину окна занимает сама цель.
-    const screenOverlay = (o: typeof s.overlay): typeof s.overlay => {
-      if (!o) return o;
-      // Всё, что ищет предмет на странице (отклик, действие, перенос, магнит, скелетон на предмете),
-      // живёт в предметной половине: экранная рисуется над пустой страницей, и селектор там не найти.
-      const { camera: _c, callouts: _l, stickers: _s, marks: _m, glints: _g, bursts: _b, boops: _o, actions: _a, ...rest } = o;
-      const thinking = o.thinking?.filter((k) => !k.target && !k.area);
-      const kept = { ...rest,
-        ...(o.pointer ? { pointer: o.pointer.map(({ drag: _d, magnet: _g2, ...p }) => p) } : {}),
-        ...(o.thinking ? { thinking: thinking?.length ? thinking : undefined } : {}),
-        ...(o.cards ? { cards: o.cards.map((c) => (c.position === "near-focus" ? { ...c, position: "top-left" as const } : c)) } : {}) };
-      // Слой без единого экранного примитива — не слой: разбор такой накладки отвергает.
-      return (kept.cards?.length || kept.titles?.length || kept.lower?.length || kept.pointer?.length || kept.toasts?.length
-        || kept.thinking?.length) ? kept : undefined;
-    };
     // Лупы сцены: момент и предмет. Прямоугольник предмета на странице меряет рендер (он
     // знает вёрстку), у видео — доли кадра. Лупа ложится на готовый сегмент.
     const loupes = s.overlay?.loupe ?? [];
@@ -863,9 +841,8 @@ async function main() {
       try {
         mkdirSync(sceneDir, { recursive: true });
         mkdirSync(screenDir, { recursive: true });
-        const scale = (opts.height / src.height) * (opts.scale ?? 1);
         const a = await draw({ ...material, __layerPart: "scene" },
-          { ...opts, width: src.width, height: src.height, scale, crop: { width: (opts.width / opts.height) * src.height, overview: true }, probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
+          { ...reframedPageOptions(opts, src), probes: loupeProbes, legible: legibleProbes, cuts: legibleProbes, unseen: unseenProbes });
         legibleGot = a.legible ?? [];
         cutsGot = a.cuts ?? [];
         unseenGot = a.unseen ?? [];

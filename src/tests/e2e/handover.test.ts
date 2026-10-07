@@ -40,6 +40,12 @@ test("handover passes a clean film and fails an open checklist box or a scenario
   const complete = readFileSync(reportFile, "utf8");
   writeFileSync(reportFile, JSON.stringify({ ...JSON.parse(complete), only: "p" }));
   assert.deepEqual(gate().failed, ["build"], "a scene preview cannot pass the whole-film gate");
+  writeFileSync(reportFile, JSON.stringify({ ...JSON.parse(complete), warnings: [{id:"still-stretch",message:"Read the settled result"}] }));
+  assert.equal(gate().verdict, "pass", "a reading hold is visible advice, not a demand for decoration");
+  const advisory = JSON.parse(spawnSync("node", [ENTRY,"handover","story.md","--film","draft.mp4"], {cwd:dir,encoding:"utf8",env}).stdout);
+  assert.equal(advisory.advisories[0].id,"still-stretch");
+  writeFileSync(reportFile, JSON.stringify({ ...JSON.parse(complete), warnings: [{id:"cut",message:"Result is cropped"}] }));
+  assert.deepEqual(gate().failed,["warnings"], "an actually cropped result remains blocking");
   writeFileSync(reportFile, complete);
   assert.equal(gate().verdict, "pass");
 

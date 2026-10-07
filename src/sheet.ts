@@ -36,10 +36,10 @@ if (!(length > 0)) { console.error(msg("sheet.noDuration", { clip })); process.e
 const from = Math.max(0, Number(arg("from") ?? 0)), to = Math.min(length, Number(arg("to") ?? length));
 if (!(to > from)) { console.error(msg("sheet.range", { length: length.toFixed(2) })); process.exit(2); }
 const every = arg("every") ? Number(arg("every")) : undefined;
-const count = every ? Math.min(60, Math.max(1, Math.floor((to - from) / every) + 1)) : Math.min(60, Math.max(1, Number(arg("count") ?? 12)));
+const count = every ? Math.min(60, Math.max(1, Math.ceil((to - from) / every))) : Math.min(60, Math.max(1, Number(arg("count") ?? 12)));
 if (!Number.isFinite(count)) { console.error(msg("sheet.numbers")); process.exit(2); }
 // Моменты — середины равных долей куска (или шаг --every от его начала): крайний кадр клипа часто чёрный.
-const times = Array.from({ length: count }, (_, k) => Number((every ? from + k * every : from + ((k + 0.5) / count) * (to - from)).toFixed(2)));
+const times = Array.from({ length: count }, (_, k) => every ? from + k * every : from + ((k + 0.5) / count) * (to - from));
 const out = resolve(arg("out") ?? `${basename(file).replace(/\.[^.]+$/u, "")}.sheet.png`);
 if (!/\.png$/iu.test(out)) { console.error(msg("sheet.png")); process.exit(2); }
 const work = resolve(dirname(out), `.${basename(out)}.frames`);

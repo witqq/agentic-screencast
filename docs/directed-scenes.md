@@ -2,7 +2,7 @@
 
 A film's scene should have an arrangement that explains the subject, an action that happens with the spoken line, and a readable result. Choose those before selecting an effect. A string of nearly identical HTML pages with new captions does not show a mechanism. A camera rectangle alone cannot show ownership, a copied value, a queued event or a branch producing two results.
 
-This guide covers interface orientation, Report compositions and their speech clock, worked scene recipes, existing effects, and automatic vertical conversion. Start with the recipe matching the viewer's question and adapt its evidence and words. These are directing recommendations, not extra validation steps or per-film approval gates.
+This guide covers interface orientation, Report compositions and their speech clock, worked scene recipes, existing effects, and automatic vertical conversion. Choose staging from [the viewer's understanding](directing.md) and [combination guidance](combinations.md); the worked examples offer alternatives to adapt. These are directing recommendations, not extra validation steps or per-film approval gates.
 
 ## Show the whole interface before a detail
 
@@ -113,6 +113,8 @@ New Report actions complement the existing vocabulary. Actively choose from it w
 
 Read the kind's schema before choosing `move`: different kinds support different moves, and a chain does not accept every slide camera name. Report pointer tilt/depth effects need a pointer; they do not become a filmed 3D camera simply because a screenshot is taken. Large flashes, shakes and particle bursts belong to a genre and a specific moment, not every explainer frame. Use the [motion-design guide](motion-design.md) for curves and effect recipes and [visual-design](visual-design.md) for type, spacing, image treatment and theme choice.
 
+Code objects in `pipeline`, `before-after` and `ownership` receive a complete row below the visual objects; use `diagram-code` for shorter code beside the mechanism. `focus` without `lines` leaves code lines at full opacity; an explicit line selection dims only other lines, and a later focus clears it. Connections use live object-boundary ports, rounded routes around visible objects and persistent arrowheads. Labels follow free route space; compact moving copies follow the same route between their owners. Attachments update during entrances, body replacement, fitting and camera movement. Keep owners separate and transfer short readable values rather than a full code listing.
+
 Vary the composition when the viewer's question changes: a screen for orientation, a diagram beside code for a mechanism, a route for delivery, a comparison for the result. Keep a stable visual identity and a limited set of transitions. Effects should make these relations visible and give important moments weight; constant jitter beneath reading text works against that.
 
 ## Automatic vertical overview
@@ -124,3 +126,9 @@ The same overview applies to reframed capture takes identified by `.marks.json` 
 The opening hold is at least the smaller of 1.2 seconds and one fifth of the scene, and continues until the first focus cue when that is later. The transition takes up to 0.9 seconds, also bounded by one fifth of the scene. This camera path is a function of scene time. Use a deliberate opening paragraph and `b2` focus for a meaningful orientation, rather than putting the first action into a tiny crop at time zero. The automatic overview protects spatial context; it cannot invent a missing establishing screen or restore detail absent from a low-resolution source.
 
 Captions, titles and cards render separately at output size, while interface highlights follow the material's camera. For a messenger or embedded film use `zone: plain`; a feed uses its platform zone. Whole-screen labels may be small during orientation, but the target must be readable in the following close-up. Check those two moments in the normal draft review; no extra round of validations is required.
+
+## Preview the actual portrait window
+
+`frames --format vertical` uses the final builder's original landscape viewport, opening overview and detail window for converted pages and captures. Native `pageVertical` sources keep their portrait layout. Preview timing uses estimated speech; final timing uses measured beats. Choose the camera with that actual window: an explicit `scale` is a multiplier, not a request to fit the whole target. Portrait conversion already enlarges the landscape height, so a small additional multiplier may suffice. Omit scale for the fitted target default, use `pan` for an intentionally wider reading area, or a loupe to retain context. For live capture, a broad text block may need a smaller explicit zoom or a `withFocusCard` without moving the camera.
+
+Inspect the target and its readable state in the existing draft step; changing captions or camera merely to erase a pixel warning does not improve the composition.

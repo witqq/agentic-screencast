@@ -6,7 +6,7 @@ This document answers one question: which directing rules must a watchable film 
 
 A feature film about a product is watched without sound, without a presenter, and without accompanying notes. It has a theme, a beginning, a middle and an end, and afterwards the viewer knows what appeared and why it matters.
 
-**Counter-example.** The first cut was a pile of inserts — "here is a showcase, here is another showcase" — with drawn before/after cards in between. The reviewer's verdict: *"the process and the through-line are not clear"* and *"I never asked for intermediate slides with cards and the rest."* Only one drawn slide belongs in such a film: the opening poster. Everything else is live product footage with explanations over it. The rule is about a film of a working product; a pitch, an explainer of an idea or a trailer is made of drawn material by nature, and its playbook section says how.
+**Counter-example.** The first cut was a pile of inserts — "here is a showcase, here is another showcase" — with drawn before/after cards in between. The reviewer's verdict: *"the process and the through-line are not clear"* and *"I never asked for intermediate slides with cards and the rest."* In this failed cut, drawn inserts replaced the working product instead of explaining it. Use live product footage for observable behavior; a directed mechanism, code scene or comparison may explain what that footage cannot expose, then reconnect it to the visible result. The opening poster is one possible device, not the only permitted drawn scene. The rule is about a film of a working product; a pitch, an explainer of an idea or a trailer is made of drawn material by nature, and its playbook section says how.
 
 ## 2. The subject comes from the source, never from imagination
 
@@ -16,9 +16,9 @@ Never pass a mockup off as a real run: a prototype, a drawn interface or an unte
 
 **Counter-example.** The scenario claimed *"the animation no longer lives in the demo code — now it lives in the document"*, a before/after story invented out of nothing. The branch had in fact added animation playback to a product that had none at all. The reviewer: *"where does that phrase come from? do you even understand what the task was?"* A whole cut had to be discarded.
 
-## 3. Parts follow a meaningful order, each returning to the overview
+## 3. Parts follow a meaningful order and preserve context
 
-Parts follow in a meaningful order, each one ending with a return to the overview so the next can start clean. The order for a film about a branch's result — missing, appeared, can do, holds, controlled, where to get it — is in [the playbook](scenario-playbook.md), section "A branch result or a new feature".
+Parts follow in a meaningful order. Close the current question and make the next relation legible: preserve a shared object, carry a result into the next scene, retain a landmark or return to an overview when location would otherwise be lost. Returning after every part is not mandatory. The order for a film about a branch's result — missing, appeared, can do, holds, controlled, where to get it — is in [the playbook](scenario-playbook.md), section "A branch result or a new feature".
 
 **Counter-example.** Shots were ordered by how convenient they were to record, so capability demos, an admin panel and a diagnostic report alternated with no logic. The viewer could not tell whether the film was still describing the same thing.
 
@@ -44,9 +44,9 @@ inside a portrait crop.
 
 **Counter-example.** A debug window sat on top of the very animation the shot was about: *"and the debug window covers the animations?"* Tooling windows are moved to the edge of the frame before the take.
 
-## 7. The camera has a small, constant vocabulary
+## 7. The camera explains where and how to look
 
-Overview, push-in, freeze, highlight with dimming, slow motion, pull-out. The push-in answers "where to look" right after an event; the freeze gives time to read a state that has just formed; the highlight dims everything else; slow motion is used where movement outruns the eye; the pull-out closes a part.
+Overview, push-in, freeze, highlight with dimming, slow motion and pull-out are a useful starting vocabulary. Also consider a dolly, orbit, pan, loupe or shared-object transition when it communicates the subject. Keep directions and visual identity coherent rather than restricting every film to the same moves. The push-in answers "where to look" right after an event; the freeze gives time to read a state that has just formed; the highlight dims everything else; slow motion is used where movement outruns the eye; the pull-out closes a part.
 
 Zoom and pan inside the product where possible, so the frame shows a live editor rather than a cropped recording.
 
@@ -58,9 +58,9 @@ A film that only ever freezes becomes a slideshow of stills. Retiming (`speed`) 
 
 **Counter-example.** *"Freezing, for example, is not enough — I want slow-motion tricks too."*
 
-## 9. Nothing in frame stands still
+## 9. Motion develops the explanation; holds give time to understand
 
-Every frame of the film moves, slides and diagrams included: a still frame is where attention leaves. The tool's slides already carry an ambient layer (`help slides`); a page you write needs its own motion, and a still clip needs a camera move or faster playback.
+A scene develops through visible actions, relations or discoveries. Use the existing slide, object and camera effects actively to make those changes tangible. After a change, keep the result still when the viewer needs to read, locate or compare it. A whole-interface opening is a purposeful hold. A static page beneath unrelated narration is the failure this lesson addresses; continuous ambient motion is not a substitute for explanation. The tool's slides provide an ambient layer (`help slides`), but a scene may also deliberately settle.
 
 **Counter-example.** *"Generating boring static slides is a bad option; all diagrams, slides and static things must be alive, must capture the viewer's attention and carry them through the whole film — it is a video, not a dull presentation."* Measured, the quiet parts of a slide were nearly identical frame to frame (PSNR 56–62 dB between frames 0.4 s apart); with an ambient layer the same points measure 16–34 dB.
 
@@ -90,7 +90,7 @@ Movement is broad: displacements in hundreds of points, scale from a fraction to
 
 ## 14. Verify by measurement, not impression
 
-Check the finished file: duration, frame size, presence or absence of an audio track; motion in every shot (two frames 0.4–0.5 s apart differ); the caption changes inside a shot (compare the caption strip at two moments); each card appears and leaves (compare its region before, during and after); no element overlaps another in key frames; claimed numbers match the recording.
+Check the finished file: duration, frame size, presence or absence of an audio track; the promised motion plays on its intended interval (compare two frames 0.4–0.5 s apart there); intentional orientation and reading holds keep a readable completed state; changing captions match their intended moments; each card appears, holds and leaves when the scenario asks it to; no element overlaps another in key frames; claimed numbers match the recording.
 
 **Counter-example.** A cut was handed over in which the spring did not move and one slide stood still; the reviewer found it, not the author. And then, plainly: *"enough scenarios — show me the finished video with all my remarks fixed."*
 
@@ -401,10 +401,9 @@ kinds of motion. Clashing colours or many identical animations read as crude, wh
 **Counter-example.** *"Why are some colours not coordinated?"* and *"why are all the animations the
 same?"* — a stress document played five hundred copies of one movement in unmatched colours.
 
-## 44. Captions and cards speak in a trailer's voice
+## 44. Captions and cards speak in the film's chosen voice
 
-Write captions in engaging, natural language, the way a game trailer reveals its new features: vivid,
-and still naming what is on screen (rule 16) — vivid, not advertising: no "not just X but Y", no slogans,
+Write captions in engaging, natural language appropriate to the film. A trailer may reveal features vividly; a mechanism explanation names its cause and consequence precisely. Keep the wording vivid while naming what is on screen (rule 16): no "not just X but Y", no slogans,
 no forced triads ([the visual-design guide](visual-design.md), "Words on screen"). Vary the cards' form and entrance so they do not become
 one repeated template.
 
@@ -486,10 +485,10 @@ keyword, in a colour that still reads against its backing. Sources and numbers:
 on a plate two-thirds transparent: over a light product page white text sat on grey below readable
 contrast, and in vertical films the words were a third of the size the platforms' own captions use.
 
-## 52. Transitions: one or two kinds, chosen for the film
+## 52. Transitions express the relation between scenes
 
-The quiet default is no transition at all: scenes fade through their own fades. Use one or two kinds per
-film and pick them for what the cut means — a change of place or topic (`cube`, `whip`, `push`), the same
+The quiet default is no transition at all: scenes fade through their own fades. Use one or two kinds in
+a simple film as a starting grammar, then expand it when another relation needs a different transition. Pick them for what the cut means — a change of place or topic (`cube`, `whip`, `push`), the same
 thing carried to its detail (`morph`), a hard cut on the beat in a trailer (`cut`), a pause into black or
 white before a title (`dip`). Keep `dots` and `pixelate` off text: they shred letters mid-cut.
 
@@ -577,18 +576,16 @@ named in the four landing prototypes of the agentic-report research.
 
 An element arrives in about 0.7 s and a slide is complete about two seconds into its beat; then the frame
 holds for reading — about 15 characters a second plus a second (rule 5), about 13 on a phone. Pick each
-entrance for what it says: a column from its side, a step after the one before it. Kinetic text belongs
-to one or two titles of the film, not to every heading. The 0.7 s and 2 s come from pages and are a
+entrance for what it says: a column from its side, a step after the one before it. Kinetic text emphasizes selected moments rather than becoming an automatic entrance on every heading. A deliberately typographic film may use it recurrently; preserve reading and vary its role. The 0.7 s and 2 s come from pages and are a
 starting point for films; the frames decide.
 
 **Counter-example.** An early landing draft faded up every block the same way and animated
 the letters of every title; its review named the motion noise that hid the one entrance that mattered,
 and the design rules of agentic-report now allow an entrance on one or two sections only.
 
-## 60. A real interface stays flat; the camera goes from the whole to the detail
+## 60. Establish the whole interface and preserve its truth
 
-A real interface is shown flat and at its natural scale; an orbit, a tilt or a screenshot floating in 3D
-is for a frame labelled as an illustration, at most once a film. The camera starts on the whole and
+A system interface first appears as its complete captured viewport, in every output format, before focusing on a fragment. A real screenshot may be presented with perspective, orbit or a device frame when that staging introduces depth or the product; settle into a readable view for interaction and detail. Perspective changes presentation, not the provenance of the screenshot. Label invented or reconstructed UI as illustrative, and give real browser frames their real address. Do not impose a once-per-film quota. The camera starts on the whole and
 travels to the detail the narration names. A transition says what the cut means (rule 52); `glitch` is
 chromatic aberration, a glowing circle `mask` from a point is decoration, `cube` and `zoom` belong to a
 change of place.
@@ -619,11 +616,9 @@ kept for the whole film.
 serif subtitles in Literata — the face the subtitles research advises against over moving footage — and
 the first subtitles were 41 px in a 1080p frame (rule 51).
 
-## 63. The film look and the effects are the trailer's tools
+## 63. Choose film treatment for the subject and protect evidence
 
-A product demo, an explainer and a release are built without a film look; `teal-orange` regrades a real
-interface into colours it does not have. Grain goes only over filmed footage. `flash` and `shake` are a
-trailer's impacts with a hit on the same anchor; `overlay.bursts` marks one moment of success, not
+Choose treatment from the intended atmosphere, pace and material. Preserve colors in evidence whose meaning depends on color: `teal-orange` can regrade a real interface into colors it does not have. Grain may add texture to footage or drawn material when the texture earns its encoding cost. `flash` and `shake` give a chosen impact weight, typically with sound on the same anchor; they are strongest in trailers but are not reserved by genre name alone; `overlay.bursts` marks one moment of success, not
 confetti on every card. A clean digital frame looks raw in a trailer and honest in a demo.
 
 **Counter-example.** Grain made as noise in every pixel did not compress: six seconds of slides weighed
@@ -653,14 +648,12 @@ frame back into its first.
 pass of a landing page ended on a box with two buttons, which its review replaced with a closing scene
 of the product.
 
-## 66. Motion the viewer cannot stop is one and quiet
+## 66. Coordinate motion around an understandable focus
 
-A page lets its reader reduce motion; a film cannot. So the constant motion of a frame is one — a slow
-background, never crossing text — and everything else moves to say something. Every drawn scene has a
+A page lets its reader reduce motion; a film cannot. Give a frame a clear hierarchy: a leading action, supporting movements and any subdued ambient layer. Several coordinated movements can describe one cause: a value travels, a connector draws, code highlights and the camera follows. Separate them when they introduce independent facts or prevent reading. Keep ambient motion out of text; omit it during a reading hold when appropriate. Every drawn scene has a
 readable final state; the karaoke word does not scale; a film for a page ships a poster the page shows to
-a reader who asked for less motion (`web --poster`). Rule 9 still holds: a frame that stands still loses
-the viewer, so the one motion stays.
+a reader who asked for less motion (`web --poster`). Rule 9 asks the scene to develop, while allowing a stable result and purposeful reading holds.
 
 **Counter-example.** Every slide carried a breathing glow, a drifting grid and a travelling sheen at once,
 and a live aurora, particles or bokeh behind them in half the themes — three constant motions in one frame
-where rule 9 asks for one.
+that distracted from the intended focus.

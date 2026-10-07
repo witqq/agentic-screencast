@@ -26,8 +26,9 @@ import { msg } from "./msg.js";
 import { retiredAs } from "./retired.js";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { finding, type Finding as RuleFinding } from "./rules.js";
+import { finding, isAdvisory, type Finding as RuleFinding } from "./rules.js";
 import { karaokeRestContrast } from "./brand.js";
+import { reportMotion } from "./report-motion.js";
 
 const FFMPEG = createRequire(import.meta.url)("ffmpeg-static") as string;
 
@@ -362,7 +363,10 @@ export function lint(file: string, info?: { seconds?: number }): Finding[] {
           const marks = Object.values(take?.marks ?? {}).map((t) => t - from);
           if (take) {
             const jump = jumpsOf(frames, FPS).find((t) => t > 0.3 && !marks.some((m) => Math.abs(m - t) <= 0.6)
-              && !(take.cameraMoves ?? []).some((move) => t + from >= move.from && t + from <= move.to));
+              // fps samples are rounded to the nearest output tick. The pair's
+              // source-time support extends half a sample beyond each tick.
+              && !(take.cameraMoves ?? []).some((move) =>
+                t + from + 0.5 / FPS >= move.from && t + from - 1.5 / FPS <= move.to));
             if (jump !== undefined) add("scene-jump", msg("lint.sceneJump", { at: jump.toFixed(1) }));
           }
         }
@@ -427,7 +431,11 @@ export function lint(file: string, info?: { seconds?: number }): Finding[] {
     // движение идёт по времени сцены так же, как слой композиции. Один `data-at` ничего не двигает:
     // слой лишь переводит якорь в секунды.
     const pageFile = !s.video ? resolve(src.dir, String(s.page)) : "";
-    const animated = pageFile && pageMoves(pageFile);
+    const estimated = estimateBeats(s.beats, s.speechAt ?? 0, cps);
+    const directed = s.provider === "report" && reportMotion(
+      resolve(src.dir, src.scenes[i]?.fields.report ?? ""), src.scenes[i]?.fields.target,
+      duration, estimated.starts.length ? estimated.starts : [0], estimated.ends.length ? estimated.ends : [duration]);
+    const animated = directed || (pageFile && pageMoves(pageFile));
     if (!spec.moving && duration > 5 && !moves && zoom <= 1 && !animated) {
       add("still-scene", msg("lint.stillPage", { duration: duration.toFixed(1) }));
     }
@@ -620,6 +628,7 @@ if (process.argv[1] && resolve(process.argv[1]).endsWith("lint.js")) {
   const cliches = { count: signs.length, signs,
     ...(signs.length >= 4 ? { verdict: msg("lint.clicheVerdict") } : {}) };
   // Признаки клише не валят проверку: каждый бывает решением, их число — предупреждение.
-  console.log(JSON.stringify({ findings, ok: findings.length === 0, cliches, estimated: { seconds: info.seconds } }, null, 1));
-  process.exit(findings.length ? 1 : 0);
+  const blocking = findings.filter((f) => !isAdvisory(f));
+  console.log(JSON.stringify({ findings, ok: blocking.length === 0, cliches, estimated: { seconds: info.seconds } }, null, 1));
+  process.exit(blocking.length ? 1 : 0);
 }

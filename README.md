@@ -145,6 +145,19 @@ agentic-screencast scenes --source story.md
 agentic-screencast script --source story.md
 ```
 
+## Discover tools and stage the material
+
+Start with the [knowledge map](docs/knowledge.md), [directing](docs/directing.md) and [combinations](docs/combinations.md): material, viewer understanding and feeling, development, staging, coordinated actions, then tools. The [complete atlas](docs/atlas.md) lists the runtime vocabulary and every packaged scenario and template. It preserves the original craft rules, counterexamples and research as linked references.
+
+```sh
+agentic-screencast atlas --out ./tool-atlas
+agentic-screencast atlas --json
+agentic-screencast help directing
+agentic-screencast help combinations
+```
+
+Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--transitions` to render transition films through the normal builder; the default gallery is fast and silent. Examples demonstrate possibilities, not a universal film recipe.
+
 ## Compose explanations and interface scenes
 
 [Directed scenes](docs/directed-scenes.md), also available as `agentic-screencast help composition`, maps a viewer's question to five ready Report compositions and eight timed actions. A report scene binds those actions to measured narration: values copy, move, change and reach their consumer beside the relevant code. The [three complete examples](example/directed-compositions/README.md) combine them with existing perspective, dolly, 3D entrances and transitions. Use coordinated local Report and Screencast builds for this vocabulary.

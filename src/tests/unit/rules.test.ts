@@ -5,7 +5,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import { RULES, finding } from "../../rules.js";
+import { RULES, finding, isAdvisory } from "../../rules.js";
 import { DICTS } from "../../msg.js";
 import { PRODUCT_ROOT } from "../../self-hash.js";
 
@@ -34,8 +34,11 @@ test("every finding lint and the build raise has a rule and a hint in both langu
     for (const lang of ["en", "ru"] as const) assert.ok(DICTS[lang][`hint.${id}`], `hint.${id} in ${lang}`);
   }
   const f = finding("still-scene", "stands still");
-  assert.deepEqual(Object.keys(f).sort(), ["hint", "id", "message", "rule"]);
+  assert.deepEqual(Object.keys(f).sort(), ["advisory", "hint", "id", "message", "rule"]);
   assert.equal(f.rule, "FC-9");
+  assert.equal(isAdvisory(f), true);
+  assert.equal(isAdvisory({id:"still-stretch"}), true);
+  assert.equal(isAdvisory(finding("cut", "cropped")), false);
 });
 
 test("lint names a sound file without a line in assets/CREDITS.md, and not one that has it", async () => {

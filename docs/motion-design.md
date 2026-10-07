@@ -68,8 +68,7 @@ a frame or two later — "the initiator of the movement will be the most importa
 two frames and let the tip overshoot a little before settling; one frame already turns "a stiff
 board" into a living thing [10]. Keep it off tables and code, where the tone must be exact [6].
 
-**One lead movement at a time.** Several simultaneous animations each lose their pull on attention
-[11]. Everything else in the frame is either still or in a very slow background drift.
+**One understandable focus.** Several unrelated simultaneous animations split attention [11]. Coordinated movements can instead show one relation: an object travels, its code highlights and its destination responds. Give these a clear lead and supporting roles; separate independent reading tasks. See [combinations](combinations.md).
 
 **How to write it here.** Items of a slide take their moments from `at:` — a list of beat anchors
 (`b2`, `b2+0.3`, `b3.end`), seconds or percentages (`help slides`). Write moments so groups start
@@ -209,8 +208,7 @@ overview" [11]. Large zooms and orbits should stay slow and keep a still referen
 
 **Camera moves that give energy.** A **dolly** pushes in hard with a speed ramp — slow start, rush,
 soft landing — and says "look closer". A **pan** travels sideways across a wide subject. An **orbit
-in 3D** tilts the whole frame and swings round it, the most "produced" of the moves; use it once or
-twice a film. A **hand-held** camera trembles with layered noise that never repeats and makes a calm
+in 3D** tilts the whole frame and swings round it, the most "produced" of the moves; use it where depth or the intended emphasis matters, then settle for reading. A **hand-held** camera trembles with layered noise that never repeats and makes a calm
 frame feel present and urgent. A **shake** is a single jolt on an impact, with a hit sound on the same
 frame. Real 3D reads only when it is continuous: the tool keeps a 3D element 3D on every frame, and
 stack cards, feature cards, bento cells and `flip3d`/`tilt3d` entrances stand in perspective
@@ -223,7 +221,7 @@ takes (`help overlay`, `help capture`); `slides.parallax`, `slides.perspective`,
 `slides.wall` for depth; `motionBlur` in the header blurs camera moves, and fast slide entrances
 carry their own directional blur. `lint` names a push-in faster than about a doubling in 0.58 s
 (`harsh-push`) and a push-in stacked on a slide's own camera move or a title flying in during it
-(`motion-stack`) — both break rule 66 of film craft.
+(`motion-stack`). The first is a speed/readability concern; the second is an observation of overlap. Judge whether the movements support one event or compete (film craft 66 and [combinations](combinations.md)).
 
 ## Rhythm and sound
 
@@ -242,9 +240,7 @@ transitions`, `help overlay`, `help slides`).
 
 ## A living frame
 
-Keep something slow alive in every long frame, and keep it away from what is being read: slow
-changes without a shift of position pull attention far less than sliding does, so they suit the
-background [39]. A drifting gradient, a slow grid, a sheen that crosses a card once, a little grain.
+Choose slow ambient movement when atmosphere helps the scene, and keep it away from what is being read: slow changes without a shift of position pull attention far less than sliding does, so they can suit the background [39]. A long frame may stay still for orientation, comparison or reading; it needs no ambient movement merely because it is long. A drifting gradient, a slow grid, a sheen that crosses a card once, a little grain.
 **Secondary action** happens once, at the climax: a status dot blinks, a check mark trembles [16].
 
 **How to write it here.** `background:` on a slide or `--bg-motion` in the theme (`help slides`,
@@ -413,8 +409,7 @@ table in "Transitions" above. Two of the new ones state a relation: `mask` grows
 of an element of the first, and `curl` turns a page — the next item of a list, a new version.
 `leak` is a light over the cut that keeps the film's length. The rest — liquid `melt`, `tiles`,
 `dots`, `pixelate`, `clock`, soft-focus `blur` — are dissolves with a character [78][79][90]; none
-of them states a relation between scenes, so keep them for a genre that wants them, one kind per
-film.
+of them states a relation between scenes, so choose them for the character of the actual scene and keep their visual world coherent. Their count alone does not determine quality.
 
 ### Background and light
 
@@ -436,10 +431,9 @@ film.
 ## Composition recipes
 
 A single effect rarely makes a frame memorable; a composition does — a few devices that say one
-thing together, with one lead movement at a time. Each recipe below names the devices that work
+thing together, with a clear hierarchy of attention. Each recipe below names the devices that work
 together, the scene or genre it serves, why the parts belong together, and when to leave it out.
-Take a recipe as a starting point for one scene, not as a template for every scene: a film repeats a
-recipe at most twice (film craft 45). The genres' own rules for motion are in the scenario playbook,
+Study a recipe as one analyzed staging choice, not a mandatory starting template. Repeat it when recurrence teaches a mechanism or establishes a motif; change it when the repetition stops adding meaning (film craft 45). The genres' own rules for motion are in the scenario playbook,
 each genre's section.
 
 ### 1. The opening that shows the product (hero)
@@ -469,8 +463,7 @@ place for 1.2–1.8 s; the answer arrives in its place; `overlay.glints` crosses
 **When and why.** An AI answer is the climax of such a demo: the skeleton says "it is working", the
 sheen says "done", and the boop ties the question to the answer (cause and effect).
 
-**Not when** the answer must be read closely for more than a line — hold it still instead, with a
-`spotlight` push-in after the glint, never during it (`motion-stack`).
+**Not when** the answer must be read closely for more than a line — hold it still instead, with a reading close-up when needed. A glint and camera may coordinate around the same answer; separate them when the travel or sheen interferes with reading.
 
 ### 3. A setting that changes the product (UI walkthrough)
 
@@ -508,8 +501,8 @@ for "and the list goes on", `slides.globe` or `map: flat` for reach; `beams` beh
 **When and why.** These kinds keep moving while the voice speaks, so a list becomes a system the
 viewer feels without reading every name.
 
-**Not when** each name must be read — then `slides.features` or a still list; and only one of these
-kinds per film.
+**Not when** each name must be read — then `slides.features` or a still list; avoid stacking all these
+kinds for the same undifferentiated list; different views of the system may need different kinds.
 
 ### 6. The developer product at work
 
@@ -533,7 +526,7 @@ background for "many screens, speed"; `fill:` with the product in a card's lette
 **When and why.** A trailer is carried by rhythm: the hit lands two to four frames before the beat,
 loud comes only after quiet, and the product shows through every card.
 
-**Not when** the film is a demo or an explainer (`hit-outside-trailer`), and never every card with a
+**Not when** the impact obscures evidence or interrupts a reading task; use it in another genre only when the intended moment earns that emphasis. Avoid every card with a
 hit — "one well-placed hit is strong, four are a parody" (the playbook's action trailer).
 
 ### 8. What is new (release)
@@ -554,7 +547,7 @@ glance, and the mask says "this is where it lives".
 "Don't add motion for the sake of adding motion" [33]. For every movement name what it says — where
 the object came from, what belongs to what, what changed, where to look; no answer means decoration,
 which is allowed rarely [33][11]. A repeated effect grows annoying [39]; heavily stylised trends date
-fast, so take one or two [86]. Large pans, zooms and parallax trigger vestibular symptoms: keep them
+fast [86]. These are reasons to consider coherence and repetition, not a universal one-or-two quota. Large pans, zooms and parallax trigger vestibular symptoms: keep them
 slow, small and rare, with a still reference in frame [33][30]. Nothing may flash more than three times
 in any second [87] — the build names it (`flashing`).
 

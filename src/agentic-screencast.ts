@@ -101,6 +101,7 @@ Usage:
   agentic-screencast voice-check [command]
   agentic-screencast provider-check <command>
   agentic-screencast handover [story.md] [--film draft.mp4]
+  agentic-screencast atlas [--json | --markdown | --out directory [--transitions]]
   agentic-screencast craft [<topic>] [--json]
   agentic-screencast paths
   agentic-screencast version
@@ -108,9 +109,9 @@ A command that reads a scenario also takes its path first: lint story.md.
 
 handover is the gate before the film goes to the owner: lint of the scenario,
 a non-empty MP4 and its full-film report (built after the scenario's last
-edit, no audit issue, no warning), its stills on disk and checklist.md
+edit, no audit issue, no blocking warning), its stills on disk and checklist.md
 without an open box. A build --only report cannot pass. It prints
-{verdict: "pass"|"fail", checks: [{name, passed, findings}]} and exits 1 on
+{verdict: "pass"|"fail", checks: [{name, passed, findings}], advisories: [...]} and exits 1 on
 fail; --film names the film, otherwise the newest report beside the scenario.
 
 craft <topic> prints the 3–7 film-craft rules for the decision at hand — a scene
@@ -123,7 +124,7 @@ docs/film-craft.md. craft alone lists the topics.
 Guides: agentic-screencast help video | help capture | help overlay
         agentic-screencast help slides | help vertical | help text
         agentic-screencast help transitions | help sound | help themes | help voice | help web
-        agentic-screencast help composition
+        agentic-screencast help knowledge | help directing | help combinations | help atlas | help composition
 Use the stub voice for cost-free checks. See README.md for the scenario and extension contracts.`;
 const VIDEO_HELP = `Scenes, the build and its checks: what each command does
 
@@ -1235,8 +1236,9 @@ drifting grid, a travelling sheen — items keep a faint float after they
 appear, and held cards breathe; all of it is a function of scene time, so a
 frame taken from the middle equals the same frame of a full build. That
 layer is faint on purpose and does not count as motion: a slide holding
-three seconds with nothing new is a still stretch (still-stretch). Give a
-long beat its next item (at:), a focus (spotlight) or a camera move.
+three seconds with nothing new is reported as a still stretch (still-stretch).
+Keep intentional orientation and reading holds; otherwise develop the event
+with its next item, a focus, a camera move or a shorter shot.
 
 The classic kinds now enter with meaning: compared columns slide in from
 their sides, chain nodes pop and arrows draw, quotes wipe in, numbers roll.
@@ -1342,6 +1344,9 @@ path; establish an unmarked UI recording with contain/device or an explicit
 whole-screen opening. Captions, titles and cards are laid out again inside
 the vertical safe zone; a card near focus moves to the top. Letterbox bars
 from look are left out and the report says so; a device clip is re-laid.
+frames uses the final portrait viewport/window for converted pages and capture;
+its beat timing is estimated. Explicit scale multiplies that window rather
+than fitting its target; omit it for the target-fit default, or use pan/loupe.
 See help composition and example/interface-overview for whole → travel → detail
 and Report mechanisms timed to narration, without added checking gates.
 
@@ -1433,7 +1438,8 @@ Helpers that save a full build:
       check, rule the knowledge-base rule behind it (FC-58 is rule 58 of
       docs/film-craft.md, VA-5 step 5 of "Checking a licence and writing
       the credit" in docs/visual-assets.md — read it for why and how), hint
-      what to change.
+      what to change. Timing/count observations can add advisory: true;
+      interpret those for reading, rhythm and coordinated motion.
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
@@ -1480,6 +1486,10 @@ Helpers that save a full build:
       merged into another (text: scramble, which says to write flap) —
       stops lint with that one error before any finding: fix it and run
       lint again.
+      still-hold, still-scene, long-scene, still-stretch, motion-stack and
+      harsh-push are advisory observations, not proof of a bad film. They
+      remain visible but do not fail lint/handover. An actual cut, crop,
+      absent subject, invalid cue or stream mismatch remains blocking.
       "estimated": {"seconds"} is the film's length from the narration's
       estimated pace and the scenes' own durations, less the transitions'
       overlaps — compare it with the brief's length before the first build.
@@ -1494,8 +1504,9 @@ Helpers that save a full build:
       (decorative-background),
       a browser frame with no real address (placeholder-address), a kicker
       in capitals (kicker-caps), emoji icons in features (emoji-icons), the
-      same enter on every slide (same-entrance); four or more add a verdict
-      that the film is average (docs/visual-design.md). A trailer — its
+      same enter on every slide (same-entrance); four or more add an advisory
+      summary. Counts are not a quality score: interpret each observation
+      against the subject, staging and rhythm (docs/visual-design.md). A trailer — its
       cards, look: trailer or a genre theme — keeps impacts, grain and
       capitals without a sign
 
@@ -1687,6 +1698,7 @@ switch (cmd) {
     else if (topic === "sound") console.log(SOUND_HELP);
     else if (topic === "voice") console.log(VOICE_HELP);
     else if (topic === "web") console.log(WEB_HELP);
+    else if (topic === "knowledge" || topic === "directing" || topic === "combinations" || topic === "atlas") console.log(readFileSync(resolve(HERE, "..", "docs", `${topic}.md`), "utf8"));
     else if (topic === "composition") console.log(readFileSync(resolve(HERE, "..", "docs", "directed-scenes.md"), "utf8"));
     else if (!topic) console.log(HELP);
     else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
@@ -1699,6 +1711,10 @@ switch (cmd) {
       console.log(JSON.stringify(result, null, 1));
       process.exit(result.verdict === "pass" ? 0 : 1);
     } catch (e) { console.error((e as Error).message); process.exit(2); }
+    break;
+  }
+  case "atlas": {
+    run("atlas.js", rest);
     break;
   }
   case "craft": {

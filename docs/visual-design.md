@@ -37,14 +37,13 @@ and were still called "clumsy, not premium" by their owner [3]. A list of clich�
 template; quality needs a positive standard — material, depth, composition and considered motion.
 Film craft 48 records the same lesson for films.
 
-**The self-check threshold.** Four or more of the signs below in one film: it is an average film, not
-a distinctive one [1]. `agentic-screencast lint` counts the signs a scenario shows in its `cliches`
+**Interpreting the signs.** The source proposes a four-sign threshold [1], but a count cannot establish the quality of a film. Each sign can also be an intentional choice. Judge whether the material, hierarchy, movement and reading work for this subject; do not remove effects simply to reduce the count. `agentic-screencast lint` counts the signs a scenario shows in its `cliches`
 field, and `agentic-screencast frames` names an ordinary drawn frame with an empty third in `empty`
 (trailer cards are intentionally sparse); the rest only the frames show.
 
 ## Catalogue of clichés and their cure
 
-Each line: the cliché, why it fails, the cure. **A synonym is not a cure**: swapping a cliché for the
+Each line describes a failure pattern, its reason and a possible cure. Read stylistic prohibitions in the context of an unconsidered default or damaged content, not as universal bans on an effect, palette or genre. [Directing](directing.md) and [combinations](combinations.md) give the positive staging choices. **A synonym is not a cure**: swapping a cliché for the
 neighbouring fashionable device looks like a fix and leaves the cliché in place — a teal gradient
 instead of a violet one, numbered cards instead of icon cards. The only cure is a decision taken from
 the subject [3].
@@ -122,9 +121,9 @@ the subject [3].
 - **An abstract generated picture as the main image; stock people at laptops.** Cure: the screen they
   would be looking at — a take, a snapshot, a diagram; at most one generated picture, with a reason [3].
 - **A tilted dashboard, a screenshot floating in 3D inside an invented browser window.** Cure: the real
-  interface flat and at its natural scale; a browser frame only with the real address, a mockup
+  interface established whole, then readable where detail matters. Perspective may introduce a real screenshot; an invented browser frame needs honest labeling. A real browser frame uses the real address, a mockup
   labelled as an illustration (film craft 2) [1][3].
-- **An editor recording shrunk to a card.** Cure: crop, do not shrink [1].
+- **An editor recording shrunk to an unreadable card.** Cure: establish the whole interface first, then use a readable close-up or loupe for the relevant area [1].
 - **One picture under different captions; a slogan instead of a caption.** Cure: a caption says what
   the frame shows [3].
 
@@ -164,8 +163,7 @@ The same mechanisms produce film-specific clichés. Each is a field an agent rea
 - the system voice, a logo as the opening, "In a world…", four braaams — already named in the skill
   and the playbook.
 
-Chrome, glare, bloom and Trajan-like capitals are legitimate only in a parody trailer, and then on
-purpose.
+Chrome, glare, bloom and display capitals can carry a chosen visual world. Use them where they contribute to that world and preserve the legibility and truth of the subject, rather than assigning every product the same costume.
 
 ## Signs of quality
 
@@ -250,10 +248,10 @@ only (`theme: {"preset":"terminal","scheme":"dark"}`).
 | Element entrance | ~0.7 s, a line step ~70 ms; a composed frame at ~2 s | web, a starting point for film [3] |
 | A scene transition | 1–1.5 s | web [4] |
 | Motion origin | ≤ 16 px toward the source, scale 0.97 → 1 | web [3] |
-| Constant motion | one and quiet; a page pauses it after 5 s (WCAG 2.2.2) [5] — a film cannot, so it must never cross text | web and film |
+| Constant motion | web pages need the applicable pause behavior (WCAG 2.2.2) [5]; film actions may coordinate around one focus and settle for reading | distinguish reader control from film time |
 | Hand-drawn marks | ≤ 2 per frame | web and film [3] |
 | Generated pictures | ≤ 1, with a reason | web and film [3] |
-| Signs of a template | ≥ 4 — the result is average | web and film [1] |
+| Signs of a template | the source heuristic highlights four or more for examination; the count does not establish quality | interpret purpose and context; source heuristic [1] |
 
 ## Before the final build: the look questions
 

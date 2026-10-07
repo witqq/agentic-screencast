@@ -55,7 +55,7 @@ The third beat.
   const r = spawnSync("node", [ENTRY, "lint", cliche], { encoding: "utf8" });
   const out = JSON.parse(r.stdout) as { cliches: { count: number; verdict?: string } };
   assert.equal(out.cliches.count, 8);
-  assert.match(out.cliches.verdict ?? "", /four or more signs/u);
+  assert.match(out.cliches.verdict ?? "", /not a quality score/u);
 
   const considered = story(`
 ## one · slides.hero

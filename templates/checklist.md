@@ -30,12 +30,13 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 5. Scenario
 
-- [ ] `agentic-screencast lint story.md` (and `--lang`, `--format` for each built format) is clean; each sign in its `cliches` is a
+- [ ] `agentic-screencast lint story.md` (and `--lang`, `--format` for each built format) has no blocking findings; its timing/motion advisories and each sign in its `cliches` is a
       decision you can name; scenes with a moment that must be right have `stills:`.
-- [ ] Motion is decided per scene (docs/motion-design.md), starting from the composition recipe the
-      playbook's Motion paragraph names for the genre: each scene's key element lands last, groups
-      start together, one lead movement at a time, every transition states how its two scenes relate,
-      and no long frame stands dead. Interface scenes establish the complete screen before details in every format; mechanisms use a visible change and a ready composition (docs/directed-scenes.md).
+- [ ] Staging and motion serve the scene's viewer question (docs/directing.md, docs/combinations.md):
+      coordinated actions have one understandable focus, causal changes arrive in the intended order,
+      transitions express the scenes' relation, and holds allow orientation and reading. Genre recipes
+      are options to adapt. Interface scenes establish the complete screen before details in every
+      format; mechanisms show the relevant change (docs/directed-scenes.md).
 
 ## 6. Draft
 
@@ -63,6 +64,9 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
       decisions taken without the owner named.
 
 ## Techniques — the menu, pick what serves the film
+
+The complete inventory and animated previews are in docs/atlas.md: `agentic-screencast atlas --out ./tool-atlas`.
+Use docs/knowledge.md to find directing, combinations and the original research; these are references, not extra boxes.
 
 - Spotlight: push-in, dim, circle, blur, desaturate, card, slow or stop, a film push-in without a frame (`ring: false`, `dim`) — `spotlight`, `help overlay`
 - Camera moves by hand, their pace (`style`), motion blur — `overlay.camera`, `motionBlur`, `help overlay`

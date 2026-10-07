@@ -39,6 +39,20 @@ skills/agentic-screencast in this repository and make a one-minute film about ou
 The universal core lives in `src/`. The scenarios, snapshots, recordings and commands of a
 particular film belong to the external consumer project; this repository does not store them.
 
+## Discover tools and stage the material
+
+Start with the [knowledge map](knowledge.md), [directing](directing.md) and [combinations](combinations.md): material, viewer understanding and feeling, development, staging, coordinated actions, then tools. The [complete atlas](atlas.md) lists the runtime vocabulary and every packaged scenario and template. It preserves the original craft rules, counterexamples and research as linked references.
+
+```sh
+agentic-screencast atlas --out ./tool-atlas
+agentic-screencast atlas --json
+agentic-screencast help directing
+agentic-screencast help combinations
+```
+
+Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--transitions` to render transition films through the normal builder; the default gallery is fast and silent. Examples demonstrate possibilities, not a universal film recipe.
+
+
 ## Directed compositions and interface orientation
 
 The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and eight actions (`reveal`, `focus`, `connect`, `transfer`, `copy`, `replace`, `compare`, `camera`). A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
@@ -182,7 +196,7 @@ video frame count, final video and audio stream durations, stream presence and
 WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
 mismatch with measured values; the same findings appear in `warnings` and on
 the error stream. Every entry of `warnings` — and every `lint` finding — has the
-form `{rule, id, message, hint}`: `id` names the check, `rule` the knowledge-base
+form `{rule, id, message, hint, advisory?}`: `id` names the check, `rule` the knowledge-base
 rule behind it (`FC-58` is rule 58 of `docs/film-craft.md`, `VA-5` step 5 of the licence
 section of `docs/visual-assets.md`), `hint` what to change. An empty issues list means these encoded properties match
 within one video frame and AAC packet padding, not that the film has been
@@ -591,7 +605,7 @@ npx agentic-screencast craft spotlight          # film-craft rules for a decisio
 npm test                                     # the product's test suite
 ```
 
-`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail. A `build --only` report cannot pass.
+`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no blocking warning), checks its stills and `checklist.md`, and prints `{verdict, checks, advisories}`, exiting 1 on fail. A `build --only` report cannot pass.
 
 `schema` prints a machine-readable description of a scene, `scenes` prints the scenes
 of the parsed scenario in the same form. Together they give another agent
@@ -623,6 +637,14 @@ the end-to-end run).
 progress bar, typing too fast to read, a take piece crossing a mark not named
 in `stills`, and an abrupt screen change outside marks and `cameraMoves`.
 It places speech anchors by estimate; check the finished film after recording.
+
+`still-hold`, `still-scene`, `long-scene`, `still-stretch`, `motion-stack` and
+`harsh-push` are timing/count observations marked `advisory: true`. They remain
+visible in `findings`/`warnings`; lint's `ok` and exit code reflect blocking
+findings, while handover returns these observations in `advisories`. A reading
+hold or coordinated combination needs directing judgment, not decoration to
+pass a counter. Actual cut/crop, invalid cues, absent subjects and stream issues
+remain blocking. Older reports with these same IDs are interpreted consistently.
 
 ## The voice-engine contract
 
