@@ -41,9 +41,26 @@ Inside `::::composition{id="..." title="..." kind="..."}`, write `:::object{id="
 ::cue{at="b4" action="compare" target="source" to="local"}
 ```
 
-The eight actions are `reveal`, `focus`, `connect`, `copy`, `transfer`, `replace`, `compare` and `camera`. `copy` leaves the source intact; `transfer` empties it when the value arrives. `replace` changes the body to plain text while keeping its title; pre-author another object for a complex Markdown/code state. `connect` draws a labelled route; `focus` selects an object or code lines; `compare` emphasizes two objects together. `camera` is a restrained stage move. For an actual reading close-up, use the film's camera or loupe.
+The actions are `reveal`, `focus`, `connect`, `trace`, `copy`, `transfer`, `replace`, `compare` and `camera`. `copy` leaves the source intact; `transfer` empties it when the value arrives. `replace` changes the body to plain text while keeping its title; pre-author another object for a complex Markdown/code state. `connect` draws a labelled route; `focus` selects an object or code lines; `compare` emphasizes two objects together. `camera` is a restrained stage move. For an actual reading close-up, use the film's camera or loupe.
 
 Object names are local to the composition; destination objects must be distinct and already authored. Movement defaults to 0.6 seconds, and a dependent replacement should follow arrival. Cues at the same anchor run in source order. A stage supports 1–16 objects and up to 64 cues. The Agentic Report skill's `references/directed-scenes.md` and its generated directive schema give the complete grammar.
+
+### Separate the stable map, changing values and attention
+
+Keep an architecture object's component name, responsibility and location stable. Use named `slot` regions for a changing example value, or a separate example/detail object for a different representation. `copy`, `transfer` and `replace` accept `slot` and destination `toSlot`, so the operation can develop without replacing the component's definition. A stable owner containing slots is changed through its named value. Report reserves the declared value states' height at the current width and reconstructs them on seek. Slots appear after the stable body; source assets still need dimensions for predictable sizing.
+
+`scene-group` keeps related objects within a named boundary; `layout="row|column|grid"` and `align="start|center|stretch"` arrange them independently of the explanation's `kind`. The automatic pipeline uses its actual number of spatial elements up to three columns. A common reading edge suits a chain, paired axes suit comparison, and groups suit common ownership or lifecycle. Use an existing Report flow diagram with groups and layered/orthogonal routing for a complex dependency network. Do not force every relationship into the same grid or fill intentional space merely because it is empty. Report's directed-scenes reference carries the exact syntax and complete grouping example.
+
+Focus adds emphasis and preserves full context by default. `emphasis="outline|halo|brackets|underline"` expresses different reading accents; `dim` explicitly isolates a detail, and `none` releases attention. Its duration controls the transition from the previous focus. Prefer additive accents for diagrams and code; automatic darkness makes their relationships unreadable. `trace` takes `target`, `to`, `duration` and optional `effect="beam|pulse|packet"` for a transient directional pass. `connect` establishes the relationship, `trace` shows a pass, and slot copy/transfer demonstrates actual changing data or ownership. Combine their meanings when they explain one event.
+
+```markdown
+::cue{at="b2" action="copy" target="source" slot="value" to="local" toSlot="value" duration="0.8"}
+::cue{at="b3" action="replace" target="local" slot="value" value="Independent result"}
+::cue{at="b3" action="trace" target="source" to="local" effect="beam" duration="1.2"}
+::cue{at="b4" action="focus" target="code" lines="2-4" emphasis="brackets"}
+```
+
+These anchors describe the example's narration. Select each actual anchor from the spoken operation; a generator must not put every mutation or connection on its second beat. If two parts require independent close reading, hand attention between them rather than highlighting both during unrelated claims. Measured timing, direct seeks and reduced-motion behavior belong to the same scene clock; no new validation loop is required. Existing WebGL perspective/layers/orbit can introduce depth where it explains the subject, while SVG paths and DOM accents keep text and relationships aligned during reading.
 
 ### Bind the picture to speech
 
@@ -113,7 +130,7 @@ New Report actions complement the existing vocabulary. Actively choose from it w
 
 Read the kind's schema before choosing `move`: different kinds support different moves, and a chain does not accept every slide camera name. Report pointer tilt/depth effects need a pointer; they do not become a filmed 3D camera simply because a screenshot is taken. Large flashes, shakes and particle bursts belong to a genre and a specific moment, not every explainer frame. Use the [motion-design guide](motion-design.md) for curves and effect recipes and [visual-design](visual-design.md) for type, spacing, image treatment and theme choice.
 
-Code objects in `pipeline`, `before-after` and `ownership` receive a complete row below the visual objects; use `diagram-code` for shorter code beside the mechanism. `focus` without `lines` leaves code lines at full opacity; an explicit line selection dims only other lines, and a later focus clears it. Connections use live object-boundary ports, rounded routes around visible objects and persistent arrowheads. Labels follow free route space; compact moving copies follow the same route between their owners. Attachments update during entrances, body replacement, fitting and camera movement. Keep owners separate and transfer short readable values rather than a full code listing.
+Code objects in `pipeline`, `before-after` and `ownership` receive a complete row below the visual objects; use `diagram-code` for shorter code beside the mechanism. `focus` without `lines` leaves code lines at full opacity; an explicit line selection adds a local accent while preserving the other lines; `emphasis="dim"` explicitly dims them, and a later focus clears the selection. Connections use live object-boundary ports, rounded routes around visible objects and persistent arrowheads. Labels follow free route space; compact moving copies follow the same route between their owners. Attachments update during entrances, body replacement, fitting and camera movement. Keep owners separate and transfer short readable values rather than a full code listing.
 
 Vary the composition when the viewer's question changes: a screen for orientation, a diagram beside code for a mechanism, a route for delivery, a comparison for the result. Keep a stable visual identity and a limited set of transitions. Effects should make these relations visible and give important moments weight; constant jitter beneath reading text works against that.
 

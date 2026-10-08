@@ -27,7 +27,7 @@ One scene can combine these needs. Showing a copied value beside its highlighted
 
 ## Keep identity and spatial context across change
 
-Preserve the cues by which a viewer recognizes an object: a title, silhouette, position, color role, direction of travel or shared element across a cut. Replacing a body need not replace its title. A camera should show how a detail belongs to the larger subject; a cut can preserve that connection through a shared object. After navigation or a major rearrangement, provide enough new context to reorient.
+Preserve the cues by which a viewer recognizes an object: a title, silhouette, position, color role, direction of travel or shared element across a cut. Keep an architecture component's responsibility and location stable while its example values develop in named slots or a separate example region. Replace a body when that body is genuinely a changing value, not merely because the next narration paragraph needs somewhere to appear. A camera should show how a detail belongs to the larger subject; a cut can preserve that connection through a shared object. After navigation or a major rearrangement, provide enough new context to reorient.
 
 Every system interface is a specific invariant: in every format show its whole captured application viewport before zooming, cropping or focusing on a part. Small labels need not be readable in the establishing view; the later reading shot makes the target legible. Do not interpret “whole” as scrolling through an entire document. Use an overview plus detail, continuous zoom, device view or loupe. Automatic portrait conversion preserves this opening for supported material; it cannot reconstruct a missing whole screen.
 
