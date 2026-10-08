@@ -12,7 +12,7 @@ This is the reading map for making a film. Start from the material, the audience
 | Which mistakes obscure the explanation? | [Film craft](film-craft.md) | FC rules and concrete counterexamples; apply each rule within its stated scope |
 | How should the image look? | [Visual design](visual-design.md), [theme tokens](theme-tokens.md) | Composition, type, spacing, palette, subject treatment and measured constraints |
 | How do I frame for a phone? | [Vertical video](vertical-video.md), [whole-interface orientation](directed-scenes.md#show-the-whole-interface-before-a-detail) | Whole-to-detail UI context, safe zones, reading size and automatic conversion limits |
-| What should I hear and read? | [Sound](sound.md), [subtitle research](research/subtitles.md), [font research](research/fonts.md) | Narration/music/accent hierarchy, source and licence records, competing evidence and typography |
+| What should I hear and read? | [Sound](sound.md), [pronunciation](pronunciation.md), [subtitle research](research/subtitles.md), [font research](research/fonts.md) | Narration/music/accent hierarchy, source and licence records, competing evidence and typography |
 | Where does the material come from? | [Visual assets](visual-assets.md), [reference](reference.md#recording-real-actions) | Real footage, local media, provenance and recording contracts |
 | How do I operate the tool? | [Reference](reference.md), `help <topic>` | Single scenario input, providers, clocks, measured speech, builds and delivery |
 

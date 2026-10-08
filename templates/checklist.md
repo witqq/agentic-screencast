@@ -36,7 +36,9 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
       coordinated actions have one understandable focus, causal changes arrive in the intended order,
       transitions express the scenes' relation, and holds allow orientation and reading. Genre recipes
       are options to adapt. Interface scenes establish the complete screen before details in every
-      format; mechanisms show the relevant change (docs/directed-scenes.md).
+      format; mechanisms show the relevant change (docs/directed-scenes.md). Technical speech uses
+      a dictionary or complete spoken variants while preserving identifiers, captions and semantic
+      cue anchors (docs/pronunciation.md); preview with `script --speech --json` when needed.
 
 ## 6. Draft
 
@@ -85,7 +87,7 @@ Use docs/knowledge.md to find directing, combinations and the original research;
 - Live capture: clicks (and their effect), typing, keys, ranges, drags, cards, focus during the take, clicks through a layer — `recordTake`, `take.*`, `help capture`
 - Zoom to actions and follow the cursor, device frame — `autoZoom` with `follow` (`help capture`), `device` (`help slides`)
 - Saved pages and interface snapshots — `page`, `agentic-screencast snapshot`, `help video`
-- Reports rebuilt from original Markdown: ready diagram-code, pipeline, before-after, overview-detail and ownership compositions; reveal/focus/connect/copy/transfer/replace/compare/camera cues on measured speech — `report`, `target`, `help composition`, docs/directed-scenes.md
+- Reports rebuilt from original Markdown: ready diagram-code, pipeline, before-after, overview-detail and ownership compositions; stable groups/slots and reveal/focus/connect/trace/copy/transfer/replace/compare/camera/annotate cues on measured speech — `report`, `target`, `help composition`, docs/directed-scenes.md
 - Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, push or whip with a direction, zoom into an element, a mask out of an element or a glowing circle from a point, a page curl, a light leak that keeps the length, a scene's own fades — `transition`, `fade`, `help transitions`
 - A continuous film: every seam connected instead of fades — `flow: auto`, `help transitions`, docs/motion-design.md "A continuous film"
 - Camera and life on slides: dolly, pan, 3D orbit, hand-held camera; living, jolting, bouncing, fanning and 3D entrances with motion blur; waves, stagger, curves and the scene's pace; a light on the border; hits on music beats — `move`, `alive`, `enter`, `wave`, `stagger`, `ease`, `pace`, `glow`, `flash`/`shake`/`rgb` with `m16`, `help slides`

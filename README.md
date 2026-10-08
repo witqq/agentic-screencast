@@ -68,6 +68,8 @@ agentic-screencast build \
   --out draft.mp4
 ```
 
+Preview prepared narration for free with `script --source story.md --speech --json`; [pronunciation](docs/pronunciation.md) keeps exact identifiers and captions separate from spoken variants. `schema pronounce` describes dictionary rules.
+
 Copy a scenario into your video workspace first; the command does not invent `story.md`. `--keys-only` returns keys instead of an MP4, but still synthesizes missing audio. Keep the explicit stub voice for a free check.
 
 Build one scene from the scenario below during iteration, with an explicit free voice:
@@ -160,7 +162,7 @@ Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--t
 
 ## Compose explanations and interface scenes
 
-[Directed scenes](docs/directed-scenes.md), also available as `agentic-screencast help composition`, maps a viewer's question to five ready Report compositions and eight timed actions. A report scene binds those actions to measured narration: values copy, move, change and reach their consumer beside the relevant code. The [three complete examples](example/directed-compositions/README.md) combine them with existing perspective, dolly, 3D entrances and transitions. Use coordinated local Report and Screencast builds for this vocabulary.
+[Directed scenes](docs/directed-scenes.md), also available as `agentic-screencast help composition`, maps a viewer's question to five ready Report compositions, stable groups/slots and ten timed actions. A report scene binds those actions to measured narration: values copy, move, change and reach their consumer beside the relevant code. The [three complete examples](example/directed-compositions/README.md) combine them with existing perspective, dolly, 3D entrances and transitions. Use coordinated local Report and Screencast builds for this vocabulary.
 
 Every system interface first appears as its complete application screen in any format, then the film moves to a detail whose location has been established. Automatic portrait conversion of pages and capture takes now fits the whole opening screen and smoothly enters the detail path without removing initial actions. Captions stay at output size. The [interface overview example](example/interface-overview/README.md) shows the full screen, travel and close-up. Native portrait pages still need the same authored introduction; unmarked supplied clips keep their existing crop path.
 

@@ -26,6 +26,10 @@ stream or encoded sound measurement. The sections
 below cover what the help does not: where the files come from, how to choose them and how to
 credit them.
 
+## Technical narration
+
+Keep exact names in the picture and captions while preparing readable speech with a domain dictionary or a complete spoken variant. [Pronunciation](pronunciation.md) explains the choice, free preview, beat identity and paid cache. `help voice` and `schema pronounce` give the callable fields.
+
 ## Network narration: pacing and recovery
 
 Read `help voice` or [the SpeechKit transport reference](reference.md#speechkit-request-pacing-and-recovery) for request pacing and retry settings. If consecutive calls fail while spaced calls work, set `SPEECHKIT_REQUEST_INTERVAL_MS` to the measured interval in the environment or `.env`. Keep transport settings outside voice JSON so paid beat cache keys remain unchanged. Resume with the same text, voice and cache; do not rebuild cached speech to diagnose a service failure.

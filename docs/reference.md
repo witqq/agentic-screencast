@@ -55,7 +55,7 @@ Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--t
 
 ## Directed compositions and interface orientation
 
-The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and eight actions (`reveal`, `focus`, `connect`, `transfer`, `copy`, `replace`, `compare`, `camera`). A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
+The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and ten actions (`reveal`, `focus`, `connect`, `trace`, `transfer`, `copy`, `replace`, `compare`, `camera`, `annotate`), with stable groups and dynamic slots. A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
 
 Show every system interface whole before focusing on a part, in landscape, portrait, square, still images and presentations alike. Automatic portrait conversion of a landscape page, or a capture video identified by `autoZoom` or capture marks, contains the whole source frame first and then moves smoothly to its detail. It does not postpone narration or source actions. With no focus, the overview remains. Native portrait layouts need an authored orientation shot; ordinary unmarked video keeps its existing framing. The [interface example](../example/interface-overview/README.md) shows the complete sequence.
 
@@ -460,8 +460,9 @@ addresses manages to rewrite a piece inside a domain, and the address stops bein
 an address — instead of disappearing, it is pronounced half
 rewritten.
 
-**Changing the rules changes the synthesis string, and with it the cache key**: the rules
-changed — the sound will be synthesised anew, for money with a network engine.
+Preview prepared speech with `script --source story.md --speech --json` without invoking an engine. `schema pronounce` describes the dictionary format. Explicit beat speech bypasses rules; otherwise `voice.rules` replaces film `pronounce`. See [pronunciation](pronunciation.md) for examples, preserved identifiers and captions, measured anchors and karaoke limitations.
+
+A changed effective synthesis string changes that beat's audio cache key; adding unused header dictionary entries does not. Changes to voice data also change cache identity. `--keys-only` may synthesize missing audio and is not a free preview.
 
 ### Frame, quality and styling are film data
 
@@ -809,9 +810,7 @@ silently skips Latin script, so for it Latin is rewritten
 in Cyrillic, while SpeechKit reads it itself. On screen the original spelling
 remains in both cases.
 
-They are selected by the name given in the voice data. For a shipped
-engine that is its name; for a third-party implementation the name is a path to the program,
-and no rules can be found by it, so the voice data may name them directly:
+Rules are selected explicitly by film `pronounce` or by `voice.rules`. An engine name does not automatically select rules; `voice.rules` replaces film rules, while an explicit beat variant bypasses both. For an external engine, name an available rules file directly:
 
 ```json
 {"engine": "/path/python /path/voice.py", "name": "baya", "rules": "silero"}

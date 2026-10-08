@@ -46,6 +46,7 @@ import { parseFormat } from "./format.js";
 import { THEME_GROUPS } from "./theme.js";
 import { craft, TOPICS } from "./craft.js";
 import { handover } from "./handover.js";
+import { speechPlan } from "./speech-plan.js";
 
 /** Токены группы строками по ширине справки. */
 const wrapTokens = (keys: readonly string[]): string => {
@@ -88,7 +89,8 @@ Usage:
   agentic-screencast build [--source story.md] [--out video.mp4] [--only scene] [--keys-only] [--lang ru] [--format vertical]
   agentic-screencast record [--source story.md]
   agentic-screencast check|order|script|scenes [--source story.md]
-  agentic-screencast schema [<kind> | film] [--source story.md]
+  agentic-screencast script [--source story.md] --speech [--json] [--voice-json '{...}']
+  agentic-screencast schema [<kind> | film | pronounce] [--source story.md]
   agentic-screencast snapshot <config.json> [output-directory]
   agentic-screencast verify [--scene scene.json]
   agentic-screencast lint [--source story.md]
@@ -154,8 +156,9 @@ agentic-screencast schema <kind> prints a kind's fields.
           original source without modifying it, preserving its block targets
           across identical scene builds. With a local Report build exposing
           composition/object/cue, bN actions bind to this scene's measured
-          speech: reveal, focus, connect, copy, transfer, replace, compare,
-          camera. Frame a specific [data-composition-id="..."] with zoom: 1
+          speech: reveal, focus, connect, trace, copy, transfer, replace, compare,
+          camera and annotate; groups and slots preserve stable context.
+          Frame a specific [data-composition-id="..."] with zoom: 1
           and spotFrom: 999s so object actions carry the explanation.
           A composition target fits the whole stage with room for captions;
           surrounding page prose is kept outside the filmed picture.
@@ -1562,6 +1565,21 @@ its own cache key, so rewriting one sentence re-renders one beat. A line
 starting with ~ gives the spoken variant of that beat, while the screen keeps
 the written one. Reading rules (pronounce) and lang belong to the film.
 
+Prepare Russian technical speech separately from exact screen identifiers:
+  pronounce: {"say":{"CanvasStage":"канвас стейдж","advance":"эдванс"}}
+Or name a JSON file relative to the scenario: pronounce: pronunciation.json.
+A complete ~ variant overrides the dictionary for that beat. voice.rules
+replaces the film's pronounce rules; it does not merge with them.
+  agentic-screencast script --source story.md --speech [--json] [--voice-json '{...}']
+prints original text, prepared speech, bN and preparation method without
+synthesis, engine probes, cache writes or payment. Use the same voice override
+as the build. schema pronounce describes all rule fields; docs/pronunciation.md
+explains term selection, exact captions, anchors and cache behavior.
+Measured anchors follow the prepared audio, not the original spelling.
+Karaoke word timing is approximate; subtitle is clearer when spoken terms and
+written identifiers differ substantially. Agree the voice once; do not ask
+for permission for each pronunciation correction.
+
 The stub's cps is the pace a draft assumes; a real voice has its own.
 Measured SpeechKit pace at speed 1, in spoken characters per second:
 
@@ -1750,7 +1768,14 @@ switch (cmd) {
   case "script": {
     // Читаемый сценарий ПЕЧАТАЕТСЯ, а не хранится файлом: копия ушла бы
     // жить своей жизнью, ради устранения чего всё и делалось.
-    console.log(toScript(readSource(sourceArg())));
+    const source = readSource(sourceArg());
+    if (rest.includes("--speech")) {
+      const voice = arg("voice-json");
+      const plan = speechPlan(source, voice ? JSON.parse(voice) : undefined);
+      console.log(rest.includes("--json") ? JSON.stringify(plan, null, 1)
+        : plan.scenes.map((scene) => [scene.id, ...scene.beats.map((beat) =>
+          `  ${beat.anchor} [${beat.preparation}]\n    text: ${beat.text}\n    speech: ${beat.speech}`)].join("\n")).join("\n\n"));
+    } else console.log(toScript(source));
     break;
   }
   case "scenes": {
