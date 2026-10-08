@@ -147,6 +147,6 @@ export function renderAtlasTransitions(out:string): void {
 }
 
 if(process.argv[1]&&realpathSync(resolve(process.argv[1]))===fileURLToPath(import.meta.url)){
- if(process.argv.includes('--markdown'))console.log(atlasMarkdown());
+ if(process.argv.includes('--markdown'))process.stdout.write(atlasMarkdown());
  else {const at=process.argv.indexOf('--out');if(at>=0){const out=process.argv[at+1];if(!out||out.startsWith('--'))throw new Error('--out requires a directory');const result=buildAtlas(out);if(process.argv.includes("--transitions"))renderAtlasTransitions(out);console.log(JSON.stringify(result,null,2));}else console.log(JSON.stringify(atlasCatalog(),null,2));}
 }

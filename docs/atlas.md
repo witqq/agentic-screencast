@@ -230,4 +230,3 @@ Public functions from `agentic-screencast/capture`: `capturePage`, `recordTake`,
 The live atlas uses the same slide components and scene layer as rendering, with play, pause and seek. Previews are technique studies. They do not prove a real product works, demonstrate the final narration timing or approve a combination. Use the examples and their READMEs for real capture, Report, portrait framing and complete films.
 
 Transitions need two scenes and some need a named shared element; the atlas provides buildable two-scene scenarios for every accepted kind, including cut and morph. Overlay actions need their target controls; loupe and camera need a meaningful target. Coordinate lead/support/ambient roles rather than disabling existing effects by genre.
-
