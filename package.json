@@ -105,6 +105,7 @@
     "docs/motion-design.md",
     "docs/theme-tokens.md",
     "example/directed-compositions",
+    "example/directed-code-execution",
     "example/architecture-walkthrough",
     "example/interface-overview",
     "example/story.md",

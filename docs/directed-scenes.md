@@ -85,7 +85,7 @@ The edit replaces the shadow and keeps the glow.
 The original and the local value now differ in one property.
 ```
 
-`target` selects and frames the complete composition stage, excluding surrounding page introductions and source links while reserving a caption lane; use a specific composition id rather than generic `[data-composition]`, which other Report section layouts also use. `zoom: 1` preserves the authored arrangement, while `spotFrom: 999s` prevents the page provider's default whole-stage spotlight from competing with object cues. Every cue anchor must refer to a paragraph present in the scene narration. Add an explicit film camera cue only when it earns a separate close-up.
+`target` selects and frames the complete composition stage, excluding surrounding page introductions and source links while reserving a caption lane; use a specific composition id rather than generic `[data-composition]`, which other Report section layouts also use. `zoom: 1` preserves the authored arrangement, while `spotFrom: 999s` prevents the page provider's default whole-stage spotlight from competing with object cues. Every selected stage cue anchor must refer to a paragraph present in this scene narration. A page can contain multiple stages with different beat counts; the target binds only its composition, including annotation end anchors. Without a composition target the whole page shares the scene's clock. Add an explicit film camera cue only when it earns a separate close-up.
 
 Use coordinated local Report and Screencast builds for these examples. The Report compiler must expose the `composition`, `object` and `cue` directives and Screencast must contain the composition clock bridge. A package version alone does not establish those capabilities. From a source checkout, use `node <checkout>/dist/agentic-screencast.js` and install/link that Report build in the film project; do not fetch the skill's older pinned Report release for new syntax.
 
@@ -106,6 +106,10 @@ A code object can choose `notes="below|beside"` and `lineStart` for its original
 A `connect` relationship can name `call`, `data`, `event`, `dependency`, `ownership` or the default generic `relation`. Its label names the concrete method, payload, event or owner. Show the distinction in the picture when the map mixes them; an arrow labelled “next” cannot explain every kind of interaction. In a static/reduced-motion Report, all authored notes remain available. A film shows the note appropriate to its current time and preserves backward-seek behavior.
 
 Read the Report directed-scenes reference for complete syntax and its real-code execution example. The example extracts complete actual address/line-label functions, runs them on illustrative inputs, and shows their real returned values. When explaining another product, replace these with inspected methods and data. The picture should let a viewer follow the shown mechanism without voice or subtitles; narration supplies interpretation instead of asking for another simultaneous reading task. Keep component responsibilities stable and let values, actions and anchored explanations develop.
+
+## Integrated real-code and pronunciation example
+
+[Directed code execution](../example/directed-code-execution/README.md) combines two actual Report functions with illustrative inputs and their real returned results. One short method sits beside its input/result group; a longer method takes a broad row. The shared Report source has stages with different narration lengths. The scenario selects each stage, annotates the actual operation, traces its returned value and hands focus from code to result. Its dictionary prepares Russian pronunciation while retaining exact identifiers in code and captions. `prepare.mjs`, `script --speech` and `frames` work without a film or paid synthesis; these are tools and examples, not extra approval gates.
 
 ## Worked directing recipes
 

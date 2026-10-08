@@ -179,7 +179,7 @@ All overlays share scene time. Targets on pages follow material geometry; frame 
 | `encode` | {"crf":18,"preset":"medium","pix":"yuv420p","audio":"192k"} |
 | `theme` | name or {"preset":name,"--var":value} |
 | `scheme` | light \| dark — the scheme of every named theme in the film (default: each theme's own) |
-| `pronounce` | rules name |
+| `pronounce` | ru-latin \| ru-abbr \| scenario-relative JSON file \| {"say":{"CanvasStage":"канвас стейдж"}}; schema pronounce describes rules, script --speech previews them |
 | `lang` | ru \| en \| … |
 | `captions` | {"style":"bar\|subtitle\|karaoke","everywhere":true,"srt":true,"size":1.25,"look":"outline\|plate","position":"bottom\|top\|middle\|auto"} |
 | `pip` | {"file":"me.mp4","corner":…,"size":…,"from":…,"to":…} |
@@ -201,6 +201,7 @@ These are buildable sources, not prescribed stories. The atlas previews use illu
 
 - [example/agent-video.md](../example/agent-video.md)
 - [example/architecture-walkthrough/story.md](../example/architecture-walkthrough/story.md)
+- [example/directed-code-execution/story.md](../example/directed-code-execution/story.md)
 - [example/directed-compositions/change-event.md](../example/directed-compositions/change-event.md)
 - [example/directed-compositions/first-edit.md](../example/directed-compositions/first-edit.md)
 - [example/directed-compositions/theme-color.md](../example/directed-compositions/theme-color.md)
