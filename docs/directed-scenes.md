@@ -41,7 +41,7 @@ Inside `::::composition{id="..." title="..." kind="..."}`, write `:::object{id="
 ::cue{at="b4" action="compare" target="source" to="local"}
 ```
 
-The actions are `reveal`, `focus`, `connect`, `trace`, `copy`, `transfer`, `replace`, `compare` and `camera`. `copy` leaves the source intact; `transfer` empties it when the value arrives. `replace` changes the body to plain text while keeping its title; pre-author another object for a complex Markdown/code state. `connect` draws a labelled route; `focus` selects an object or code lines; `compare` emphasizes two objects together. `camera` is a restrained stage move. For an actual reading close-up, use the film's camera or loupe.
+The actions are `reveal`, `focus`, `connect`, `trace`, `copy`, `transfer`, `replace`, `compare`, `camera` and `annotate`. `copy` leaves the source intact; `transfer` empties it when the value arrives. `replace` changes the body to plain text while keeping its title; pre-author another object for a complex Markdown/code state. `connect` draws a labelled route; `focus` selects an object or code lines; `compare` emphasizes two objects together. `camera` is a restrained stage move. For an actual reading close-up, use the film's camera or loupe.
 
 Object names are local to the composition; destination objects must be distinct and already authored. Movement defaults to 0.6 seconds, and a dependent replacement should follow arrival. Cues at the same anchor run in source order. A stage supports 1–16 objects and up to 64 cues. The Agentic Report skill's `references/directed-scenes.md` and its generated directive schema give the complete grammar.
 
@@ -88,6 +88,24 @@ The original and the local value now differ in one property.
 `target` selects and frames the complete composition stage, excluding surrounding page introductions and source links while reserving a caption lane; use a specific composition id rather than generic `[data-composition]`, which other Report section layouts also use. `zoom: 1` preserves the authored arrangement, while `spotFrom: 999s` prevents the page provider's default whole-stage spotlight from competing with object cues. Every cue anchor must refer to a paragraph present in the scene narration. Add an explicit film camera cue only when it earns a separate close-up.
 
 Use coordinated local Report and Screencast builds for these examples. The Report compiler must expose the `composition`, `object` and `cue` directives and Screencast must contain the composition clock bridge. A package version alone does not establish those capabilities. From a source checkout, use `node <checkout>/dist/agentic-screencast.js` and install/link that Report build in the film project; do not fetch the skill's older pinned Report release for new syntax.
+
+## Show the operation in the real code
+
+Report `annotate` attaches a short presentation explanation to a code object without changing its fence or copied text. It takes `target`, plain-text `value`, optional excerpt `lines`, optional related object `to`, and optional `until` on the same measured speech clock as `at`. The note locally accents the indicated operation; a separate `focus` hands the scene's main attention to code and then back to the mechanism. Each annotation belongs to the actual narrated operation, not a generic second paragraph.
+
+A code object can choose `notes="below|beside"` and `lineStart` for its original excerpt location. Beside falls back below when the code block itself is too narrow; a large overall viewport does not guarantee a broad code column. Keep the source file and method in the filmed title, exact identifiers on screen, and enough reading time. Use a following camera/loupe when the excerpt needs a closer reading shot, then return to the map. Notes may explain an argument, stored field, call, returned result or boundary; they do not carry a full transcript.
+
+```markdown
+::cue{at="b2" until="b2.end" action="annotate" target="method" lines="2-4" to="result" value="The method resolves the input and returns the local result."}
+::cue{at="b2" action="focus" target="method" lines="2-4" emphasis="brackets"}
+::cue{at="b3" action="connect" target="method" to="result" relation="data" value="return value"}
+::cue{at="b3" action="trace" target="method" to="result" effect="beam" duration="1"}
+::cue{at="b3+1" action="focus" target="result" emphasis="halo"}
+```
+
+A `connect` relationship can name `call`, `data`, `event`, `dependency`, `ownership` or the default generic `relation`. Its label names the concrete method, payload, event or owner. Show the distinction in the picture when the map mixes them; an arrow labelled “next” cannot explain every kind of interaction. In a static/reduced-motion Report, all authored notes remain available. A film shows the note appropriate to its current time and preserves backward-seek behavior.
+
+Read the Report directed-scenes reference for complete syntax and its real-code execution example. The example extracts complete actual address/line-label functions, runs them on illustrative inputs, and shows their real returned values. When explaining another product, replace these with inspected methods and data. The picture should let a viewer follow the shown mechanism without voice or subtitles; narration supplies interpretation instead of asking for another simultaneous reading task. Keep component responsibilities stable and let values, actions and anchored explanations develop.
 
 ## Worked directing recipes
 
