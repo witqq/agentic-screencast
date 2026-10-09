@@ -55,7 +55,7 @@ Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--t
 
 ## Directed compositions and interface orientation
 
-The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and ten actions (`reveal`, `focus`, `connect`, `trace`, `transfer`, `copy`, `replace`, `compare`, `camera`, `annotate`), with stable groups and dynamic slots. A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
+The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and ten actions (`reveal`, `focus`, `connect`, `trace`, `transfer`, `copy`, `replace`, `compare`, `camera`, `annotate`), with stable groups and dynamic slots. A `report` scene binds their speech anchors to measured narration. These compositions require Agentic Report 0.21.0 or newer; the guide gives the installation command. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
 
 Show every system interface whole before focusing on a part, in landscape, portrait, square, still images and presentations alike. Automatic portrait conversion of a landscape page, or a capture video identified by `autoZoom` or capture marks, contains the whole source frame first and then moves smoothly to its detail. It does not postpone narration or source actions. With no focus, the overview remains. Native portrait layouts need an authored orientation shot; ordinary unmarked video keeps its existing framing. The [interface example](../example/interface-overview/README.md) shows the complete sequence.
 
@@ -86,7 +86,9 @@ Short help: `agentic-screencast help capture`.
 
 Capture writes `<take>.marks.json` beside the WebM: named moments, rectangles
 of marked elements and `cameraMoves`, the intervals of focus and unfocus motion
-already painted into the take. A scenario addresses a moment or element as `@name`;
+already painted into the take. Clicks and the cursor path keep one recording timeline
+across page navigation, including after empty starting frames are trimmed.
+A scenario addresses a moment or element as `@name`;
 `lint` accounts for camera motion when looking for an unexplained screen change.
 The marks file also names the script that recorded the take. A camera over the
 take in a video scene is then performed by the browser: the build re-runs that
@@ -227,6 +229,9 @@ cannot be combined. Beat timing is estimated here. A video preview includes
 its subtitles and overlay when the scene has speech or an `overlay`. The sheet
 reports a large flat empty band on a drawn scene; an intentionally sparse
 trailer card is exempt.
+
+Fractional trim marks and preview seconds retain decoded video in portrait
+previews too; inspect the material and its focus, not only the subtitle layer.
 
 ## How the input is organised
 

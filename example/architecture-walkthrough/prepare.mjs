@@ -1,4 +1,4 @@
-// Run from a new film directory; --report selects the coordinated local build.
+// Run from a new film directory; --report selects the installed package or a built checkout.
 import { mkdir, copyFile, writeFile, readFile, symlink } from 'node:fs/promises';
 import { resolve, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';

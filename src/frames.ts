@@ -99,6 +99,10 @@ mkdirSync(dir, { recursive: true });
 const clipLength = (file: string): number => Number(execFileSync(FFPROBE, ["-v", "error", "-show_entries", "format=duration",
   "-of", "default=nw=1:nk=1", file], { encoding: "utf8" }).trim());
 
+// Seeking between clip frames leaves a positive first timestamp. Align that decoded frame
+// with the still overlays and portrait canvas at zero, as the final builder already does.
+const VIDEO_FRAME_CLOCK = "setpts=PTS-STARTPTS";
+
 const shots: Array<{ scene: string; at: number; file: string; estimated: boolean; source?: number }> = [];
 // Пустая ровная полоса в треть кадра у нарисованной сцены — слайда или своей страницы —
 // тот же дефект, что у дубля (film craft 53, 58): кадр без предмета. Клип судит lint по всему куску;
@@ -186,7 +190,7 @@ for (const s of pitch.scenes) {
         const sh = Math.max(2, Math.trunc(H * pose.z / 2) * 2);
         const place = (size: number, frame: number, center: number): number => size <= frame ? (frame-size)/2 : -Math.max(0,Math.min(size-frame,center*size-frame/2));
         const fill = ffmpegColour(theme["--sc-letterbox"]!);
-        const fit = fitFilter(s.fit as Fit | undefined,reframe.width,reframe.height,fill);
+        const fit = `${VIDEO_FRAME_CLOCK},${fitFilter(s.fit as Fit | undefined,reframe.width,reframe.height,fill)}`;
         execFileSync(FFMPEG,["-nostdin","-y","-loglevel","error","-ss",String(t),"-i",page,"-i",under,"-i",over,
           "-filter_complex",`[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto,scale=${sw}:${sh}:flags=lanczos[ui];color=c=${fill}:s=${W}x${H}[canvas];[canvas][ui]overlay=${place(sw,W,pose.x)}:${place(sh,H,pose.y)}:format=auto[in];[in][2:v]overlay=0:0:format=auto[v]`,
           "-map","[v]","-frames:v","1",file]);
@@ -195,8 +199,8 @@ for (const s of pitch.scenes) {
       continue;
     }
     const fill = ffmpegColour(theme["--sc-letterbox"]!);
-    const fit = dev ? `scale=${dev.layout.screen.w}:${dev.layout.screen.h},pad=${W}:${H}:${dev.layout.screen.x}:${dev.layout.screen.y}:color=${fill}`
-      : fitFilter(s.fit as Fit | undefined, W, H, fill);
+    const fit = `${VIDEO_FRAME_CLOCK},` + (dev ? `scale=${dev.layout.screen.w}:${dev.layout.screen.h},pad=${W}:${H}:${dev.layout.screen.x}:${dev.layout.screen.y}:color=${fill}`
+      : fitFilter(s.fit as Fit | undefined, W, H, fill));
     if (dev) s.overlay = dev.overlay;
     // Наезд над видео делает сборка фильтром кадра: превью ставит ту же камеру в её положение в
     // этот момент — предметная половина слоя едет с картинкой, экранная стоит поверх.

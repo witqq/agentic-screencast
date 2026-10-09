@@ -66,3 +66,20 @@ test("portrait capture previews share automatic cues and overview with the final
   for(let k=0;k<4;k++)assert.ok(Math.abs(preview[k]!-final[k]!)<=3,`at ${at}s capture preview ${preview} versus final ${final}`);
  }
 });
+
+test("portrait WebM previews retain material after fractional trim marks and off-frame seeks",()=>{
+ const dir=mkdtempSync(join(tmpdir(),"sc-preview-webm-clock-"));
+ try {
+  // Capture pixels differ from the authored viewport, and seeking lands between 10 fps frames.
+  execFileSync(ffmpeg,["-nostdin","-y","-loglevel","error","-f","lavfi","-i","color=c=0x17212b:s=1440x900:r=10:d=4","-vf","drawbox=x=1170:y=225:w=225:h=270:color=blue:t=fill","-c:v","libvpx-vp9","-pix_fmt","yuv420p",join(dir,"clip.webm")]);
+  writeFileSync(join(dir,"clip.webm.marks.json"),JSON.stringify({trimmed:0,marks:{start:.002,end:3.9},clicks:[]}));
+  writeFileSync(join(dir,"story.md"),`# F\nvoice: {"engine":"stub","name":"silent","cps":15}\nframe: {"width":640,"height":400,"fps":10}\naudio: false\ncaptions: {"style":"subtitle","everywhere":true}\n\n## v · video\nfile: clip.webm\nfrom: @start\nto: @end\nduration: 4\nfade: none\nspotlight: [{"area":[0.8,0.2,0.18,0.4],"at":"b2","ring":false,"dim":0.1,"keep":true}]\n\nWhole interface.\n\nThe right subject.\n`);
+  const run=(...args:string[])=>{const r=spawnSync(process.execPath,[entry,...args],{cwd:dir,encoding:"utf8",env:{...process.env,AGENTIC_SCREENCAST_HOME:join(dir,"cache")}});assert.equal(r.status,0,r.stderr.slice(-1000));};
+  run("build","story.md","--format","vertical","--out","film.mp4");
+  for(const at of [.53,2.53]) {
+   const png=`preview-${at}.png`;run("frames","story.md","--format","vertical","--scene","v","--at",`${at}s`,"--out",png);
+   const preview=bounds(join(dir,png)),final=bounds(join(dir,"film.mp4"),at);
+   for(let k=0;k<4;k++)assert.ok(Math.abs(preview[k]!-final[k]!)<=3,`at ${at}s WebM preview ${preview} versus final ${final}`);
+  }
+ } finally {rmSync(dir,{recursive:true,force:true});}
+});

@@ -5,9 +5,10 @@ input/result regions, a short method beside a diagram, a broad long-method row, 
 local focus, call/data relations and a transient return trace. The Russian speech dictionary keeps
 original names in visible code and captions. The two stages in one source use different beat counts.
 
-Copy this directory into a consumer workspace with coordinated local Report and Screencast builds:
+Copy this directory into a consumer workspace with Screencast installed. Use Node 24.18 or newer and install Report:
 
 ```sh
+npm install --save-dev agentic-report@0.21.0
 node prepare.mjs
 agentic-screencast script story.md --speech --json
 agentic-screencast frames story.md --scene address --at b2+1 --out address.png

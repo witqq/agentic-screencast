@@ -9,7 +9,7 @@ const { buildReport } = await import(pathToFileURL(entry).href);
 mkdirSync('reports', {recursive:true}); mkdirSync('assets', {recursive:true});
 for (const name of ['first-edit','theme-color','change-event']) {
  const original=resolve(root,'examples',`directed-${name}`), target=resolve('reports',name);
- if (!existsSync(original)) throw new Error('Use an Agentic Report build with directed-composition examples.');
+ if (!existsSync(original)) throw new Error('Install agentic-report >=0.21.0 with directed-composition examples.');
  if (!existsSync(target)) cpSync(original,target,{recursive:true});
  await buildReport({input:resolve(target,'report.md'),output:resolve('assets',`${name}.html`)});
 }
