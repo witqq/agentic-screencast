@@ -46,6 +46,7 @@ import { parseFormat } from "./format.js";
 import { THEME_GROUPS } from "./theme.js";
 import { craft, TOPICS } from "./craft.js";
 import { handover } from "./handover.js";
+import { speechPlan } from "./speech-plan.js";
 
 /** Токены группы строками по ширине справки. */
 const wrapTokens = (keys: readonly string[]): string => {
@@ -88,7 +89,8 @@ Usage:
   agentic-screencast build [--source story.md] [--out video.mp4] [--only scene] [--keys-only] [--lang ru] [--format vertical]
   agentic-screencast record [--source story.md]
   agentic-screencast check|order|script|scenes [--source story.md]
-  agentic-screencast schema [<kind> | film] [--source story.md]
+  agentic-screencast script [--source story.md] --speech [--json] [--voice-json '{...}']
+  agentic-screencast schema [<kind> | film | pronounce] [--source story.md]
   agentic-screencast snapshot <config.json> [output-directory]
   agentic-screencast verify [--scene scene.json]
   agentic-screencast lint [--source story.md]
@@ -101,6 +103,7 @@ Usage:
   agentic-screencast voice-check [command]
   agentic-screencast provider-check <command>
   agentic-screencast handover [story.md] [--film draft.mp4]
+  agentic-screencast atlas [--json | --markdown | --out directory [--transitions]]
   agentic-screencast craft [<topic>] [--json]
   agentic-screencast paths
   agentic-screencast version
@@ -108,9 +111,9 @@ A command that reads a scenario also takes its path first: lint story.md.
 
 handover is the gate before the film goes to the owner: lint of the scenario,
 a non-empty MP4 and its full-film report (built after the scenario's last
-edit, no audit issue, no warning), its stills on disk and checklist.md
+edit, no audit issue, no blocking warning), its stills on disk and checklist.md
 without an open box. A build --only report cannot pass. It prints
-{verdict: "pass"|"fail", checks: [{name, passed, findings}]} and exits 1 on
+{verdict: "pass"|"fail", checks: [{name, passed, findings}], advisories: [...]} and exits 1 on
 fail; --film names the film, otherwise the newest report beside the scenario.
 
 craft <topic> prints the 3–7 film-craft rules for the decision at hand — a scene
@@ -123,6 +126,7 @@ docs/film-craft.md. craft alone lists the topics.
 Guides: agentic-screencast help video | help capture | help overlay
         agentic-screencast help slides | help vertical | help text
         agentic-screencast help transitions | help sound | help themes | help voice | help web
+        agentic-screencast help knowledge | help directing | help combinations | help atlas | help composition
 Use the stub voice for cost-free checks. See README.md for the scenario and extension contracts.`;
 const VIDEO_HELP = `Scenes, the build and its checks: what each command does
 
@@ -150,7 +154,15 @@ agentic-screencast schema <kind> prints a kind's fields.
           (topbar, review, schemeToggle, themeSwitcher: false) unless the
           report's metadata names those keys itself. The compiler reads the
           original source without modifying it, preserving its block targets
-          across identical scene builds.
+          across identical scene builds. With a local Report build exposing
+          composition/object/cue, bN actions bind to this scene's measured
+          speech: reveal, focus, connect, trace, copy, transfer, replace, compare,
+          camera and annotate; groups and slots preserve stable context.
+          Frame a specific [data-composition-id="..."] with zoom: 1
+          and spotFrom: 999s so object actions carry the explanation.
+          A composition target fits the whole stage with room for captions;
+          surrounding page prose is kept outside the filmed picture.
+          help composition gives complete recipes and existing effects.
 
   page    page: file.html; optional pageVertical: file.vertical.html replaces
           that page in a vertical build (pageVertical.en for an English film).
@@ -207,6 +219,12 @@ agentic-screencast schema <kind> prints a kind's fields.
           overlay); duration on a silent clip cuts it or holds its last frame;
           device puts it in a browser or phone frame or a plain framed
           window (help slides).
+
+For every system interface and aspect ratio: establish the complete application
+screen first, then focus or zoom into a part whose location is known. Reserve
+an opening beat for the whole screen and name detail focus at b2 or later.
+Native portrait material needs the same orientation. help composition maps
+this into worked scenes, with existing 3D, camera and animation effects.
 
 Building:
   build --source story.md --out film.mp4   the whole film; scenes that did
@@ -1221,8 +1239,9 @@ drifting grid, a travelling sheen — items keep a faint float after they
 appear, and held cards breathe; all of it is a function of scene time, so a
 frame taken from the middle equals the same frame of a full build. That
 layer is faint on purpose and does not count as motion: a slide holding
-three seconds with nothing new is a still stretch (still-stretch). Give a
-long beat its next item (at:), a focus (spotlight) or a camera move.
+three seconds with nothing new is reported as a still stretch (still-stretch).
+Keep intentional orientation and reading holds; otherwise develop the event
+with its next item, a focus, a camera move or a shorter shot.
 
 The classic kinds now enter with meaning: compared columns slide in from
 their sides, chain nodes pop and arrows draw, quotes wipe in, numbers roll.
@@ -1310,18 +1329,29 @@ inside the zone, so a line is shorter than under plain.
 
 A landscape film made vertical without a rewrite:
   agentic-screencast build story.md --format vertical --out short.mp4
-Slides are drawn anew in portrait. A page is rendered in its own landscape
-frame at full density and cut by a 9:16 window that follows the spotlight
-target unless the scene names pageVertical: pages/phone.html. That HTML is
-drawn directly in the portrait viewport, without the landscape crop; a
-missing selected file fails the build. A clip or frozen frame is cut by a
-window that glides between focus areas and recorded clicks. With autoZoom,
-a small named action grows inside that window; follow:"cursor" keeps that
-subject visible until the pointer reaches it, then follows the pointer out
-of the central zone. Captions, titles and cards are
-laid out again inside the vertical safe zone; a card near focus moves to the
-top. Letterbox bars from look are left out and the build report says so; a
-clip in a device frame is re-laid in the portrait frame instead of cut.
+Slides are drawn anew in portrait. A page keeps its landscape viewport at
+full density: the opening camera fits the complete screen into the tall frame,
+then smoothly enters the spotlight's detail path. The overview holds at least
+the smaller of 1.2 seconds and a fifth of the scene, and waits for a later first
+focus; travel takes up to 0.9 seconds, bounded by a fifth of the scene. Without
+focus a capture stays in its full view. The source clock and opening actions
+are unchanged. A frozen frame uses this same page-camera path.
+pageVertical: pages/phone.html instead renders that HTML directly in the
+portrait viewport; a missing selected file fails. Establish its complete
+native screen before details as well.
+Reframed capture takes identified by .marks.json or autoZoom use the opening
+full view too. Then autoZoom enlarges a small action and follow:"cursor" holds
+its subject until the pointer reaches it, before following the pointer out of
+the central zone. Ordinary unmarked supplied clips keep their existing crop
+path; establish an unmarked UI recording with contain/device or an explicit
+whole-screen opening. Captions, titles and cards are laid out again inside
+the vertical safe zone; a card near focus moves to the top. Letterbox bars
+from look are left out and the report says so; a device clip is re-laid.
+frames uses the final portrait viewport/window for converted pages and capture;
+its beat timing is estimated. Explicit scale multiplies that window rather
+than fitting its target; omit it for the target-fit default, or use pan/loupe.
+See help composition and example/interface-overview for whole → travel → detail
+and Report mechanisms timed to narration, without added checking gates.
 
 Translations live in the same scenario: title.ru:, key.ru: fields
 (kicker.ru:, overlay.ru:, voice.ru: in the header) and a [ru] narration block per scene with the same
@@ -1411,7 +1441,8 @@ Helpers that save a full build:
       check, rule the knowledge-base rule behind it (FC-58 is rule 58 of
       docs/film-craft.md, VA-5 step 5 of "Checking a licence and writing
       the credit" in docs/visual-assets.md — read it for why and how), hint
-      what to change.
+      what to change. Timing/count observations can add advisory: true;
+      interpret those for reading, rhythm and coordinated motion.
   agentic-screencast snapshot screens.json out-dir
       saves interface screens as self-contained pages to use as page scenes
       (the config names the URLs and states; see docs/reference.md).
@@ -1458,6 +1489,10 @@ Helpers that save a full build:
       merged into another (text: scramble, which says to write flap) —
       stops lint with that one error before any finding: fix it and run
       lint again.
+      still-hold, still-scene, long-scene, still-stretch, motion-stack and
+      harsh-push are advisory observations, not proof of a bad film. They
+      remain visible but do not fail lint/handover. An actual cut, crop,
+      absent subject, invalid cue or stream mismatch remains blocking.
       "estimated": {"seconds"} is the film's length from the narration's
       estimated pace and the scenes' own durations, less the transitions'
       overlaps — compare it with the brief's length before the first build.
@@ -1472,8 +1507,9 @@ Helpers that save a full build:
       (decorative-background),
       a browser frame with no real address (placeholder-address), a kicker
       in capitals (kicker-caps), emoji icons in features (emoji-icons), the
-      same enter on every slide (same-entrance); four or more add a verdict
-      that the film is average (docs/visual-design.md). A trailer — its
+      same enter on every slide (same-entrance); four or more add an advisory
+      summary. Counts are not a quality score: interpret each observation
+      against the subject, staging and rhythm (docs/visual-design.md). A trailer — its
       cards, look: trailer or a genre theme — keeps impacts, grain and
       capitals without a sign
 
@@ -1485,6 +1521,19 @@ A typo in a field or a header name gets "did you mean «title»?".`;
 const VOICE_HELP = `Narration modes: synthesis, a recorded human, or silence
 
 voice: {"engine":"speechkit","name":"kuznetsov","speed":1.2}
+
+SpeechKit transport settings are read from the environment or .env:
+  SPEECHKIT_REQUEST_INTERVAL_MS  0 by default, integer 0–60000; a minimum
+      pause after a response body finishes before the next request starts
+  SPEECHKIT_MAX_ATTEMPTS  3 by default, integer 1–5; total attempts for
+      HTTP 429/500/502/503/504 or fetch/body-read transport failures
+Requests are serialized within one process. Retries wait 1.5 s, then 3 s,
+then 6 s and 12 s; Retry-After can extend the pause up to 60 s.
+Other HTTP errors are not retried. Set max attempts to 1 to disable retries.
+These settings do not belong in voice JSON and do not change paid audio
+cache keys. Restart the same build with unchanged text, voice and cache.
+Separate CLI processes do not share this queue; avoid concurrent synthesis
+with the same account when diagnosing service failures.
 
 Shipped engines:
 
@@ -1515,6 +1564,21 @@ Each paragraph of prose is one beat: it has its own take, its own length and
 its own cache key, so rewriting one sentence re-renders one beat. A line
 starting with ~ gives the spoken variant of that beat, while the screen keeps
 the written one. Reading rules (pronounce) and lang belong to the film.
+
+Prepare Russian technical speech separately from exact screen identifiers:
+  pronounce: {"say":{"CanvasStage":"канвас стейдж","advance":"эдванс"}}
+Or name a JSON file relative to the scenario: pronounce: pronunciation.json.
+A complete ~ variant overrides the dictionary for that beat. voice.rules
+replaces the film's pronounce rules; it does not merge with them.
+  agentic-screencast script --source story.md --speech [--json] [--voice-json '{...}']
+prints original text, prepared speech, bN and preparation method without
+synthesis, engine probes, cache writes or payment. Use the same voice override
+as the build. schema pronounce describes all rule fields; docs/pronunciation.md
+explains term selection, exact captions, anchors and cache behavior.
+Measured anchors follow the prepared audio, not the original spelling.
+Karaoke word timing is approximate; subtitle is clearer when spoken terms and
+written identifiers differ substantially. Agree the voice once; do not ask
+for permission for each pronunciation correction.
 
 The stub's cps is the pace a draft assumes; a real voice has its own.
 Measured SpeechKit pace at speed 1, in spoken characters per second:
@@ -1665,6 +1729,8 @@ switch (cmd) {
     else if (topic === "sound") console.log(SOUND_HELP);
     else if (topic === "voice") console.log(VOICE_HELP);
     else if (topic === "web") console.log(WEB_HELP);
+    else if (topic === "knowledge" || topic === "directing" || topic === "combinations" || topic === "atlas") console.log(readFileSync(resolve(HERE, "..", "docs", `${topic}.md`), "utf8"));
+    else if (topic === "composition") console.log(readFileSync(resolve(HERE, "..", "docs", "directed-scenes.md"), "utf8"));
     else if (!topic) console.log(HELP);
     else { console.error(`${msg("cli.unknownTopic", { topic })}\n\n${HELP}`); process.exit(2); }
     break;
@@ -1676,6 +1742,10 @@ switch (cmd) {
       console.log(JSON.stringify(result, null, 1));
       process.exit(result.verdict === "pass" ? 0 : 1);
     } catch (e) { console.error((e as Error).message); process.exit(2); }
+    break;
+  }
+  case "atlas": {
+    run("atlas.js", rest);
     break;
   }
   case "craft": {
@@ -1698,7 +1768,14 @@ switch (cmd) {
   case "script": {
     // Читаемый сценарий ПЕЧАТАЕТСЯ, а не хранится файлом: копия ушла бы
     // жить своей жизнью, ради устранения чего всё и делалось.
-    console.log(toScript(readSource(sourceArg())));
+    const source = readSource(sourceArg());
+    if (rest.includes("--speech")) {
+      const voice = arg("voice-json");
+      const plan = speechPlan(source, voice ? JSON.parse(voice) : undefined);
+      console.log(rest.includes("--json") ? JSON.stringify(plan, null, 1)
+        : plan.scenes.map((scene) => [scene.id, ...scene.beats.map((beat) =>
+          `  ${beat.anchor} [${beat.preparation}]\n    text: ${beat.text}\n    speech: ${beat.speech}`)].join("\n")).join("\n\n"));
+    } else console.log(toScript(source));
     break;
   }
   case "scenes": {

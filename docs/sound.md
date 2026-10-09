@@ -4,7 +4,7 @@ Agentic Screencast ships no music and no sound effects. A film names the files i
 only mixes them with the narration — it ducks the music under every beat of speech, keeps accents
 from covering words, and normalises the result. This guide says where to find free music and
 sounds, how to choose them for a genre and a pace, how to check the licence, and how to wire them
-into a scenario. Researched on 2026-09-24; bracketed numbers point to the sources at the end. This
+into a scenario. Bracketed numbers point to the sources at the end. This
 is not legal advice: for a commercial release, show the owner the credits file.
 
 ## How the tool mixes
@@ -25,6 +25,16 @@ an integrated reading gives `null`. With `audio: false`, the MP4 has no audio
 stream or encoded sound measurement. The sections
 below cover what the help does not: where the files come from, how to choose them and how to
 credit them.
+
+## Technical narration
+
+Keep exact names in the picture and captions while preparing readable speech with a domain dictionary or a complete spoken variant. [Pronunciation](pronunciation.md) explains the choice, free preview, beat identity and paid cache. `help voice` and `schema pronounce` give the callable fields.
+
+## Network narration: pacing and recovery
+
+Read `help voice` or [the SpeechKit transport reference](reference.md#speechkit-request-pacing-and-recovery) for request pacing and retry settings. If consecutive calls fail while spaced calls work, set `SPEECHKIT_REQUEST_INTERVAL_MS` to the measured interval in the environment or `.env`. Keep transport settings outside voice JSON so paid beat cache keys remain unchanged. Resume with the same text, voice and cache; do not rebuild cached speech to diagnose a service failure.
+
+HTTP 429 indicates a folder quota error; HTTP 504 alone does not establish that cause. Check the account's current limits instead of inferring them from a successful pause. [SpeechKit quotas and error guidance](https://aistudio.yandex.ru/en/docs/speechkit/qa/all).
 
 ## Where to find music
 
@@ -178,7 +188,7 @@ The transition carries a short accent.
 ```
 
 Credits for this example: "Impact Moderato" Kevin MacLeod (incompetech.com), CC BY 4.0; Interface
-Sounds by Kenney (kenney.nl), CC0. The download links were checked on 2026-09-24; the Kenney link
+Sounds by Kenney (kenney.nl), CC0. The Kenney download link
 contains a version stamp and may change — open the pack page [83] if it fails.
 
 ## Sources
@@ -220,4 +230,4 @@ contains a version stamp and may change — open the pack page [83] if it fails.
 87. Richard Pryn — How to structure your trailer music. https://richardpryn.com/how-to-structure-trailer-music/
 88. Wikipedia — Stutter edit. https://en.wikipedia.org/wiki/Stutter_edit
 
-Source numbers follow the research notes shared with the [visual-assets guide](visual-assets.md).
+Source numbers share the reference index with the [visual-assets guide](visual-assets.md).

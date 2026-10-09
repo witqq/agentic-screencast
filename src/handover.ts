@@ -6,9 +6,10 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { lint } from "./lint.js";
 import { msg } from "./msg.js";
+import { isAdvisory } from "./rules.js";
 
 export interface HandoverCheck { name: string; passed: boolean; findings: unknown[] }
-export interface Handover { verdict: "pass" | "fail"; film?: string; checks: HandoverCheck[] }
+export interface Handover { verdict: "pass" | "fail"; film?: string; checks: HandoverCheck[]; advisories: unknown[] }
 
 /** Отчёт сборки: названный роликом или самый свежий `*.report.json` рядом со сценарием. */
 function reportOf(dir: string, film?: string): string | undefined {
@@ -26,7 +27,9 @@ export function handover(storyFile: string, film?: string): Handover {
   const checks: HandoverCheck[] = [];
   const check = (name: string, findings: unknown[]): void => { checks.push({ name, passed: findings.length === 0, findings }); };
 
-  check("lint", lint(story));
+  const lintFindings = lint(story);
+  const advisories: unknown[] = lintFindings.filter(isAdvisory);
+  check("lint", lintFindings.filter((f) => !isAdvisory(f)));
 
   const reportFile = reportOf(dir, film);
   let filmFile: string | undefined;
@@ -42,7 +45,8 @@ export function handover(storyFile: string, film?: string): Handover {
     // Ролик, собранный до последней правки сценария, показывает не то, что в сценарии.
     const stale = statSync(reportFile).mtimeMs < statSync(story).mtimeMs ? [msg("handover.stale", { report: reportFile })] : [];
     check("build", [...missing, ...partial, ...stale, ...(report.audit?.issues ?? [])]);
-    check("warnings", report.warnings ?? []);
+    advisories.push(...(report.warnings ?? []).filter(isAdvisory));
+    check("warnings", (report.warnings ?? []).filter((f) => !isAdvisory(f)));
     check("stills", (report.stills ?? []).filter((s) => !existsSync(s.file)).map((s) => msg("handover.stillMissing", { file: s.file })));
   }
 
@@ -52,5 +56,5 @@ export function handover(storyFile: string, film?: string): Handover {
     const open = readFileSync(checklist, "utf8").split("\n").filter((l) => /^\s*- \[ \]/u.test(l)).map((l) => l.trim());
     check("checklist", open);
   }
-  return { verdict: checks.every((c) => c.passed) ? "pass" : "fail", ...(filmFile ? { film: filmFile } : {}), checks };
+  return { verdict: checks.every((c) => c.passed) ? "pass" : "fail", ...(filmFile ? { film: filmFile } : {}), checks, advisories };
 }

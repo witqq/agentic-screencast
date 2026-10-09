@@ -10,6 +10,7 @@
 //
 // Запуск: frames.js <сценарий> [--at 0.8|80%|2.4s|b2+0.5] [--scene id] [--out sheet.png]
 import { fitFilter, type Fit } from "./fit.js";
+import { screenOverlay, reframedPageOptions, takeOverlay } from "./frame-composition.js";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -21,14 +22,15 @@ import { generateFrom } from "./generate.js";
 import { assetsForCheck } from "./stage-assets.js";
 import { ffmpegColour } from "./theme.js";
 import { subtitleMax } from "./film.js";
-import { cameraPerspective } from "./camera.js";
+import { cameraPerspective, overviewWindowPose, windowPose } from "./camera.js";
 import { DEVICE_CSS, deviceScene, type Device } from "./device.js";
 import { layerSafe } from "./part-label.js";
 import { anchorSeconds, estimateBeats, spotlightOverlay, type Spotlight } from "./spotlight.js";
 import { flatShare } from "./lint.js";
 import { specOf } from "./source.js";
 import { msg } from "./msg.js";
-import type { SceneOverlay } from "./overlay.js";
+import { overlayEnd, type SceneOverlay } from "./overlay.js";
+import { marksOf, trimMarks, type AutoZoom } from "./marks.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static") as string;
@@ -59,8 +61,8 @@ try { g = generateFrom(resolve(source), { ...(only ? { onlyScene: only } : {}), 
 const SRC = dirname(g.pitchFile);
 const pitch = JSON.parse(readFileSync(g.pitchFile, "utf8")) as {
   scenes: Array<RenderScene & { id: string; provider: string; kind: string; beats: Array<{ text: string; speech?: string }>; video?: boolean; tail?: number;
-    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true; spotlight?: Spotlight[] }>;
-  frame?: { width?: number; height?: number }; theme?: Record<string, string>; tail?: number;
+    freezeAt?: number; trim?: { from: number; to?: number }; captionsAt?: "bottom" | "top" | "middle" | "auto"; nativePortrait?: true; autoZoom?: AutoZoom; spotlight?: Spotlight[] }>;
+  frame?: { width?: number; height?: number; fps?: number; scale?: number }; reframe?: { width: number; height: number }; theme?: Record<string, string>; tail?: number;
   safe?: { top: number; bottom: number; left: number; right: number };
   emoji?: { dir: string }; dir?: string;
   captions?: { style?: "bar" | "subtitle" | "karaoke"; everywhere?: boolean; size?: number; look?: "outline" | "plate"; position?: "bottom" | "top" | "middle" | "auto" };
@@ -123,7 +125,7 @@ for (const s of pitch.scenes) {
   const whole = s.video ? clipLength(page) : 0;
   const cut = s.trim?.from ?? 0, pieceEnd = Math.min(s.trim?.to ?? whole, whole);
   const clip = Math.max(0, pieceEnd - cut);
-  const duration = Math.max(Number(s.duration ?? 0), spoken + Number(s.tail ?? pitch.tail ?? 0.4),
+  let duration = Math.max(Number(s.duration ?? 0), spoken + Number(s.tail ?? pitch.tail ?? 0.4),
     s.video && !s.beats.length && s.duration === undefined ? clip : 0);
   // Фокусы внимания становятся камерой и карточками так же, как в сборке, — по оценённым тактам.
   // Без этого лист показывал сцену без наезда, который сборка рисует.
@@ -135,6 +137,10 @@ for (const s of pitch.scenes) {
       process.exit(2);
     }
   }
+  const take = s.video ? trimMarks(marksOf(page), s.trim) : undefined;
+  if (s.video && s.autoZoom) s.overlay = takeOverlay(s.overlay as SceneOverlay | undefined, take, s.autoZoom,
+    pitch.reframe ? (W / H) / (pitch.reframe.width / pitch.reframe.height) : 1);
+  duration = Math.ceil(Math.max(duration, s.overlay ? overlayEnd(s.overlay as SceneOverlay) + 0.25 : 0) * (pitch.frame?.fps ?? DEFAULTS.fps)) / (pitch.frame?.fps ?? DEFAULTS.fps);
   const at = atBeat ? Math.max(0, Math.min(duration, anchorSeconds(atArg, starts.length ? starts : [0], duration, ends)))
     : atSecs ? atValue : atValue * duration;
   const file = only ? out : resolve(dir, `${s.id}.png`);
@@ -161,6 +167,33 @@ for (const s of pitch.scenes) {
         "-of", "csv=p=0:s=x", page], { encoding: "utf8" }).trim().split("x").map(Number);
       return cw && ch ? cw / ch : undefined;
     })(), W, H, s.overlay as SceneOverlay | undefined) : null;
+    const reframe = pitch.reframe && !dev && s.freezeAt === undefined ? pitch.reframe : undefined;
+    if (reframe) {
+      const temp = mkdtempSync(join(tmpdir(), "sc-frame-video-reframe-"));
+      try {
+        const share = (W / H) / (reframe.width / reframe.height);
+        const overview = Boolean(s.autoZoom || take);
+        const cues = (s.overlay as SceneOverlay | undefined)?.camera ?? [];
+        const pose = overview ? overviewWindowPose(cues, at, take?.path ?? [], share, duration) : windowPose(cues, at, take?.path ?? [], share);
+        const material = await renderScene({ ...s, ...stage, __overlayOnly: true, __layerPart: "scene", __videoCamera: true,
+          ...(overview ? { __uiOverview: true, __cropWidth: reframe.width * share } : {}) } as RenderScene,
+          { width: reframe.width, height: reframe.height, at });
+        const screen = await renderScene({ ...s, ...stage, overlay: screenOverlay(s.overlay as SceneOverlay | undefined),
+          __overlayOnly: true, __layerPart: "screen", __videoCamera: true } as RenderScene, { width: W, height: H, at });
+        const under = join(temp, "material.png"), over = join(temp, "screen.png");
+        writeFileSync(under, material.shots[0]!.buf); writeFileSync(over, screen.shots[0]!.buf);
+        const sw = Math.max(2, Math.trunc(reframe.width * H / reframe.height * pose.z / 2) * 2);
+        const sh = Math.max(2, Math.trunc(H * pose.z / 2) * 2);
+        const place = (size: number, frame: number, center: number): number => size <= frame ? (frame-size)/2 : -Math.max(0,Math.min(size-frame,center*size-frame/2));
+        const fill = ffmpegColour(theme["--sc-letterbox"]!);
+        const fit = fitFilter(s.fit as Fit | undefined,reframe.width,reframe.height,fill);
+        execFileSync(FFMPEG,["-nostdin","-y","-loglevel","error","-ss",String(t),"-i",page,"-i",under,"-i",over,
+          "-filter_complex",`[0:v]${fit}[bg];[bg][1:v]overlay=0:0:format=auto,scale=${sw}:${sh}:flags=lanczos[ui];color=c=${fill}:s=${W}x${H}[canvas];[canvas][ui]overlay=${place(sw,W,pose.x)}:${place(sh,H,pose.y)}:format=auto[in];[in][2:v]overlay=0:0:format=auto[v]`,
+          "-map","[v]","-frames:v","1",file]);
+      } finally { rmSync(temp,{recursive:true,force:true}); }
+      shots.push({scene:s.id,at:Number(at.toFixed(2)),file,estimated:s.beats.length>0,source});
+      continue;
+    }
     const fill = ffmpegColour(theme["--sc-letterbox"]!);
     const fit = dev ? `scale=${dev.layout.screen.w}:${dev.layout.screen.h},pad=${W}:${H}:${dev.layout.screen.x}:${dev.layout.screen.y}:color=${fill}`
       : fitFilter(s.fit as Fit | undefined, W, H, fill);
@@ -168,7 +201,7 @@ for (const s of pitch.scenes) {
     // Наезд над видео делает сборка фильтром кадра: превью ставит ту же камеру в её положение в
     // этот момент — предметная половина слоя едет с картинкой, экранная стоит поверх.
     const camera = s.overlay && (s.overlay as SceneOverlay).camera?.length
-      ? cameraPerspective((s.overlay as SceneOverlay).camera!, 30, [], at) : null;
+      ? cameraPerspective((s.overlay as SceneOverlay).camera!, pitch.frame?.fps ?? DEFAULTS.fps, take?.path ?? [], at) : null;
     if (s.beats.length || s.overlay || dev) {
       const temp = mkdtempSync(join(tmpdir(), "sc-frame-layer-"));
       try {
@@ -196,8 +229,23 @@ for (const s of pitch.scenes) {
     }
   } else {
     // Подпись и субтитры — как в сборке: кадр показывает, не ложится ли речь на содержимое.
-    const { shots: got } = await renderScene({ ...s, ...stage } as RenderScene, { width: W, height: H, at });
-    writeFileSync(file, got[0]!.buf);
+    const reframe = pitch.reframe && s.provider === "page" && !s.nativePortrait ? pitch.reframe : undefined;
+    const opts = { ...DEFAULTS, ...pitch.frame, width: W, height: H, at };
+    if (reframe) {
+      const temp = mkdtempSync(join(tmpdir(), "sc-frame-reframe-"));
+      try {
+        const material = await renderScene({ ...s, ...stage, __layerPart: "scene" } as RenderScene, reframedPageOptions(opts, reframe));
+        const screen = await renderScene({ ...s, ...stage, overlay: screenOverlay(s.overlay as SceneOverlay | undefined),
+          __overlayOnly: true, __layerPart: "screen" } as RenderScene, opts);
+        const under = join(temp, "material.png"), over = join(temp, "screen.png");
+        writeFileSync(under, material.shots[0]!.buf); writeFileSync(over, screen.shots[0]!.buf);
+        execFileSync(FFMPEG, ["-nostdin", "-y", "-loglevel", "error", "-i", under, "-i", over,
+          "-filter_complex", `[0:v]scale=${W}:${H}:flags=lanczos[a];[a][1:v]overlay=0:0:format=auto[v]`, "-map", "[v]", "-frames:v", "1", file]);
+      } finally { rmSync(temp, { recursive: true, force: true }); }
+    } else {
+      const { shots: got } = await renderScene({ ...s, ...stage } as RenderScene, opts);
+      writeFileSync(file, got[0]!.buf);
+    }
     const share = flatOf(file);
     if (share >= 0.3 && !specOf(s, pitch.providers).trailer) empty.push({ scene: s.id, share: Number(share.toFixed(2)),
       message: msg("frames.empty", { percent: Math.round(share * 100), at: at.toFixed(1) }) });

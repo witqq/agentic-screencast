@@ -39,11 +39,11 @@ test("a recorded camera move is not navigation, but a later screen change remain
     execFileSync(ffmpeg, ["-loglevel", "error", "-y", "-f", "lavfi", "-i", "testsrc=size=540x960:duration=5:rate=25",
       "-vf", vf, "-pix_fmt", "yuv420p", join(dir, name)]);
   };
-  make("camera.mp4", "negate=enable='gte(t,2)'");
-  make("navigation.mp4", "negate=enable='gte(t,2)',negate=enable='gte(t,3.5)'");
+  make("camera.mp4", "negate=enable='gte(t,1.6)'");
+  make("navigation.mp4", "negate=enable='gte(t,1.6)',negate=enable='gte(t,3.5)'");
   for (const name of ["camera", "navigation"]) {
     writeFileSync(join(dir, `${name}.mp4.marks.json`), JSON.stringify({ version: 1, trimmed: 0,
-      marks: { start: 0 }, clicks: [], cameraMoves: [{ from: 1.75, to: 2.25 }] }));
+      marks: { start: 0 }, clicks: [], cameraMoves: [{ from: 1.566, to: 2.591 }] }));
   }
   writeFileSync(join(dir, "story.md"), `# F\nlang: en\nformat: vertical\nvoice: {"engine":"stub","name":"silent","cps":15}\n\n`
     + `## camera · video\nfile: camera.mp4\n\nOne line.\n\n`

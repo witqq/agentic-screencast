@@ -5,8 +5,7 @@ sizes, pace, legibility — with sources. How the tool builds a vertical film (f
 a landscape scenario, the checks) is in `agentic-screencast help vertical`. A condensed, sourced guide
 for building 9:16 films with Agentic Screencast. Every rule carries a
 reference to the numbered sources at the end; where a platform publishes no official number, the
-spread of third-party measurements is given instead of a single invented value. Researched on
-2026-09-24.
+spread of third-party measurements is given instead of a single invented value.
 
 ## One master for every platform
 
@@ -176,10 +175,9 @@ rather than one shot [14].
 
 ## Showing a product interface in 9:16
 
-A wide screen in a tall frame is either cropped or shrunk until labels become noise [22][36].
+Establish the complete application screen before any detail, in vertical films as in every other format. The overview gives the viewer a map; the later close-up makes its subject readable. A permanent crop loses location, while a permanent whole-screen view can make labels too small [22][36]. Use the [directed-scene recipes](directed-scenes.md#show-the-whole-interface-before-a-detail) to connect those two views.
 
-- Record a vertical region (608×1080, 810×1440) for narrow panels or mobile apps, or record the
-  whole screen and reframe each scene on its subject [22].
+- Record the complete relevant application viewport first, then reframe on its subject [22]. A narrow panel capture needs a whole-screen establishing view so its location is known.
 - Zoom harder than in landscape — 1.25× to 5× on clicks and small details; two or three push-ins on
   the moments the narration names [22][36].
 - One panel at a time; keep the subject near the centre — far corners are cut first [22][36].
@@ -198,7 +196,7 @@ A wide screen in a tall frame is either cropped or shrunk until labels become no
 
 A film for colleagues — a task, a design review, a presentation — that explains a system's
 architecture or walks through its real interface, watched on a phone. The frame is 1080 px wide
-and every pixel of it has to carry text large enough to read. Researched on 2026-09-26; the pixel
+and every pixel of it has to carry text large enough to read. The pixel
 numbers convert points and visual angles for a 6.1-inch phone showing the film full screen at
 about 36 cm (1 iOS point ≈ 2.75 px of the frame, 1° ≈ 104 px) — that conversion is ours, not the
 sources'. In a messenger the film often plays inline, in a bubble narrower than the screen, which
@@ -223,11 +221,8 @@ arithmetic from the typography above. So:
 
 1. When the interface is yours to render, lay it out for the phone instead of zooming it: a phone-
    width viewport (360–390 CSS px, text ≥ 16 px) reflows the app by itself.
-2. Otherwise crop to the region being discussed and move the camera between regions; never shrink
-   the whole desktop into the frame (Tella, Screen Studio, Camtasia practice) [49][61][62]. Hold the
-   camera still while text is read.
-3. Open with the whole window for about a second as a map, not to be read, then go into detail —
-   overview first, detail on demand [54].
+2. In every case open with the whole window as a map, then go into detail: overview first, detail on demand [54]. Keep that location understandable during the move and after navigation to another screen.
+3. Crop to the region being discussed after the overview and move between regions (Tella, Screen Studio, Camtasia practice) [49][61][62]. The whole-screen shot gives orientation; the close-up holds still while text is read.
 4. A magnifier for one small detail while the context stays [62]; stacked strips of one wide UI when
    two parts must be seen together.
 5. A device frame costs width — every pixel of bezel is lost text size; leave it off desktop UIs.
@@ -263,7 +258,9 @@ The portrait page replaces the landscape page in a vertical build instead of bei
 Lay it out in frame pixels so the text the viewer must read reaches at least 48 px, then
 inspect `frames --format vertical` and the final film: the report's size alone does not
 prove that subtitles leave the page visible. A live take of your own product recorded at
-a phone-width viewport reflows instead of being zoomed (`help capture`). For
+a phone-width viewport reflows instead of being zoomed (`help capture`). For automatic landscape-to-portrait conversion, pages and capture takes first fit their complete source viewport into the frame, then smoothly enter the existing focus path; opening actions keep their recorded times. Captions remain at output size. An unmarked supplied clip keeps its previous crop behavior, so establish a UI clip explicitly with `contain` or `device`. See [automatic vertical overview](directed-scenes.md#automatic-vertical-overview) and the [buildable example](../example/interface-overview/README.md).
+
+For
 a landscape take used in a portrait film, `autoZoom: {"follow":"cursor"}`
 uses its recorded actions and pointer path to scale a specific subject and
 hold that subject until the pointer reaches it; the crop then follows the
@@ -370,4 +367,4 @@ of a vertical short is `agentic-screencast new reel` ([`templates/reel.md`](../t
 63. https://help.descript.com/hc/en-us/articles/12920160974477-Aspect-ratio-and-video-settings — 9:16 canvas and reframing (via snippet).
 64. https://architecturediagram.ai/blog/system-design-interview-diagrams — top-to-bottom system diagrams (via snippet).
 
-Numbers are kept as the sources state them; source numbering follows the research notes.
+Source numbers identify the references supporting each claim.

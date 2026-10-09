@@ -57,11 +57,17 @@ export const RULES: Record<string, `FC-${number}` | `VA-${number}`> = {
   "live-camera": "FC-46",
 };
 
-export interface Finding { rule: `FC-${number}` | `VA-${number}`; id: string; message: string; hint: string }
+/** Timing/count observations need directing judgment, not decorative fixes. */
+const ADVISORY_IDS = new Set(["still-hold", "still-scene", "long-scene", "still-stretch", "motion-stack", "harsh-push"]);
+export function isAdvisory(value: unknown): boolean {
+  return typeof value === "object" && value !== null && "id" in value
+    && typeof value.id === "string" && ADVISORY_IDS.has(value.id);
+}
+export interface Finding { advisory?: true; rule: `FC-${number}` | `VA-${number}`; id: string; message: string; hint: string }
 
 /** Находка по `id`: номер правила из таблицы и подсказка из словаря (`hint.<id>`). */
 export function finding(id: string, message: string): Finding {
   const rule = RULES[id];
   if (!rule) throw new Error(`no film-craft rule for finding «${id}»`);
-  return { rule, id, message, hint: msg(`hint.${id}`) };
+  return { rule, id, message, hint: msg(`hint.${id}`), ...(ADVISORY_IDS.has(id) ? { advisory: true as const } : {}) };
 }

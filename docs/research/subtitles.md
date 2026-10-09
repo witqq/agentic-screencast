@@ -1,4 +1,4 @@
-# Burned-in subtitles: what reads best and what looks current (research, 2026-09-25)
+# Burned-in subtitles: what reads best and what looks current
 
 Scope: burned-in (open) subtitles for explanatory product videos (16:9) and social shorts (9:16). The
 tool keeps an outline as the default for existing scenarios; `captions.look: plate` explicitly puts a
@@ -10,12 +10,11 @@ Evidence labels used below:
 - **[R]** means peer-reviewed or academic research.
 - **[P]** means practitioner or expert opinion, such as an accessibility consultant or a subtitling house.
 - **[M]** means vendor marketing or a creator-tool blog. These show current practice, not evidence.
-- **[C]** means my own calculation from WCAG formulas.
+- **[C]** means a calculation from WCAG formulas.
 
-Access note: the BBC guidelines page (bbc.co.uk) timed out from this machine. BBC figures therefore come from a
-verbatim copy of v1.2.3 (June 2024) and a second summary. Both sources are cited where they are used.
+Evidence limitation: BBC figures in this guide are supported by a copy of v1.2.3 (June 2024) and a secondary summary, not by the current official page. Both sources are cited where used; verify current official guidance before external citation.
 
-## Bottom line
+## Recommendations
 
 1. **Choose the plate explicitly on busy material.** Guidelines and research favour a background box
    (a solid or translucent plate) over bare text. The published default outline remains available for
@@ -64,7 +63,7 @@ verbatim copy of v1.2.3 (June 2024) and a second summary. Both sources are cited
   https://lists.w3.org/Archives/Public/w3c-wai-gl/2017JanMar/0692.html · https://github.com/w3c/wcag/issues/1939
 
 **Research**
-- I found **no controlled study that directly compares box, outline and shadow**. Studies of subtitle reading hold the
+- The cited evidence includes **no controlled study that directly compares box, outline and shadow**. Studies of subtitle reading hold the
   style fixed, for example white text with a black outline on a transparent background.
   https://pmc.ncbi.nlm.nih.gov/articles/PMC10723748/
 - Kushalnagar, Vogler et al. (arXiv, September 2026) let DHH viewers customise captions in a player **[R]**. "Most
@@ -119,7 +118,7 @@ should only be used over footage we control and know to be dark.
   BBC's speaker order is white #FFFFFF, yellow #FFFF00, cyan #00FFFF, then green #00FF00, all on black, and the BBC cuts
   line length when colour is used. https://broadcastwriter.com/2024/12/12/bbc-subtitle-style-guide-2024/
   In the DHH study, 10% of users picked yellow **[R]**. https://arxiv.org/html/2609.11408
-- I found **no controlled study showing that yellow is more legible than white**. Advice to use yellow on bright,
+- The cited evidence includes **no controlled study showing that yellow is more legible than white**. Advice to use yellow on bright,
   changing footage comes from vendors **[M]**, such as https://www.checksub.com/blog/the-best-subtitle-colors. A 2025
   review of eye-tracking studies finds yellow the most *salient* colour. Salience is about attention, not about reading
   speed. https://onlinelibrary.wiley.com/doi/10.1111/joss.70044
@@ -197,8 +196,7 @@ should only be used over footage we control and know to be dark.
   - BBC broadcast: 37 characters per line, and fewer when colour is used.
   - BBC online width limits: 68% of width in 16:9, 90% in 1:1 and 9:16.
   - BBC line count: at most two lines in landscape and at most three in vertical.
-  - DCMP: two lines preferred. Secondary summaries quote 32 characters per line, but I could not find that number on the
-    DCMP pages I read. https://www.3playmedia.com/blog/dcmp-closed-captioning-standards/
+  - DCMP: two lines preferred. Secondary summaries quote 32 characters per line, but the cited primary DCMP guidance does not substantiate that number. https://www.3playmedia.com/blog/dcmp-closed-captioning-standards/
   - Reading speed: BBC 160–180 wpm, Netflix up to 20 cps for adults, DCMP 130–160 wpm for educational content.
   - Our 84 characters per two lines (42 per line) equals Netflix. In 9:16 at 72 px, a 90%-wide line holds about 24
     characters.
@@ -213,7 +211,7 @@ should only be used over footage we control and know to be dark.
   - For 9:16, place the cue baseline at about 62–70% of frame height, which is above the caption and UI block and matches
     the creator "lower-middle" position.
 
-## 5. Presets we could ship
+## 5. Styling recommendations
 
 All values are for a 1080 px short side. Scale linearly by `min(W,H)/1080`. "Stroke" means an outside or paint-order
 stroke, not a centred one, so glyph counters stay open.
@@ -236,8 +234,8 @@ convention and Hamilton's stroke minimum.
 - Stroke 6 px #000000 (about 9% of font size).
 - Shadow 0 3px 8px rgba(0,0,0,0.6).
 - Same limits as preset A.
-- A future automatic switch on bright or busy footage would need its own implementation; choose
-  `captions.look: plate` explicitly for those scenes in the current tool.
+- The tool does not switch automatically to a plate on bright or busy footage; choose
+  `captions.look: plate` explicitly for those scenes.
 
 **C. "Social pop" (9:16 shorts, creator style).** Its basis is creator practice **[M]**, softened by research.
 - Font: Montserrat or Inter ExtraBold (800), 84–96 px (8–9% of width), ALL CAPS allowed. Cue length 1–3 words or at most
@@ -262,5 +260,4 @@ convention and Hamilton's stroke minimum.
 - No independent A/B data shows that word-pop or karaoke captions improve retention compared with static captions. The
   only research (language learning, DHH real-time captions) reports benefit mixed with distraction.
 - DCMP's "32 characters per line" appears only in secondary summaries.
-- I could not re-read the BBC's current page directly. Please verify the 8% and 4.5% figures there before citing them
-  externally.
+- The BBC 8% and 4.5% figures rely on secondary copies of the guidance; verify the current official page before citing them externally.

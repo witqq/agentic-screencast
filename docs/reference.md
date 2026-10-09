@@ -5,7 +5,7 @@ contracts and the environment variables. [`README.ru.md`](../README.ru.md) is it
 
 [English README](../README.md) | [Russian version](../README.ru.md)
 
-License: **GPL-3.0-or-later** (see `LICENSE`). It was chosen because
+License: **GPL-3.0-or-later** (see `LICENSE`):
 `ffmpeg-static` ships as a dependency and is distributed under GPL-3.0;
 a weaker license would create a mismatch between the license file and what
 the user actually receives on installation.
@@ -38,6 +38,26 @@ skills/agentic-screencast in this repository and make a one-minute film about ou
 
 The universal core lives in `src/`. The scenarios, snapshots, recordings and commands of a
 particular film belong to the external consumer project; this repository does not store them.
+
+## Discover tools and stage the material
+
+Start with the [knowledge map](knowledge.md), [directing](directing.md) and [combinations](combinations.md): material, viewer understanding and feeling, development, staging, coordinated actions, then tools. The [complete atlas](atlas.md) lists the runtime vocabulary and every packaged scenario and template. It links to craft rules, concrete counterexamples and supporting evidence.
+
+```sh
+agentic-screencast atlas --out ./tool-atlas
+agentic-screencast atlas --json
+agentic-screencast help directing
+agentic-screencast help combinations
+```
+
+Open `tool-atlas/index.html` to play native slide and overlay previews. Add `--transitions` to render transition films through the normal builder; the default gallery is fast and silent. Examples demonstrate possibilities, not a universal film recipe.
+
+
+## Directed compositions and interface orientation
+
+The [directed-scenes guide](directed-scenes.md), also printed by `agentic-screencast help composition`, provides five Report layouts (`diagram-code`, `pipeline`, `before-after`, `overview-detail`, `ownership`) and ten actions (`reveal`, `focus`, `connect`, `trace`, `transfer`, `copy`, `replace`, `compare`, `camera`, `annotate`), with stable groups and dynamic slots. A `report` scene binds their speech anchors to measured narration. Use coordinated local builds: the published Report 0.20.0 does not include this vocabulary yet. Select a stage with `target: [data-composition-id="first-edit"]`; the shot fits that complete stage and leaves surrounding page prose outside it; use `zoom: 1` and `spotFrom: 999s` when the composition owns the camera. [Three worked films](../example/directed-compositions/README.md) combine the actions with existing perspective, dolly, 3D entrances and transitions.
+
+Show every system interface whole before focusing on a part, in landscape, portrait, square, still images and presentations alike. Automatic portrait conversion of a landscape page, or a capture video identified by `autoZoom` or capture marks, contains the whole source frame first and then moves smoothly to its detail. It does not postpone narration or source actions. With no focus, the overview remains. Native portrait layouts need an authored orientation shot; ordinary unmarked video keeps its existing framing. The [interface example](../example/interface-overview/README.md) shows the complete sequence.
 
 ## Recording real actions
 
@@ -82,6 +102,8 @@ an unchanged camera does not re-record. The conditions and the fallback are in
 | `AGENTIC_SCREENCAST_HOME` | data directory: sound and frame cache, voice recordings, default output | `./.agentic-screencast` |
 | `FFMPEG` | path to ffmpeg, if the one shipped as a dependency does not suit you | from `node_modules` |
 | `CLOUD_KEY` | Yandex SpeechKit key; read from the environment or from `.env` | — |
+| `SPEECHKIT_REQUEST_INTERVAL_MS` | minimum pause after a SpeechKit response body completes, milliseconds, integer 0–60000; environment or `.env` | `0` |
+| `SPEECHKIT_MAX_ATTEMPTS` | total attempts for transient SpeechKit HTTP/transport failures, integer 1–5; environment or `.env` | `3` |
 | `AGENTIC_SCREENCAST_LANG` | the language in which the tool talks to the person | from `LANG`, otherwise `en` |
 | `LANG` | system language; used if `AGENTIC_SCREENCAST_LANG` is not set | — |
 | `AGENTIC_SCREENCAST_FILM_LANG` | the scenario variant in another language; the command's `--lang ru` sets it | language of the scenario header |
@@ -176,7 +198,7 @@ video frame count, final video and audio stream durations, stream presence and
 WebVTT chapter cues. `audit.issues` names any drift, missing stream or chapter
 mismatch with measured values; the same findings appear in `warnings` and on
 the error stream. Every entry of `warnings` — and every `lint` finding — has the
-form `{rule, id, message, hint}`: `id` names the check, `rule` the knowledge-base
+form `{rule, id, message, hint, advisory?}`: `id` names the check, `rule` the knowledge-base
 rule behind it (`FC-58` is rule 58 of `docs/film-craft.md`, `VA-5` step 5 of the licence
 section of `docs/visual-assets.md`), `hint` what to change. An empty issues list means these encoded properties match
 within one video frame and AAC packet padding, not that the film has been
@@ -294,7 +316,8 @@ For `page`, `pageVertical` may name a separate HTML file laid out for a 9:16 fra
 It is selected when the film is vertical, including with `build --format vertical`;
 otherwise `page` is used. Translate file choices with `page.en` and
 `pageVertical.en` when the film has an English variant. Without `pageVertical`,
-a landscape page keeps the usual moving crop in a vertical build. The selected
+a landscape page begins with the complete source viewport in a vertical build,
+then moves smoothly to the assigned detail; without a focus it remains whole. The selected
 portrait page also appears in `frames` and the recording preview; a missing
 selected file is an error, not a reason to use the landscape file.
 
@@ -437,8 +460,9 @@ addresses manages to rewrite a piece inside a domain, and the address stops bein
 an address — instead of disappearing, it is pronounced half
 rewritten.
 
-**Changing the rules changes the synthesis string, and with it the cache key**: the rules
-changed — the sound will be synthesised anew, for money with a network engine.
+Preview prepared speech with `script --source story.md --speech --json` without invoking an engine. `schema pronounce` describes the dictionary format. Explicit beat speech bypasses rules; otherwise `voice.rules` replaces film `pronounce`. See [pronunciation](pronunciation.md) for examples, preserved identifiers and captions, measured anchors and karaoke limitations.
+
+A changed effective synthesis string changes that beat's audio cache key; adding unused header dictionary entries does not. Changes to voice data also change cache identity. `--keys-only` may synthesize missing audio and is not a free preview.
 
 ### Frame, quality and styling are film data
 
@@ -584,7 +608,7 @@ npx agentic-screencast craft spotlight          # film-craft rules for a decisio
 npm test                                     # the product's test suite
 ```
 
-`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no warning), checks its stills and `checklist.md`, and prints `{verdict, checks}`, exiting 1 on fail. A `build --only` report cannot pass.
+`handover story.md --film <film>.mp4` is the gate before handing a film over: it runs `lint`, requires a non-empty MP4 and its full-film report (built after the scenario's last edit, no audit issue, no blocking warning), checks its stills and `checklist.md`, and prints `{verdict, checks, advisories}`, exiting 1 on fail. A `build --only` report cannot pass.
 
 `schema` prints a machine-readable description of a scene, `scenes` prints the scenes
 of the parsed scenario in the same form. Together they give another agent
@@ -616,6 +640,14 @@ the end-to-end run).
 progress bar, typing too fast to read, a take piece crossing a mark not named
 in `stills`, and an abrupt screen change outside marks and `cameraMoves`.
 It places speech anchors by estimate; check the finished film after recording.
+
+`still-hold`, `still-scene`, `long-scene`, `still-stretch`, `motion-stack` and
+`harsh-push` are timing/count observations marked `advisory: true`. They remain
+visible in `findings`/`warnings`; lint's `ok` and exit code reflect blocking
+findings, while handover returns these observations in `advisories`. A reading
+hold or coordinated combination needs directing judgment, not decoration to
+pass a counter. Actual cut/crop, invalid cues, absent subjects and stream issues
+remain blocking. Older reports with these same IDs are interpreted consistently.
 
 ## The voice-engine contract
 
@@ -663,7 +695,7 @@ Requirements that must not be violated:
   recording from the cache while looking successful.
 
 The fingerprint is mixed into the cache key **only when it is non-empty**. So
-the appearance of the subcommand did not invalidate a single line already synthesised.
+an empty fingerprint preserves the key of already synthesised lines.
 
 Conformance to the contract is checked by a program, not taken on trust:
 `agentic-screencast voice-check <command>` runs eight requirements against someone else's
@@ -778,9 +810,7 @@ silently skips Latin script, so for it Latin is rewritten
 in Cyrillic, while SpeechKit reads it itself. On screen the original spelling
 remains in both cases.
 
-They are selected by the name given in the voice data. For a shipped
-engine that is its name; for a third-party implementation the name is a path to the program,
-and no rules can be found by it, so the voice data may name them directly:
+Rules are selected explicitly by film `pronounce` or by `voice.rules`. An engine name does not automatically select rules; `voice.rules` replaces film rules, while an explicit beat variant bypasses both. For an external engine, name an available rules file directly:
 
 ```json
 {"engine": "/path/python /path/voice.py", "name": "baya", "rules": "silero"}
@@ -806,11 +836,18 @@ Where to get it:
 2. Grant it the **`ai.speechkit-tts.user`** role (or higher).
 3. Create an **API key** for this account — that is the `CLOUD_KEY`.
 4. The folder identifier is **not needed**: with API-key authorisation the service
-   uses the service account's folder (verified by a live call).
+   uses the service account's folder.
 
 The `kuznetsov` voice is not listed in the documentation's voice table, but the API
-accepts it. The full list was checked by live calls and lives in the shipped
-engine.
+accepts it. The shipped engine lists its supported voices; use `voices` for that list.
+
+### SpeechKit request pacing and recovery
+
+SpeechKit requests run sequentially within a process, including response-body consumption. `SPEECHKIT_REQUEST_INTERVAL_MS` sets a minimum completion-to-start pause; it can help when a service accepts spaced requests but fails on consecutive ones. Choose the interval from observation or the account's actual limits. A gateway timeout alone does not establish a quota problem.
+
+`SPEECHKIT_MAX_ATTEMPTS` limits the total attempts, including the first. The engine retries HTTP 429, 500, 502, 503 and 504, and fetch/body-read transport failures. It waits 1.5, 3, 6 and 12 seconds between successive attempts; `Retry-After` may extend that pause, capped at 60 seconds. Other HTTP failures, including authentication and invalid input, fail immediately. Set `1` to disable retries. Final HTTP diagnostics include the request ID when the service supplies it.
+
+Both settings come from the environment or `.env`, outside voice data. Changing them preserves the sound cache key. Resume the same build with unchanged narration, voice and cache after resolving a service failure; completed beats need no new synthesis. Separate CLI processes have separate queues, so concurrent builds do not enforce a shared account rate.
 
 ## An interface snapshot as a page
 

@@ -30,17 +30,21 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## 5. Scenario
 
-- [ ] `agentic-screencast lint story.md` (and `--lang`, `--format` for each built format) is clean; each sign in its `cliches` is a
+- [ ] `agentic-screencast lint story.md` (and `--lang`, `--format` for each built format) has no blocking findings; its timing/motion advisories and each sign in its `cliches` is a
       decision you can name; scenes with a moment that must be right have `stills:`.
-- [ ] Motion is decided per scene (docs/motion-design.md), starting from the composition recipe the
-      playbook's Motion paragraph names for the genre: each scene's key element lands last, groups
-      start together, one lead movement at a time, every transition states how its two scenes relate,
-      and no long frame stands dead.
+- [ ] Staging and motion serve the scene's viewer question (docs/directing.md, docs/combinations.md):
+      coordinated actions have one understandable focus, causal changes arrive in the intended order,
+      transitions express the scenes' relation, and holds allow orientation and reading. Genre recipes
+      are options to adapt. Interface scenes establish the complete screen before details in every
+      format; mechanisms show the relevant change (docs/directed-scenes.md). Technical speech uses
+      a dictionary or complete spoken variants while preserving identifiers, captions and semantic
+      cue anchors (docs/pronunciation.md); preview with `script --speech --json` when needed.
 
 ## 6. Draft
 
-- [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles and the
-      rhythm of sparse trailer cards; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `still-stretch`, `silent-action`, `still-in-fade`, `still-note` and the rest name their film-craft rule); each still opened and compared with its note;
+- [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles, the
+      recorded cursor-following camera and the rhythm of sparse trailer cards; compare the
+      camera's focused subject with the same moment in the draft; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `still-stretch`, `silent-action`, `still-in-fade`, `still-note` and the rest name their film-craft rule); each still opened and compared with its note;
       the stills match their notes; the owner has seen the draft and their remarks are fixed.
 
 ## 7. Final
@@ -64,6 +68,9 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 ## Techniques — the menu, pick what serves the film
 
+The complete inventory and animated previews are in docs/atlas.md: `agentic-screencast atlas --out ./tool-atlas`.
+Use docs/knowledge.md to find directing, combinations and the original research; these are references, not extra boxes.
+
 - Spotlight: push-in, dim, circle, blur, desaturate, card, slow or stop, a film push-in without a frame (`ring: false`, `dim`) — `spotlight`, `help overlay`
 - Camera moves by hand, their pace (`style`), motion blur — `overlay.camera`, `motionBlur`, `help overlay`
 - Retiming a clip: slow motion (drawn frames, a speed ramp), stopped time — `speed` with `interpolate`, `ramp`, `hold`, `help overlay`
@@ -81,7 +88,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Live capture: clicks (and their effect), typing, keys, ranges, drags, cards, focus during the take, clicks through a layer — `recordTake`, `take.*`, `help capture`
 - Zoom to actions and follow the cursor, device frame — `autoZoom` with `follow` (`help capture`), `device` (`help slides`)
 - Saved pages and interface snapshots — `page`, `agentic-screencast snapshot`, `help video`
-- Reports rebuilt from their original Markdown with their section ids and block targets preserved — `report`, `target`, `help video`
+- Reports rebuilt from original Markdown: ready diagram-code, pipeline, before-after, overview-detail and ownership compositions; stable groups/slots and reveal/focus/connect/trace/copy/transfer/replace/compare/camera/annotate cues on measured speech — `report`, `target`, `help composition`, docs/directed-scenes.md
 - Transitions: WebGL kinds, shared-element morph, hard cut, dip into a colour, push or whip with a direction, zoom into an element, a mask out of an element or a glowing circle from a point, a page curl, a light leak that keeps the length, a scene's own fades — `transition`, `fade`, `help transitions`
 - A continuous film: every seam connected instead of fades — `flow: auto`, `help transitions`, docs/motion-design.md "A continuous film"
 - Camera and life on slides: dolly, pan, 3D orbit, hand-held camera; living, jolting, bouncing, fanning and 3D entrances with motion blur; waves, stagger, curves and the scene's pace; a light on the border; hits on music beats — `move`, `alive`, `enter`, `wave`, `stagger`, `ease`, `pace`, `glow`, `flash`/`shake`/`rgb` with `m16`, `help slides`
@@ -93,6 +100,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 - Theme with its fonts and its light or dark scheme, a scene in another theme, brand theme, film look — `theme`, `scheme`, `theme --from`, `look`, `help themes`
 - Music, a track per part or a music stop, accents (a hit before the voice: `speechAt`), loudness, a film without sound — `music` (header and scene), `sfx`, `loudness`, `audio: false`, `help sound`
 - Voice agreed with the owner (or settled by the request): an engine built into the tool, the owner's own voice, or silent; drafts on `stub`; a system voice (`say`) only with the owner's explicit permission — `voice`, `agentic-screencast record`, `help voice`, skill section Voice
+- Whole interface first, then a detail with known location in every format; automatic portrait overview for pages and capture takes — `help composition`, example/interface-overview
 - Vertical and square films: choose margins for where the film is watched; reflow a `page` with `pageVertical` or use `pan` along a wide subject, then inspect the final phone frame for key UI at 48 px or more and subtitles clear of it (`legibility` in the build report) — `format`, `zone`, `--format`, `help vertical`, `docs/vertical-video.md`
 - Several languages — `.ru` fields, `[ru]` blocks, `--lang`, `help vertical`
 - Control frames — `stills`, `help vertical`

@@ -1,19 +1,21 @@
 # Fonts for the eight themes of agentic-screencast
 
-Research date: 2026-09-25. Scope: typography for rendered slides, titles, cards and burned-in subtitles in Russian and English films, rendered by Chromium. Every font must be free for commercial use, embeddable offline, and cover Cyrillic.
+Scope: typography for rendered slides, titles, cards and burned-in subtitles in Russian and English films, rendered by Chromium. Every font must be free for commercial use, embeddable offline, and cover Cyrillic.
 
-## How the Cyrillic and licence claims were verified
+Coverage and licence facts below are dated 25 September 2026. Recheck the catalogue and font file when choosing a different version.
 
-Every Cyrillic claim below was checked against two machine-readable sources, not against marketing pages:
+## Cyrillic coverage, licences and measurement conditions
 
-1. **Google Fonts catalogue metadata**, `https://fonts.google.com/metadata/fonts` (downloaded 2026-09-25, 2.7 MB JSON). For each family it lists `subsets` (for example `cyrillic`, `cyrillic-ext`) and variable `axes`.
+Use these machine-readable sources to check Cyrillic coverage and licences:
+
+1. **Google Fonts catalogue metadata**, `https://fonts.google.com/metadata/fonts`. For each family it lists `subsets` (for example `cyrillic`, `cyrillic-ext`) and variable `axes`.
 2. **Fontsource API**, `https://api.fontsource.org/v1/fonts/<id>` (for example [golos-text](https://api.fontsource.org/v1/fonts/golos-text)). It lists `subsets`, `license`, `weights` and `variable`, and gives CDN URLs for the per-subset `woff2` files that the `@fontsource/*` npm packages ship.
 
-For every recommended font I also downloaded the Cyrillic `woff2` file and measured the Cyrillic lowercase `х` and capital `Н` with fontTools. The resulting "x/cap" ratio and the x-height as a fraction of the em size show how large the lowercase reads at a given pixel size. This matters for body and subtitle text.
+The metrics below use the Cyrillic lowercase `х` and capital `Н` in Cyrillic `woff2` files, measured with fontTools. The resulting "x/cap" ratio and the x-height as a fraction of the em size show how large the lowercase reads at a given pixel size. This matters for body and subtitle text.
 
-"**Verified**" in this report means both sources listed the `cyrillic` subset and the Cyrillic file downloaded and contained the glyphs. All recommended fonts are **OFL-1.1** (SIL Open Font License) according to the Fontsource API. OFL allows commercial use, bundling and embedding, including in rendered video. The only restriction is that you may not sell the font files by themselves. Human-readable pages are at `https://fonts.google.com/specimen/<Name>` and `https://fontsource.org/fonts/<id>`. Their "Language support" and "Subsets" blocks show the same data.
+"**Verified**" means both catalogues list the `cyrillic` subset and the corresponding font file contains Cyrillic glyphs. All recommended fonts are **OFL-1.1** (SIL Open Font License) according to the Fontsource API. OFL allows commercial use, bundling and embedding, including in rendered video. The only restriction is that you may not sell the font files by themselves. Human-readable pages are at `https://fonts.google.com/specimen/<Name>` and `https://fontsource.org/fonts/<id>`. Their "Language support" and "Subsets" blocks show the same data.
 
-**Candidates rejected because they have no Cyrillic** (verified absent in both sources): Bebas Neue (latin, latin-ext only), Fraunces (latin, latin-ext, vietnamese), Space Grotesk (latin, latin-ext, vietnamese), Orbitron (latin only). Also absent in the Google Fonts metadata: Bricolage Grotesque, Syne, Sora, Instrument Serif/Sans, DM Serif Display, Bodoni Moda, Anton, League Gothic, Barlow Condensed, Archivo, Saira, Chakra Petch, Share Tech Mono, Space Mono, DM Mono, Atkinson Hyperlegible (all variants), Lexend, Newsreader, Courier Prime and Special Elite. Many of these are trendy in 2026 roundups, so a theme that "looks like 2026" in Latin script would lose its look in Russian. Watch this trap when a new font gets proposed. IBM Plex Sans Condensed lists only `cyrillic-ext` in the Google metadata, not `cyrillic`, so I am treating it as **unverified** and not recommending it.
+**Candidates rejected because they have no Cyrillic** (verified absent in both sources): Bebas Neue (latin, latin-ext only), Fraunces (latin, latin-ext, vietnamese), Space Grotesk (latin, latin-ext, vietnamese), Orbitron (latin only). Also absent in the Google Fonts metadata: Bricolage Grotesque, Syne, Sora, Instrument Serif/Sans, DM Serif Display, Bodoni Moda, Anton, League Gothic, Barlow Condensed, Archivo, Saira, Chakra Petch, Share Tech Mono, Space Mono, DM Mono, Atkinson Hyperlegible (all variants), Lexend, Newsreader, Courier Prime and Special Elite. Many of these are trendy in 2026 roundups, so a theme that "looks like 2026" in Latin script would lose its look in Russian. Watch this trap when a new font gets proposed. IBM Plex Sans Condensed lists only `cyrillic-ext` in the Google metadata, not `cyrillic`, so its basic Cyrillic coverage is **unverified** in this guide; do not choose it without checking the glyphs.
 
 ## Trends in 2025–2026 that matter for video
 
@@ -51,7 +53,7 @@ Each theme gets a display face in a different genre, so the eight themes differ 
 
 - **Display: [Cormorant Garamond](https://fonts.google.com/specimen/Cormorant+Garamond)** ([Fontsource](https://fontsource.org/fonts/cormorant-garamond)). OFL. Cyrillic: **verified**. Weights 600–700, set in capitals with letter-spacing of 0.08–0.15 em, or in light italic for moody lines. It gives the "film-inspired serif" look: a classic-cinema credit face. Its x-height is very small (0.386 em), so use it for display only, and at 72 px or larger.
 - **Text: [Jost](https://fonts.google.com/specimen/Jost)** ([Fontsource](https://fontsource.org/fonts/jost)). OFL. Cyrillic: **verified** for `cyrillic` only, with no `cyrillic-ext`. That is enough for Russian but not for rarer Cyrillic languages. Weights 400/500. Jost is a Futura-style geometric sans, the typeface of 1930s–50s posters, and gives a period-correct partner to the serif. If a variable width axis is wanted, Science Gothic (below) is an alternative.
-- **Mono: [PT Mono](https://fonts.google.com/specimen/PT+Mono)**. OFL. Cyrillic: **verified**. Use it for "case file" timestamps and evidence labels. None of the typewriter faces I checked has Cyrillic: Courier Prime, Special Elite and Cutive Mono are all Latin-only.
+- **Mono: [PT Mono](https://fonts.google.com/specimen/PT+Mono)**. OFL. Cyrillic: **verified**. Use it for "case file" timestamps and evidence labels. These typewriter faces lack Cyrillic: Courier Prime, Special Elite and Cutive Mono are all Latin-only.
 
 ### aurora: dark teal/violet
 
@@ -63,13 +65,13 @@ Each theme gets a display face in a different genre, so the eight themes differ 
 
 - **Display: [Manrope](https://fonts.google.com/specimen/Manrope)** ([Fontsource](https://fontsource.org/fonts/manrope)). OFL. Cyrillic: **verified**. Weights 700–800, with a tight tracking of −0.02 em. It is a semi-condensed geometric grotesque. This is the one theme where a clean modern sans is the correct character, because it mirrors product UI.
 - **Text: [Golos Text](https://fonts.google.com/specimen/Golos+Text)** ([Fontsource](https://fontsource.org/fonts/golos-text)). OFL. Cyrillic: **verified**. Weights 400/500. Paratype designed it as a UI face, Cyrillic-first. It has an x/cap ratio of 0.76 and very clear Russian letter shapes. It also doubles as the subtitle default (see below). Onest is a close alternative, also Cyrillic-first and verified.
-- **Mono: [Geist Mono](https://fonts.google.com/specimen/Geist+Mono)** ([Fontsource](https://fontsource.org/fonts/geist-mono)). OFL. Cyrillic: **verified**. Weights 400/500. It is Vercel's crisp product-UI mono, added to Google Fonts in 2024.
+- **Mono: [Geist Mono](https://fonts.google.com/specimen/Geist+Mono)** ([Fontsource](https://fontsource.org/fonts/geist-mono)). OFL. Cyrillic: **verified**. Weights 400/500. It is Vercel's crisp product-UI mono.
 
 ### ember: warm near-black and orange, trailers
 
 - **Display: [Oswald](https://fonts.google.com/specimen/Oswald)** ([Fontsource](https://fontsource.org/fonts/oswald)). OFL. Cyrillic: **verified**. Weights 600–700, set in capitals with +0.02 em tracking. It is the working Cyrillic replacement for Bebas Neue and gives the classic condensed trailer title. It has a tall cap height (0.81 em), so it fills the frame.
   - Alternative with more range: **[Sofia Sans Extra Condensed](https://fontsource.org/fonts/sofia-sans-extra-condensed)**, weights 800–900. OFL. Cyrillic: **verified**. Its `wght` axis runs 1–1000.
-  - Trend pick: **[Science Gothic](https://fonts.google.com/specimen/Science+Gothic)** ([Fontsource](https://fontsource.org/fonts/science-gothic)). OFL. Cyrillic: **verified**. It was added to Google Fonts on 2025-11-19 and has a `wdth` axis from 50 to 200 plus `CTRS` contrast. A title can slam from condensed to wide, which is ideal for kinetic trailer cards. It is new, so test its hinting at small sizes.
+  - Trend pick: **[Science Gothic](https://fonts.google.com/specimen/Science+Gothic)** ([Fontsource](https://fontsource.org/fonts/science-gothic)). OFL. Cyrillic: **verified**. It has a `wdth` axis from 50 to 200 plus `CTRS` contrast. A title can slam from condensed to wide, which is ideal for kinetic trailer cards. Check its hinting at the intended small sizes.
 - **Text: [Rubik](https://fonts.google.com/specimen/Rubik)** ([Fontsource](https://fontsource.org/fonts/rubik)). OFL. Cyrillic: **verified**. Weights 400/500. Its slightly rounded corners give warmth against the hard condensed display, and it stays readable on dark, noisy backgrounds.
 - **Mono: none.** Trailers should not carry code.
 

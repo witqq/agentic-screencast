@@ -22,7 +22,7 @@ import { PRODUCT_ROOT } from "../self-hash.js";
  * зритель узнаёт место, о котором говорит речь, а не читает страницу целиком.
  */
 const report: KindSpec = {
-  about: "a page built by agentic-report from its Markdown source; the camera frames its blocks by data-review-target or section id",
+  about: "a page built by agentic-report from Markdown; composition/object/cue actions bind bN anchors to measured narration, a composition target fits its whole stage with a caption lane, and other blocks use data-review-target or section id",
   fields: ["report", "target", "mustRead", "zoom", "spotFrom", "focus", "at"],
   // Язык отчёта — язык его исходника: переводится файлом (`report.ru`), а не полем.
   shown: [],

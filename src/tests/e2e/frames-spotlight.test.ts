@@ -32,8 +32,9 @@ test("frames draws a spotlight's push-in the way the build does", () => {
     return redShare(join(dir, out));
   };
   // Без наезда блок 200×120 занимает свою долю кадра 960×540; под фокусом он заметно крупнее. Начало
-  // сцены в сравнение не годится: там идёт затемнение входа.
-  const plain = (200 * 120) / (960 * 540), during = shot("90%", "during.png");
+  // сцены в сравнение не годится: там идёт затемнение входа. Момент внутри второго такта
+  // проверяет удержание, а не последние 10% сцены, которые включают возврат камеры.
+  const plain = (200 * 120) / (960 * 540), during = shot("b2+1.1", "during.png");
   assert.ok(during > plain * 1.6, `the red box grows under the spotlight (${plain.toFixed(3)} of the frame → ${during.toFixed(3)})`);
 });
 

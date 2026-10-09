@@ -44,6 +44,11 @@ const required = [
   "README.md",
   "README.ru.md",
   "docs/reference.md",
+  "docs/knowledge.md",
+  "docs/directing.md",
+  "docs/combinations.md",
+  "docs/atlas.md",
+  "dist/atlas.js",
   "LICENSE",
   "dist/agentic-screencast.js",
   "dist/capture.js",
@@ -98,6 +103,15 @@ try {
   { cwd: consumer, encoding: "utf8" }).trim();
   if (capture !== "function function") throw new Error("installed capture API is unavailable");
   JSON.parse(execFileSync(binary, ["schema"], { cwd: consumer, encoding: "utf8" }));
+  const atlas = JSON.parse(execFileSync(binary, ["atlas", "--json"], { cwd: consumer, encoding: "utf8" }));
+  if (!atlas.kinds.some((kind) => kind.name === "slides.perspective") || !atlas.commands.includes("atlas")) {
+    throw new Error("installed tool atlas is incomplete");
+  }
+  for (const topic of ["knowledge", "directing", "combinations", "atlas", "composition"]) {
+    const guide = execFileSync(binary, ["help", topic], { cwd: consumer, encoding: "utf8" });
+    if (!guide.startsWith("# ")) throw new Error(`installed ${topic} guide is unavailable`);
+  }
+
   const source = resolve(consumer, "node_modules/agentic-screencast/example/story.md");
   const scenes = JSON.parse(execFileSync(binary, ["scenes", "--source", source], { cwd: consumer, encoding: "utf8" }));
   if (!Array.isArray(scenes) || scenes.length === 0) throw new Error("installed example has no scenes");

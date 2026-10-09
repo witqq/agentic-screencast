@@ -19,6 +19,8 @@ import { createRequire } from "node:module";
 import { fontFaceCss, themeFamilies, FONT_PROBE } from "./fonts.js";
 import { parseOverlay } from "./overlay.js";
 import { msg } from "./msg.js";
+import { UI_OVERVIEW_BRIDGE } from "./ui-overview.js";
+import { REPORT_COMPOSITION_BRIDGE } from "./report-composition.js";
 
 const require = createRequire(import.meta.url);
 const FFMPEG = require("ffmpeg-static");
@@ -29,7 +31,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 // у них нет ни импортов, ни экспортов, поэтому компилятор оставляет их
 // обычными скриптами, без обёртки модуля.
 const CLOCK = readFileSync(resolve(HERE, "browser", "clock.js"), "utf8");
-const STAGE = readFileSync(resolve(HERE, "browser", "stage.js"), "utf8");
+const STAGE = UI_OVERVIEW_BRIDGE + "\n" + readFileSync(resolve(HERE, "browser", "stage.js"), "utf8") + "\n" + REPORT_COMPOSITION_BRIDGE;
 
 const args: Record<string, string | boolean> = Object.fromEntries(
   process.argv.slice(2).flatMap((a, i, arr): Array<[string, string | boolean]> =>
@@ -81,7 +83,7 @@ export interface RenderOpts {
    * страница даёт вертикальный кадр в полном разрешении: вьюпорт — её кадр,
    * `scale` — во сколько раз высота нового кадра больше.
    */
-  crop?: { width: number };
+  crop?: { width: number; overview?: boolean };
   /** Прямоугольники предметов в названные моменты, в точках кадра: так сборка узнаёт, где лупа. */
   probes?: Array<{ t: number; anchor: unknown }>;
   /** замеры читаемости: кегль самого мелкого текста цели в момент t, в точках готового кадра */
@@ -170,7 +172,7 @@ export async function renderScene(
     // загружены на латинице и кириллице, и слайд перемерен уже ими.
     const families = themeFamilies(scene.theme as Record<string, string> | undefined).map((f) => f.family);
     await page.evaluate((s) => window.__stage.mount(s), { ...staged, __fontCss: fontFaceCss(scene.theme as Record<string, string> | undefined),
-      ...(o.crop ? { __cropWidth: o.crop.width } : {}) });
+      ...(o.crop ? { __cropWidth: o.crop.width, ...(o.crop.overview ? { __uiOverview: true } : {}) } : {}) });
     if (families.length) {
       await page.evaluate(async ({ fams, probe }) => {
         await Promise.all(fams.flatMap((f) => ["400", "700"].map((w) => document.fonts.load(`${w} 40px "${f}"`, probe))));

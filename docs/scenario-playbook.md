@@ -3,10 +3,10 @@
 This document answers: what story shape, length, hook and close fit the film's genre. It is a
 condensed guide to the story shapes that work for each kind of film, taken from published practice
 rather than invented, and translated into Agentic Screencast scenes. It complements
-[film craft](film-craft.md), which records the rules learned from our own review rounds (one text
+[film craft](film-craft.md), which explains directing rules and concrete counterexamples (one text
 layer at a time, the camera vocabulary, stopping time inside the shot, measuring the result);
 those are not repeated here. Vertical films for Reels, Shorts and TikTok have
-[their own guide](vertical-video.md). Researched on 2026-09-24; bracketed numbers point to the
+[their own guide](vertical-video.md). Bracketed numbers point to the
 sources at the end.
 
 Read the sources with two caveats. Most length and pace numbers are measured on English, and no
@@ -16,8 +16,16 @@ peer-reviewed; the research sources are NN/g [13–15], Guo/edX [43], Mayer [40]
 illusion-of-understanding study [42] and Cutting [35]. Lines marked **In the tool** are our
 translation of a rule into scenes, not a claim of the source.
 
+The genre shapes below are researched alternatives, not a compulsory sequence. Choose the development from the material and the response you want: a result can precede its explanation, parallel outcomes can carry a comparison, and a recurring action can establish a motif. Combine genres when their purposes fit; preserve what the viewer understands through each change. [Directing](directing.md) develops this choice, and [combinations](combinations.md) coordinates the actions.
+
 Every genre has a skeleton scenario in [`templates/`](../templates/) that builds with the free
 `stub` voice. Copy one next to your material and replace the placeholders.
+
+## Turn the explanation into visible actions
+
+Use the [directed-scenes guide](directed-scenes.md) when the story explains a mechanism: it maps questions to ready Report compositions and gives worked films for the first edit of inherited values, palette-color resolution and delivery through a queue. Write the change as an action at a speech beat, then choose an existing effect that makes its relationship visible. A copied value should arrive at its new owner; a queued event should reach its consumer; a changed setting should produce a visible result. A succession of static boxes with spoken explanations leaves that work to the viewer.
+
+Whenever a system interface appears, first show it whole, then focus and zoom into the part the narration names. Apply this in every format, including a portrait short, a screenshot or a presentation. Keep a recognisable location during the approach. Automatic portrait conversion of landscape pages and marked capture footage supplies the opening overview; a native portrait page needs an authored overview before its details. See the [buildable interface scene](../example/interface-overview/README.md).
 
 ## Rules every genre shares
 
@@ -38,12 +46,7 @@ Every genre has a skeleton scenario in [`templates/`](../templates/) that builds
 - **One idea per unit.** One slide, one idea [17]; a slide is understood in about three seconds —
   the glance test [21]; one demo, one scenario [8]; one release film, one launch [7]; a long
   process becomes a series [14][43].
-- **Problem → solution → action,** with the viewer as the hero and the product as the guide
-  [1][8][9][19][22][23]. Each genre below fills this frame with its own shape — the pitch its
-  Sequoia order, the demo its one scenario, the trailer its acts, a branch result its
-  missing-to-controlled order; a short vertical film its hook, value, proof and call
-  ([the vertical-video guide](vertical-video.md)). Inside any of them a scene of a working interface
-  runs orientation → a meaningful action → the visible evidence → why it matters. Every UI action
+- **Problem → solution → action** is a common product and persuasion shape, with the viewer as the hero and the product as the guide [1][8][9][19][22][23]. Keep it as one option alongside the researched pitch order, trailer acts, investigation, result-to-cause and parallel comparison. A short vertical film may use hook, value, proof and call ([the vertical-video guide](vertical-video.md)). For an interface operation, orientation, action, evidence and interpretation keep the behavior understandable; they need not be separate scenes or the order of the whole film. Every UI action
   shown needs a nearby explanation of what changed and why; a camera move cannot substitute for
   that explanation.
 - **Benefit, not feature**: after each feature ask "so what?" and answer with the user's gain
@@ -79,8 +82,8 @@ seconds. Use `agentic-screencast script` to count words before paying for speech
 
 **Motion.** Each genre below closes with the motion it wants: which recipe of [the motion-design
 guide](motion-design.md) ("Composition recipes") fits its scenes, which transitions, how much energy
-and what to leave out. Three rules hold in every genre: one lead movement at a time (film craft 66;
-`lint` names two at once, `motion-stack`), a push-in no faster than the viewer can follow
+and what to leave out. Three principles carry across genres: one understandable focus with coordinated leading and supporting actions (film craft 66;
+`motion-stack` calls attention to overlapping camera/reading effects, not every valid combination), a push-in no faster than the viewer can follow
 (`harsh-push`), and a change of pace across the film — a fast run, a calm scene, then the hit —
 rather than one tempo from start to end (`pace` on slides, the length of the scenes, the music).
 
@@ -92,7 +95,7 @@ running build — and the film is judged by whether it shows everything the work
 ([film craft](film-craft.md), rules 2, 11, 27, 40).
 
 **Shape.** What was missing → what appeared → what it can do → how much it holds under load → how it
-is controlled → where to get it. Each part ends by returning to the overview, so the next starts
+is controlled → where to get it. Each part closes its question; return to the overview when location would otherwise be lost, or preserve a shared object so the next starts
 clean (film craft 3). The capability table decides what must appear, not the order (film craft 41);
 the strongest result gets the strongest shot (40); behaviour under load is shown with the product's
 own numbers (12); control surfaces are part of the film when the owner says so (26).
@@ -182,7 +185,7 @@ Skeleton: [`templates/pitch.md`](../templates/pitch.md).
 recipe 4 for traction (`spark:` under the counter, `pace: calm`), a `morph` where a number carries
 into its detail, `flow: auto` for the rest. The contrast of "what is" and "what could be" is the
 energy; a strike-through of the old way (`~~…~~`) and a marker on the new one say it in the title.
-No hits, and at most one living kind (recipe 5) for the market or the ecosystem.
+This calm staging leaves out hits and uses recipe 5 for the market or ecosystem. Other staging can use impacts or several living kinds when they develop the material and preserve reading; the genre name sets no quota.
 
 ## Product demo, walkthrough, SaaS explainer
 
@@ -305,7 +308,7 @@ Skeleton: [`templates/trailer.md`](../templates/trailer.md).
 energy curve in the pace — `pace: snap` and short scenes in the climax, a held shot or slow motion
 before it — hard cuts inside an act and one other transition kind (`dip`, `leak`) between acts.
 `slides.wall`, `warp` and a card with the product in its letters (`fill`) are the trailer's own
-spectacle; they read as a joke in any other genre.
+spectacle. A wall can instead show breadth, warp can express speed, and fill can tie a claim to its evidence in another genre; choose by the material and intended response.
 
 **Without music.** Recipe 7's hits need a sound — a flash or a shake without one reads as a glitch —
 so find a free track first: [the sound guide](sound.md) lists the sources whose licences allow it.
@@ -318,7 +321,7 @@ the product in every card — and no hits (`lint` names hits with nothing to sou
 ### The action trailer and its parody
 
 A film trailer in the Hollywood action manner, and the comic trailer that borrows it — a grand
-voice and hits on every card about something trivial. Researched on 2026-09-26; most sources are
+voice and hits on every card about something trivial. Sources are primarily
 practice write-ups by trailer editors and composers, and "(via snippet)" marks a claim taken from
 search results because the page itself did not open.
 
@@ -329,7 +332,7 @@ than 20,000 films of 2000–2016 the mean is 114 s [49]; a teaser runs about 20�
 20–30 s, the climax 15–20 s, and 5–8 s go to the title, the button and the date — our scaling of
 two-minute schemes [33][53].
 
-**Micro-teaser.** Since the mid-2010s many trailers open with a 5–10 s preview of themselves — the
+**Micro-teaser.** A trailer can open with a 5–10 s preview of itself — the
 wildest shot, a hit, the title — so the viewer does not scroll on [48][51].
 
 **Loud only after quiet.** The music stop is "perhaps the most useful trick of a trailer editor":
@@ -367,10 +370,7 @@ close-ups with push-ins, whip pans and white flashes, ending on a wide of the he
 split screen around a ticking clock (via snippet) [67]; a shaking camera on two or three hits of the
 climax, not everywhere — even a fraction of a second has to show something (via snippet) [68].
 
-**The voice.** "In a world…" sets up the world in a few words; after Don LaFontaine's death in 2008
-trailer voice-over became rare, and trailers rely on music, sound and lines from the film [69][48].
-So a grand voice now reads as a parody by itself. The opening shrank to "This summer", followed by a
-call for the viewer to do what the heroes do (via snippet) [70].
+**The voice.** "In a world…" establishes a grand narrative tone and can make a comic trailer read as parody [69][48]. Music, sound and lines from the film can carry the story without a narrator. A brief opening such as "This summer" can lead into a call for the viewer to do what the heroes do (via snippet) [70].
 
 **The comic trailer.** Bathos — the high style applied to a trivial subject — is its engine [71];
 the mock-heroic swells heroic qualities over a trifle [72]. The delivery must be serious: a wink
@@ -453,8 +453,7 @@ Skeleton: [`templates/explainer.md`](../templates/explainer.md).
 **Motion.** Motion is signalling [40]: every move points at the part the narration names. A chain
 whose pulse runs from node to node shows the mechanism flowing; the misconception struck out
 (`~~…~~`) and the correct idea marked (`==…==`) in the titles; `spotlight` moving with the words;
-`flow: auto` with pushes along one axis for the steps. No decorative background and no hits —
-"busy editing with extra transitions" is the genre's named mistake [10]. The recipes: 6 when the
+`flow: auto` with pushes along one axis for the steps. A calm explanation often leaves out decorative backgrounds and hits: "busy editing with extra transitions" is a named mistake [10]. Atmosphere or an impact can serve another explanation when it gives the relevant change weight and preserves reading. The recipes: 6 when the
 subject is a developer tool (its real command and output, then the lines the narration names), 4
 for the number that proves a point, and 1 for an opening on the problem with the product's screen —
 read its "Not when" for a screen that is mostly text.
@@ -517,10 +516,7 @@ saw (film craft 2 and 56).
 
 **A film about the effects themselves.** When the product is a visual tool and the film shows its
 effects — a showreel, a release of motion features — each effect is the subject of its own shot, not
-decoration: one effect per scene, named on screen (a kicker with the line that makes it), large, and
-still one lead movement per frame. The limits that keep other films calm — one or two transition
-kinds, one living kind, no decorative background — are about devices used as decoration and give
-way here; `lint` still counts each as a cliché sign, so name in the handoff which counted signs are
+decoration. A study of one effect can name it on screen and show it large; a study of a combination can show several coordinated actions around one understandable event. Explain their relationship rather than forcing an animation count. Calm staging choices about transitions, living kinds and backgrounds are conditional choices throughout the playbook; `lint` still counts each as a cliché sign, so name in the handoff which counted signs are
 the film's subject.
 
 ## Vertical short (reel)
@@ -530,7 +526,8 @@ types, structure (hook → value → proof → payoff), length by purpose, pace 
 vertical-video guide, "Story shape of a short", and what a phone can read in its sections on safe
 zones and text; read them in full. Skeleton: [`templates/reel.md`](../templates/reel.md); its
 `pages/result.svg` stands in for the product's result — a portrait capture (1080×1920) fills the
-frame, a landscape one is cropped round its centre, so keep its subject there.
+frame. A landscape interface page first appears whole and then approaches its detail;
+an ordinary unmarked landscape video keeps its existing crop, so keep its subject there.
 
 **Motion.** The hook is recipe 1 in its vertical form: the result first, filling the frame, with the
 claim as an overlay title — larger than the subtitles and not a copy of the narration. A result that

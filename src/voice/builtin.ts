@@ -13,9 +13,9 @@ import { execFileSync } from "node:child_process";
 import { rmSync, writeFileSync } from "node:fs";
 import { durationOf, ff, FFMPEG, FFPROBE } from "./audio.js";
 import { envKey } from "./env.js";
+import { createSpeechKitRequest, speechkitPolicy } from "./speechkit-request.js";
 import { recorded } from "./recorded.js";
 import { CHANNELS, SAMPLE_RATE, type SynthResult, type VoiceData, type VoiceEngine } from "./types.js";
-import { msg } from "../msg.js";
 
 export { durationOf };
 
@@ -23,6 +23,7 @@ const said = (file: string, voice: VoiceData, engine: string): SynthResult => ({
   file, duration: durationOf(file), engine, voice: String(voice.name ?? ""),
 });
 
+const speechkitRequest = createSpeechKitRequest();
 const SPEECHKIT_URL = "https://tts.api.cloud.yandex.net/speech/v1/tts:synthesize";
 // Список сверен ЖИВЫМИ вызовами, а не документацией: 24 августа 2026 каждое
 // имя отправлено в API, и оставлены только те, что дали ответ 200. Прежний
@@ -46,17 +47,13 @@ const speechkit: VoiceEngine = {
       sampleRateHertz: String(SAMPLE_RATE),
     });
     const key = envKey(String(voice.key_env ?? "CLOUD_KEY"));
-    const res = await fetch(SPEECHKIT_URL, {
+    const audio = await speechkitRequest(SPEECHKIT_URL, {
       method: "POST",
       headers: { Authorization: `Api-Key ${key}`, "Content-Type": "application/x-www-form-urlencoded" },
       body,
-    });
-    if (!res.ok) {
-      const detail = (await res.text()).slice(0, 300);
-      throw new Error(msg("speechkit.refused", { status: res.status, detail }));
-    }
+    }, speechkitPolicy());
     const raw = `${out}.pcm`;
-    writeFileSync(raw, Buffer.from(await res.arrayBuffer()));
+    writeFileSync(raw, Buffer.from(audio));
     ff(["-f", "s16le", "-ar", String(SAMPLE_RATE), "-ac", String(CHANNELS), "-i", raw, out]);
     rmSync(raw, { force: true });
     return said(out, voice, "speechkit");

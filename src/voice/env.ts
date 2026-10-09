@@ -30,8 +30,8 @@ function candidates(): string[] {
   return seen;
 }
 
-/** Значение переменной из окружения либо из `.env`; иначе — внятный отказ. */
-export function envKey(name: string): string {
+/** Значение переменной из окружения либо из `.env`; undefined, если не задана. */
+export function envValue(name: string): string | undefined {
   const fromEnv = process.env[name];
   if (fromEnv) return fromEnv;
   for (const p of candidates()) {
@@ -42,5 +42,12 @@ export function envKey(name: string): string {
       return line.slice(name.length + 1).trim().replace(/^["']|["']$/g, "");
     }
   }
+  return undefined;
+}
+
+/** Обязательный ключ: отсутствие переменной возвращает внятный отказ. */
+export function envKey(name: string): string {
+  const value = envValue(name);
+  if (value !== undefined) return value;
   throw new Error(msg("voice.noKey", { name }));
 }

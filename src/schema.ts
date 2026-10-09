@@ -137,8 +137,8 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
         items: {
           type: "object",
           properties: {
-            text: { type: "string", description: "what is read aloud and what the viewer sees" },
-            speech: { type: "string", description: "the same as it is pronounced" },
+            text: { type: "string", description: "original display/caption text; pronunciation rules may prepare a different synthesis string" },
+            speech: { type: "string", description: "complete explicit spoken variant (~ lines); bypasses pronounce and voice.rules for this beat" },
           },
           required: ["text"],
           additionalProperties: false,
@@ -179,11 +179,15 @@ export function sceneSchema(declared: Record<string, string> = {}): JsonSchema {
       scheme: { names: SCHEMES, defaults: DEFAULT_SCHEME, note: "scheme: light | dark in the header picks that scheme of every named theme in the film; without it each theme wears its default scheme; blockbuster has only dark" },
       background: { names: BACKGROUNDS, note: "slide field background, or the theme variable --bg-motion" },
       look: { names: Object.keys(LOOKS), grades: GRADES, note: "look: <name> or {\"grade\",\"grain\",\"vignette\",\"bars\"}" },
+      pronounce: { forms: ["ru-latin", "ru-abbr", "scenario-relative JSON file", "inline rules object"], rules: pronunciationSchema(), note: "Explicit beat speech wins, then voice.rules, then film pronounce; script --speech --json previews without synthesis" },
       device: { names: DEVICE_KINDS, note: "device: browser [url] | phone | frame — on video and slides.shot scenes" },
     },
     // Параметры фокуса и лупы лежат внутри строковых полей `spotlight` и `overlay`; их области
     // значений и то, как сборка подгоняет геометрию, агенту нужны до сборки.
     "x-attention": {
+      interfaceOverview: {
+        note: "Establish the complete application viewport before any detail in every format. Automatic portrait conversion of pages and capture takes fits the opening screen, then blends into the focus path without changing source time; native portrait pages need authored orientation. help composition gives recipes.",
+      },
       spotlight: {
         fields: SPOTLIGHT_KEYS,
         shape: ["rounded", "circle"],
@@ -227,10 +231,10 @@ export const FIELD_FORMATS: Record<string, string> = {
   images: "a.png | b.png | c.png | … — three or more screenshots for the wall",
   map: "globe | flat — a turning globe (default) or a flat map of dots with the same arcs",
   spark: "1 3 2 5 | 4 3 5 — a small line under each counter value, one series per value",
-  label: "text", report: "page.md — an agentic-report source, rebuilt for the scene", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
+  label: "text", report: "page.md — rebuilt by agentic-report; composition cues use measured bN narration anchors; a composition target fits the complete stage with room for captions (help composition)", page: "pages/app.html", pageVertical: "pages/app.vertical.html — replaces page in a vertical build (pageVertical.en for English)", target: "CSS selector the scene frames", mustRead: "CSS selector that must be readable",
   focus: "CSS selector @ anchor | …", zoom: "scale, e.g. 1.2", spotFrom: "seconds when the spot starts", freezeAt: "seconds or @mark",
   speed: "[{\"from\":1,\"to\":2.5,\"rate\":0.5,\"ramp\":0.3,\"interpolate\":true},{\"at\":4,\"hold\":2}] — clip seconds or @marks  (help overlay); on slides.marquee, points a second, 20–600",
-  autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36}", from: "clip second or @mark where the piece starts",
+  autoZoom: "true | {\"scale\":1.8,\"hold\":1.2,\"size\":0.36,\"follow\":\"cursor\"}; portrait conversion establishes the full capture before entering the focus path", from: "clip second or @mark where the piece starts",
   to: "clip second or @mark where the piece ends",
   fit: "contain (default: the whole clip, bars of the theme's letterbox colour) or cover [x y]: fill the frame, keep the point x y (shares of the clip, 0.5 0.5 = centre)",
   tail: "seconds after the speech", overlay: "{\"cards\":[…],\"camera\":[…],\"titles\":[…],…}; at is seconds, b2+0.5, b3.end or 40%  (help overlay)",
@@ -253,7 +257,7 @@ export const FILM_FORMATS: Record<string, string> = {
   providers: "{\"name\":\"./provider.js\"}", frame: "{\"width\":1920,\"height\":1080,\"fps\":30,\"scale\":1}",
   encode: "{\"crf\":18,\"preset\":\"medium\",\"pix\":\"yuv420p\",\"audio\":\"192k\"}", theme: "name or {\"preset\":name,\"--var\":value}",
   scheme: "light | dark — the scheme of every named theme in the film (default: each theme's own)",
-  pronounce: "rules name", lang: "ru | en | …", captions: "{\"style\":\"bar|subtitle|karaoke\",\"everywhere\":true,\"srt\":true,\"size\":1.25,\"look\":\"outline|plate\",\"position\":\"bottom|top|middle|auto\"}",
+  pronounce: "ru-latin | ru-abbr | scenario-relative JSON file | {\"say\":{\"CanvasStage\":\"канвас стейдж\"}}; schema pronounce describes rules, script --speech previews them", lang: "ru | en | …", captions: "{\"style\":\"bar|subtitle|karaoke\",\"everywhere\":true,\"srt\":true,\"size\":1.25,\"look\":\"outline|plate\",\"position\":\"bottom|top|middle|auto\"}",
   pip: "{\"file\":\"me.mp4\",\"corner\":…,\"size\":…,\"from\":…,\"to\":…}", progress: "{\"position\":\"top|bottom\",\"parts\":true,\"label\":\"edge|zone\"}",
   music: "{\"file\":\"bed.mp3\",\"level\":…,\"duck\":…,\"bpm\":…,\"offset\":…}", sfx: "[{\"at\":\"12.5s\"|\"m16\",\"file\":\"hit.wav\"}]", loudness: "LUFS target, -30…-8",
   audio: "false — the film without a sound track", flow: "auto — every seam without its own transition gets a connected one (help transitions)", motionBlur: "true | {\"samples\":6,\"shutter\":0.5}",
@@ -262,11 +266,26 @@ export const FILM_FORMATS: Record<string, string> = {
   look: "name or {\"grade\",\"grain\",\"vignette\",\"bars\"}", emoji: "{\"dir\":\"emoji\"}",
 };
 
+/** Documented pronunciation data; unknown metadata is allowed by rulesOf. */
+export function pronunciationSchema(): Record<string, unknown> {
+  const pairs = { type: "array", items: { type: "array", prefixItems: [{ type: "string" }, { type: "string" }], minItems: 2, maxItems: 2 } };
+  return { type: "object", properties: {
+    say: { type: "object", additionalProperties: { type: "string" }, description: "Whole terms/phrases, longest first, Unicode letter/digit boundaries" },
+    translit: { ...pairs, description: "Letter substitutions within script matches; use say for domain identifiers" },
+    drop: { type: "array", items: { type: "string" }, description: "Regular expressions removed from speech" },
+    cleanup: { ...pairs, description: "Regular expression/replacement pairs after other steps" },
+    script: { type: "string", description: "Regular expression for transliteration; default [A-Za-z][A-Za-z-]*" },
+    order: { type: "array", items: { enum: ["say", "translit", "drop", "cleanup"] }, default: ["say", "translit", "drop", "cleanup"] },
+    caseSensitive: { type: "boolean", default: false },
+  }, additionalProperties: true };
+}
+
 /**
  * Короткая справка по виду: что это, какие поля и как их писать, какие обязательны, какие общие.
  * `film` — поля шапки ролика. Незнакомый вид — ошибка со списком известных.
  */
 export function kindBrief(name: string, declared: Record<string, string> = {}): string {
+  if (name === "pronounce") return JSON.stringify(pronunciationSchema(), null, 1);
   if (name === "film") {
     return ["film header fields (lines before the first scene):", ...Object.entries(FILM_FORMATS).map(([k, v]) => `  ${k}: ${v}`)].join("\n");
   }

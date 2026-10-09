@@ -9,6 +9,7 @@
  * из-за этого «замирание» превращалось в склейку, карточка отрывалась от момента, а остаток сцены
  * стоял неподвижно.
  */
+import { overviewPhase } from "./ui-overview.js";
 import type { OverlayCamera } from "./overlay.js";
 
 // Provenance belongs to the build, not the authored overlay grammar. A symbol survives
@@ -244,4 +245,23 @@ export function windowPose(cues: readonly OverlayCamera[], t: number, path: Curs
 /** Та же середина окна в доле ширины кадра — числом, для проверок пути без ffmpeg. */
 export function windowCentre(cues: readonly OverlayCamera[], t: number, path: CursorPath = [], share = 1): number {
   return windowPose(cues, t, path, share).x;
+}
+
+/** Same opening viewport as the browser camera, followed by the existing recorded path. */
+export function overviewWindowPose(cues: readonly OverlayCamera[], t: number, path: CursorPath, share: number, duration: number): { x: number; y: number; z: number } {
+  const pose = windowPose(cues, t, path, share);
+  const first = cues.filter((c) => c.area).map((c) => c.at);
+  const q = overviewPhase(t, duration, first.length ? Math.min(...first) : undefined);
+  return { x: 0.5 + (pose.x - 0.5) * q, y: 0.5 + (pose.y - 0.5) * q,
+    z: share * Math.pow(pose.z / share, q) };
+}
+
+/** ffmpeg expressions match overviewWindowPose, including seeks and a take without focus. */
+export function overviewWindowExpressions(cues: readonly OverlayCamera[], path: CursorPath, share: number, duration: number): { x: string; y: string; z: string } {
+  const first = cues.filter((c) => c.area).map((c) => c.at);
+  const hold = Math.max(Math.min(1.2, duration * 0.2), first.length ? Math.min(...first) : 0);
+  const q = first.length ? smooth(clip(`(t-${hold})/${Math.max(0.001, Math.min(0.9, duration * 0.2))}`)) : "0";
+  return { x: `0.5+((${windowExpr(cues, "x", path, share)})-0.5)*(${q})`,
+    y: `0.5+((${windowExpr(cues, "y", path, share)})-0.5)*(${q})`,
+    z: `${share}*pow((${windowExpr(cues, "z", path, share)})/${share},(${q}))` };
 }

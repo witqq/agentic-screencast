@@ -2320,7 +2320,7 @@ window.__stage = (() => {
       window.scrollTo(Math.round(window.scrollX), Math.round(window.scrollY));
       el.zoom.style.transform = prev;
     }
-    const base = targetRectRaw();
+    const base = scene.__compositionFrame && target ? contentRect(target) : targetRectRaw();
 
     // 2. Зум: k(t) и смещение считаются от абсолютного времени.
     // Границы — якоря: «5%» и «35%» тянутся вместе с длительностью,
@@ -2362,7 +2362,7 @@ window.__stage = (() => {
     // полного прогона.
     const cam = cameraAt(t);
     const cameraRect: Rect | null = cam.rect;
-    const cameraPower = cam.power;
+    let cameraPower = cam.power;
     const cue = cam.cue;
     if (cam.active && cameraRect && !scene.__videoCamera) {
       zp = 1;
@@ -2378,16 +2378,52 @@ window.__stage = (() => {
       tx = clampPan(tx, zr.left, zr.width, innerWidth);
       ty = clampPan(ty, zr.top, zr.height, innerHeight);
     }
+    if (scene.__compositionFrame && !cam.active) {
+      // A named explanatory stage is the shot. Keep every object visible and reserve a caption lane.
+      const fit = Math.min(innerWidth * 0.94 / Math.max(1, base.width), innerHeight * 0.78 / Math.max(1, base.height));
+      k *= fit;
+      tx = innerWidth / 2 - cx * k;
+      ty = innerHeight * 0.45 - cy * k;
+      zp = 1;
+    }
     // Остановленный кадр в другом формате: камера ведёт окно и подсветку, но не приближает.
     if (scene.__noZoom) { k = 1; tx = 0; ty = 0; zp = 1; }
+    const cropShare = scene.__cropWidth ? scene.__cropWidth / innerWidth : 1;
+    let context = 1;
+    if (scene.__uiOverview && cropShare < 1) {
+      const first = scene.overlay?.camera?.length
+        ? Math.min(...scene.overlay.camera.map((c) => c.at)) : scene.target ? zFrom : undefined;
+      context = window.__scOverviewPhase!(t, dur, first);
+      // Blend the complete viewport into the existing camera before measuring annotations.
+      // The viewport and all scene clocks remain unchanged.
+      const fullTx = tx * zp, fullTy = ty * zp;
+      const centreX = (innerWidth / 2 - fullTx) / k;
+      const centreY = (innerHeight / 2 - fullTy) / k;
+      k = cropShare * Math.pow(k / cropShare, context);
+      tx = innerWidth / 2 - (innerWidth / 2 + (centreX - innerWidth / 2) * context) * k;
+      ty = innerHeight / 2 - (innerHeight / 2 + (centreY - innerHeight / 2) * context) * k;
+      zp = 1;
+      cameraPower *= context;
+    }
     zoomState = { k, tx: tx * zp, ty: ty * zp };
     // Смещение посчитано в точках экрана, а сдвиг ставится внутри документа, увеличенного `zoom` на
     // корне (слайд вписан в кадр так): без деления сдвиг вырос бы в это число раз, кадр уехал бы
     // мимо цели, а подсветка, поставленная по точкам экрана, легла бы рядом с ней.
     const rootZoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    if (scene.__compositionFrame) {
+      const wrapper = rawRect(el.zoom);
+      // Scrolling to a later composition moves the body's viewport origin.
+      // The fit is computed in viewport pixels, so reset that origin for this
+      // frame rather than scaling around its pre-scroll mount position.
+      el.zoom.style.transformOrigin = `${(-wrapper.left / rootZoom).toFixed(2)}px ${(-wrapper.top / rootZoom).toFixed(2)}px`;
+      const x = (base.left - wrapper.left) / rootZoom, y = (base.top - wrapper.top) / rootZoom;
+      const w = base.width / rootZoom, h = base.height / rootZoom;
+      el.zoom.style.clipPath = `polygon(${x}px ${y}px,${x+w}px ${y}px,${x+w}px ${y+h}px,${x}px ${y+h}px)`;
+    } else el.zoom.style.clipPath = "";
     el.zoom.style.transform =
       `translate(${(tx * zp / rootZoom).toFixed(2)}px, ${(ty * zp / rootZoom).toFixed(2)}px) scale(${k.toFixed(4)})`;
-    focusPoint = focusAt(t, zoomState.k, zoomState.tx);
+    const detailPoint = focusAt(t, zoomState.k, zoomState.tx);
+    focusPoint = innerWidth / 2 + (detailPoint - innerWidth / 2) * context;
 
     // 3. Подсветка ставится по ФАКТИЧЕСКОМУ положению цели на экране,
     // а не по пересчёту исходных координат через масштаб и смещение.
@@ -2429,7 +2465,7 @@ window.__stage = (() => {
             width: base.width * k, height: base.height * k };
     const sp = fx.spot ?? { from: "55%" };
     const spOn = scene.overlay?.camera?.length ? cameraPower * 0.9
-      : t >= at(sp.from, 0) ? 1 : 0;
+      : t >= at(sp.from, 0) ? context : 0;
     const pad = 10;
     el.spot.style.opacity = String(spOn);
     const R = Math.round;
