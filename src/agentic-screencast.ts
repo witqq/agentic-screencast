@@ -341,7 +341,9 @@ name. The marks file keeps what the edit needs without measuring: the
 clicks, the cursor's path ("path"), every action with its kind, start, end
 and element rectangle ("actions": click, type, press, drag, range, hover)
 and the marks' rectangles ("rects"), all in frame fractions and seconds
-from the recording's zero. "cameraMoves" records the start and end of
+from the recording's zero. Clicks and the cursor path survive page navigation
+on that same timeline; trimming empty starting frames shifts them with the marks.
+"cameraMoves" records the start and end of
 focus/unfocus motion already painted into the take, so lint does not mistake
 that motion for navigation. autoZoom: true on the video scene pushes the
 camera in at the actions, like Screen Studio: actions close in time and
@@ -1377,7 +1379,9 @@ Helpers that save a full build:
       whose frame has a flat empty band a third of its height or more is
       listed in "empty" (film craft 58). A video scene
       shows a frame of the piece it plays (from/to), labelled with the scene
-      second and the source second it came from, with its camera in place
+      second and the source second it came from, with its camera in place.
+      Fractional trim marks and --at seconds keep decoded video visible in
+      portrait previews as well as landscape previews.
   agentic-screencast sheet clip.mp4 [--count 12 | --every 2] [--from 5 --to 20]
       a contact sheet of a raw clip with the second of every frame, to pick
       the pieces (from/to) of downloaded or recorded material before writing

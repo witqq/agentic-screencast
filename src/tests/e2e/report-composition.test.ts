@@ -57,12 +57,9 @@ test("a selected composition frames its whole stage and excludes surrounding rep
 });
 
 
-test("a real multi-stage report binds only the selected composition and excludes sibling content in both frame shapes", async (t) => {
+test("a real multi-stage report binds only the selected composition and excludes sibling content in both frame shapes", async () => {
  const { buildReport, getSourceContract } = await import("agentic-report");
- if (!("composition" in getSourceContract().directives)) {
-  t.skip("Needs the coordinated local Report composition build; published 0.20 has no composition directives.");
-  return;
- }
+ assert.ok("composition" in getSourceContract().directives, "The pinned Report compiler must expose composition directives.");
  const dir = mkdtempSync(join(tmpdir(), "sc-report-scope-"));
  const input = join(dir, "report.md"), output = join(dir, "report.html");
  const section = (id: string, beat: string): string => `::::composition{id="${id}" title="${id}" kind="pipeline"}

@@ -224,6 +224,40 @@ function cardHtml(card: OverlayCard, viewport: { width: number; height: number }
     + "</div>";
 }
 
+interface TakePointerSample { kind: "move" | "down" | "click"; x: number; y: number; at: number; width: number; height: number }
+let traceSequence = 0;
+
+/** Stream the overlay's own top-viewport events before navigation can discard its arrays. */
+function collectTakePointer(binding: string): void {
+  if (window.top !== window) return; // Child events already reach the overlay through its relay.
+  type Event = { kind?: "down" | "click"; x: number; y: number; at: number };
+  const host = window as unknown as Record<string, unknown>;
+  const state = host.__agenticScreencastCapture_v1 as { moves: Event[]; trace: Event[];
+    takeTrace?: { binding: string; stop(): Promise<void> } };
+  if (state.takeTrace) throw new Error("This page already has an active take collector.");
+  const send = host[binding] as (event: TakePointerSample) => Promise<void>;
+  const pending = new Set<Promise<void>>();
+  const wrap = (list: Event[], kind: "move" | undefined): (() => void) => {
+    const push = list.push;
+    list.push = (...events: Event[]): number => {
+      for (const event of events) {
+        // timeOrigin changes per document; their sum is an epoch timestamp across navigation.
+        const task = send({ ...event, kind: kind ?? event.kind!, at: performance.timeOrigin + event.at,
+          width: innerWidth, height: innerHeight }).catch(() => {}).finally(() => pending.delete(task));
+        pending.add(task);
+      }
+      return push.apply(list, events);
+    };
+    return () => { list.push = push; };
+  };
+  const restore = [wrap(state.moves, "move"), wrap(state.trace, undefined)];
+  state.takeTrace = { binding, async stop() {
+    restore.forEach(fn => fn());
+    await Promise.all(pending);
+    delete state.takeTrace;
+  } };
+}
+
 /** Attach to an existing page after login/setup. Native Playwright decorations
  * are generated from actual locator actions, including its auto-scroll. */
 export async function capturePage(page: Page, options: CaptureOptions): Promise<CapturePage> {
@@ -248,25 +282,63 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
   const fonts = aliasedFonts(theme);
   const layer = { theme: fonts.theme, fontCss: fonts.css, ...(options.click ? { click: options.click } : {}) };
   if (options.click && !["ripple", "spot", "echo"].includes(options.click)) throw new Error(msg("capture.clickStyle"));
-  const initScript = await page.addInitScript(installCaptureOverlay, layer);
-  await page.evaluate(installCaptureOverlay, layer);
-  // addInitScript covers future documents only; setup may already have loaded
-  // embedded frames before capturePage is called.
-  for (const frame of page.frames()) {
-    if (frame === page.mainFrame()) continue;
-    try { await frame.evaluate(installCaptureOverlay, layer); }
-    catch (error) { if (!frame.isDetached()) throw error; }
-  }
-  // Ошибка страницы во время дубля — отказ съёмки, а не пауза в кадре: анимация,
-  // которая не собралась, выглядит на видео как задуманная неподвижность.
+  const pointerSamples: TakePointerSample[] = [];
+  let collecting = true;
+  const bindingName = `__agenticScreencastTakeTrace_${++traceSequence}`;
+  let traceBinding: Awaited<ReturnType<Page["exposeBinding"]>> | undefined;
+  let initScript: Awaited<ReturnType<Page["addInitScript"]>> | undefined;
+  let ownsRecording = false;
   const pageErrors: string[] = [];
   const onError = (error: Error): void => { pageErrors.push(error.message); };
-  page.on("pageerror", onError);
-  await page.screencast.start({ path: output, size });
-  // Ноль записи — момент, когда запись пошла; отметки и клики отсчитываются от
-  // него, а не от часов сценария, которые начинают раньше или позже.
-  const zero = Date.now();
-  const pageZero = await page.evaluate(() => performance.now());
+  // Release every acquired resource even when another release fails. A recording belongs
+  // to this take only after start succeeds; a rejected start must leave the caller's one alone.
+  const cleanup = async (primary?: { error: unknown }): Promise<void> => {
+    let failure = primary;
+    const release = async (run: () => Promise<unknown>): Promise<void> => {
+      try { await run(); } catch (error) { failure ??= { error }; }
+    };
+    await release(() => page.evaluate(async (binding) => {
+      const state = (window as unknown as { __agenticScreencastCapture_v1?: {
+        takeTrace?: { binding: string; stop(): Promise<void> } } }).__agenticScreencastCapture_v1;
+      if (state?.takeTrace?.binding === binding) await state.takeTrace.stop();
+    }, bindingName));
+    collecting = false;
+    await release(async () => { await initScript?.dispose(); });
+    page.off("pageerror", onError);
+    if (ownsRecording) {
+      ownsRecording = false;
+      await release(() => page.screencast.stop());
+    }
+    await release(async () => { await traceBinding?.dispose(); });
+    if (failure) throw failure.error;
+  };
+  let zero: number, pointerZero: number;
+  try {
+    traceBinding = await page.exposeBinding(bindingName, (_, event: TakePointerSample) => {
+      if (collecting) pointerSamples.push(event);
+    });
+    // One script guarantees the overlay exists before its event arrays are connected.
+    initScript = await page.addInitScript({ content:
+      `(${installCaptureOverlay.toString()})(${JSON.stringify(layer)});(${collectTakePointer.toString()})(${JSON.stringify(bindingName)});` });
+    await page.evaluate(installCaptureOverlay, layer);
+    await page.evaluate(collectTakePointer, bindingName);
+    // Setup may already have loaded child frames before capturePage is called.
+    for (const frame of page.frames()) {
+      if (frame === page.mainFrame()) continue;
+      try { await frame.evaluate(installCaptureOverlay, layer); }
+      catch (error) { if (!frame.isDetached()) throw error; }
+    }
+    // A page error is a capture failure, not an intentional pause in the footage.
+    page.on("pageerror", onError);
+    await page.screencast.start({ path: output, size });
+    ownsRecording = true;
+    zero = Date.now();
+    // Keep the browser's epoch independent of the caller's local/remote wall clock.
+    pointerZero = await page.evaluate(() => performance.timeOrigin + performance.now());
+  } catch (error) {
+    await cleanup({ error });
+    throw error;
+  }
   const marks: Record<string, number> = {};
   // Что нужно монтажу без ручных замеров: путь курсора, действия с их элементами и прямоугольники
   // элементов у отметок. Время — часы съёмки от нуля записи, как у отметок.
@@ -559,29 +631,24 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       if (finished) return output;
       finished = true;
       for (const t of timers) clearTimeout(t);
-      await Promise.all(pending);
-      await page.waitForTimeout(350);
-      const recorded = await page.evaluate(() => {
-        const st = (window as unknown as { __agenticScreencastCapture_v1?: {
-          trace: Array<{ kind: string; x: number; y: number; at: number }>;
-          moves: Array<{ x: number; y: number; at: number }> } })
-          .__agenticScreencastCapture_v1;
-        return { trace: st?.trace ?? [], moves: st?.moves ?? [] };
-      }).catch(() => ({ trace: [], moves: [] }));
-      const { trace, moves: pointerMoves } = recorded;
-      await initScript.dispose();
-      await page.screencast.stop();
-      page.off("pageerror", onError);
+      let failure: { error: unknown } | undefined;
+      try {
+        await Promise.all(pending);
+        await page.waitForTimeout(350);
+      } catch (error) { failure = { error }; }
+      finally { await cleanup(failure); }
       if (statSync(output).size === 0) throw new Error(msg("capture.empty", { path: output }));
       const trimmed = capOptions.trimStart === false ? 0 : trimBlankStart(output);
       const viewport = page.viewportSize() ?? size;
       const round = (v: number): number => Math.round(v * 1000) / 1000;
-      const stamped = pointerMoves.map((p) => ({ t: (p.at - pageZero) / 1000, x: p.x, y: p.y }));
+      const recorded = pointerSamples.filter(p => p.at >= pointerZero).sort((a, b) => a.at - b.at);
+      const stamped = recorded.filter(p => p.kind === "move")
+        .map((p) => ({ t: (p.at - pointerZero) / 1000, x: p.x / p.width, y: p.y / p.height }));
       const beforeCut = stamped.filter((p) => p.t < trimmed).at(-1);
       const shownPath = [
         ...(beforeCut ? [{ ...beforeCut, t: trimmed }] : []),
         ...stamped.filter((p) => p.t >= trimmed),
-      ].map((p) => ({ t: round(p.t - trimmed), x: round(p.x / viewport.width), y: round(p.y / viewport.height) }));
+      ].map((p) => ({ t: round(p.t - trimmed), x: round(p.x), y: round(p.y) }));
       // Two DOM events can share one millisecond. Keep its final position for interpolation;
       // pre-trim points must not pile up at t=0 and pin the camera to an old location.
       const path: typeof shownPath = [];
@@ -591,9 +658,9 @@ export async function capturePage(page: Page, options: CaptureOptions): Promise<
       }
       const file: TakeMarks = { version: 1, trimmed: round(trimmed),
         marks: Object.fromEntries(Object.entries(marks).map(([k, v]) => [k, round(Math.max(0, v - trimmed))])),
-        clicks: trace.filter((e) => e.kind === "down")
-          .map((e) => ({ t: round(Math.max(0, (e.at - pageZero) / 1000 - trimmed)),
-            x: round(e.x / viewport.width), y: round(e.y / viewport.height) })),
+        clicks: recorded.filter((e) => e.kind === "down")
+          .map((e) => ({ t: round(Math.max(0, (e.at - pointerZero) / 1000 - trimmed)),
+            x: round(e.x / e.width), y: round(e.y / e.height) })),
         size: viewport, theme: themeFingerprint(theme),
         path,
         actions: actions.map((a) => ({ ...a, t: round(Math.max(0, a.t - trimmed)), end: round(Math.max(0, a.end - trimmed)),

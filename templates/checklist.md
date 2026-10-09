@@ -26,7 +26,8 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 - [ ] Takes recorded with `recordTake` in their scene's theme and scheme, each with its `.marks.json` and its
       frame budget, by a script that still runs from its folder (the build re-runs it for a sharp
-      push-in); downloaded files credited.
+      push-in); cursor path and clicks cover both sides of any page navigation;
+      downloaded files credited.
 
 ## 5. Scenario
 
@@ -36,7 +37,7 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
       coordinated actions have one understandable focus, causal changes arrive in the intended order,
       transitions express the scenes' relation, and holds allow orientation and reading. Genre recipes
       are options to adapt. Interface scenes establish the complete screen before details in every
-      format; mechanisms show the relevant change (docs/directed-scenes.md). Technical speech uses
+      format; mechanisms show the relevant change with Report 0.21.0 or newer when using compositions (docs/directed-scenes.md). Technical speech uses
       a dictionary or complete spoken variants while preserving identifiers, captions and semantic
       cue anchors (docs/pronunciation.md); preview with `script --speech --json` when needed.
 
@@ -44,7 +45,8 @@ techniques and the film-craft rules — lists to consult, not boxes to fill.
 
 - [ ] Built on `stub` at the chosen `cps`; inspect `frames` for readable video subtitles, the
       recorded cursor-following camera and the rhythm of sparse trailer cards; compare the
-      camera's focused subject with the same moment in the draft; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `still-stretch`, `silent-action`, `still-in-fade`, `still-note` and the rest name their film-craft rule); each still opened and compared with its note;
+      camera's focused subject with the same moment in the draft, including fractional trim marks;
+      video material remains visible beneath its captions in every format; the report's `warnings` are empty or each is explained (`caption-lines`, `safe-zone`, `empty-area`, `still-stretch`, `silent-action`, `still-in-fade`, `still-note` and the rest name their film-craft rule); each still opened and compared with its note;
       the stills match their notes; the owner has seen the draft and their remarks are fixed.
 
 ## 7. Final

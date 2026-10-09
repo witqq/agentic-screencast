@@ -2,9 +2,10 @@
 
 These three films combine Report compositions with existing Screencast effects. The values and code are teaching examples, not a recording of a live product. Report owns the editable layout; each film owns its narration and effects.
 
-From a copy of this directory, with coordinated Report and Screencast builds installed:
+From a copy of this directory, with Screencast installed, use Node 24.18 or newer and install Report:
 
 ```sh
+npm install --save-dev agentic-report@0.21.0
 node prepare.mjs
 agentic-screencast build first-edit.md --out first-edit.mp4
 agentic-screencast build theme-color.md --out theme-color.mp4

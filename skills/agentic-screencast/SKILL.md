@@ -64,6 +64,8 @@ Actively select existing effects as part of that arrangement: a full screen in `
 
 ## From a request to a finished film
 
+For draft previews of trimmed takes, read [directed scenes, "Preview the actual portrait window"](../../docs/directed-scenes.md#preview-the-actual-portrait-window), including the material check at fractional marks and preview times.
+
 A request like "make a screencast film about X" or "a film for Y" starts this whole path, in this order. Each step leaves an artifact and ends with a check; do not start the next one before the check passes, and do not hand over anything but the film itself.
 
 As soon as the brief's first question has settled the genre, run `agentic-screencast new <genre>` once, in the film's own folder next to `brief.md` — and run every later command from that folder too: the build cache and every output land under the working directory (`explainer`, `pitch`, `product-demo`, `reel`, `release`, `trailer`; `--lang` and `--format vertical|square` as the brief says): it writes the genre skeleton `story.md`, its pages, and `checklist.md` — the path below as a short list of boxes, followed by the menu of techniques and the list of film-craft rules to consult (no boxes there). Close each box with its evidence (a file, a frame, a number) or `n/a:` with why; hand the film over when `grep -c "\- \[ \]" checklist.md` prints 0.
@@ -118,7 +120,7 @@ Every technique below has a place where it earns attention and a place where it 
 | several languages (`.ru` fields, `[ru]` blocks, `--lang ru`) | the audience speaks more than one language | a translation nobody checked in its own frames |
 | `stills` | every scene with a moment that must be right | — it costs nothing and does not re-render |
 | live capture helpers (`take.clickAt`, `click({force})`, `withFocus`, `withCard`, `mark`; `click: spot | echo` for a quieter or louder click) | the real product must act on screen | a mockup would be dishonest; `overlay.pointer` on existing footage is only a graphic and clicks nothing |
-| a `report` scene | a Report page or a directed mechanism: the scene rebuilds original Markdown; use a specific composition id for its frame and `bN` cues for changes on measured speech, with a coordinated local Report build ([directed scenes](../../docs/directed-scenes.md)) | the page itself should be handed over — send it, not a film of it |
+| a `report` scene | a Report page or a directed mechanism: the scene rebuilds original Markdown; use a specific composition id for its frame and `bN` cues for changes on measured speech; compositions need Report 0.21.0 or newer ([directed scenes](../../docs/directed-scenes.md)) | the page itself should be handed over — send it, not a film of it |
 | a page instead of a film ([agentic-report](https://www.npmjs.com/package/agentic-report)) | the result is read at the reader's own pace: a report, a presentation, a landing, facts and tables; a short film goes into that page from `agentic-screencast web` and its `film.web.json`, and both name the same theme ([theme-tokens map](../../docs/theme-tokens.md)) | the point is motion: a process, a live interface, a change over time — a film carries it and a page does not |
 
 ## Brief first: ask what you cannot infer
