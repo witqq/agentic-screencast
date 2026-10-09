@@ -454,11 +454,16 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
     return f;
   });
   const a = frames("a", A), b = frames("b", B);
-  const mid = [0, 1, 2].map((k) => (A[k]! + B[k]!) / 2) as RGB;
+  // Isolate transition light from the scene mixture. The brightest ring pixel need not
+  // sit exactly on its boundary, where A and B mix equally; saturated channels can
+  // make an off-centre pixel brighter. Black on both sides also keeps every light
+  // channel below clipping, so changing the theme remains observable.
+  const dark = frames("dark", [0, 0, 0]);
   const clampAdd = (base: RGB, add: RGB, k: number): RGB => base.map((v, i) => Math.min(255, v + add[i]! * k)) as RGB;
   for (const { label: name, vars: theme } of VARIANTS) {
-    const run = async (kind: string): Promise<(x: number, y: number) => RGB> => {
-      const got = await renderTransition({ kind, a, b, width: TW, height: TH, out: join(dir, `${name}-${kind}`), theme });
+    const run = async (kind: string, lightOnly = false): Promise<(x: number, y: number) => RGB> => {
+      const got = await renderTransition({ kind, a: lightOnly ? dark : a, b: lightOnly ? dark : b,
+        width: TW, height: TH, out: join(dir, `${name}-${kind}`), theme });
       assert.equal(got.renderer, "webgl");
       return decode(readFileSync(got.frames[4]!), TW).px; // прогресс 4,5/8 ≈ 0,56
     };
@@ -470,12 +475,12 @@ test("transitions light, fill and shade with the incoming scene's theme; colourl
     const fl = hexRgb(theme["--tr-flash"]!), ir = hexRgb(theme["--tr-iris"]!);
     const lit = [0, 1, 2].map((k) => Math.round(A[k]! + ((fl[k]! / 255) * spot * 0.8 + (ir[k]! / 255) * 0.15) * g * (255 - A[k]!))) as RGB;
     check(name, "leak light", "--tr-flash", { got: leak(TW * cx, TH * 0.3), want: lit.map((v) => Math.min(255, v)) as RGB }, 14);
-    // Шов шторки и кольцо круглой маски: самая светлая точка полосы вокруг середины — середина смеси плюс свет темы.
+    // Шов шторки и кольцо маски на чёрном: самая светлая точка — только свет темы.
     for (const [kind, token, amp] of [["wipe", "--tr-seam", Math.sin(Math.PI * p)], ["mask", "--tr-iris", Math.sin(Math.PI * p)]] as const) {
-      const px = await run(kind);
+      const px = await run(kind, true);
       let best: RGB = [0, 0, 0];
       for (let y = TH / 2 - 20; y < TH / 2 + 20; y++) for (let x = 0; x < TW; x++) { const c = px(x, y); if (c[0] + c[1] + c[2] > best[0] + best[1] + best[2]) best = c; }
-      check(name, `${kind} light`, token, { got: best, want: clampAdd(mid, hexRgb(theme[token]!), amp) }, 16);
+      check(name, `${kind} light`, token, { got: best, want: clampAdd([0, 0, 0], hexRgb(theme[token]!), amp) }, 16);
     }
     // Просветы между гранями: у куба над поворачивающейся гранью — заливка темы, а не чёрный.
     const cube = await run("cube");
