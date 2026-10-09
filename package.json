@@ -1,6 +1,6 @@
 {
   "name": "agentic-screencast",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "type": "module",
   "description": "A video-building CLI for AI agents: declarative scenarios, narration, reproducible frames and MP4 output.",
   "author": {

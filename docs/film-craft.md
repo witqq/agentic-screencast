@@ -46,7 +46,7 @@ inside a portrait crop.
 
 ## 7. The camera explains where and how to look
 
-Overview, push-in, freeze, highlight with dimming, slow motion and pull-out are a useful starting vocabulary. Also consider a dolly, orbit, pan, loupe or shared-object transition when it communicates the subject. Keep directions and visual identity coherent rather than restricting every film to the same moves. The push-in answers "where to look" right after an event; the freeze gives time to read a state that has just formed; the highlight dims everything else; slow motion is used where movement outruns the eye; the pull-out closes a part.
+Overview, push-in, freeze, highlight, slow motion and pull-out are a useful starting vocabulary. Also consider a dolly, orbit, pan, loupe or shared-object transition when it communicates the subject. Keep directions and visual identity coherent rather than restricting every film to the same moves. The push-in answers "where to look" right after an event; the freeze gives time to read a state that has just formed; a highlight isolates a subject with dimming or adds emphasis while keeping its relationships readable; slow motion is used where movement outruns the eye; the pull-out closes a part.
 
 Zoom and pan inside the product where possible, so the frame shows a live editor rather than a cropped recording.
 
@@ -116,12 +116,14 @@ still because its material ran out.
 
 **Counter-example.** Seven separate freeze scenes detach explanations from the actions they interpret and can leave seconds of exhausted footage standing still. Use speed holds and overlay.camera within the continuous shot.
 
-## 18. Dimming is the point of a highlight
+## 18. Choose isolation or additive emphasis for the evidence
 
-A neon rectangle over footage says nothing by itself; what directs the eye is the rest of the frame
-going dark. If the tool draws only the ring, the shot reads as decoration.
+A highlight over busy footage can isolate a subject by dimming competing detail. Keep the subject
+and the evidence needed to understand it readable. In diagrams and code, an outline, halo or
+brackets can add emphasis while related objects and labels stay visible; use
+[directed-scene attention guidance](directed-scenes.md) to choose the treatment.
 
-**Counter-example.** A neon ring with dimming disabled decorates the footage without directing attention. Keep the chosen highlight's dim visible and clear of the evidence.
+**Counter-example.** An arbitrary neon ring decorates unrelated footage; a dark mask over a diagram hides the relations being explained. Tie the emphasis to the narrated subject and preserve the context the viewer needs.
 
 ## 19. Screen recording has its own frame budget — measure it
 

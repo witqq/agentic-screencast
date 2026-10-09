@@ -201,7 +201,7 @@ for (const s of pitch.scenes) {
     // Наезд над видео делает сборка фильтром кадра: превью ставит ту же камеру в её положение в
     // этот момент — предметная половина слоя едет с картинкой, экранная стоит поверх.
     const camera = s.overlay && (s.overlay as SceneOverlay).camera?.length
-      ? cameraPerspective((s.overlay as SceneOverlay).camera!, 30, [], at) : null;
+      ? cameraPerspective((s.overlay as SceneOverlay).camera!, pitch.frame?.fps ?? DEFAULTS.fps, take?.path ?? [], at) : null;
     if (s.beats.length || s.overlay || dev) {
       const temp = mkdtempSync(join(tmpdir(), "sc-frame-layer-"));
       try {

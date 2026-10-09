@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync, spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,20 @@ const bounds = (file: string, at?: number): number[] => {
   assert.ok(right>left&&bottom>top, "the named blue subject is visible");
   return [left,top,right,bottom];
 };
+
+test("landscape capture preview follows the recorded cursor like the encoded film", () => {
+ const dir=mkdtempSync(join(tmpdir(),"sc-preview-follow-"));
+ try {
+  execFileSync(ffmpeg,["-nostdin","-y","-loglevel","error","-f","lavfi","-i","color=c=0x17212b:s=640x360:r=10:d=5","-vf","drawbox=x=520:y=100:w=100:h=120:color=blue:t=fill","-pix_fmt","yuv420p",join(dir,"clip.mp4")]);
+  writeFileSync(join(dir,"clip.mp4.marks.json"),JSON.stringify({trimmed:0,marks:{},clicks:[{t:1,x:.3,y:.5}],path:[{t:0,x:.3,y:.5},{t:1.2,x:.3,y:.5},{t:3,x:.9,y:.5},{t:5,x:.9,y:.5}]}));
+  writeFileSync(join(dir,"story.md"),`# F\nvoice: {"engine":"stub","name":"silent"}\nframe: {"width":640,"height":360,"fps":10}\naudio: false\n\n## v · video\nfile: clip.mp4\nduration: 5\nfade: none\nautoZoom: {"scale":3,"hold":4,"follow":"cursor"}\n`);
+  const run=(...args:string[])=>{const r=spawnSync(process.execPath,[entry,...args],{cwd:dir,encoding:"utf8",env:{...process.env,AGENTIC_SCREENCAST_HOME:join(dir,"cache")}});assert.equal(r.status,0,r.stderr.slice(-1000));};
+  run("build","story.md","--out","film.mp4");
+  run("frames","story.md","--scene","v","--at","3.5s","--out","preview.png");
+  const preview=bounds(join(dir,"preview.png")),final=bounds(join(dir,"film.mp4"),3.5);
+  for(let k=0;k<4;k++)assert.ok(Math.abs(preview[k]!-final[k]!)<=3,`following preview ${preview} versus final ${final}`);
+ } finally {rmSync(dir,{recursive:true,force:true});}
+});
 
 test("portrait frames and build retain the same landscape layout, overview and focused bounds",()=>{
  const dir=mkdtempSync(join(tmpdir(),"sc-preview-reframe-"));
