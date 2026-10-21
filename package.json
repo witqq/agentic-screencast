@@ -135,7 +135,7 @@
     "ajv": "8.20.0",
     "oxlint": "1.80.0",
     "typescript": "7.0.2",
-    "vite": "8.2.2"
+    "vite": "8.3.5"
   },
   "peerDependencies": {
     "agentic-report": ">=0.20.0"
